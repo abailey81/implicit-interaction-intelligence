@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>I&#xB3; &mdash; Implicit Interaction Intelligence</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        /* Critical inline styles for instant render */
+        body { background: #1a1a2e; margin: 0; }
+        #app { opacity: 0; transition: opacity 0.3s ease; }
+        #app.ready { opacity: 1; }
+    </style>
+</head>
+<body>
+
+<div id="app">
+
+    <!-- Connection status bar -->
+    <div id="connection-bar" class="connection-bar"></div>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="header-title">
+            <div class="logo-mark">I&#xB3;</div>
+            <h1>Implicit Interaction Intelligence</h1>
+        </div>
+        <div class="header-user">
+            <span class="status-dot"></span>
+            <span>User: Demo</span>
+        </div>
+    </header>
+
+    <!-- Main Grid: Chat + Dashboard -->
+    <div class="main-grid">
+
+        <!-- Left: Chat Panel -->
+        <div class="chat-panel">
+            <div id="chat-messages" class="chat-messages">
+                <!-- Welcome message -->
+                <div class="message ai">
+                    <div class="message-avatar" style="background: #e94560;">I&#xB3;</div>
+                    <div class="message-body">
+                        <div class="message-text">
+                            Welcome to the Implicit Interaction Intelligence demo. I adapt my responses in real-time based on your interaction patterns. Type a message to begin.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Typing indicator -->
+            <div id="typing-indicator" class="typing-indicator">
+                <span></span><span></span><span></span>
+            </div>
+
+            <!-- Chat input -->
+            <div class="chat-input-area">
+                <div class="chat-input-wrap">
+                    <input
+                        id="chat-input"
+                        type="text"
+                        placeholder="Type a message..."
+                        autocomplete="off"
+                        spellcheck="false"
+                    >
+                    <button id="send-btn">Send</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Dashboard Panel -->
+        <div id="dashboard" class="dashboard-panel">
+
+            <!-- User State Embedding -->
+            <div class="dash-section">
+                <div class="dash-section-title">User State</div>
+                <div class="embedding-container">
+                    <canvas id="embedding-canvas"></canvas>
+                </div>
+            </div>
+
+            <!-- Adaptation Gauges -->
+            <div class="dash-section adaptation">
+                <div class="dash-section-title">Adaptation</div>
+                <div class="gauge-container">
+                    <!-- Gauges are created dynamically by Dashboard.init() -->
+                </div>
+            </div>
+
+            <!-- Routing -->
+            <div class="dash-section routing">
+                <div class="dash-section-title">Routing</div>
+                <div class="gauge-container">
+                    <!-- Edge/Cloud gauges created dynamically -->
+                </div>
+                <div class="routing-decision">
+                    Decision: <span class="route-label">Waiting...</span>
+                </div>
+            </div>
+
+            <!-- Engagement -->
+            <div class="dash-section engagement">
+                <div class="dash-section-title">Engagement</div>
+                <div class="engagement-grid">
+                    <div class="engagement-card" data-metric="score">
+                        <div class="card-label">Score</div>
+                        <div class="card-value score">0.00</div>
+                    </div>
+                    <div class="engagement-card" data-metric="deviation">
+                        <div class="card-label">Deviation</div>
+                        <div class="card-value deviation">+0.000</div>
+                    </div>
+                    <div class="engagement-card" data-metric="messages">
+                        <div class="card-label">Messages</div>
+                        <div class="card-value count">0</div>
+                    </div>
+                    <div class="engagement-card" data-metric="baseline">
+                        <div class="card-label">Baseline</div>
+                        <div class="card-value baseline">
+                            <span class="baseline-no">Warming up...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Diary Panel (collapsible) -->
+    <div id="diary" class="diary-panel">
+        <div class="diary-header">
+            <h3>Interaction Diary</h3>
+            <span class="diary-toggle">&#9660;</span>
+        </div>
+        <div class="diary-entries"></div>
+    </div>
+
+</div>
+
+<!-- JavaScript modules (order matters: dependencies first) -->
+<script src="/static/js/websocket.js"></script>
+<script src="/static/js/chat.js"></script>
+<script src="/static/js/dashboard.js"></script>
+<script src="/static/js/embedding_viz.js"></script>
+<script src="/static/js/app.js"></script>
+<script>
+    // Reveal app after all modules are loaded
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('app').classList.add('ready');
+    });
+</script>
+
+</body>
+</html>
