@@ -23,11 +23,45 @@ import json
 import logging
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import aiosqlite
 
+if TYPE_CHECKING:
+    import torch
+
+    from i3.privacy.encryption import ModelEncryptor
+
 logger = logging.getLogger(__name__)
+
+# SEC: Envelope format for encrypted user_state_embedding blobs.
+#   byte 0       — version/flag:  0x00 = plaintext, 0x01 = Fernet-encrypted
+#   bytes 1..N   — payload
+# Mirrors the format used by :mod:`i3.user_model.store` so tooling can
+# detect encryption by inspecting the first byte of any embedding column.
+_ENC_VERSION_PLAINTEXT = 0x00
+_ENC_VERSION_FERNET_V1 = 0x01
+
+
+def encrypt_embedding_envelope(
+    tensor: "torch.Tensor",
+    encryptor: "ModelEncryptor | None",
+) -> bytes:
+    """Encode a 1-D torch tensor as a versioned envelope for persistence.
+
+    When *encryptor* is provided, the payload is Fernet-encrypted. Otherwise
+    a plaintext envelope (still versioned) is produced so the read path is
+    uniform.  This helper exists at module scope so :class:`Pipeline` can
+    invoke it without pulling the store's full async machinery into the
+    hot path.
+    """
+    import numpy as np  # local to avoid numpy as a hard store-import dep
+
+    if encryptor is None:
+        raw = tensor.detach().cpu().numpy().astype(np.float32).tobytes()
+        return bytes([_ENC_VERSION_PLAINTEXT]) + raw
+    payload = encryptor.encrypt_embedding(tensor)
+    return bytes([_ENC_VERSION_FERNET_V1]) + payload
 
 
 class DiaryStore:
@@ -49,9 +83,19 @@ class DiaryStore:
         Parent directories must already exist.
     """
 
-    def __init__(self, db_path: str = "data/diary.db") -> None:
+    def __init__(
+        self,
+        db_path: str = "data/diary.db",
+        encryptor: "ModelEncryptor | None" = None,
+    ) -> None:
         self.db_path = db_path
         self._initialized = False
+        # SEC: When a ModelEncryptor is supplied, the caller is responsible
+        # for calling :meth:`encrypt_embedding_envelope` before passing bytes
+        # to :meth:`log_exchange`.  The store itself does not touch tensors —
+        # but it documents the envelope format so auditors can verify the
+        # privacy contract end-to-end.
+        self._encryptor = encryptor
 
     # ------------------------------------------------------------------
     # Lifecycle

@@ -120,6 +120,7 @@ class Pipeline:
         from i3.cloud.prompt_builder import PromptBuilder
         from i3.cloud.postprocess import ResponsePostProcessor
         from i3.diary.store import DiaryStore
+        from i3.privacy.encryption import ModelEncryptor
         from i3.privacy.sanitizer import PrivacySanitizer
 
         # ---- Interaction monitoring --------------------------------------
@@ -153,12 +154,42 @@ class Pipeline:
         self.prompt_builder = PromptBuilder()
         self.postprocessor = ResponsePostProcessor()
 
-        # ---- Diary -------------------------------------------------------
-        self.diary_store = DiaryStore(config.diary.db_path)
-        self._diary_logger: Optional[Any] = None  # After store init
-
         # ---- Privacy -----------------------------------------------------
         self.sanitizer = PrivacySanitizer(config.privacy.strip_pii)
+
+        # SEC: Instantiate the embedding encryptor whenever the config
+        # enables encryption at rest. When no key is available, the
+        # encryptor warns and falls back to an ephemeral key; the pipeline
+        # still routes embeddings through the versioned envelope format
+        # so operators can retrofit a real key later without a migration.
+        self._encryptor: Optional[ModelEncryptor] = None
+        if getattr(config.privacy, "encrypt_embeddings", False):
+            try:
+                self._encryptor = ModelEncryptor(
+                    key_env_var=getattr(
+                        config.privacy, "encryption_key_env", "I3_ENCRYPTION_KEY"
+                    )
+                )
+                self._encryptor.initialize()
+                logger.info(
+                    "Embedding encryption ENABLED; stores will write Fernet envelopes."
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.error(
+                    "Failed to initialise ModelEncryptor (%s); embeddings will "
+                    "be written plaintext. Set I3_ENCRYPTION_KEY to enable "
+                    "encryption at rest.",
+                    type(exc).__name__,
+                )
+                self._encryptor = None
+
+        # ---- Diary -------------------------------------------------------
+        # SEC: DiaryStore receives the same encryptor so per-exchange embeddings
+        # are written via the versioned envelope.
+        self.diary_store = DiaryStore(
+            config.diary.db_path, encryptor=self._encryptor
+        )
+        self._diary_logger: Optional[Any] = None  # After store init
 
         # ---- Engagement tracking (per-user) ------------------------------
         self._last_response_time: dict[str, float] = {}
@@ -821,7 +852,16 @@ class Pipeline:
         caller.
         """
         try:
-            embedding_bytes = user_state_embedding.detach().cpu().numpy().tobytes()
+            # SEC: Route the embedding through the versioned encryption
+            # envelope so that when a ModelEncryptor is configured, the
+            # per-exchange state embedding is Fernet-encrypted at rest.
+            # Falls back to a plaintext (still versioned) envelope when no
+            # encryptor is attached.
+            from i3.diary.store import encrypt_embedding_envelope
+
+            embedding_bytes = encrypt_embedding_envelope(
+                user_state_embedding, self._encryptor
+            )
             adaptation_dict = adaptation.to_dict()
 
             # Extract lightweight topic keywords (no raw text stored)

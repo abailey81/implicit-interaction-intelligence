@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import asyncio
 import math
+import threading
 import time
 from dataclasses import dataclass, field
 from typing import Optional
@@ -96,18 +97,36 @@ class InteractionMonitor:
         self._expected_session_length = expected_session_length
         self._sessions: dict[str, _UserSession] = {}
         self._extractor = FeatureExtractor()
+        # SEC: class-level lock around the dict mutation below — prevents
+        # two concurrent first-time keystroke calls for the same user_id
+        # from each constructing a _UserSession and clobbering each other.
+        # Mirrors the asyncio.Lock pattern in Pipeline._aget_or_create_user_model.
+        self._sessions_lock = threading.Lock()
 
     # ------------------------------------------------------------------ #
     # Session management                                                   #
     # ------------------------------------------------------------------ #
 
     def _get_or_create_session(self, user_id: str) -> _UserSession:
-        """Return the session for *user_id*, creating one if necessary."""
-        if user_id not in self._sessions:
-            self._sessions[user_id] = _UserSession(
-                baseline=BaselineTracker(warmup=self._baseline_warmup),
-            )
-        return self._sessions[user_id]
+        """Return the session for *user_id*, creating one if necessary.
+
+        Thread-safe via double-checked locking: the fast path avoids the
+        lock when the session already exists; the slow path acquires the
+        lock, re-checks, and creates if still missing.
+        """
+        # Fast path — no lock if already present
+        session = self._sessions.get(user_id)
+        if session is not None:
+            return session
+        # SEC: slow path under lock prevents lost-update race
+        with self._sessions_lock:
+            session = self._sessions.get(user_id)
+            if session is None:
+                session = _UserSession(
+                    baseline=BaselineTracker(warmup=self._baseline_warmup),
+                )
+                self._sessions[user_id] = session
+            return session
 
     # ------------------------------------------------------------------ #
     # Keystroke processing                                                 #

@@ -22,6 +22,13 @@ import torch
 
 from i3.user_model.types import UserProfile
 
+# SEC: Optional encryption primitive — imported lazily via attribute access
+# in __init__ so this module still imports in tests that don't need it.
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from i3.privacy.encryption import ModelEncryptor
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -113,6 +120,79 @@ def _bytes_to_tensor(data: bytes, dim: int = _EMBEDDING_DIM) -> torch.Tensor:
     return torch.from_numpy(arr.reshape(dim))
 
 
+# SEC: Encryption envelope format:
+#   byte 0       — version/flag:  0x00 = plaintext, 0x01 = Fernet-encrypted
+#   bytes 1..N   — payload (either raw float32 bytes or Fernet token)
+#
+# This single-byte prefix lets us:
+#   1. Migrate legacy plaintext databases transparently (old rows have no
+#      prefix; len check still catches them as plaintext at the legacy path)
+#   2. Support key rotation via MultiFernet without schema changes
+#   3. Fail closed on mismatched ciphertexts rather than silently corrupting
+_ENC_VERSION_PLAINTEXT = 0x00
+_ENC_VERSION_FERNET_V1 = 0x01
+
+
+def _maybe_encrypt_embedding(
+    tensor: torch.Tensor,
+    encryptor: "ModelEncryptor | None",
+) -> bytes:
+    """Encrypt a 1-D embedding tensor if an encryptor is provided.
+
+    Returns a versioned envelope: 1 byte flag + payload. When no encryptor
+    is supplied, emits a plaintext envelope (flag 0x00) so reads remain
+    symmetric and future migration stays straightforward.
+    """
+    if encryptor is None:
+        return bytes([_ENC_VERSION_PLAINTEXT]) + _tensor_to_bytes(tensor)
+    try:
+        payload = encryptor.encrypt_embedding(tensor)
+    except Exception as exc:  # noqa: BLE001
+        raise ProfileSerializationError(
+            f"Failed to encrypt embedding: {type(exc).__name__}"
+        ) from exc
+    return bytes([_ENC_VERSION_FERNET_V1]) + payload
+
+
+def _maybe_decrypt_embedding(
+    data: bytes,
+    dim: int,
+    encryptor: "ModelEncryptor | None",
+) -> torch.Tensor:
+    """Decrypt a versioned embedding envelope produced by :func:`_maybe_encrypt_embedding`.
+
+    Handles three cases:
+      1. New envelope with plaintext flag (0x00)
+      2. New envelope with Fernet flag (0x01) — requires *encryptor*
+      3. Legacy raw bytes with no prefix (detected by matching expected length)
+    """
+    expected_raw_len = dim * 4  # float32 = 4 bytes
+    # Legacy plaintext path — no version byte
+    if len(data) == expected_raw_len:
+        return _bytes_to_tensor(data, dim)
+    if len(data) < 1:
+        raise ProfileSerializationError("Empty embedding blob")
+    version = data[0]
+    payload = data[1:]
+    if version == _ENC_VERSION_PLAINTEXT:
+        return _bytes_to_tensor(payload, dim)
+    if version == _ENC_VERSION_FERNET_V1:
+        if encryptor is None:
+            raise ProfileSerializationError(
+                "Embedding is Fernet-encrypted but no encryptor is configured. "
+                "Set I3_ENCRYPTION_KEY and provide a ModelEncryptor to the store."
+            )
+        try:
+            return encryptor.decrypt_embedding(payload, dim=dim)
+        except Exception as exc:  # noqa: BLE001
+            raise ProfileSerializationError(
+                f"Failed to decrypt embedding: {type(exc).__name__}"
+            ) from exc
+    raise ProfileSerializationError(
+        f"Unknown embedding envelope version: {version:#04x}"
+    )
+
+
 def _dict_to_json(d: dict | None) -> str | None:
     """Serialize a dict to a JSON string, or ``None``."""
     if d is None:
@@ -153,11 +233,25 @@ class UserModelStore:
     Args:
         db_path: Path to the SQLite database file.  Parent directories
             are created if they do not exist.
+        encryptor: Optional :class:`~i3.privacy.encryption.ModelEncryptor`.
+            When supplied, baseline embeddings are Fernet-encrypted at
+            rest via a versioned envelope. When ``None`` (the default),
+            embeddings are written as plaintext float32 bytes — the legacy
+            behaviour. Legacy rows written before the envelope format was
+            introduced are read transparently.
     """
 
-    def __init__(self, db_path: str | Path) -> None:
+    def __init__(
+        self,
+        db_path: str | Path,
+        encryptor: "ModelEncryptor | None" = None,
+    ) -> None:
         self._db_path = Path(db_path)
         self._db: Optional[aiosqlite.Connection] = None
+        # SEC: When set, baseline embeddings are encrypted at rest via
+        # Fernet before being written to SQLite. The versioned envelope
+        # format lets legacy plaintext rows be read transparently.
+        self._encryptor = encryptor
 
     # -- Context manager ---------------------------------------------------
 
@@ -260,8 +354,10 @@ class UserModelStore:
                     else None
                 )
                 dim = int(stored_dim) if stored_dim else _EMBEDDING_DIM
-                baseline_embedding = _bytes_to_tensor(
-                    row["baseline_embedding"], dim=dim
+                # SEC: versioned envelope with transparent legacy fallback;
+                # decrypts automatically when a ModelEncryptor is attached.
+                baseline_embedding = _maybe_decrypt_embedding(
+                    row["baseline_embedding"], dim=dim, encryptor=self._encryptor
                 )
 
             # Deserialize dicts
@@ -313,7 +409,12 @@ class UserModelStore:
             baseline_blob: bytes | None = None
             baseline_dim: int | None = None
             if profile.baseline_embedding is not None:
-                baseline_blob = _tensor_to_bytes(profile.baseline_embedding)
+                # SEC: write through the envelope helper so embeddings are
+                # Fernet-encrypted at rest whenever an encryptor is attached.
+                # Falls back to plaintext envelope (still versioned) when not.
+                baseline_blob = _maybe_encrypt_embedding(
+                    profile.baseline_embedding, self._encryptor
+                )
                 # SEC: Persist the embedding dimension alongside the bytes so
                 # the store survives encoder-dim changes without corruption.
                 baseline_dim = int(profile.baseline_embedding.numel())
