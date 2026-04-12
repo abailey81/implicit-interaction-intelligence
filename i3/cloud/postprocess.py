@@ -59,11 +59,20 @@ _SIMPLIFICATION_MAP: dict[str, str] = {
     "comprehend": "understand",
 }
 
-# Sentence-boundary pattern: split on . ! ? followed by whitespace or end-of-string,
-# but avoid splitting on common abbreviations (e.g., "Dr.", "Mr.", "e.g.").
-_SENTENCE_BOUNDARY_RE = re.compile(
-    r"(?<!\b(?:Mr|Mrs|Ms|Dr|Prof|Jr|Sr|vs|etc|e\.g|i\.e))"
-    r"(?<=[.!?])\s+"
+# SEC: Sentence-boundary pattern.  We split on `.`, `!`, or `?` followed
+# by whitespace.  CPython's stdlib :mod:`re` module requires
+# *fixed-width* lookbehind assertions, so the previous variable-width
+# pattern raised :class:`re.error` at import time on every supported
+# Python version (3.10 / 3.11 / 3.12).  Instead we split unconditionally
+# and use :data:`_ABBREVIATIONS` in :meth:`_split_sentences` to merge
+# sentences that were split right after a known abbreviation.
+_SENTENCE_BOUNDARY_RE = re.compile(r"(?<=[.!?])\s+")
+
+# Common abbreviations whose trailing dot must NOT be treated as a
+# sentence boundary.  Stored without the trailing dot for cheap
+# `endswith()` checking.
+_ABBREVIATIONS: frozenset[str] = frozenset(
+    {"Mr.", "Mrs.", "Ms.", "Dr.", "Prof.", "Jr.", "Sr.", "vs.", "etc.", "e.g.", "i.e."}
 )
 
 
@@ -220,8 +229,11 @@ class ResponsePostProcessor:
     def _split_sentences(text: str) -> list[str]:
         """Split text into sentences using regex boundary detection.
 
-        Handles common abbreviations to avoid false splits.  Each
-        returned sentence is stripped of leading/trailing whitespace.
+        Handles common abbreviations (``Mr.``, ``Dr.``, ``e.g.`` etc.)
+        by post-merging fragments that ended with an abbreviation rather
+        than a real sentence terminator.  This sidesteps CPython's
+        fixed-width-lookbehind restriction in :mod:`re` while preserving
+        the original semantics.
 
         Args:
             text: The input text.
@@ -229,5 +241,24 @@ class ResponsePostProcessor:
         Returns:
             A list of sentence strings.  Empty strings are excluded.
         """
-        raw_sentences = _SENTENCE_BOUNDARY_RE.split(text.strip())
-        return [s.strip() for s in raw_sentences if s.strip()]
+        if not isinstance(text, str) or not text.strip():
+            return []
+
+        raw = [
+            s.strip()
+            for s in _SENTENCE_BOUNDARY_RE.split(text.strip())
+            if s.strip()
+        ]
+
+        # Merge fragments that end with a known abbreviation back onto
+        # the following fragment, e.g. ["Hi Dr.", "Smith.", "How are you?"]
+        # -> ["Hi Dr. Smith.", "How are you?"].
+        merged: list[str] = []
+        for fragment in raw:
+            if merged and any(
+                merged[-1].endswith(abbr) for abbr in _ABBREVIATIONS
+            ):
+                merged[-1] = merged[-1] + " " + fragment
+            else:
+                merged.append(fragment)
+        return merged

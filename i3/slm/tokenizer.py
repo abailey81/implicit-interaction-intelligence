@@ -79,16 +79,34 @@ class SimpleTokenizer:
         Args:
             texts: List of raw text strings (documents / sentences).
         """
+        # SEC: Validate input type to fail fast on misuse.
+        if texts is None:
+            texts = []
+        if not isinstance(texts, (list, tuple)):
+            raise TypeError(
+                f"texts must be a list/tuple of str, got {type(texts).__name__}"
+            )
+
         # 1. Initialise special tokens at fixed positions.
+        # SEC: Iterate over a tuple snapshot of SPECIAL_TOKENS so the class
+        # constant cannot be mutated by accident through the loop variable.
         self.token_to_id = {}
         self.id_to_token = {}
-        for idx, token in enumerate(self.SPECIAL_TOKENS):
+        for idx, token in enumerate(tuple(self.SPECIAL_TOKENS)):
             self.token_to_id[token] = idx
             self.id_to_token[idx] = token
 
         # 2. Count word frequencies across the entire corpus.
+        # SEC: build_vocab() does NOT mutate the input list — _preprocess
+        # operates on each string and never writes back to `texts`.
         freq: Counter[str] = Counter()
         for text in texts:
+            if text is None:
+                continue
+            if not isinstance(text, str):
+                raise TypeError(
+                    f"each item in texts must be str, got {type(text).__name__}"
+                )
             tokens = self._preprocess(text)
             freq.update(tokens)
 
@@ -160,6 +178,10 @@ class SimpleTokenizer:
     # Encoding
     # ------------------------------------------------------------------
 
+    # SEC: Hard upper bound on input text length to prevent
+    # memory exhaustion from a single colossal string (DoS protection).
+    MAX_INPUT_CHARS: int = 10_000_000  # 10 MB of text
+
     def encode(
         self,
         text: str,
@@ -191,6 +213,24 @@ class SimpleTokenizer:
                 "Vocabulary has not been built. Call build_vocab() first."
             )
 
+        # SEC: Type and length validation. Refuse non-strings (would crash
+        # later inside the regex) and refuse pathologically large inputs
+        # which could OOM the worker. None becomes empty list.
+        if text is None:
+            text = ""
+        if not isinstance(text, str):
+            raise TypeError(
+                f"text must be str, got {type(text).__name__}"
+            )
+        if len(text) > self.MAX_INPUT_CHARS:
+            raise ValueError(
+                f"text length ({len(text)}) exceeds MAX_INPUT_CHARS "
+                f"({self.MAX_INPUT_CHARS})"
+            )
+        # SEC: max_length validation — must be positive when set.
+        if max_length is not None and max_length < 0:
+            raise ValueError(f"max_length must be >= 0, got {max_length}")
+
         tokens = self._preprocess(text)
         ids = [self.token_to_id.get(t, self.UNK_ID) for t in tokens]
 
@@ -199,8 +239,12 @@ class SimpleTokenizer:
 
         # Truncate if necessary.
         if max_length is not None and len(ids) > max_length:
-            if add_special and max_length >= 1:
-                # Keep [EOS] at the end after truncation.
+            # SEC: Special-case max_length == 0 — return empty even if
+            # add_special would otherwise insert BOS/EOS.
+            if max_length == 0:
+                ids = []
+            elif add_special and max_length >= 2:
+                # Keep BOS at start AND [EOS] at the end after truncation.
                 ids = ids[: max_length - 1] + [self.EOS_ID]
             else:
                 ids = ids[:max_length]
@@ -226,13 +270,27 @@ class SimpleTokenizer:
                           SEP, UNK) from the output.
 
         Returns:
-            Decoded text string with tokens joined by spaces.
+            Decoded text string with tokens joined by spaces. Out-of-range
+            or unknown ids are rendered as ``[UNK]`` rather than crashing.
         """
+        # SEC: Defensive type check — refuse non-iterable input early
+        # rather than crashing inside the loop with a confusing message.
+        if ids is None:
+            return ""
         special_ids = set(range(len(self.SPECIAL_TOKENS)))
         tokens: list[str] = []
         for token_id in ids:
+            # SEC: Coerce numpy / torch ints to plain Python int so dict
+            # lookup works as expected.
+            try:
+                token_id = int(token_id)
+            except (TypeError, ValueError):
+                tokens.append("[UNK]")
+                continue
             if skip_special and token_id in special_ids:
                 continue
+            # SEC: id_to_token.get() handles out-of-range ids gracefully
+            # by returning "[UNK]" — never raises IndexError.
             token = self.id_to_token.get(token_id, "[UNK]")
             tokens.append(token)
         return " ".join(tokens)
@@ -314,12 +372,63 @@ class SimpleTokenizer:
 
         Raises:
             FileNotFoundError: If *path* does not exist.
+            ValueError: If the JSON schema is invalid or special tokens are
+                        missing / mis-indexed.
         """
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
-        tokenizer = cls(vocab_size=data["vocab_size"])
-        tokenizer.token_to_id = data["token_to_id"]
+        # SEC: Strict schema validation. A maliciously crafted or corrupted
+        # vocab JSON could otherwise produce a silently broken tokenizer
+        # that mis-indexes special tokens, drops [PAD] from index 0, or
+        # introduces duplicate ids that crash later inside the model.
+        if not isinstance(data, dict):
+            raise ValueError(
+                f"Tokenizer JSON must be an object, got {type(data).__name__}"
+            )
+        if "vocab_size" not in data or "token_to_id" not in data:
+            raise ValueError(
+                "Tokenizer JSON missing required keys: 'vocab_size', 'token_to_id'"
+            )
+        vocab_size = data["vocab_size"]
+        token_to_id = data["token_to_id"]
+        if not isinstance(vocab_size, int) or vocab_size < len(cls.SPECIAL_TOKENS):
+            raise ValueError(
+                f"Invalid vocab_size: {vocab_size!r}"
+            )
+        if not isinstance(token_to_id, dict):
+            raise ValueError(
+                f"token_to_id must be a dict, got {type(token_to_id).__name__}"
+            )
+        # SEC: Verify every value is a non-negative int strictly less
+        # than vocab_size, and that there are no duplicate ids.
+        seen_ids: set[int] = set()
+        for tok, tid in token_to_id.items():
+            if not isinstance(tok, str):
+                raise ValueError(
+                    f"token_to_id key must be str, got {type(tok).__name__}"
+                )
+            if not isinstance(tid, int) or tid < 0 or tid >= vocab_size:
+                raise ValueError(
+                    f"token_to_id[{tok!r}] = {tid!r} out of range [0, {vocab_size})"
+                )
+            if tid in seen_ids:
+                raise ValueError(
+                    f"Duplicate token id {tid} for token {tok!r}"
+                )
+            seen_ids.add(tid)
+        # SEC: Verify special tokens occupy their reserved indices exactly.
+        for idx, special in enumerate(cls.SPECIAL_TOKENS):
+            if token_to_id.get(special) != idx:
+                raise ValueError(
+                    f"Special token {special!r} must be at index {idx}, "
+                    f"got {token_to_id.get(special)!r}"
+                )
+
+        tokenizer = cls(vocab_size=vocab_size)
+        # SEC: Defensive copy so external mutation of `data` after load
+        # cannot affect the tokenizer state.
+        tokenizer.token_to_id = dict(token_to_id)
         # JSON keys are always strings; id_to_token needs int keys.
         tokenizer.id_to_token = {
             int(v): k for k, v in tokenizer.token_to_id.items()

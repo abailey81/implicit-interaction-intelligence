@@ -325,6 +325,34 @@ class ConditioningProjector(nn.Module):
                                  Shape: [batch, n_tokens, d_model]  (default [batch, 4, 256])
                                  These are used as both K and V in MultiHeadCrossAttention.
         """
+        # SEC: Validate input shapes — fail-fast on misuse rather than
+        # producing nonsense conditioning tokens.
+        if adaptation_vector.dim() != 2:
+            raise ValueError(
+                f"adaptation_vector must be 2D [batch, adaptation_dim], "
+                f"got shape {tuple(adaptation_vector.shape)}"
+            )
+        if user_state_embedding.dim() != 2:
+            raise ValueError(
+                f"user_state_embedding must be 2D [batch, user_state_dim], "
+                f"got shape {tuple(user_state_embedding.shape)}"
+            )
+        if adaptation_vector.size(-1) != self.adaptation_dim:
+            raise ValueError(
+                f"adaptation_vector last dim {adaptation_vector.size(-1)} "
+                f"!= adaptation_dim {self.adaptation_dim}"
+            )
+        if user_state_embedding.size(-1) != self.user_state_dim:
+            raise ValueError(
+                f"user_state_embedding last dim {user_state_embedding.size(-1)} "
+                f"!= user_state_dim {self.user_state_dim}"
+            )
+        if adaptation_vector.size(0) != user_state_embedding.size(0):
+            raise ValueError(
+                f"batch size mismatch: adaptation_vector={adaptation_vector.size(0)}, "
+                f"user_state_embedding={user_state_embedding.size(0)}"
+            )
+
         # Concatenate adaptation targets with user state context
         # [batch, 8] || [batch, 64] -> [batch, 72]
         combined: torch.Tensor = torch.cat(

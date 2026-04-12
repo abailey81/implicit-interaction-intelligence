@@ -142,7 +142,27 @@ def main() -> None:
         default=42,
         help="Random seed.",
     )
+    parser.add_argument(
+        "--device",
+        type=str,
+        default=None,
+        choices=["cpu", "cuda", "mps"],
+        help="Device override (cpu, cuda, mps). Auto-detects if not set.",
+    )
     args = parser.parse_args()
+
+    # SEC: bound-check numeric CLI arguments to catch obviously bad inputs
+    # (e.g. negative epochs, zero batch size) before any heavy work runs.
+    if args.batch_size <= 0:
+        parser.error("--batch-size must be a positive integer")
+    if args.epochs is not None and args.epochs <= 0:
+        parser.error("--epochs must be a positive integer")
+    if args.lr is not None and args.lr <= 0:
+        parser.error("--lr must be a positive float")
+    if args.temperature <= 0:
+        parser.error("--temperature must be a positive float")
+    if args.patience < 0:
+        parser.error("--patience must be non-negative")
 
     # -- Logging --------------------------------------------------------------
     logging.basicConfig(
@@ -151,8 +171,10 @@ def main() -> None:
     )
 
     # -- Config ---------------------------------------------------------------
-    config_path = Path(args.config)
-    if config_path.exists():
+    # SEC: resolve the config path so log messages and downstream code see
+    # the absolute path; YAML is parsed via yaml.safe_load (no code exec).
+    config_path = Path(args.config).resolve()
+    if config_path.exists() and config_path.is_file():
         cfg = load_config(config_path)
         enc_cfg = cfg.get("encoder", {})
     else:
@@ -160,13 +182,29 @@ def main() -> None:
         enc_cfg = {}
 
     # -- Seed -----------------------------------------------------------------
+    # SEC: seed every RNG framework we use (Python random, NumPy, torch)
+    # so the data shuffling, augmentation noise, and weight init are all
+    # reproducible from a single seed.
     seed = args.seed
+    import random as _py_random
+
+    import numpy as _np
+    _py_random.seed(seed)
+    _np.random.seed(seed)
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
 
     # -- Device ---------------------------------------------------------------
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # Detection priority: explicit override > CUDA > MPS (Apple Silicon) > CPU.
+    if args.device:
+        device = torch.device(args.device)
+    elif torch.cuda.is_available():
+        device = torch.device("cuda")
+    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
     logger.info("Device: %s", device)
 
     # -- Data -----------------------------------------------------------------

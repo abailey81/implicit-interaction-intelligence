@@ -170,6 +170,18 @@ class Pipeline:
         # ---- Pipeline state ----------------------------------------------
         self._initialized = False
 
+        # SEC: Track fire-and-forget tasks in a set so they are not garbage-
+        # collected mid-flight (Python GC can drop unreferenced tasks, which
+        # silently cancels them and loses their exceptions). See PEP 3156 and
+        # https://docs.python.org/3/library/asyncio-task.html#asyncio.create_task
+        self._background_tasks: set[asyncio.Task[Any]] = set()
+
+        # SEC: asyncio.Lock guarding mutation of self.user_models. Without it,
+        # two concurrent process_message() calls for a *new* user could each
+        # construct a UserModel and the second would clobber the first, losing
+        # any state mutations that happened on the first instance.
+        self._user_models_lock = asyncio.Lock()
+
     # ------------------------------------------------------------------
     # Lifecycle
     # ------------------------------------------------------------------
@@ -207,10 +219,50 @@ class Pipeline:
     async def shutdown(self) -> None:
         """Release resources held by the pipeline.
 
-        Closes the cloud HTTP client and any other open connections.
+        Closes the cloud HTTP client, the diary store connection, and
+        drains any in-flight background tasks (diary writes, etc.).
         Safe to call multiple times.
         """
-        await self.cloud_client.close()
+        # SEC: Drain background tasks before closing dependencies, otherwise
+        # an in-flight diary write could race against diary_store.close().
+        # We give them a brief grace period, then cancel any stragglers.
+        if self._background_tasks:
+            pending = list(self._background_tasks)
+            logger.info(
+                "Awaiting %d in-flight background task(s) before shutdown.",
+                len(pending),
+            )
+            try:
+                done, still_pending = await asyncio.wait(
+                    pending, timeout=5.0
+                )
+                for task in still_pending:
+                    task.cancel()
+                if still_pending:
+                    # Allow cancellations to propagate; suppress CancelledError.
+                    await asyncio.gather(*still_pending, return_exceptions=True)
+            except Exception:
+                logger.exception(
+                    "Error while draining background tasks during shutdown."
+                )
+
+        # SEC: Close cloud HTTP client (httpx connection pool).
+        try:
+            await self.cloud_client.close()
+        except Exception:
+            logger.exception("Error closing cloud_client during shutdown.")
+
+        # SEC: Close DiaryStore (SQLite/aiosqlite connection). Previously this
+        # was leaked on shutdown.
+        try:
+            close_diary = getattr(self.diary_store, "close", None)
+            if close_diary is not None:
+                result = close_diary()
+                if asyncio.iscoroutine(result):
+                    await result
+        except Exception:
+            logger.exception("Error closing diary_store during shutdown.")
+
         self._initialized = False
         logger.info("Pipeline shut down.")
 
@@ -332,6 +384,13 @@ class Pipeline:
         and returns a :class:`PipelineOutput` containing the response and
         all state updates for the frontend dashboard.
 
+        SEC: This method NEVER returns ``None`` and only raises
+        :class:`RuntimeError` (when the pipeline is uninitialised).
+        Any other exception during processing is caught at the outer
+        boundary and converted into an error-marked
+        :class:`PipelineOutput` so the calling FastAPI handler can
+        always serialise a response.
+
         Args:
             input: A :class:`PipelineInput` carrying the raw message,
                 keystroke timing data, and session metadata.
@@ -346,6 +405,27 @@ class Pipeline:
         self._ensure_initialized()
         start_time = time.perf_counter()
 
+        try:
+            return await self._process_message_inner(input, start_time)
+        except asyncio.CancelledError:
+            # SEC: Never swallow CancelledError - propagate so the event
+            # loop can shut down cleanly.
+            raise
+        except Exception as exc:
+            # SEC: Never return None on error. Build a degraded
+            # PipelineOutput so callers always have a serialisable result.
+            logger.exception(
+                "process_message failed for user_id=%s session_id=%s",
+                input.user_id,
+                input.session_id,
+            )
+            latency_ms = (time.perf_counter() - start_time) * 1000.0
+            return self._build_error_output(latency_ms, exc)
+
+    async def _process_message_inner(
+        self, input: PipelineInput, start_time: float
+    ) -> PipelineOutput:
+        """Inner pipeline implementation, wrapped by :meth:`process_message`."""
         # ---- Step 1: Extract interaction features ------------------------
         features = await self.monitor.process_message(
             user_id=input.user_id,
@@ -361,7 +441,13 @@ class Pipeline:
 
         # ---- Step 2: Encode user state via TCN ---------------------------
         feature_window = await self.monitor.get_feature_window(input.user_id)
-        user_state_embedding = self._encode_features(feature_window)
+        # SEC: TCN encoder is sync + CPU-heavy (PyTorch forward pass).
+        # Run it in the default thread-pool executor so it does not block
+        # the event loop and starve other concurrent users.
+        loop = asyncio.get_running_loop()
+        user_state_embedding = await loop.run_in_executor(
+            None, self._encode_features, feature_window
+        )
         embedding_2d = self._project_2d(user_state_embedding)
         logger.debug(
             "Step 2 complete: 64-dim embedding -> 2D projection (%.3f, %.3f)",
@@ -370,7 +456,7 @@ class Pipeline:
         )
 
         # ---- Step 3: Update user model -----------------------------------
-        user_model = self._get_or_create_user_model(input.user_id)
+        user_model = await self._aget_or_create_user_model(input.user_id)
         if user_model.current_session is None:
             # Auto-start session if the caller forgot
             user_model.start_session()
@@ -444,7 +530,11 @@ class Pipeline:
         latency_ms = (time.perf_counter() - start_time) * 1000.0
 
         # ---- Step 8: Log exchange to diary (async, fire-and-forget) ------
-        asyncio.create_task(
+        # SEC: Track the task in self._background_tasks so it cannot be
+        # garbage-collected mid-flight (PEP 3156 / asyncio docs warning).
+        # The done callback removes the task from the set and logs any
+        # exception that escaped _log_exchange_safe's own try/except.
+        log_task = asyncio.create_task(
             self._log_exchange_safe(
                 session_id=input.session_id,
                 user_state_embedding=user_state_embedding,
@@ -455,6 +545,8 @@ class Pipeline:
                 message_text=input.message_text,
             )
         )
+        self._background_tasks.add(log_task)
+        log_task.add_done_callback(self._background_task_done)
 
         # ---- Step 9: Update engagement tracking --------------------------
         self._last_response_time[input.user_id] = time.time()
@@ -465,19 +557,38 @@ class Pipeline:
 
         # ---- Build output ------------------------------------------------
         session = user_model.current_session
+        # SEC: Clamp engagement_score to [0, 1] - the user model's
+        # engagement_score property is computed from EMAs that *should*
+        # stay in range but a regression upstream must not corrupt the
+        # API contract.
+        raw_engagement = float(getattr(user_model, "engagement_score", 0.0))
+        engagement_score = max(0.0, min(1.0, raw_engagement))
+
+        # SEC: Ensure routing_confidence always contains every arm with
+        # numeric values. Defends against future arms being added without
+        # the bandit emitting a key.
+        full_confidence: dict[str, float] = {
+            name: 0.0 for name in self.config.router.arms
+        }
+        for k, v in routing_confidence.items():
+            try:
+                full_confidence[k] = float(v)
+            except (TypeError, ValueError):
+                full_confidence[k] = 0.0
+
         return PipelineOutput(
             response_text=response_text,
             route_chosen=route_chosen,
             latency_ms=round(latency_ms, 2),
             user_state_embedding_2d=embedding_2d,
             adaptation=adaptation.to_dict(),
-            engagement_score=user_model.engagement_score,
-            deviation_from_baseline=deviation.current_vs_baseline,
-            routing_confidence=routing_confidence,
+            engagement_score=engagement_score,
+            deviation_from_baseline=float(deviation.current_vs_baseline),
+            routing_confidence=full_confidence,
             messages_in_session=(
                 session.message_count if session is not None else 0
             ),
-            baseline_established=user_model.baseline_established,
+            baseline_established=bool(user_model.baseline_established),
         )
 
     # ------------------------------------------------------------------
@@ -834,6 +945,13 @@ class Pipeline:
         """Retrieve or create the :class:`~src.user_model.model.UserModel`
         for the given user.
 
+        SEC: This sync variant is retained for non-concurrent call sites
+        (start_session/end_session, which run inside a single FastAPI
+        request and are not racing themselves). The async-safe variant
+        :meth:`_aget_or_create_user_model` is used by
+        :meth:`process_message`, where two concurrent first-time messages
+        for the same new user could otherwise create duplicate models.
+
         Args:
             user_id: Unique user identifier.
 
@@ -851,6 +969,96 @@ class Pipeline:
 
         return self.user_models[user_id]
 
+    async def _aget_or_create_user_model(self, user_id: str) -> Any:
+        """Async-locked variant of :meth:`_get_or_create_user_model`.
+
+        SEC: Guards self.user_models mutation with self._user_models_lock
+        so concurrent process_message() calls for a brand-new user cannot
+        race and clobber each other's UserModel instance.
+        """
+        # Fast path: model exists, no lock needed (dict reads are
+        # atomic under the GIL).
+        existing = self.user_models.get(user_id)
+        if existing is not None:
+            return existing
+
+        async with self._user_models_lock:
+            # Re-check inside the lock to avoid the lost-update race.
+            existing = self.user_models.get(user_id)
+            if existing is not None:
+                return existing
+
+            from i3.user_model.model import UserModel
+
+            user_model = UserModel(
+                user_id=user_id,
+                config=self.config.user_model,
+            )
+            self.user_models[user_id] = user_model
+            logger.debug("Created new UserModel for user_id=%s", user_id)
+            return user_model
+
+    def _background_task_done(self, task: "asyncio.Task[Any]") -> None:
+        """Done-callback for fire-and-forget background tasks.
+
+        SEC: Removes the task from the tracking set (so it can be GC'd)
+        and logs any exception that escaped the task body. Without this
+        callback, exceptions in unawaited tasks become silent because
+        asyncio's default ``Task.exception()`` is only consulted when the
+        task is awaited or its result is requested.
+        """
+        self._background_tasks.discard(task)
+        if task.cancelled():
+            return
+        exc = task.exception()
+        if exc is not None:
+            logger.error(
+                "Background pipeline task failed: %s",
+                exc,
+                exc_info=exc,
+            )
+
+    def _build_error_output(
+        self, latency_ms: float, exc: Exception
+    ) -> PipelineOutput:
+        """Build a degraded :class:`PipelineOutput` after an exception.
+
+        SEC: Used by the outer try/except in :meth:`process_message` to
+        guarantee that callers always receive a serialisable response,
+        never ``None`` and never an unhandled exception. The error string
+        is the exception class name only -- not the message -- to avoid
+        accidentally leaking sanitiser internals or PII.
+        """
+        arms = self.config.router.arms
+        confidence = {name: 0.0 for name in arms}
+        if "local_slm" in confidence:
+            confidence["local_slm"] = 1.0
+        return PipelineOutput(
+            response_text=self._fallback_response_for_error(),
+            route_chosen="error_fallback",
+            latency_ms=round(latency_ms, 2),
+            user_state_embedding_2d=(0.0, 0.0),
+            adaptation={
+                "cognitive_load": 0.5,
+                "emotional_tone": 0.5,
+                "accessibility": 0.0,
+                "error": type(exc).__name__,
+            },
+            engagement_score=0.0,
+            deviation_from_baseline=0.0,
+            routing_confidence=confidence,
+            messages_in_session=0,
+            baseline_established=False,
+        )
+
+    @staticmethod
+    def _fallback_response_for_error() -> str:
+        """Static safe response shown when the pipeline hits an unexpected error."""
+        return (
+            "I'm having trouble processing that just now. "
+            "Could you try again in a moment?"
+        )
+
     # ------------------------------------------------------------------
     # Internal: utility helpers
     # ------------------------------------------------------------------
@@ -862,13 +1070,27 @@ class Pipeline:
         reduction.  For production, replace with PCA fitted on a
         reference set of user-state embeddings.
 
+        SEC: Always returns *exactly* 4 floats. If the input embedding
+        is shorter than 4 (e.g. mocked or degenerate fallback), the
+        result is right-padded with zeros so RoutingContext.to_vector()
+        sees a stable shape.
+
         Args:
             embedding: 1-D tensor of shape ``[64]``.
 
         Returns:
             A 4-element list of floats.
         """
-        return embedding[:4].tolist()
+        try:
+            values = embedding[:4].tolist()
+        except Exception:
+            logger.exception(
+                "_compress_state failed to slice embedding; using zeros."
+            )
+            values = []
+        if len(values) < 4:
+            values = values + [0.0] * (4 - len(values))
+        return values[:4]
 
     @staticmethod
     def _normalized_hour() -> float:
@@ -908,8 +1130,9 @@ class Pipeline:
                 seen.add(w)
                 unique.append(w)
 
-        # Return the longest words as topic proxies
-        unique.sort(key=len, reverse=True)
+        # SEC: Sort by (-length, word) to make ordering deterministic
+        # for words of equal length. Tests rely on stable topic output.
+        unique.sort(key=lambda w: (-len(w), w))
         return unique[:max_topics]
 
     @staticmethod

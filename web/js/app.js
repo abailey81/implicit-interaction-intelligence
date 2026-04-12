@@ -47,6 +47,12 @@ class KeystrokeMonitor {
             if (this.lastKeyTime !== null) {
                 const iki = now - this.lastKeyTime;
                 this.keyTimings.push(iki);
+                // SEC: Cap the buffer so a long composition session cannot
+                // cause unbounded memory growth. We only ever transmit the
+                // last 50 timings anyway (see getCompositionMetrics).
+                if (this.keyTimings.length > 500) {
+                    this.keyTimings.splice(0, this.keyTimings.length - 500);
+                }
             }
             this.lastKeyTime = now;
 
@@ -159,6 +165,15 @@ class DiaryPanel {
      */
     addEntry(entry) {
         if (!this.entriesEl) return;
+        // SEC: Reject non-object payloads.
+        if (!entry || typeof entry !== 'object') return;
+
+        // SEC: Helper — coerce arbitrary server values to a length-capped string.
+        const safeStr = (v, max = 200) => {
+            if (v === null || v === undefined) return '';
+            const s = String(v);
+            return s.length > max ? s.slice(0, max) : s;
+        };
 
         const el = document.createElement('div');
         el.className = 'diary-entry';
@@ -166,27 +181,33 @@ class DiaryPanel {
         // Timestamp
         const timeEl = document.createElement('span');
         timeEl.className = 'entry-time';
-        const d = entry.timestamp ? new Date(entry.timestamp * 1000) : new Date();
+        // SEC: Coerce timestamp to number; reject NaN.
+        const tsNum = Number(entry.timestamp);
+        const d = Number.isFinite(tsNum) ? new Date(tsNum * 1000) : new Date();
         timeEl.textContent = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
         // Content
         const contentEl = document.createElement('span');
         contentEl.className = 'entry-content';
-        contentEl.textContent = entry.summary || entry.text || 'State change detected';
+        // SEC: textContent is the only DOM sink; server-supplied summary/text
+        // is rendered as plain text and cannot inject HTML.
+        contentEl.textContent =
+            safeStr(entry.summary) || safeStr(entry.text) || 'State change detected';
 
         // Tags
         if (entry.emotion) {
             const tag = document.createElement('span');
             tag.className = 'entry-tag';
-            tag.textContent = entry.emotion;
+            tag.textContent = safeStr(entry.emotion, 50);
             contentEl.appendChild(tag);
         }
 
-        if (entry.topics && entry.topics.length > 0) {
+        if (Array.isArray(entry.topics) && entry.topics.length > 0) {
             for (const topic of entry.topics.slice(0, 2)) {
                 const tag = document.createElement('span');
                 tag.className = 'entry-tag';
-                tag.textContent = topic;
+                // SEC: Topics are server-controlled — textContent only, capped.
+                tag.textContent = safeStr(topic, 50);
                 contentEl.appendChild(tag);
             }
         }
@@ -258,6 +279,15 @@ class I3App {
 
         // Set up event handlers
         this.setupHandlers();
+
+        // SEC: Cleanly close the WebSocket on page unload to prevent the
+        // browser from holding a half-open socket and to stop reconnection
+        // logic from firing during navigation.
+        window.addEventListener('beforeunload', () => {
+            try {
+                this.wsClient.disconnect();
+            } catch (e) { /* swallow — page is going away */ }
+        });
 
         // Connect
         this.wsClient.connect();

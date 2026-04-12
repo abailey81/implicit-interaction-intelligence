@@ -24,18 +24,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Feature names used for per-feature deviation tracking.  These correspond
-# to the deviation-relevant subset of InteractionFeatureVector fields.
-_DEVIATION_FEATURE_KEYS: list[str] = [
-    "iki_deviation",
-    "length_deviation",
-    "vocab_deviation",
-    "formality_deviation",
-    "speed_deviation",
-    "engagement_deviation",
-    "complexity_deviation",
-]
-
 # Feature names from InteractionFeatureVector used for engagement scoring.
 _ENGAGEMENT_FEATURES: list[tuple[str, float]] = [
     # (feature_name, weight)
@@ -45,6 +33,10 @@ _ENGAGEMENT_FEATURES: list[tuple[str, float]] = [
     ("topic_coherence", 0.15),
     ("engagement_velocity", 0.15),
 ]
+
+# SEC: Per-feature z-scores are clamped to this symmetric range to prevent
+# outlier values from dominating downstream pattern-deviation magnitudes.
+_Z_SCORE_CLAMP: float = 5.0
 
 
 class DeviationComputer:
@@ -69,11 +61,24 @@ class DeviationComputer:
             b: Second embedding vector (1-D).
 
         Returns:
-            Cosine distance as a Python float.
+            Cosine distance as a Python float. Returns 0.0 if either vector
+            is all-zero (an undefined cosine), so the metric never leaks NaN.
         """
         a_flat = a.detach().float().flatten()
         b_flat = b.detach().float().flatten()
-        similarity = F.cosine_similarity(a_flat.unsqueeze(0), b_flat.unsqueeze(0)).item()
+        # SEC: Guard against zero-norm vectors. F.cosine_similarity returns
+        # NaN when either input has zero norm; that NaN propagates into the
+        # downstream router and trips threshold gates. Treat the undefined
+        # case as "no deviation".
+        a_norm = torch.linalg.norm(a_flat).item()
+        b_norm = torch.linalg.norm(b_flat).item()
+        if a_norm < 1e-12 or b_norm < 1e-12:
+            return 0.0
+        similarity = F.cosine_similarity(
+            a_flat.unsqueeze(0), b_flat.unsqueeze(0)
+        ).item()
+        if not math.isfinite(similarity):
+            return 0.0
         return float(max(0.0, min(2.0, 1.0 - similarity)))
 
     # ------------------------------------------------------------------
@@ -108,8 +113,20 @@ class DeviationComputer:
             current_val = getattr(current_features, name, None)
             if current_val is None:
                 continue
+            current_f = float(current_val)
+            # SEC: Skip non-finite current values; do not pollute z-scores
+            # with NaN/Inf.
+            if not math.isfinite(current_f) or not math.isfinite(mean_val):
+                continue
             std_val = max(baseline_std.get(name, 1e-6), 1e-6)
-            deviations[name] = (float(current_val) - mean_val) / std_val
+            z = (current_f - mean_val) / std_val
+            # SEC: Clamp z-scores to a sane range so outliers cannot blow up
+            # downstream pattern_deviation or trip routing thresholds.
+            if z > _Z_SCORE_CLAMP:
+                z = _Z_SCORE_CLAMP
+            elif z < -_Z_SCORE_CLAMP:
+                z = -_Z_SCORE_CLAMP
+            deviations[name] = z
         return deviations
 
     # ------------------------------------------------------------------
@@ -134,8 +151,13 @@ class DeviationComputer:
         weighted_sum = 0.0
         for feature_name, weight in _ENGAGEMENT_FEATURES:
             value = getattr(features, feature_name, 0.0)
+            value_f = float(value)
+            # SEC: Treat non-finite values as missing rather than letting
+            # NaN/Inf poison the weighted average.
+            if not math.isfinite(value_f):
+                continue
             # All feature values should already be normalised to ~[0, 1]
-            clamped = max(0.0, min(1.0, float(value)))
+            clamped = max(0.0, min(1.0, value_f))
             weighted_sum += weight * clamped
             total_weight += weight
 

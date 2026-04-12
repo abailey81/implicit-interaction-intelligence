@@ -31,24 +31,37 @@ class ChatInterface {
         // Hide typing indicator
         this._hideTyping();
 
+        // SEC: Coerce text to string. Server may occasionally return null/undefined
+        // or non-string types; textContent assignment below would still be safe
+        // (DOM coerces it), but explicit coercion makes the contract obvious.
+        const safeText = (text === null || text === undefined) ? '' : String(text);
+
+        // SEC: Whitelist sender to prevent CSS class injection via crafted metadata.
+        const safeSender = (sender === 'user' || sender === 'ai') ? sender : 'ai';
+
         const msgEl = document.createElement('div');
-        msgEl.className = `message ${sender}`;
+        msgEl.className = `message ${safeSender}`;
 
         // Avatar
         const avatar = document.createElement('div');
         avatar.className = 'message-avatar';
-        if (sender === 'user') {
+        if (safeSender === 'user') {
             avatar.textContent = 'U';
         } else {
             avatar.textContent = 'I\u00B3';
             // Shift avatar colour based on emotional tone if available
             if (metadata.emotional_tone !== undefined) {
-                const tone = metadata.emotional_tone;
+                // SEC: Clamp tone to [0, 1] so that an attacker-controlled value
+                // cannot push rgb() out of range or inject CSS via NaN/Infinity.
+                const toneRaw = Number(metadata.emotional_tone);
+                const tone = Number.isFinite(toneRaw)
+                    ? Math.max(0, Math.min(1, toneRaw))
+                    : 0.5;
                 // Warm amber (high tone) to cool blue (low tone)
                 const r = Math.round(233 * tone + 58 * (1 - tone));
                 const g = Math.round(69 * tone + 120 * (1 - tone));
                 const b = Math.round(96 * tone + 210 * (1 - tone));
-                avatar.style.background = `rgb(${r}, ${g}, ${b})`;
+                avatar.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
             }
         }
 
@@ -59,30 +72,42 @@ class ChatInterface {
         // Text bubble
         const textEl = document.createElement('div');
         textEl.className = 'message-text';
-        textEl.textContent = text;
+        // SEC: textContent (NEVER innerHTML) — this is the AI/user text sink.
+        // Even if the AI returns HTML/JS, it will be rendered as plain text.
+        textEl.textContent = safeText;
 
         body.appendChild(textEl);
 
         // Metadata badges
-        if (metadata.route || metadata.latency) {
+        if (metadata.route || metadata.latency !== undefined) {
             const meta = document.createElement('div');
             meta.className = 'message-meta';
 
             if (metadata.route) {
+                // SEC: Coerce to string and use textContent. We compute a fixed
+                // label ("Edge SLM" / "Cloud LLM") so user-controlled route
+                // strings are never written to the DOM verbatim.
+                const routeStr = String(metadata.route).toLowerCase();
                 const routeBadge = document.createElement('span');
-                const isEdge = metadata.route.toLowerCase().includes('local') ||
-                               metadata.route.toLowerCase().includes('edge') ||
-                               metadata.route.toLowerCase().includes('slm');
-                routeBadge.className = `meta-badge ${isEdge ? 'edge' : 'cloud'}`;
+                const isEdge = routeStr.includes('local') ||
+                               routeStr.includes('edge') ||
+                               routeStr.includes('slm');
+                // SEC: Use classList (whitelist) instead of string-concat className
+                routeBadge.classList.add('meta-badge');
+                routeBadge.classList.add(isEdge ? 'edge' : 'cloud');
                 routeBadge.textContent = isEdge ? 'Edge SLM' : 'Cloud LLM';
                 meta.appendChild(routeBadge);
             }
 
             if (metadata.latency !== undefined) {
-                const latBadge = document.createElement('span');
-                latBadge.className = 'meta-badge';
-                latBadge.textContent = `${Math.round(metadata.latency)}ms`;
-                meta.appendChild(latBadge);
+                // SEC: Coerce latency to number; reject NaN/Infinity.
+                const latNum = Number(metadata.latency);
+                if (Number.isFinite(latNum)) {
+                    const latBadge = document.createElement('span');
+                    latBadge.className = 'meta-badge';
+                    latBadge.textContent = `${Math.round(latNum)}ms`;
+                    meta.appendChild(latBadge);
+                }
             }
 
             body.appendChild(meta);
@@ -112,9 +137,18 @@ class ChatInterface {
             this.ksMonitor.attach(inputElement);
         }
 
+        // SEC: Defensive client-side cap on outgoing message length.
+        // Server is the source of truth for sanitisation/limits, but capping
+        // here prevents accidentally sending megabyte payloads.
+        const MAX_INPUT_CHARS = 4000;
+
         const doSend = () => {
-            const text = inputElement.value.trim();
+            let text = inputElement.value.trim();
             if (!text) return;
+            if (text.length > MAX_INPUT_CHARS) {
+                // SEC: Truncate rather than reject so the user gets feedback.
+                text = text.slice(0, MAX_INPUT_CHARS);
+            }
 
             // Gather composition metrics before resetting
             const metrics = this.ksMonitor ? this.ksMonitor.getCompositionMetrics() : {};

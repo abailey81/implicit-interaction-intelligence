@@ -49,6 +49,7 @@ _CREATE_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS user_profiles (
     user_id             TEXT PRIMARY KEY,
     baseline_embedding  BLOB,
+    baseline_embedding_dim INTEGER,
     baseline_features_mean TEXT,
     baseline_features_std  TEXT,
     total_sessions      INTEGER DEFAULT 0,
@@ -60,6 +61,13 @@ CREATE TABLE IF NOT EXISTS user_profiles (
     baseline_established INTEGER DEFAULT 0
 );
 """
+
+# SEC: Idempotent migration for legacy databases that pre-date the
+# baseline_embedding_dim column. SQLite has no `ADD COLUMN IF NOT EXISTS`,
+# so we attempt the ALTER and tolerate the duplicate-column error.
+_MIGRATIONS: list[str] = [
+    "ALTER TABLE user_profiles ADD COLUMN baseline_embedding_dim INTEGER",
+]
 
 # Embedding dimension expected by the encoder.
 _EMBEDDING_DIM = 64
@@ -109,7 +117,10 @@ def _dict_to_json(d: dict | None) -> str | None:
     """Serialize a dict to a JSON string, or ``None``."""
     if d is None:
         return None
-    return json.dumps(d)
+    # SEC: sort_keys=True for deterministic on-disk representation; this is
+    # required for content hashing, golden-file tests, and reproducible
+    # diffs across runs.
+    return json.dumps(d, sort_keys=True)
 
 
 def _json_to_dict(s: str | None) -> dict | None:
@@ -172,6 +183,15 @@ class UserModelStore:
             self._db = await aiosqlite.connect(str(self._db_path))
             self._db.row_factory = aiosqlite.Row
             await self._db.execute(_CREATE_TABLE_SQL)
+            # SEC: Run idempotent migrations. SQLite raises OperationalError
+            # ("duplicate column name") if a migration was already applied;
+            # we swallow that specific error and continue.
+            for migration in _MIGRATIONS:
+                try:
+                    await self._db.execute(migration)
+                except Exception as mig_exc:  # noqa: BLE001
+                    if "duplicate column name" not in str(mig_exc).lower():
+                        raise
             await self._db.commit()
             logger.info("UserModelStore opened: %s", self._db_path)
         except Exception as exc:
@@ -216,11 +236,14 @@ class UserModelStore:
         """
         db = self._ensure_open()
         try:
-            cursor = await db.execute(
+            # SEC: Use cursor as a context manager so it is closed even on
+            # exception. aiosqlite cursors hold a SQLite statement handle
+            # that should not be left dangling.
+            async with db.execute(
                 "SELECT * FROM user_profiles WHERE user_id = ?",
                 (user_id,),
-            )
-            row = await cursor.fetchone()
+            ) as cursor:
+                row = await cursor.fetchone()
             if row is None:
                 logger.debug("No profile found for user_id=%s", user_id)
                 return None
@@ -228,7 +251,18 @@ class UserModelStore:
             # Deserialize embedding
             baseline_embedding: Optional[torch.Tensor] = None
             if row["baseline_embedding"] is not None:
-                baseline_embedding = _bytes_to_tensor(row["baseline_embedding"])
+                # SEC: Honour the persisted dimension when present so that the
+                # store can survive an encoder dim change without corrupting
+                # data on read. Fall back to the default for legacy rows.
+                stored_dim = (
+                    row["baseline_embedding_dim"]
+                    if "baseline_embedding_dim" in row.keys()
+                    else None
+                )
+                dim = int(stored_dim) if stored_dim else _EMBEDDING_DIM
+                baseline_embedding = _bytes_to_tensor(
+                    row["baseline_embedding"], dim=dim
+                )
 
             # Deserialize dicts
             baseline_features_mean = _json_to_dict(row["baseline_features_mean"])
@@ -277,20 +311,25 @@ class UserModelStore:
         db = self._ensure_open()
         try:
             baseline_blob: bytes | None = None
+            baseline_dim: int | None = None
             if profile.baseline_embedding is not None:
                 baseline_blob = _tensor_to_bytes(profile.baseline_embedding)
+                # SEC: Persist the embedding dimension alongside the bytes so
+                # the store survives encoder-dim changes without corruption.
+                baseline_dim = int(profile.baseline_embedding.numel())
 
             await db.execute(
                 """
                 INSERT INTO user_profiles (
-                    user_id, baseline_embedding,
+                    user_id, baseline_embedding, baseline_embedding_dim,
                     baseline_features_mean, baseline_features_std,
                     total_sessions, total_messages,
                     relationship_strength, long_term_style,
                     created_at, updated_at, baseline_established
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(user_id) DO UPDATE SET
                     baseline_embedding     = excluded.baseline_embedding,
+                    baseline_embedding_dim = excluded.baseline_embedding_dim,
                     baseline_features_mean = excluded.baseline_features_mean,
                     baseline_features_std  = excluded.baseline_features_std,
                     total_sessions         = excluded.total_sessions,
@@ -303,6 +342,7 @@ class UserModelStore:
                 (
                     profile.user_id,
                     baseline_blob,
+                    baseline_dim,
                     _dict_to_json(profile.baseline_features_mean),
                     _dict_to_json(profile.baseline_features_std),
                     profile.total_sessions,
@@ -357,10 +397,11 @@ class UserModelStore:
         """
         db = self._ensure_open()
         try:
-            cursor = await db.execute(
+            # SEC: cursor as context manager to guarantee statement cleanup.
+            async with db.execute(
                 "SELECT user_id FROM user_profiles ORDER BY user_id"
-            )
-            rows = await cursor.fetchall()
+            ) as cursor:
+                rows = await cursor.fetchall()
             return [row["user_id"] for row in rows]
         except Exception as exc:
             raise UserModelStoreError(

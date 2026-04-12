@@ -238,16 +238,17 @@ def conditioning_sensitivity(
 
         for i in range(len(logit_distributions)):
             for j in range(i + 1, len(logit_distributions)):
-                p = F.softmax(logit_distributions[i], dim=-1)
-                q = F.softmax(logit_distributions[j], dim=-1)
+                # SEC/numerical: use log_softmax instead of softmax().log()
+                # to avoid log(0) underflow on extreme logits, and pass the
+                # log-probabilities directly into kl_div as documented.
+                log_p = F.log_softmax(logit_distributions[i], dim=-1)
+                log_q = F.log_softmax(logit_distributions[j], dim=-1)
+                p = log_p.exp()
+                q = log_q.exp()
 
-                # KL divergence (symmetrized)
-                kl_pq = F.kl_div(
-                    q.log(), p, reduction="sum"
-                ).item()
-                kl_qp = F.kl_div(
-                    p.log(), q, reduction="sum"
-                ).item()
+                # Symmetrised KL divergence.
+                kl_pq = F.kl_div(log_q, p, reduction="sum").item()
+                kl_qp = F.kl_div(log_p, q, reduction="sum").item()
                 kl_sym = (kl_pq + kl_qp) / 2.0
                 kl_divs.append(kl_sym)
 
@@ -629,18 +630,21 @@ def run_evaluation(
     logger.info("Using device: %s", device)
 
     # --- Load config ---
-    cfg_path = Path(config_path)
-    if cfg_path.exists():
+    # SEC: resolve config path; YAML is parsed via yaml.safe_load (no exec).
+    cfg_path = Path(config_path).resolve()
+    if cfg_path.exists() and cfg_path.is_file():
         config = load_config(cfg_path)
     else:
         from i3.config import Config
         config = Config()
 
     # --- Load tokenizer ---
-    data_path = Path(data_dir)
+    # SEC: resolve all input paths so log messages and downstream I/O see
+    # absolute, normalised paths.
+    data_path = Path(data_dir).resolve()
     tok_path = data_path / "tokenizer.json"
     if not tok_path.exists():
-        tok_path = Path("models/slm/tokenizer.json")
+        tok_path = Path("models/slm/tokenizer.json").resolve()
 
     tokenizer = SimpleTokenizer.load(str(tok_path))
     logger.info("Loaded tokenizer: %d tokens", len(tokenizer))
@@ -660,10 +664,17 @@ def run_evaluation(
         tie_weights=config.slm.tie_weights,
     )
 
-    # Security: evaluation loads are effectively inference-mode, so we
-    # use weights_only=True to prevent pickled-object code execution.
+    # SEC: evaluation loads are effectively inference-mode, so we use
+    # weights_only=True to prevent pickled-object code execution. We also
+    # resolve and validate the path before reading it so that we never
+    # call torch.load on a directory or a path that does not exist.
+    ckpt_path_resolved = Path(checkpoint_path).resolve()
+    if not ckpt_path_resolved.exists() or not ckpt_path_resolved.is_file():
+        raise FileNotFoundError(
+            f"Checkpoint not found or not a regular file: {ckpt_path_resolved}"
+        )
     checkpoint = torch.load(
-        checkpoint_path, map_location=device, weights_only=True
+        str(ckpt_path_resolved), map_location=device, weights_only=True
     )
     state_dict = checkpoint.get("model_state_dict", checkpoint)
     model.load_state_dict(state_dict)
@@ -861,9 +872,17 @@ def parse_args() -> argparse.Namespace:
         "--device",
         type=str,
         default=None,
+        choices=["cpu", "cuda", "mps"],
         help="Device override (cpu, cuda, mps).",
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+
+    # SEC: bound-check numeric arguments before launching the model.
+    if args.num_samples <= 0:
+        parser.error("--num-samples must be a positive integer")
+    if args.batch_size <= 0:
+        parser.error("--batch-size must be a positive integer")
+    return args
 
 
 if __name__ == "__main__":

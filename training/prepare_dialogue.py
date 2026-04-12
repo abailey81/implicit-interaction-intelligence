@@ -213,7 +213,9 @@ def load_empathetic_dialogues(data_dir: Path) -> list[dict[str, Any]]:
 # Synthetic fallback
 # ---------------------------------------------------------------------------
 
-def generate_synthetic_dialogues(n_dialogues: int = 5000) -> list[dict[str, Any]]:
+def generate_synthetic_dialogues(
+    n_dialogues: int = 5000, seed: int = 42
+) -> list[dict[str, Any]]:
     """Generate synthetic dialogue data as a fallback when real data is unavailable.
 
     Creates dialogues covering a range of emotional states, formality
@@ -223,14 +225,18 @@ def generate_synthetic_dialogues(n_dialogues: int = 5000) -> list[dict[str, Any]
     ----------
     n_dialogues : int
         Number of dialogues to generate (default 5000).
+    seed : int
+        Random seed for reproducibility (default 42).
 
     Returns
     -------
     list[dict]
         List of dialogue dicts.
     """
+    # SEC: seed must be passed in (was hard-coded to 42) so that the CLI
+    # ``--seed`` flag actually controls the synthetic-fallback corpus.
     import random
-    random.seed(42)
+    random.seed(seed)
 
     # Templates organized by style
     greetings = [
@@ -714,6 +720,7 @@ def run_pipeline(
     val_ratio: float = 0.1,
     test_ratio: float = 0.1,
     max_dialogues: int = 0,
+    seed: int = 42,
 ) -> dict[str, Path]:
     """Run the full data preparation pipeline.
 
@@ -739,8 +746,9 @@ def run_pipeline(
     dict[str, Path]
         Mapping from split name to saved file path.
     """
-    raw_dir = Path(raw_data_dir)
-    out_dir = Path(output_dir)
+    # SEC: resolve all paths so log messages are absolute and consistent.
+    raw_dir = Path(raw_data_dir).resolve()
+    out_dir = Path(output_dir).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # --- Step 1: Load raw data ---
@@ -762,7 +770,7 @@ def run_pipeline(
         logger.warning(
             "No real dialogue data found. Generating synthetic fallback."
         )
-        dialogues = generate_synthetic_dialogues(n_dialogues=5000)
+        dialogues = generate_synthetic_dialogues(n_dialogues=5000, seed=seed)
 
     if max_dialogues > 0:
         dialogues = dialogues[:max_dialogues]
@@ -796,8 +804,9 @@ def run_pipeline(
     n_test = int(n_total * test_ratio)
     n_train = n_total - n_val - n_test
 
-    # Shuffle with fixed seed
-    torch.manual_seed(42)
+    # SEC: shuffle deterministically with the user-supplied seed so that
+    # train/val/test splits are reproducible from the CLI flag.
+    torch.manual_seed(seed)
     perm = torch.randperm(n_total)
 
     train_idx = perm[:n_train]
@@ -900,7 +909,28 @@ def parse_args() -> argparse.Namespace:
         default=0,
         help="Maximum dialogues to use, 0=all (default: 0).",
     )
-    return parser.parse_args()
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Random seed for synthetic fallback + split shuffle (default: 42).",
+    )
+    args = parser.parse_args()
+
+    # SEC: bound-check arguments before any heavy work runs.
+    if args.vocab_size <= 0:
+        parser.error("--vocab-size must be a positive integer")
+    if args.max_seq_len <= 0:
+        parser.error("--max-seq-len must be a positive integer")
+    if not (0.0 <= args.val_ratio < 1.0):
+        parser.error("--val-ratio must be in [0, 1)")
+    if not (0.0 <= args.test_ratio < 1.0):
+        parser.error("--test-ratio must be in [0, 1)")
+    if args.val_ratio + args.test_ratio >= 1.0:
+        parser.error("--val-ratio + --test-ratio must be < 1.0")
+    if args.max_dialogues < 0:
+        parser.error("--max-dialogues must be non-negative (0 = all)")
+    return args
 
 
 if __name__ == "__main__":
@@ -918,4 +948,5 @@ if __name__ == "__main__":
         val_ratio=args.val_ratio,
         test_ratio=args.test_ratio,
         max_dialogues=args.max_dialogues,
+        seed=args.seed,
     )

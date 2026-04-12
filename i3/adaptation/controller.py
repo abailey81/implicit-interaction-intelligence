@@ -25,6 +25,7 @@ instance.  The controller is *not* thread-safe within a single instance.
 
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING
 
 from i3.adaptation.dimensions import (
@@ -39,6 +40,26 @@ if TYPE_CHECKING:
     from i3.config import AdaptationConfig
     from i3.interaction.types import InteractionFeatureVector
     from i3.user_model.types import DeviationMetrics
+
+
+def _sanitize(value: object, default: float) -> float:
+    """Coerce *value* to a finite float, falling back to ``default`` on NaN/None.
+
+    SEC: last line of defence -- if a downstream adapter ever returns
+    ``NaN``, ``None``, or a non-numeric, this prevents corruption of the
+    SLM conditioning tensor.
+    """
+    if value is None:
+        return float(default)
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return float(default)
+    if math.isnan(v):
+        return float(default)
+    if math.isinf(v):
+        return float(1.0 if v > 0 else 0.0)
+    return v
 
 
 class AdaptationController:
@@ -100,17 +121,41 @@ class AdaptationController:
             An :class:`AdaptationVector` with all four dimensions populated
             and clamped to valid ranges.
         """
-        cognitive_load = self.cognitive.compute(features, deviation)
+        # SEC: every adapter call is wrapped so that an unexpected exception
+        # or a NaN return value cannot break the entire adaptation pipeline.
+        # Each dimension falls back to a neutral default if anything goes
+        # wrong.
+        try:
+            cognitive_load = self.cognitive.compute(features, deviation)
+        except Exception:
+            cognitive_load = 0.5
+        cognitive_load = _sanitize(cognitive_load, default=0.5)
 
-        self._current_style = self.style.compute(features, self._current_style)
+        try:
+            new_style = self.style.compute(features, self._current_style)
+            if not isinstance(new_style, StyleVector):
+                new_style = StyleVector.default()
+        except Exception:
+            new_style = StyleVector.default()
+        # ``StyleVector.__post_init__`` already clamps each axis, so the
+        # mutable session state is guaranteed to stay in [0, 1].
+        self._current_style = new_style
 
-        emotional_tone = self.emotional.compute(features, deviation)
+        try:
+            emotional_tone = self.emotional.compute(features, deviation)
+        except Exception:
+            emotional_tone = 0.5
+        emotional_tone = _sanitize(emotional_tone, default=0.5)
 
-        accessibility = self.accessibility.compute(
-            features,
-            deviation,
-            threshold=self.config.accessibility.detection_threshold,
-        )
+        try:
+            accessibility = self.accessibility.compute(
+                features,
+                deviation,
+                threshold=self.config.accessibility.detection_threshold,
+            )
+        except Exception:
+            accessibility = 0.0
+        accessibility = _sanitize(accessibility, default=0.0)
 
         return AdaptationVector(
             cognitive_load=cognitive_load,

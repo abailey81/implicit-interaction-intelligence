@@ -64,6 +64,10 @@ class DiaryStore:
         be awaited before any read/write operations.
         """
         async with aiosqlite.connect(self.db_path) as db:
+            # SEC: enable foreign-key enforcement so the declared FK on
+            # exchanges(session_id) -> sessions(session_id) is actually
+            # respected.  SQLite has FK enforcement off by default.
+            await db.execute("PRAGMA foreign_keys = ON")
             await db.executescript("""
                 CREATE TABLE IF NOT EXISTS sessions (
                     session_id          TEXT PRIMARY KEY,
@@ -71,6 +75,11 @@ class DiaryStore:
                     start_time          TIMESTAMP NOT NULL,
                     end_time            TIMESTAMP,
                     message_count       INTEGER DEFAULT 0,
+                    -- SEC: 'summary' is the ONLY natural-language column in
+                    -- the schema.  It is populated exclusively by
+                    -- SessionSummarizer from aggregated metadata
+                    -- (topics, scalar metrics, emotion labels) and never
+                    -- contains raw user or assistant text.
                     summary             TEXT,
                     dominant_emotion    TEXT,
                     topics              TEXT,
@@ -81,6 +90,10 @@ class DiaryStore:
                     created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
 
+                -- SEC: exchanges table intentionally has NO column for
+                -- text/message/content/body/raw_text/assistant_response.
+                -- Only embeddings (BLOB), scalar metrics, route, and
+                -- topic keywords are persisted.
                 CREATE TABLE IF NOT EXISTS exchanges (
                     exchange_id          TEXT PRIMARY KEY,
                     session_id           TEXT NOT NULL,
@@ -206,7 +219,10 @@ class DiaryStore:
                     message_count,
                     summary,
                     dominant_emotion,
-                    json.dumps(topics),
+                    # SEC: deterministic JSON serialisation (sort_keys) so
+                    # identical topic sets always hash to the same blob,
+                    # preventing leakage via ordering side-channels.
+                    json.dumps(topics, sort_keys=True),
                     mean_engagement,
                     mean_cognitive_load,
                     mean_accessibility,
@@ -278,11 +294,14 @@ class DiaryStore:
                     session_id,
                     now,
                     user_state_embedding,
-                    json.dumps(adaptation_vector),
+                    # SEC: sort_keys ensures deterministic adaptation_vector
+                    # serialisation -- required for reproducible diary
+                    # records and for stable equality testing.
+                    json.dumps(adaptation_vector, sort_keys=True),
                     route_chosen,
                     response_latency_ms,
                     engagement_signal,
-                    json.dumps(topics),
+                    json.dumps(topics, sort_keys=True),
                 ),
             )
             await db.commit()
@@ -426,12 +445,15 @@ class DiaryStore:
                 (user_id,),
             )
             row = await cursor.fetchone()
+            # SEC: AVG() over zero rows returns NULL in SQLite, not 0.
+            # Coerce None -> 0.0 so downstream consumers can rely on
+            # numeric types (prevents `TypeError: NoneType < float`).
             stats: dict = {
-                "total_sessions": row[0] if row else 0,
-                "total_messages": row[1] if row else 0,
-                "avg_engagement": row[2] if row else 0.0,
-                "avg_cognitive_load": row[3] if row else 0.0,
-                "avg_accessibility": row[4] if row else 0.0,
+                "total_sessions": (row[0] if row else 0) or 0,
+                "total_messages": (row[1] if row else 0) or 0,
+                "avg_engagement": (row[2] if row else 0.0) or 0.0,
+                "avg_cognitive_load": (row[3] if row else 0.0) or 0.0,
+                "avg_accessibility": (row[4] if row else 0.0) or 0.0,
                 "topic_frequency": {},
             }
 
@@ -454,6 +476,84 @@ class DiaryStore:
                 sorted(topic_counts.items(), key=lambda kv: kv[1], reverse=True)
             )
             return stats
+
+    # ------------------------------------------------------------------
+    # Retention / pruning
+    # ------------------------------------------------------------------
+
+    async def prune_old_entries(
+        self, user_id: str, max_entries: int = 1000
+    ) -> int:
+        """Delete the oldest sessions for a user beyond ``max_entries``.
+
+        Enforces the ``diary.max_entries`` retention configuration.  Also
+        cascades into ``exchanges`` so that orphaned exchange rows are not
+        left behind.
+
+        Parameters
+        ----------
+        user_id:
+            The user whose old sessions to prune.
+        max_entries:
+            Maximum number of sessions to keep (newest first).  Defaults
+            to the spec value of 1000.
+
+        Returns
+        -------
+        int
+            The number of sessions deleted (0 if under the cap).
+        """
+        # SEC: parameterised query.  user_id and max_entries flow through
+        # placeholders -- never string-interpolated.  This method is the
+        # ONLY mutation path that deletes diary data and is gated on a
+        # numeric retention threshold; it cannot be exploited to delete
+        # arbitrary rows by ID.
+        self._ensure_initialized()
+        if max_entries < 0:
+            raise ValueError("max_entries must be non-negative")
+
+        async with aiosqlite.connect(self.db_path) as db:
+            # SEC: enable FK enforcement for cascade-correctness checks.
+            await db.execute("PRAGMA foreign_keys = ON")
+
+            # Identify session_ids to delete: oldest beyond the cap.
+            cursor = await db.execute(
+                """
+                SELECT session_id FROM sessions
+                WHERE user_id = ?
+                ORDER BY start_time DESC
+                LIMIT -1 OFFSET ?
+                """,
+                (user_id, max_entries),
+            )
+            old_session_ids = [row[0] for row in await cursor.fetchall()]
+            if not old_session_ids:
+                return 0
+
+            # SEC: Delete dependent exchanges first, then sessions.  The
+            # f-string below ONLY interpolates a string of '?' characters
+            # (placeholders), NEVER user data.  All actual values flow
+            # through the second argument to db.execute() as bound
+            # parameters -- this is the standard parameterised IN-clause
+            # idiom and is SQL-injection safe.
+            placeholders = ",".join("?" for _ in old_session_ids)
+            await db.execute(
+                f"DELETE FROM exchanges WHERE session_id IN ({placeholders})",
+                old_session_ids,
+            )
+            await db.execute(
+                f"DELETE FROM sessions WHERE session_id IN ({placeholders})",
+                old_session_ids,
+            )
+            await db.commit()
+
+        logger.info(
+            "Pruned %d old diary sessions for user=%s (cap=%d)",
+            len(old_session_ids),
+            user_id,
+            max_entries,
+        )
+        return len(old_session_ids)
 
     async def get_recent_diary_entries(
         self, user_id: str, n: int = 5

@@ -43,15 +43,39 @@ class WebSocketClient {
         };
 
         this.ws.onmessage = (event) => {
+            // SEC: Reject non-string frames (binary). We only speak JSON over WS.
+            if (typeof event.data !== 'string') {
+                console.warn('[WS] Ignoring non-string frame');
+                return;
+            }
+            // SEC: Cap incoming frame size to prevent UI lockup from a hostile
+            // or buggy server. 256 KiB is generous for our payloads.
+            if (event.data.length > 262144) {
+                console.warn('[WS] Dropping oversized frame:', event.data.length);
+                return;
+            }
+            let data;
             try {
-                const data = JSON.parse(event.data);
-                if (data.type) {
-                    this._trigger(data.type, data);
-                } else {
-                    this._trigger('message', data);
-                }
+                data = JSON.parse(event.data);
             } catch (err) {
-                console.error('[WS] Failed to parse message:', err, event.data);
+                // SEC: Malformed JSON is silently dropped (with log) — we never
+                // pass raw event.data to the DOM.
+                console.error('[WS] Failed to parse message:', err);
+                return;
+            }
+            // SEC: Validate envelope shape before dispatch.
+            if (!data || typeof data !== 'object' || Array.isArray(data)) {
+                console.warn('[WS] Ignoring non-object payload');
+                return;
+            }
+            if (data.type !== undefined && typeof data.type !== 'string') {
+                console.warn('[WS] Ignoring payload with non-string type');
+                return;
+            }
+            if (data.type) {
+                this._trigger(data.type, data);
+            } else {
+                this._trigger('message', data);
             }
         };
 

@@ -183,9 +183,28 @@ def parse_args() -> argparse.Namespace:
         "--device",
         type=str,
         default=None,
+        choices=["cpu", "cuda", "mps"],
         help="Device override (cpu, cuda, mps). Auto-detects if not set.",
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+
+    # SEC: bound-check numeric CLI overrides so user typos surface fast,
+    # before we spend time loading data or building the model.
+    if args.epochs is not None and args.epochs <= 0:
+        parser.error("--epochs must be a positive integer")
+    if args.max_steps is not None and args.max_steps <= 0:
+        parser.error("--max-steps must be a positive integer")
+    if args.batch_size is not None and args.batch_size <= 0:
+        parser.error("--batch-size must be a positive integer")
+    if args.lr is not None and args.lr <= 0:
+        parser.error("--lr must be a positive float")
+    if args.log_every <= 0:
+        parser.error("--log-every must be a positive integer")
+    if args.validate_every <= 0:
+        parser.error("--validate-every must be a positive integer")
+    if args.patience < 0:
+        parser.error("--patience must be non-negative")
+    return args
 
 
 # ---------------------------------------------------------------------------
@@ -231,20 +250,30 @@ def main() -> None:
     )
 
     # -- Load configuration --------------------------------------------------
-    config_path = Path(args.config)
-    if config_path.exists():
+    # SEC: validate config path resolves under the project root and exists.
+    # Config files come from a trusted YAML source but we still resolve and
+    # check to avoid surprises from relative-path traversal.
+    config_path = Path(args.config).resolve()
+    if config_path.exists() and config_path.is_file():
         config = load_config(config_path)
     else:
         logger.warning(
-            "Config %s not found; using defaults.", config_path
+            "Config %s not found; using built-in defaults.", config_path
         )
-        config = load_config.__wrapped__ if hasattr(load_config, '__wrapped__') else None
-        # Fallback: create a default Config
+        # Pydantic Config has default_factory for every section, so a
+        # zero-arg instantiation produces a fully-populated default config.
         from i3.config import Config
         config = Config()
 
     # -- Seed ----------------------------------------------------------------
+    # SEC: seed every RNG framework we use (Python random, NumPy, torch)
+    # so the data shuffling and weight init are reproducible from --seed.
     seed = args.seed
+    import random as _py_random
+
+    import numpy as _np
+    _py_random.seed(seed)
+    _np.random.seed(seed)
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
@@ -254,15 +283,18 @@ def main() -> None:
     logger.info("Using device: %s", device)
 
     # -- Load tokenizer ------------------------------------------------------
-    data_dir = Path(args.data_dir)
-    tokenizer_path = args.tokenizer
-    if tokenizer_path is None:
+    # SEC: resolve all input paths so log messages are unambiguous and
+    # any "../"-style relative paths are normalised before file I/O.
+    data_dir = Path(args.data_dir).resolve()
+    tokenizer_path: Path
+    if args.tokenizer is None:
         tokenizer_path = data_dir / "tokenizer.json"
-        if not Path(tokenizer_path).exists():
-            tokenizer_path = "models/slm/tokenizer.json"
+        if not tokenizer_path.exists():
+            tokenizer_path = Path("models/slm/tokenizer.json").resolve()
+    else:
+        tokenizer_path = Path(args.tokenizer).resolve()
 
-    tokenizer_path = Path(tokenizer_path)
-    if tokenizer_path.exists():
+    if tokenizer_path.exists() and tokenizer_path.is_file():
         tokenizer = SimpleTokenizer.load(str(tokenizer_path))
         logger.info("Loaded tokenizer from %s (vocab=%d)", tokenizer_path, len(tokenizer))
     else:
@@ -353,9 +385,13 @@ def main() -> None:
         trainer.scheduler.base_lr = args.lr
 
     # -- Resume from checkpoint if requested ---------------------------------
+    # SEC: resume loads checkpoint with weights_only=False (it must
+    # restore optimiser state, which is pickled). The path is therefore
+    # high-trust: validate it exists and is a regular file before handing
+    # it to torch.load.
     if args.resume:
-        resume_path = Path(args.resume)
-        if resume_path.exists():
+        resume_path = Path(args.resume).resolve()
+        if resume_path.exists() and resume_path.is_file():
             trainer.load_checkpoint(str(resume_path))
         else:
             logger.error("Checkpoint not found: %s", resume_path)

@@ -71,6 +71,10 @@ class SLMGenerator:
     # Main generation method
     # ------------------------------------------------------------------
 
+    # SEC: Hard upper bound on generation length to prevent runaway loops
+    # even if a caller passes a pathologically large max_new_tokens.
+    HARD_MAX_NEW_TOKENS: int = 4096
+
     @torch.no_grad()
     def generate(
         self,
@@ -120,74 +124,157 @@ class SLMGenerator:
             The generated text (prompt + continuation), decoded with
             special tokens removed.
         """
-        if temperature <= 0:
-            raise ValueError(f"temperature must be > 0, got {temperature}")
+        # SEC: Validate sampling parameters to fail-fast on caller errors.
+        if temperature < 0:
+            raise ValueError(f"temperature must be >= 0, got {temperature}")
+        if not 0.0 <= top_p <= 1.0:
+            raise ValueError(f"top_p must be in [0, 1], got {top_p}")
+        if top_k < 0:
+            raise ValueError(f"top_k must be >= 0, got {top_k}")
+        if repetition_penalty <= 0:
+            raise ValueError(
+                f"repetition_penalty must be > 0, got {repetition_penalty}"
+            )
+        # SEC: Hard cap max_new_tokens to prevent infinite generation if
+        # a caller passes an absurd value or the model never emits EOS.
+        if max_new_tokens < 0:
+            raise ValueError(f"max_new_tokens must be >= 0, got {max_new_tokens}")
+        max_new_tokens = min(max_new_tokens, self.HARD_MAX_NEW_TOKENS)
 
-        # 1. Encode prompt
-        input_ids = self.tokenizer.encode(prompt, add_special=True)
-        input_tensor = torch.tensor([input_ids], device=self.device)
+        # SEC: Treat near-zero temperature as greedy decoding rather than
+        # dividing by ~0 (which would produce inf logits and NaN softmax).
+        # 1e-5 matches the precision threshold used by major libraries.
+        greedy = temperature <= 1e-5
 
-        # 2. Default stop tokens
-        if stop_tokens is None:
-            stop_tokens = [self.tokenizer.EOS_ID]
-
-        # 3. Prepare conditioning tensors
-        if adaptation_vector is not None:
-            if adaptation_vector.dim() == 1:
-                adaptation_vector = adaptation_vector.unsqueeze(0)
-            adaptation_vector = adaptation_vector.to(self.device)
-
-        if user_state is not None:
-            if user_state.dim() == 1:
-                user_state = user_state.unsqueeze(0)
-            user_state = user_state.to(self.device)
-
-        # 4. Clear KV cache for fresh generation
+        # SEC: Always clear cache on entry AND in a finally block on exit
+        # so a previous session's KV state cannot leak into this generation
+        # and cannot persist after a crash mid-generation.
         self.model.clear_cache()
 
-        generated_ids: list[int] = list(input_ids)
+        try:
+            # 1. Encode prompt
+            input_ids = self.tokenizer.encode(prompt, add_special=True)
+            input_tensor = torch.tensor([input_ids], device=self.device)
 
-        for _ in range(max_new_tokens):
-            # Forward pass with cache
-            logits, _ = self.model(
-                input_tensor,
-                adaptation_vector,
-                user_state,
-                use_cache=True,
-            )
-            next_logits = logits[:, -1, :]  # [1, vocab_size]
+            # 2. Default stop tokens
+            if stop_tokens is None:
+                stop_tokens = [self.tokenizer.EOS_ID]
+            # SEC: Use a set for O(1) membership and to dedupe input.
+            stop_set: set[int] = set(stop_tokens)
+            # SEC: Identify EOS/PAD/BOS so the repetition penalty does NOT
+            # discourage them — penalising EOS makes the model unable to
+            # terminate, which is the most common cause of runaway gen.
+            protected_ids: set[int] = {
+                self.tokenizer.PAD_ID,
+                self.tokenizer.BOS_ID,
+                self.tokenizer.EOS_ID,
+            }
 
-            # Apply repetition penalty
-            next_logits = self._apply_repetition_penalty(
-                next_logits, generated_ids, repetition_penalty
-            )
+            # 3. Prepare conditioning tensors
+            if adaptation_vector is not None:
+                if adaptation_vector.dim() == 1:
+                    adaptation_vector = adaptation_vector.unsqueeze(0)
+                adaptation_vector = adaptation_vector.to(self.device)
 
-            # Temperature scaling
-            next_logits = next_logits / temperature
+            if user_state is not None:
+                if user_state.dim() == 1:
+                    user_state = user_state.unsqueeze(0)
+                user_state = user_state.to(self.device)
 
-            # Top-k filtering
-            if top_k > 0:
-                next_logits = self._top_k_filter(next_logits, top_k)
+            generated_ids: list[int] = list(input_ids)
 
-            # Top-p (nucleus) filtering
-            if top_p < 1.0:
-                next_logits = self._top_p_filter(next_logits, top_p)
+            # SEC: Resolve the model's positional encoding limit so we can
+            # bound the cache and refuse to generate past it. Falls back to
+            # the attention layer's MAX_CACHE_LEN if the model lacks the
+            # standard embedding structure.
+            try:
+                pos_max = self.model.embedding.positional_encoding.pe.size(1)
+            except AttributeError:
+                pos_max = 2048
 
-            # Sample from the filtered distribution
-            probs = F.softmax(next_logits, dim=-1)
-            next_token = torch.multinomial(probs, num_samples=1).item()
+            for _ in range(max_new_tokens):
+                # SEC: Refuse to generate past the positional encoding limit.
+                # Without this guard, the next forward pass would fall over
+                # inside SinusoidalPositionalEncoding (or silently produce
+                # nonsense if its bounds check were ever relaxed).
+                if len(generated_ids) >= pos_max:
+                    logger.warning(
+                        "Reached positional encoding limit (%d); stopping.",
+                        pos_max,
+                    )
+                    break
 
-            # Check stop condition
-            if next_token in stop_tokens:
-                break
+                # Forward pass with cache
+                logits, _ = self.model(
+                    input_tensor,
+                    adaptation_vector,
+                    user_state,
+                    use_cache=True,
+                )
+                next_logits = logits[:, -1, :]  # [1, vocab_size]
 
-            generated_ids.append(next_token)
-            input_tensor = torch.tensor([[next_token]], device=self.device)
+                # Apply repetition penalty (skipping protected ids)
+                next_logits = self._apply_repetition_penalty(
+                    next_logits,
+                    generated_ids,
+                    repetition_penalty,
+                    protected_ids=protected_ids,
+                )
 
-        # 5. Clean up cache
-        self.model.clear_cache()
+                if greedy:
+                    # SEC: Greedy decode — argmax instead of sampling.
+                    next_token = int(torch.argmax(next_logits, dim=-1).item())
+                else:
+                    # Temperature scaling
+                    next_logits = next_logits / temperature
 
-        return self.tokenizer.decode(generated_ids, skip_special=True)
+                    # Top-k filtering
+                    if top_k > 0:
+                        next_logits = self._top_k_filter(next_logits, top_k)
+
+                    # Top-p (nucleus) filtering
+                    if top_p < 1.0:
+                        next_logits = self._top_p_filter(next_logits, top_p)
+
+                    # Sample from the filtered distribution
+                    probs = F.softmax(next_logits, dim=-1)
+
+                    # SEC: Degenerate-distribution guard. If filtering and
+                    # numerical issues collapse probs to all-NaN or all-zero
+                    # (sum<=0), torch.multinomial will crash or return junk.
+                    # Fall back to uniform over the vocabulary.
+                    if (
+                        torch.isnan(probs).any()
+                        or torch.isinf(probs).any()
+                        or probs.sum().item() <= 0.0
+                    ):
+                        logger.warning(
+                            "Degenerate sampling distribution; "
+                            "falling back to uniform."
+                        )
+                        probs = torch.full_like(
+                            probs, 1.0 / probs.size(-1)
+                        )
+
+                    next_token = int(
+                        torch.multinomial(probs, num_samples=1).item()
+                    )
+
+                # Check stop condition
+                if next_token in stop_set:
+                    break
+
+                generated_ids.append(next_token)
+                input_tensor = torch.tensor(
+                    [[next_token]], device=self.device
+                )
+
+            return self.tokenizer.decode(generated_ids, skip_special=True)
+
+        finally:
+            # SEC: Double-cleanup — guarantees cache is cleared even on
+            # exception so subsequent generations start fresh.
+            self.model.clear_cache()
 
     # ------------------------------------------------------------------
     # Batch generation
@@ -317,48 +404,56 @@ class SLMGenerator:
                 user_state = user_state.unsqueeze(0)
             user_state = user_state.to(self.device)
 
-        # Forward pass over the full sequence (no cache needed for scoring)
+        # SEC: Wrap in try/finally to guarantee cache cleanup even on
+        # exception so subsequent calls start with a clean state.
         self.model.clear_cache()
-        input_tensor = torch.tensor([full_ids], device=self.device)
+        try:
+            input_tensor = torch.tensor([full_ids], device=self.device)
 
-        logits, _ = self.model(
-            input_tensor, adaptation_vector, user_state, use_cache=False
-        )
+            logits, _ = self.model(
+                input_tensor, adaptation_vector, user_state, use_cache=False
+            )
 
-        # Compute per-token probabilities for the generated portion
-        # logits[:, t, :] predicts token at position t+1
-        probs = F.softmax(logits, dim=-1)  # [1, seq_len, vocab_size]
+            # Compute per-token probabilities for the generated portion
+            # logits[:, t, :] predicts token at position t+1
+            probs = F.softmax(logits, dim=-1)  # [1, seq_len, vocab_size]
 
-        token_probs: list[float] = []
-        for t in range(prompt_len - 1, len(full_ids) - 1):
-            target_token = full_ids[t + 1]
-            prob = probs[0, t, target_token].item()
-            token_probs.append(prob)
+            token_probs: list[float] = []
+            vocab_size = probs.size(-1)
+            for t in range(prompt_len - 1, len(full_ids) - 1):
+                target_token = full_ids[t + 1]
+                # SEC: Out-of-range token id guard — if the saved text was
+                # encoded with a different tokenizer, target_token could be
+                # out of range and crash the indexing op.
+                if not 0 <= target_token < vocab_size:
+                    continue
+                prob = probs[0, t, target_token].item()
+                token_probs.append(prob)
 
-        if not token_probs:
+            if not token_probs:
+                return {
+                    "mean_probability": 1.0,
+                    "min_probability": 1.0,
+                    "perplexity": 1.0,
+                    "num_tokens": 0,
+                }
+
+            mean_prob = sum(token_probs) / len(token_probs)
+            min_prob = min(token_probs)
+
+            # Perplexity = exp(mean negative log-likelihood)
+            log_probs = [math.log(max(p, 1e-10)) for p in token_probs]
+            avg_nll = -sum(log_probs) / len(log_probs)
+            perplexity = math.exp(avg_nll)
+
             return {
-                "mean_probability": 1.0,
-                "min_probability": 1.0,
-                "perplexity": 1.0,
-                "num_tokens": 0,
+                "mean_probability": mean_prob,
+                "min_probability": min_prob,
+                "perplexity": perplexity,
+                "num_tokens": len(token_probs),
             }
-
-        mean_prob = sum(token_probs) / len(token_probs)
-        min_prob = min(token_probs)
-
-        # Perplexity = exp(mean negative log-likelihood)
-        log_probs = [math.log(max(p, 1e-10)) for p in token_probs]
-        avg_nll = -sum(log_probs) / len(log_probs)
-        perplexity = math.exp(avg_nll)
-
-        self.model.clear_cache()
-
-        return {
-            "mean_probability": mean_prob,
-            "min_probability": min_prob,
-            "perplexity": perplexity,
-            "num_tokens": len(token_probs),
-        }
+        finally:
+            self.model.clear_cache()
 
     # ------------------------------------------------------------------
     # Sampling helper methods
@@ -369,6 +464,7 @@ class SLMGenerator:
         logits: torch.Tensor,
         generated_ids: list[int],
         penalty: float,
+        protected_ids: Optional[set[int]] = None,
     ) -> torch.Tensor:
         """Apply repetition penalty to logits for previously generated tokens.
 
@@ -387,6 +483,9 @@ class SLMGenerator:
             List of all token IDs generated so far.
         penalty : float
             Penalty factor (1.0 = no penalty).
+        protected_ids : set[int], optional
+            Token IDs that must NOT be penalised (typically EOS / PAD / BOS).
+            Penalising EOS in particular makes the model unable to terminate.
 
         Returns
         -------
@@ -396,9 +495,22 @@ class SLMGenerator:
         if penalty == 1.0 or not generated_ids:
             return logits
 
-        # Get unique previously generated token IDs
+        # SEC: Drop protected ids (EOS/PAD/BOS) from the penalty set so the
+        # model can still terminate naturally.
+        unique_ids = set(generated_ids)
+        if protected_ids:
+            unique_ids -= protected_ids
+        if not unique_ids:
+            return logits
+
+        # SEC: Clamp ids to vocab range to avoid IndexError on bogus inputs.
+        vocab_size = logits.size(-1)
+        valid_ids = [i for i in unique_ids if 0 <= i < vocab_size]
+        if not valid_ids:
+            return logits
+
         prev_tokens = torch.tensor(
-            list(set(generated_ids)),
+            valid_ids,
             dtype=torch.long,
             device=logits.device,
         )
@@ -426,8 +538,8 @@ class SLMGenerator:
     ) -> torch.Tensor:
         """Filter logits to keep only the top-k highest values.
 
-        All logits below the k-th highest value are set to ``-inf`` so that
-        they receive zero probability after softmax.
+        All logits below the k-th highest value are set to a large negative
+        value so that they receive ~zero probability after softmax.
 
         Parameters
         ----------
@@ -441,6 +553,8 @@ class SLMGenerator:
         torch.Tensor
             Filtered logits with the same shape.
         """
+        # SEC: Edge cases — k <= 0 disables top-k; k >= vocab_size keeps all.
+        # k == 1 collapses to greedy at this layer (still safe).
         if k <= 0 or k >= logits.size(-1):
             return logits
 
@@ -448,9 +562,11 @@ class SLMGenerator:
         top_k_values, _ = torch.topk(logits, k, dim=-1)
         threshold = top_k_values[:, -1].unsqueeze(-1)  # [1, 1]
 
-        # Mask everything below the threshold
+        # SEC: Use a large finite negative instead of literal -inf so that
+        # subsequent additions / temperature scaling cannot produce NaN
+        # via -inf * 0 or -inf + finite. softmax of -1e9 is effectively 0.
         filtered = logits.clone()
-        filtered[filtered < threshold] = float("-inf")
+        filtered[filtered < threshold] = -1.0e9
 
         return filtered
 
@@ -478,10 +594,21 @@ class SLMGenerator:
         torch.Tensor
             Filtered logits with the same shape.
         """
+        # SEC: Edge cases. p >= 1 disables filtering; p <= 0 collapses to
+        # the single most likely token (still 1 valid option, never empty).
         if p >= 1.0:
             return logits
+        if p <= 0.0:
+            # Keep only the argmax — guaranteed at least one valid token.
+            top_idx = torch.argmax(logits, dim=-1, keepdim=True)
+            filtered = torch.full_like(logits, -1.0e9)
+            filtered.scatter_(1, top_idx, logits.gather(1, top_idx))
+            return filtered
 
-        # Sort logits in descending order
+        # SEC: Operate on a clone so we never mutate the caller's tensor
+        # in-place via the sorted view (sorted_logits shares storage with
+        # the result of torch.sort but writing through it via scatter_ is
+        # safer with an explicit clone).
         sorted_logits, sorted_indices = torch.sort(
             logits, descending=True, dim=-1
         )
@@ -490,15 +617,21 @@ class SLMGenerator:
         sorted_probs = F.softmax(sorted_logits, dim=-1)
         cumulative_probs = torch.cumsum(sorted_probs, dim=-1)
 
-        # Create mask: True for tokens to REMOVE (cumulative prob > p)
-        # Shift right by 1 so the first token exceeding p is still kept
-        sorted_mask = cumulative_probs - sorted_probs > p
+        # SEC: Create mask — True for tokens to REMOVE (cumulative prob > p).
+        # Use (cumulative - prob > p) so the FIRST token whose cumulative
+        # crosses p is still kept. This guarantees at least one token
+        # survives even if a single token already exceeds p.
+        sorted_mask = (cumulative_probs - sorted_probs) > p
+        # SEC: Belt-and-braces — force the first ranked token to always
+        # remain valid even under odd numerics (NaN comparisons, etc.).
+        sorted_mask[..., 0] = False
 
-        # Set masked logits to -inf
-        sorted_logits[sorted_mask] = float("-inf")
+        # SEC: Use a large finite negative instead of literal -inf
+        # (avoids NaN propagation via subsequent arithmetic).
+        sorted_logits = sorted_logits.masked_fill(sorted_mask, -1.0e9)
 
         # Scatter back to original ordering
-        filtered = logits.clone()
+        filtered = torch.empty_like(logits)
         filtered.scatter_(1, sorted_indices, sorted_logits)
 
         return filtered

@@ -77,10 +77,18 @@ class EmbeddingViz {
         let x, y;
         if (Array.isArray(point2d)) {
             [x, y] = point2d;
+        } else if (typeof point2d === 'object') {
+            x = point2d.x !== undefined ? point2d.x : point2d[0];
+            y = point2d.y !== undefined ? point2d.y : point2d[1];
         } else {
-            x = point2d.x || point2d[0] || 0;
-            y = point2d.y || point2d[1] || 0;
+            return;
         }
+
+        // SEC: Coerce to Number and reject NaN/Infinity before clamping.
+        // Math.min/max(NaN) returns NaN, which would corrupt canvas state.
+        x = Number(x);
+        y = Number(y);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return;
 
         // Clamp to [-1, 1]
         x = Math.max(-1, Math.min(1, x));
@@ -88,7 +96,8 @@ class EmbeddingViz {
 
         this.points.push({ x, y, timestamp: Date.now() });
 
-        // Trim old points
+        // SEC: Hard cap on points array (defence-in-depth alongside maxPoints)
+        // to ensure no memory leak from a misbehaving server.
         while (this.points.length > this.maxPoints) {
             this.points.shift();
         }

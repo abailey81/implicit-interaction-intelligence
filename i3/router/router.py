@@ -234,6 +234,16 @@ class IntelligentRouter:
         arm = _ARM_CLOUD if decision.chosen_route == RouteChoice.CLOUD_LLM else _ARM_SLM
         context_vec = decision.context.to_vector()
 
+        # SEC: Clip and sanitize engagement before forwarding to the bandit.
+        # The bandit also clips, but doing it here ensures the logger reflects
+        # the value actually used.
+        if not np.isfinite(engagement):
+            logger.warning(
+                "Non-finite engagement (%r) — replacing with 0.0", engagement
+            )
+            engagement = 0.0
+        engagement = float(np.clip(engagement, 0.0, 1.0))
+
         self.bandit.update(arm, context_vec, engagement)
         logger.debug(
             "Reward update: arm=%d (%s), engagement=%.3f",

@@ -60,6 +60,11 @@ class MultiHeadSelfAttention(nn.Module):
     the residual stream at initialisation.
     """
 
+    # SEC: Hard upper bound on KV cache length to prevent unbounded growth
+    # (DoS / OOM). Matches the default max_seq_len of the model. Callers
+    # that need a different bound can override on the instance after init.
+    MAX_CACHE_LEN: int = 2048
+
     def __init__(self, d_model: int, n_heads: int, dropout: float = 0.1) -> None:
         super().__init__()
         assert d_model % n_heads == 0, (
@@ -78,7 +83,10 @@ class MultiHeadSelfAttention(nn.Module):
 
         self.attn_dropout = nn.Dropout(dropout)
 
-        # KV cache slots (populated during inference with use_cache=True)
+        # KV cache slots (populated during inference with use_cache=True).
+        # SEC: These are PER-INSTANCE (self.*), not class-level / global, so
+        # concurrent model instances do not share state. Callers should still
+        # avoid sharing a single AdaptiveSLM instance across threads.
         self._cache_k: Optional[torch.Tensor] = None
         self._cache_v: Optional[torch.Tensor] = None
 
@@ -159,8 +167,21 @@ class MultiHeadSelfAttention(nn.Module):
         # --- KV cache (autoregressive inference) -----------------------------
         if use_cache:
             if self._cache_k is not None:
+                # SEC: dtype/device consistency check — prevents fp16/fp32
+                # mix or cross-device leakage if a caller resets dtype mid-run.
+                if (
+                    self._cache_k.dtype != K.dtype
+                    or self._cache_k.device != K.device
+                ):
+                    self._cache_k = self._cache_k.to(dtype=K.dtype, device=K.device)
+                    self._cache_v = self._cache_v.to(dtype=V.dtype, device=V.device)
                 K = torch.cat([self._cache_k, K], dim=2)  # concat along seq dim
                 V = torch.cat([self._cache_v, V], dim=2)
+            # SEC: Hard upper bound — drop oldest entries if cache exceeds
+            # MAX_CACHE_LEN to prevent unbounded growth (OOM / DoS).
+            if K.size(2) > self.MAX_CACHE_LEN:
+                K = K[:, :, -self.MAX_CACHE_LEN:, :]
+                V = V[:, :, -self.MAX_CACHE_LEN:, :]
             self._cache_k = K.detach()
             self._cache_v = V.detach()
 
@@ -263,6 +284,14 @@ class FeedForward(nn.Module):
 # Mask utilities
 # ---------------------------------------------------------------------------
 
+# SEC: Use a large finite negative value instead of literal -inf for masks.
+# When EVERY position in a row is masked, softmax(-inf, -inf, ...) yields NaN
+# (0/0). Using a large finite negative ensures softmax produces a valid (if
+# numerically tiny) distribution rather than NaN that propagates through the
+# residual stream and corrupts the entire forward pass.
+_MASK_NEG: float = -1.0e9
+
+
 def create_causal_mask(
     seq_len: int,
     device: Optional[torch.device] = None,
@@ -272,7 +301,7 @@ def create_causal_mask(
     Returns a ``[1, 1, seq_len, seq_len]`` upper-triangular mask where:
 
     * ``mask[..., i, j] = 0``    if ``j <= i``  (attend -- past & present)
-    * ``mask[..., i, j] = -inf`` if ``j > i``   (mask out -- future)
+    * ``mask[..., i, j] = -1e9`` if ``j > i``   (mask out -- future)
 
     The leading singleton dimensions allow broadcasting over batch and
     head dimensions.
@@ -289,8 +318,12 @@ def create_causal_mask(
     torch.Tensor
         ``[1, 1, seq_len, seq_len]``
     """
+    # SEC: seq_len must be a non-negative int — guard against accidental
+    # negative or float values from malformed callers.
+    if not isinstance(seq_len, int) or seq_len < 0:
+        raise ValueError(f"seq_len must be a non-negative int, got {seq_len!r}")
     mask = torch.triu(torch.ones(seq_len, seq_len, device=device), diagonal=1)
-    mask = mask.masked_fill(mask == 1, float("-inf"))
+    mask = mask.masked_fill(mask == 1, _MASK_NEG)
     return mask.unsqueeze(0).unsqueeze(0)
 
 
@@ -303,7 +336,7 @@ def create_padding_mask(
     Returns a ``[batch, 1, 1, seq_len]`` mask where:
 
     * ``0``    for real tokens   (attend)
-    * ``-inf`` for padding tokens (mask out)
+    * ``-1e9`` for padding tokens (mask out)
 
     The shape broadcasts naturally with attention scores of shape
     ``[batch, n_heads, seq_len, seq_len]``.
@@ -321,6 +354,8 @@ def create_padding_mask(
         ``[batch, 1, 1, seq_len]``
     """
     # (token_ids == pad_id) -> bool [batch, seq_len]
+    # SEC: large finite negative (not literal -inf) — avoids all-NaN softmax
+    # rows when an entire sequence is padded.
     mask = (token_ids == pad_id).float()
-    mask = mask.masked_fill(mask == 1, float("-inf"))
+    mask = mask.masked_fill(mask == 1, _MASK_NEG)
     return mask.unsqueeze(1).unsqueeze(2)

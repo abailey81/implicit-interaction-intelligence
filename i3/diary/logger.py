@@ -299,6 +299,12 @@ class DiaryLogger:
             May return fewer than ``n_topics`` if the message is very
             short or consists entirely of stopwords.
         """
+        # SEC: defensive guard -- if upstream passes None or a non-string
+        # (e.g. a redacted placeholder object), return [] instead of
+        # crashing.  This keeps the privacy invariant: even malformed
+        # input cannot leak via an exception traceback.
+        if not text or not isinstance(text, str):
+            return []
         tokens = _tokenize(text)
         if not tokens:
             return []

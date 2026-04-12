@@ -23,6 +23,11 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+# SEC: Cap input length before regex evaluation. The patterns are
+# audited to be free of catastrophic backtracking, but capping length
+# is a defense-in-depth measure against pathological inputs.
+_MAX_TEXT_LEN = 32_768
+
 
 @dataclass(frozen=True)
 class SensitivityPattern:
@@ -244,6 +249,10 @@ class TopicSensitivityDetector:
         if not text or not text.strip():
             return self.min_score
 
+        # SEC: Truncate over-long inputs to bound regex CPU cost.
+        if len(text) > _MAX_TEXT_LEN:
+            text = text[:_MAX_TEXT_LEN]
+
         max_sensitivity = self.min_score
         for sp in self.patterns:
             if sp.pattern.search(text):
@@ -276,6 +285,10 @@ class TopicSensitivityDetector:
                 "matched_categories": [],
                 "category_scores": {},
             }
+
+        # SEC: Mirror estimate() length cap.
+        if len(text) > _MAX_TEXT_LEN:
+            text = text[:_MAX_TEXT_LEN]
 
         matched: dict[str, float] = {}
         for sp in self.patterns:

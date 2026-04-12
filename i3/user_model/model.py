@@ -18,7 +18,6 @@ from __future__ import annotations
 import logging
 import math
 import time
-from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
@@ -49,6 +48,15 @@ _BASELINE_FEATURE_NAMES: list[str] = [
     "engagement_velocity",
     "flesch_kincaid",
 ]
+
+# SEC: Saturation point for the relationship strength curve. The previous
+# version had `1000` hard-coded inline; lift it to a named constant so it can
+# be reasoned about and overridden by tests.
+_MAX_MESSAGES_FOR_RELATIONSHIP: int = 1000
+
+# SEC: Hard cap on the per-session UserState history. Without a cap a long
+# session would grow this list unboundedly. The newest entries are kept.
+_MAX_SESSION_STATES_HISTORY: int = 1000
 
 
 class UserModel:
@@ -123,11 +131,15 @@ class UserModel:
         if self.profile.baseline_features_mean is not None:
             self._feature_mean = dict(self.profile.baseline_features_mean)
         if self.profile.baseline_features_std is not None:
-            # Reconstruct M2 from std and count (approximate)
+            # SEC: Welford reconstruction. For sample variance,
+            # std = sqrt(M2 / (n - 1))  =>  M2 = std^2 * (n - 1).
+            # Previous code used (std^2 * n) which over-inflated variance
+            # and produced inconsistent statistics across restore cycles.
             n = max(self.profile.total_messages, 1)
             self._feature_count = n
+            denom = max(n - 1, 1)
             self._feature_m2 = {
-                k: (v * v) * n
+                k: (v * v) * denom
                 for k, v in self.profile.baseline_features_std.items()
             }
 
@@ -187,10 +199,17 @@ class UserModel:
         self.profile.total_messages += session.message_count
         self.profile.updated_at = now
 
-        # Update relationship strength (logarithmic growth, capped at 1.0)
-        total = self.profile.total_messages
-        self.profile.relationship_strength = min(
-            1.0, math.log1p(total) / math.log1p(1000)
+        # Update relationship strength (logarithmic growth, capped at [0, 1]).
+        # SEC: clamp on both ends and guard total < 0 in case of restore from
+        # a corrupted profile.
+        total = max(self.profile.total_messages, 0)
+        self.profile.relationship_strength = max(
+            0.0,
+            min(
+                1.0,
+                math.log1p(total)
+                / math.log1p(_MAX_MESSAGES_FOR_RELATIONSHIP),
+            ),
         )
 
         # Persist feature baselines
@@ -291,6 +310,12 @@ class UserModel:
             message_index=session.message_count,
         )
         session.states_history.append(self.current_state)
+        # SEC: Cap states_history so a single long-running session cannot
+        # grow memory without bound. Drop oldest entries; the model only
+        # uses the most recent ones for EMA derivation anyway.
+        if len(session.states_history) > _MAX_SESSION_STATES_HISTORY:
+            overflow = len(session.states_history) - _MAX_SESSION_STATES_HISTORY
+            del session.states_history[:overflow]
         session.message_count += 1
 
         # 2. Update session EMA
@@ -316,17 +341,31 @@ class UserModel:
             + (1 - alpha_eng) * session.mean_engagement
         )
 
-        # 6. Update baseline embedding after warm-up
+        # 6. Bootstrap baseline embedding once warm-up is reached.
+        # SEC: The long-term baseline is normally updated at session END via
+        # `_update_longterm_ema(session.embedding)`. Per-message updates to the
+        # baseline cause double-counting against the session-level EMA. We
+        # therefore only seed the baseline here when (a) the warm-up count
+        # has been reached AND (b) no baseline exists yet, so the very first
+        # session can flip `baseline_established` mid-session and produce
+        # non-zero deviation metrics on subsequent messages.
         total_msgs = self.profile.total_messages + session.message_count
-        if total_msgs >= self.config.baseline_warmup:
-            self._update_baseline_embedding(embedding)
-            if not self.profile.baseline_established:
-                self.profile.baseline_established = True
-                logger.info(
-                    "Baseline established for user_id=%s at message %d",
-                    self.user_id,
-                    total_msgs,
-                )
+        if (
+            total_msgs >= self.config.baseline_warmup
+            and self.profile.baseline_embedding is None
+        ):
+            self._update_baseline_embedding(session.embedding)
+        if (
+            total_msgs >= self.config.baseline_warmup
+            and self.profile.baseline_embedding is not None
+            and not self.profile.baseline_established
+        ):
+            self.profile.baseline_established = True
+            logger.info(
+                "Baseline established for user_id=%s at message %d",
+                self.user_id,
+                total_msgs,
+            )
 
         return self._deviation
 
@@ -395,14 +434,19 @@ class UserModel:
         session = self.current_session
         assert session is not None
 
+        # SEC: Always operate on a detached copy of the input embedding so
+        # gradients never propagate into the long-lived state and so the
+        # caller cannot mutate state via aliasing.
+        new_emb = new_embedding.detach()
+
         if session.message_count <= 1:
-            # First message in session: initialise directly
-            session.embedding = new_embedding.detach().clone()
+            # First message in session: initialise directly (no EMA on empty).
+            session.embedding = new_emb.clone()
         else:
             alpha = self.config.session_ema_alpha
             session.embedding = (
-                alpha * new_embedding + (1 - alpha) * session.embedding
-            )
+                alpha * new_emb + (1 - alpha) * session.embedding.detach()
+            ).clone()
 
     def _update_longterm_ema(self, session_embedding: torch.Tensor) -> None:
         """Update the long-term baseline via EMA of session embeddings.
@@ -412,14 +456,16 @@ class UserModel:
         Args:
             session_embedding: Final session-level EMA embedding.
         """
+        # SEC: detach + clone to avoid grad propagation and aliasing.
+        sess = session_embedding.detach()
         if self.profile.baseline_embedding is None:
-            self.profile.baseline_embedding = session_embedding.detach().clone()
+            self.profile.baseline_embedding = sess.clone()
         else:
             alpha = self.config.longterm_ema_alpha
             self.profile.baseline_embedding = (
-                alpha * session_embedding
-                + (1 - alpha) * self.profile.baseline_embedding
-            )
+                alpha * sess
+                + (1 - alpha) * self.profile.baseline_embedding.detach()
+            ).clone()
 
     def _update_baseline_embedding(self, new_embedding: torch.Tensor) -> None:
         """Incrementally update the baseline embedding with a new observation.
@@ -431,14 +477,32 @@ class UserModel:
         Args:
             new_embedding: 64-dim embedding from the encoder.
         """
+        # SEC: detach + clone to avoid grad propagation and aliasing.
+        new_emb = new_embedding.detach()
         if self.profile.baseline_embedding is None:
-            self.profile.baseline_embedding = new_embedding.detach().clone()
+            self.profile.baseline_embedding = new_emb.clone()
         else:
             alpha = self.config.longterm_ema_alpha
             self.profile.baseline_embedding = (
-                alpha * new_embedding
-                + (1 - alpha) * self.profile.baseline_embedding
-            )
+                alpha * new_emb
+                + (1 - alpha) * self.profile.baseline_embedding.detach()
+            ).clone()
+
+    # ------------------------------------------------------------------
+    # Test / debug helpers
+    # ------------------------------------------------------------------
+
+    def reset_statistics(self) -> None:
+        """Reset the running Welford statistics.
+
+        Intended for unit tests and controlled re-baselining. Clears the
+        in-memory feature mean/M2 buffers and the cached count, but does
+        not delete the persisted profile.
+        """
+        # SEC: Resetable state for tests (audit checklist requirement).
+        self._feature_count = 0
+        self._feature_mean = {}
+        self._feature_m2 = {}
 
     # ------------------------------------------------------------------
     # Feature statistics (Welford's online algorithm)
@@ -457,27 +521,51 @@ class UserModel:
         Args:
             features: Current interaction feature vector.
         """
+        # SEC: NaN guard - skip the entire feature vector if any tracked field
+        # is NaN/Inf to avoid corrupting the running statistics with garbage.
+        raw_values: dict[str, float] = {}
+        for name in _BASELINE_FEATURE_NAMES:
+            value = float(getattr(features, name, 0.0))
+            if not math.isfinite(value):
+                logger.warning(
+                    "Skipping feature update for user_id=%s: non-finite "
+                    "value for '%s' (%r)",
+                    self.user_id,
+                    name,
+                    value,
+                )
+                return
+            raw_values[name] = value
+
         self._feature_count += 1
         n = self._feature_count
 
-        for name in _BASELINE_FEATURE_NAMES:
-            value = float(getattr(features, name, 0.0))
+        for name, value in raw_values.items():
+            # SEC: Use the standard Welford recurrence:
+            #   delta      = x - mean_old
+            #   mean_new   = mean_old + delta / n
+            #   M2        += delta * (x - mean_new)
+            # First-ever observation (n == 1) seeds mean = value, M2 = 0.
             old_mean = self._feature_mean.get(name, 0.0)
-
-            if n == 1:
+            if n == 1 or name not in self._feature_mean:
                 self._feature_mean[name] = value
                 self._feature_m2[name] = 0.0
-            else:
-                new_mean = old_mean + (value - old_mean) / n
-                self._feature_m2[name] = self._feature_m2.get(name, 0.0) + (
-                    value - old_mean
-                ) * (value - new_mean)
-                self._feature_mean[name] = new_mean
+                continue
+            delta = value - old_mean
+            new_mean = old_mean + delta / n
+            m2_old = self._feature_m2.get(name, 0.0)
+            # SEC: Guard against negative M2 from float drift.
+            self._feature_m2[name] = max(
+                0.0, m2_old + delta * (value - new_mean)
+            )
+            self._feature_mean[name] = new_mean
 
         # Update profile with latest statistics
         self.profile.baseline_features_mean = dict(self._feature_mean)
         if n > 1:
+            # SEC: max(variance, 0) before sqrt protects against any residual
+            # negative M2 from float drift.
             self.profile.baseline_features_std = {
-                k: math.sqrt(m2 / (n - 1))
+                k: math.sqrt(max(m2 / (n - 1), 0.0))
                 for k, m2 in self._feature_m2.items()
             }

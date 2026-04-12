@@ -158,35 +158,73 @@ class Dashboard {
 
             // Routing decision text
             if (this.routingDecision) {
-                const chosen = data.route_chosen || (edgeVal >= cloudVal ? 'local_slm' : 'cloud_llm');
-                const label = chosen.includes('local') || chosen.includes('slm') ? 'Edge SLM' : 'Cloud LLM';
-                this.routingDecision.innerHTML =
-                    `Decision: <span class="route-label">${label}</span>` +
-                    ` (${(Math.max(edgeVal, cloudVal) * 100).toFixed(0)}% confidence)`;
+                // SEC: data.route_chosen is server-controlled. Coerce to string and
+                // build DOM with textContent to prevent XSS via injected HTML.
+                const chosenRaw = data.route_chosen ||
+                    (edgeVal >= cloudVal ? 'local_slm' : 'cloud_llm');
+                const chosen = String(chosenRaw);
+                const label = chosen.includes('local') || chosen.includes('slm')
+                    ? 'Edge SLM'
+                    : 'Cloud LLM';
+                const confidencePct = (Math.max(edgeVal, cloudVal) * 100).toFixed(0);
+
+                // SEC: Replace innerHTML with safe DOM construction (textContent only)
+                this.routingDecision.textContent = '';
+                this.routingDecision.appendChild(
+                    document.createTextNode('Decision: ')
+                );
+                const labelSpan = document.createElement('span');
+                labelSpan.className = 'route-label';
+                labelSpan.textContent = label;
+                this.routingDecision.appendChild(labelSpan);
+                this.routingDecision.appendChild(
+                    document.createTextNode(` (${confidencePct}% confidence)`)
+                );
             }
         }
 
         // --- Engagement cards ---
+        // SEC: Coerce all server-supplied numerics to Number() and reject NaN
+        // before calling .toFixed(), which would otherwise throw on a string
+        // and break the update loop.
         if (data.engagement_score !== undefined && this.engagementCards.score) {
-            this.engagementCards.score.textContent = data.engagement_score.toFixed(2);
+            const score = Number(data.engagement_score);
+            if (Number.isFinite(score)) {
+                this.engagementCards.score.textContent = score.toFixed(2);
+            }
         }
 
         if (data.deviation_from_baseline !== undefined && this.engagementCards.deviation) {
-            const dev = data.deviation_from_baseline;
-            const sign = dev >= 0 ? '+' : '';
-            this.engagementCards.deviation.textContent = `${sign}${dev.toFixed(3)}`;
+            const dev = Number(data.deviation_from_baseline);
+            if (Number.isFinite(dev)) {
+                const sign = dev >= 0 ? '+' : '';
+                this.engagementCards.deviation.textContent = `${sign}${dev.toFixed(3)}`;
+            }
         }
 
         if (data.messages_in_session !== undefined && this.engagementCards.messages) {
-            this.engagementCards.messages.textContent = data.messages_in_session;
+            const count = Number(data.messages_in_session);
+            if (Number.isFinite(count)) {
+                // SEC: textContent accepts a number safely; coerce explicitly
+                // to avoid passing a server-controlled object/string into the DOM.
+                this.engagementCards.messages.textContent = String(Math.round(count));
+            }
         }
 
         if (data.baseline_established !== undefined && this.engagementCards.baseline) {
+            // SEC: Replace innerHTML with DOM construction to satisfy strict CSP
+            // (script-src 'self') and avoid the innerHTML sink entirely.
+            const baselineEl = this.engagementCards.baseline;
+            baselineEl.textContent = '';
+            const span = document.createElement('span');
             if (data.baseline_established) {
-                this.engagementCards.baseline.innerHTML = '<span class="baseline-yes">Established</span>';
+                span.className = 'baseline-yes';
+                span.textContent = 'Established';
             } else {
-                this.engagementCards.baseline.innerHTML = '<span class="baseline-no">Warming up...</span>';
+                span.className = 'baseline-no';
+                span.textContent = 'Warming up...';
             }
+            baselineEl.appendChild(span);
         }
     }
 
@@ -200,7 +238,11 @@ class Dashboard {
         const gauge = this.gauges[key];
         if (!gauge) return;
 
-        const clamped = Math.max(0, Math.min(1, value));
+        // SEC: Coerce to Number and reject NaN/Infinity before clamp.
+        // This prevents NaN% widths and broken textContent on bad payloads.
+        const num = Number(value);
+        if (!Number.isFinite(num)) return;
+        const clamped = Math.max(0, Math.min(1, num));
 
         gauge.fill.style.width = `${(clamped * 100).toFixed(1)}%`;
         gauge.valueEl.textContent = clamped.toFixed(2);

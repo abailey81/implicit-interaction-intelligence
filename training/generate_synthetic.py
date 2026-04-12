@@ -472,7 +472,18 @@ def _parse_args() -> argparse.Namespace:
         "--output-dir", type=str, default="data/synthetic",
         help="Output directory (default: data/synthetic).",
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+
+    # SEC: bound-check positive integers so a typo can't trigger a
+    # zero- or negative-length loop. Note: window > messages is allowed
+    # (the windowing helper left-pads short sessions with zeros).
+    if args.sessions <= 0:
+        parser.error("--sessions must be a positive integer")
+    if args.messages <= 0:
+        parser.error("--messages must be a positive integer")
+    if args.window <= 0:
+        parser.error("--window must be a positive integer")
+    return args
 
 
 if __name__ == "__main__":

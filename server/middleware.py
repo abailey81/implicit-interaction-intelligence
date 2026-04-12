@@ -18,8 +18,9 @@ shared store such as Redis.
 from __future__ import annotations
 
 import logging
+import threading
 import time
-from collections import defaultdict, deque
+from collections import deque
 from typing import Awaitable, Callable, Deque, Iterable
 
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -37,6 +38,12 @@ DEFAULT_MAX_BODY_BYTES: int = 1 * 1024 * 1024          # 1 MiB for REST
 DEFAULT_API_RATE_LIMIT: int = 60                        # requests / minute / IP
 DEFAULT_WS_USER_RATE_LIMIT: int = 600                   # messages / minute / user
 DEFAULT_WINDOW_SECONDS: int = 60                        # sliding-window length
+
+# SEC: Cap on the number of distinct rate-limit keys we track in-memory.
+# Without this bound the limiter dict grows unbounded for every distinct
+# client IP that has ever hit the API, which is a DoS vector (memory
+# exhaustion).  When the cap is hit we evict the oldest idle key.
+DEFAULT_MAX_TRACKED_KEYS: int = 10_000
 
 
 # ---------------------------------------------------------------------------
@@ -58,6 +65,16 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     - ``Strict-Transport-Security`` — only applied on HTTPS requests.
     """
 
+    # SEC: 'unsafe-inline' is required for both script-src and style-src
+    # because web/index.html embeds a critical style block (lines 8-13) and
+    # a DOMContentLoaded inline script (lines 146-151).  Removing
+    # 'unsafe-inline' would break the demo UI.  Trade-off: this weakens
+    # XSS defence-in-depth.  To tighten in production:
+    #   1. Move both inline blocks into /static/css/critical.css and
+    #      /static/js/bootstrap.js, OR
+    #   2. Generate a per-request nonce and rewrite the HTML on the fly,
+    #      then emit `script-src 'self' 'nonce-<n>'`.
+    # Option (1) is the recommended hardening path.
     DEFAULT_CSP: str = (
         "default-src 'self'; "
         "script-src 'self' 'unsafe-inline'; "
@@ -67,12 +84,17 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         "font-src 'self' data:; "
         "object-src 'none'; "
         "base-uri 'self'; "
+        "form-action 'self'; "
         "frame-ancestors 'none'"
     )
 
+    # SEC: fullscreen=(self) added per OWASP guidance — the demo dashboard
+    # may use fullscreen on the embedding canvas; geolocation/camera/etc.
+    # are denied entirely.
     DEFAULT_PERMISSIONS: str = (
         "camera=(), microphone=(), geolocation=(), payment=(), "
-        "usb=(), accelerometer=(), gyroscope=(), magnetometer=()"
+        "usb=(), accelerometer=(), gyroscope=(), magnetometer=(), "
+        "fullscreen=(self)"
     )
 
     def __init__(
@@ -96,16 +118,45 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
         response.headers.setdefault("Permissions-Policy", self.permissions)
         response.headers.setdefault("Content-Security-Policy", self.csp)
-        # HSTS only applies to HTTPS
-        if request.url.scheme == "https":
+        # SEC: X-Permitted-Cross-Domain-Policies blocks Adobe Flash / PDF
+        # cross-domain policy files, which is the safe default for an API.
+        response.headers.setdefault("X-Permitted-Cross-Domain-Policies", "none")
+        # SEC: Cross-Origin-Opener-Policy isolates the browsing context so
+        # that a malicious cross-origin window cannot use window.opener
+        # tricks against the demo UI.
+        response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+        response.headers.setdefault("Cross-Origin-Resource-Policy", "same-origin")
+        # SEC: HSTS only applies to HTTPS.  When deployed behind a TLS
+        # terminating reverse proxy (nginx/envoy) the wire-level scheme is
+        # "http" and we must consult X-Forwarded-Proto.  We only honour
+        # the forwarded header when an explicit trust marker has been set
+        # in request.state by the proxy bootstrap (mirrors the rate-limit
+        # _client_ip handling).
+        if self._is_https(request):
             response.headers.setdefault(
                 "Strict-Transport-Security",
                 "max-age=63072000; includeSubDomains",
             )
-        # Prevent caching of API responses (reduce information disclosure)
+        # SEC: API responses must not be cached by intermediaries — they
+        # may contain user-specific profile data (PII).  Static assets are
+        # served from a different mount and are unaffected.
         if request.url.path.startswith("/api"):
             response.headers.setdefault("Cache-Control", "no-store")
+            response.headers.setdefault("Pragma", "no-cache")
         return response
+
+    @staticmethod
+    def _is_https(request: Request) -> bool:
+        """Detect HTTPS, honouring trusted X-Forwarded-Proto."""
+        if request.url.scheme == "https":
+            return True
+        # SEC: only trust the forwarded header when the proxy bootstrap
+        # has explicitly opted-in by setting request.state.trust_proxy.
+        if getattr(request.state, "trust_proxy", False):
+            xfp = request.headers.get("x-forwarded-proto", "")
+            if xfp.split(",")[0].strip().lower() == "https":
+                return True
+        return False
 
 
 # ---------------------------------------------------------------------------
@@ -119,15 +170,23 @@ class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
     The check is performed in two stages:
 
     1. Fast-path — if the ``Content-Length`` header is present we compare
-       against the limit immediately.
-    2. Slow-path — we still let the request through but the downstream
-       handlers are expected to read streaming bodies responsibly.  This
-       middleware guards the common case where a malicious client sends
-       a multi-megabyte JSON payload.
+       against the limit immediately and reject before any body is read.
+    2. Slow-path — for chunked / streaming requests with no declared
+       length we reject up-front because the demo API has no legitimate
+       streaming endpoints.  Switching to a buffered enforcement (read
+       the body and bail mid-stream once the threshold is crossed) is a
+       documented future enhancement.
     """
+
+    # SEC: methods that may legitimately carry a body — GET/HEAD/DELETE
+    # are allowed through without inspection because they should not have
+    # one (and Starlette will surface any oddity to the route).
+    _BODY_METHODS = frozenset({"POST", "PUT", "PATCH"})
 
     def __init__(self, app, max_body_bytes: int = DEFAULT_MAX_BODY_BYTES) -> None:
         super().__init__(app)
+        if max_body_bytes <= 0:
+            raise ValueError("max_body_bytes must be positive")
         self.max_body_bytes = max_body_bytes
 
     async def dispatch(
@@ -135,26 +194,67 @@ class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
         request: Request,
         call_next: Callable[[Request], Awaitable[Response]],
     ) -> Response:
+        # SEC: only inspect methods that can carry a body.  GET/HEAD with
+        # a Content-Length is unusual but not inherently dangerous, so we
+        # let it through unchecked rather than risk false positives.
+        if request.method.upper() not in self._BODY_METHODS:
+            return await call_next(request)
+
         content_length = request.headers.get("content-length")
-        if content_length is not None:
-            try:
-                declared = int(content_length)
-            except ValueError:
-                return JSONResponse(
-                    {"detail": "Invalid Content-Length header"},
-                    status_code=400,
-                )
-            if declared > self.max_body_bytes:
-                logger.warning(
-                    "Request rejected: body %d > limit %d (path=%s)",
-                    declared,
-                    self.max_body_bytes,
-                    request.url.path,
-                )
-                return JSONResponse(
-                    {"detail": "Request body too large"},
-                    status_code=413,
-                )
+        transfer_encoding = request.headers.get("transfer-encoding", "").lower()
+
+        # SEC: chunked encoding does not declare a length up-front.  We
+        # reject because none of the demo API endpoints accept streaming
+        # uploads, so any chunked POST is either misconfigured or hostile.
+        if "chunked" in transfer_encoding and content_length is None:
+            logger.warning(
+                "Request rejected: chunked encoding with no Content-Length (path=%s)",
+                request.url.path,
+            )
+            return JSONResponse(
+                {"detail": "Chunked transfer encoding is not supported"},
+                status_code=411,  # Length Required
+            )
+
+        if content_length is None:
+            # SEC: no Content-Length and no chunked encoding for a body
+            # method is itself an HTTP protocol violation.  Reject.
+            return JSONResponse(
+                {"detail": "Length Required"},
+                status_code=411,
+            )
+
+        try:
+            declared = int(content_length)
+        except ValueError:
+            return JSONResponse(
+                {"detail": "Invalid Content-Length header"},
+                status_code=400,
+            )
+
+        # SEC: a negative Content-Length is a smuggling indicator.
+        if declared < 0:
+            logger.warning(
+                "Request rejected: negative Content-Length %d (path=%s)",
+                declared,
+                request.url.path,
+            )
+            return JSONResponse(
+                {"detail": "Invalid Content-Length header"},
+                status_code=400,
+            )
+
+        if declared > self.max_body_bytes:
+            logger.warning(
+                "Request rejected: body %d > limit %d (path=%s)",
+                declared,
+                self.max_body_bytes,
+                request.url.path,
+            )
+            return JSONResponse(
+                {"detail": "Request body too large"},
+                status_code=413,
+            )
         return await call_next(request)
 
 
@@ -169,23 +269,91 @@ class _SlidingWindowLimiter:
     Not suitable for multi-process deployments (each worker gets its own
     state), but fine for the single-process demo server.  For production,
     replace with a Redis-backed implementation.
+
+    SEC: this implementation guarantees three security properties:
+
+    1. **Concurrency safety** — all reads and writes happen under a
+       :class:`threading.Lock`, which protects against both asyncio
+       coroutine interleaving (defence-in-depth — there is no ``await``
+       inside the critical section) and the rare case of multiple
+       uvicorn worker threads sharing process state.
+    2. **Bounded memory** — the dict size is capped at *max_keys*; when
+       full, the oldest *idle* keys are evicted.  Without this an
+       attacker could enumerate IPs to exhaust server memory.
+    3. **Idle key pruning** — keys whose buckets become empty after
+       window expiry are removed lazily on each ``allow()`` call when
+       the cap is hit (amortised O(1)).
+
+    ``allow()`` is intentionally synchronous so it can be invoked from
+    the WebSocket handler (which holds the event loop and cannot ``await``
+    a separate limiter without restructuring its read loop).
     """
 
-    def __init__(self, limit: int, window_seconds: int) -> None:
+    def __init__(
+        self,
+        limit: int,
+        window_seconds: int,
+        max_keys: int = DEFAULT_MAX_TRACKED_KEYS,
+    ) -> None:
+        if limit <= 0:
+            raise ValueError("limit must be positive")
+        if window_seconds <= 0:
+            raise ValueError("window_seconds must be positive")
+        if max_keys <= 0:
+            raise ValueError("max_keys must be positive")
         self.limit = limit
         self.window = window_seconds
-        self._events: dict[str, Deque[float]] = defaultdict(deque)
+        self.max_keys = max_keys
+        self._events: dict[str, Deque[float]] = {}
+        self._lock = threading.Lock()
 
     def allow(self, key: str) -> bool:
-        now = time.monotonic()
-        bucket = self._events[key]
-        cutoff = now - self.window
-        while bucket and bucket[0] < cutoff:
-            bucket.popleft()
-        if len(bucket) >= self.limit:
-            return False
-        bucket.append(now)
-        return True
+        with self._lock:
+            now = time.monotonic()
+            cutoff = now - self.window
+
+            bucket = self._events.get(key)
+            if bucket is None:
+                # SEC: enforce the global key cap *before* we insert.
+                if len(self._events) >= self.max_keys:
+                    self._evict_idle(cutoff)
+                    if len(self._events) >= self.max_keys:
+                        # All keys are still active — fall back to
+                        # evicting the single oldest entry by head time.
+                        self._evict_oldest()
+                bucket = deque()
+                self._events[key] = bucket
+            else:
+                while bucket and bucket[0] < cutoff:
+                    bucket.popleft()
+                # SEC: an idle key whose bucket emptied out can be
+                # dropped immediately to keep the dict from accumulating
+                # one entry per ever-seen IP.
+                if not bucket:
+                    self._events.pop(key, None)
+                    bucket = deque()
+                    self._events[key] = bucket
+
+            if len(bucket) >= self.limit:
+                return False
+            bucket.append(now)
+            return True
+
+    def _evict_idle(self, cutoff: float) -> None:
+        """Drop any key whose entire bucket is older than *cutoff*."""
+        stale = [k for k, b in self._events.items() if not b or b[-1] < cutoff]
+        for k in stale:
+            self._events.pop(k, None)
+
+    def _evict_oldest(self) -> None:
+        """Evict the single key with the oldest head timestamp."""
+        if not self._events:
+            return
+        oldest_key = min(
+            self._events,
+            key=lambda k: self._events[k][0] if self._events[k] else 0.0,
+        )
+        self._events.pop(oldest_key, None)
 
     def reset(self, key: str | None = None) -> None:
         if key is None:
@@ -193,14 +361,26 @@ class _SlidingWindowLimiter:
         else:
             self._events.pop(key, None)
 
+    def __len__(self) -> int:  # diagnostics / tests
+        return len(self._events)
+
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """In-memory rate limiter for REST endpoints, keyed by client IP.
 
-    WebSocket rate limiting is NOT performed here (FastAPI middleware
-    only sees HTTP requests); use :meth:`RateLimitMiddleware.ws_limiter`
-    to share the same sliding-window implementation for per-user
-    WebSocket throttling from inside the websocket handler.
+    WebSocket rate limiting is NOT performed here (Starlette HTTP
+    middleware never sees the ``websocket`` ASGI scope); use
+    :meth:`RateLimitMiddleware.ws_limiter` to share the same
+    sliding-window implementation for per-user WebSocket throttling from
+    inside the websocket handler.
+
+    Trust model
+    -----------
+    By default the limiter keys on the immediate TCP peer
+    (``request.client.host``) and **does not** trust ``X-Forwarded-For``.
+    To deploy behind nginx / envoy, set
+    ``request.state.trust_forwarded_for = True`` from a proxy bootstrap
+    middleware that has already validated the upstream IP.
     """
 
     def __init__(
@@ -209,20 +389,33 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         api_limit: int = DEFAULT_API_RATE_LIMIT,
         window_seconds: int = DEFAULT_WINDOW_SECONDS,
         exempt_paths: Iterable[str] = ("/api/health",),
+        max_tracked_keys: int = DEFAULT_MAX_TRACKED_KEYS,
     ) -> None:
         super().__init__(app)
-        self._limiter = _SlidingWindowLimiter(api_limit, window_seconds)
+        self._limiter = _SlidingWindowLimiter(
+            api_limit, window_seconds, max_keys=max_tracked_keys
+        )
         self._exempt_paths = frozenset(exempt_paths)
+        # SEC: cache the Retry-After value so we don't string-format
+        # on every rejected request.
+        self._retry_after = str(window_seconds)
 
     async def dispatch(
         self,
         request: Request,
         call_next: Callable[[Request], Awaitable[Response]],
     ) -> Response:
-        # Only rate-limit /api/* paths; static files and the docs UI are
-        # not subject to throttling.
+        # SEC: only /api/* paths are throttled.  Static assets are not
+        # rate-limited because they are served from disk and the cost is
+        # negligible.  WebSocket upgrades arrive with scope=websocket and
+        # bypass BaseHTTPMiddleware entirely, so /ws/ is implicitly
+        # exempt — confirmed defensively below.
         path = request.url.path
-        if not path.startswith("/api") or path in self._exempt_paths:
+        if (
+            not path.startswith("/api")
+            or path in self._exempt_paths
+            or path.startswith("/ws/")
+        ):
             return await call_next(request)
 
         client_ip = self._client_ip(request)
@@ -231,7 +424,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return JSONResponse(
                 {"detail": "Rate limit exceeded"},
                 status_code=429,
-                headers={"Retry-After": "60"},
+                headers={"Retry-After": self._retry_after},
             )
         return await call_next(request)
 
@@ -239,14 +432,17 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     def _client_ip(request: Request) -> str:
         """Best-effort client IP extraction.
 
-        Honours ``X-Forwarded-For`` only when an explicit trust boundary
-        marker is present in request state (set by a reverse-proxy hook
-        if deployed behind nginx / envoy).  Otherwise uses the direct
-        connection address.
+        SEC: ``X-Forwarded-For`` is **only** honoured when an explicit
+        trust boundary marker (``request.state.trust_forwarded_for``) is
+        set by a reverse-proxy bootstrap.  Otherwise the header is
+        ignored entirely — accepting it unconditionally would let any
+        client trivially bypass the limiter by spoofing the header.
         """
-        fwd = request.headers.get("x-forwarded-for")
-        if fwd and getattr(request.state, "trust_forwarded_for", False):
-            return fwd.split(",")[0].strip()
+        if getattr(request.state, "trust_forwarded_for", False):
+            fwd = request.headers.get("x-forwarded-for")
+            if fwd:
+                # The first entry is the original client per RFC 7239.
+                return fwd.split(",")[0].strip() or "unknown"
         if request.client is None:
             return "unknown"
         return request.client.host
@@ -255,6 +451,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     def ws_limiter(
         limit: int = DEFAULT_WS_USER_RATE_LIMIT,
         window_seconds: int = DEFAULT_WINDOW_SECONDS,
+        max_keys: int = DEFAULT_MAX_TRACKED_KEYS,
     ) -> _SlidingWindowLimiter:
         """Factory for a standalone WebSocket per-user rate limiter.
 
@@ -262,7 +459,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         middleware instance and is intended for use from inside the
         WebSocket handler, which cannot use HTTP middleware.
         """
-        return _SlidingWindowLimiter(limit=limit, window_seconds=window_seconds)
+        return _SlidingWindowLimiter(
+            limit=limit, window_seconds=window_seconds, max_keys=max_keys
+        )
 
 
 __all__ = [

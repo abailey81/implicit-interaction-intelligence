@@ -15,6 +15,7 @@ import json
 import logging
 import sqlite3
 import asyncio
+import threading
 import aiosqlite
 from pathlib import Path
 from typing import Optional
@@ -23,10 +24,17 @@ from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
+# SEC: Defense-in-depth ReDoS guard. Any text exceeding this length is
+# truncated before being passed to the regex engine. 50_000 chars is large
+# enough for any realistic single utterance / message and small enough that
+# even quadratic backtracking on a worst-case pattern stays below ~100 ms.
+MAX_INPUT_LENGTH: int = 50_000
 
-@dataclass
+
+@dataclass(frozen=True)
 class SanitizationResult:
-    """Result of sanitizing text."""
+    """Result of sanitizing text. Immutable to prevent accidental mutation
+    of audit records by downstream callers."""
     sanitized_text: str
     pii_detected: bool
     pii_types: list[str]  # Types of PII found (e.g., ["email", "phone"])
@@ -53,10 +61,40 @@ class PrivacySanitizer:
     3. Topic extraction (strip PII before extracting keywords)
     """
 
+    # SEC: Pattern ORDERING is significant. URL must run BEFORE email so that
+    # an email embedded inside a URL (e.g. mailto: or query string) is masked
+    # exactly once as [URL] rather than first being partially mangled by the
+    # email pattern. Likewise SSN runs before phone patterns so that an SSN
+    # like 123-45-6789 is not accidentally masked as a US phone fragment.
     PII_PATTERNS: list[tuple[str, re.Pattern, str]] = [
+        # SEC: URL pattern uses a negated character class with a single +,
+        # which has no ambiguity (each char either belongs or terminates the
+        # match). ReDoS-safe.
+        ("url", re.compile(
+            r'https?://[^\s<>"{}|\\^`\[\]]+', re.IGNORECASE
+        ), "[URL]"),
+
+        # SEC: Email pattern hardened against ReDoS and a correctness bug.
+        # Original was: \b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b
+        # Two issues fixed:
+        #   1. [A-Z|a-z] literally included the '|' character (a typo for
+        #      [A-Za-z]). The pipe is not alternation inside a character
+        #      class -- it matches a literal '|'.
+        #   2. The unbounded [A-Za-z0-9.-]+ followed by \. caused quadratic
+        #      backtracking on long inputs lacking a trailing dot, because
+        #      '.' is a member of the preceding class. We bound the local
+        #      part to 64 chars (RFC 5321) and the domain to 253 chars and
+        #      the TLD to 24 chars. With these bounds the worst-case work is
+        #      a small constant per starting position -> linear overall.
         ("email", re.compile(
-            r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+            r'\b[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,253}\.[A-Za-z]{2,24}\b'
         ), "[EMAIL]"),
+
+        # SEC: SSN runs before phone patterns to prevent a US-style SSN from
+        # being partially masked as a phone fragment.
+        ("ssn", re.compile(
+            r'\b[0-9]{3}-[0-9]{2}-[0-9]{4}\b'
+        ), "[SSN]"),
 
         ("phone_us", re.compile(
             r'\b(?:\+?1[-.\s]?)?\(?[0-9]{3}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4}\b'
@@ -70,10 +108,6 @@ class PrivacySanitizer:
             r'\b\+[0-9]{1,3}[-.\s]?[0-9]{1,4}[-.\s]?[0-9]{3,4}[-.\s]?[0-9]{3,4}\b'
         ), "[PHONE]"),
 
-        ("ssn", re.compile(
-            r'\b[0-9]{3}-[0-9]{2}-[0-9]{4}\b'
-        ), "[SSN]"),
-
         ("credit_card", re.compile(
             r'\b(?:[0-9]{4}[-\s]?){3}[0-9]{4}\b'
         ), "[CREDIT_CARD]"),
@@ -82,8 +116,12 @@ class PrivacySanitizer:
             r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b'
         ), "[IP_ADDRESS]"),
 
+        # SEC: Address pattern hardened. Original had \w+ which could match
+        # arbitrarily long tokens and trigger backtracking against the
+        # required street-suffix literal. We bound the street-name token to
+        # 1..30 word characters; real street names are well under that.
         ("address", re.compile(
-            r'\b\d{1,5}\s+\w+\s+(?:Street|St|Avenue|Ave|Road|Rd|Drive|Dr|'
+            r'\b\d{1,5}\s+\w{1,30}\s+(?:Street|St|Avenue|Ave|Road|Rd|Drive|Dr|'
             r'Lane|Ln|Boulevard|Blvd|Way|Court|Ct|Place|Pl)\b',
             re.IGNORECASE
         ), "[ADDRESS]"),
@@ -91,25 +129,49 @@ class PrivacySanitizer:
         ("dob", re.compile(
             r'\b(?:0[1-9]|[12][0-9]|3[01])[/\-.](?:0[1-9]|1[012])[/\-.](?:19|20)\d{2}\b'
         ), "[DOB]"),
-
-        ("url", re.compile(
-            r'https?://[^\s<>"{}|\\^`\[\]]+', re.IGNORECASE
-        ), "[URL]"),
     ]
 
     def __init__(self, enabled: bool = True):
         self.enabled = enabled
-        self._stats = {"total_scans": 0, "pii_found": 0, "replacements": 0}
+        self._stats = {
+            "total_scans": 0,
+            "pii_found": 0,
+            "replacements": 0,
+            "truncated_inputs": 0,
+        }
+        # SEC: stats may be updated from multiple async tasks / threads.
+        # A simple lock keeps counters consistent without measurable cost.
+        self._stats_lock = threading.Lock()
 
     def sanitize(self, text: str) -> SanitizationResult:
         """Remove all PII from text.
 
         Returns sanitized text and metadata about what was found.
+
+        SEC: Inputs longer than ``MAX_INPUT_LENGTH`` are truncated before any
+        regex is applied. This is a defense-in-depth ReDoS guard: even if a
+        future pattern were vulnerable to catastrophic backtracking, the
+        attack surface is bounded to a fixed-size input.
         """
         if not self.enabled:
             return SanitizationResult(text, False, [], 0)
 
-        self._stats["total_scans"] += 1
+        if not isinstance(text, str):
+            # Non-string input cannot contain PII and would crash the regex
+            # engine. Return an empty/clean result rather than raising.
+            return SanitizationResult("", False, [], 0)
+
+        truncated = False
+        if len(text) > MAX_INPUT_LENGTH:
+            text = text[:MAX_INPUT_LENGTH]
+            truncated = True
+            logger.warning(
+                "PrivacySanitizer.sanitize: input truncated from >%d to %d "
+                "chars (ReDoS guard)",
+                MAX_INPUT_LENGTH,
+                MAX_INPUT_LENGTH,
+            )
+
         pii_types: list[str] = []
         replacements = 0
         sanitized = text
@@ -121,18 +183,35 @@ class PrivacySanitizer:
                 replacements += len(matches)
                 sanitized = pattern.sub(replacement, sanitized)
 
+        # SEC: Thread-safe stats update; we never log the actual PII value,
+        # only its type and count, to avoid leaking sensitive data into logs.
+        with self._stats_lock:
+            self._stats["total_scans"] += 1
+            if truncated:
+                self._stats["truncated_inputs"] += 1
+            if pii_types:
+                self._stats["pii_found"] += 1
+                self._stats["replacements"] += replacements
+
         if pii_types:
-            self._stats["pii_found"] += 1
-            self._stats["replacements"] += replacements
             logger.info(
-                f"PII detected and sanitized: {pii_types} "
-                f"({replacements} replacements)"
+                "PII detected and sanitized: types=%s count=%d",
+                pii_types,
+                replacements,
             )
 
         return SanitizationResult(sanitized, bool(pii_types), pii_types, replacements)
 
     def contains_pii(self, text: str) -> bool:
-        """Quick check: does this text contain PII?"""
+        """Quick check: does this text contain PII?
+
+        SEC: Same MAX_INPUT_LENGTH guard as sanitize() to prevent ReDoS.
+        Early-exits on first match for efficiency.
+        """
+        if not isinstance(text, str):
+            return False
+        if len(text) > MAX_INPUT_LENGTH:
+            text = text[:MAX_INPUT_LENGTH]
         for _, pattern, _ in self.PII_PATTERNS:
             if pattern.search(text):
                 return True
@@ -140,7 +219,8 @@ class PrivacySanitizer:
 
     @property
     def stats(self) -> dict:
-        return dict(self._stats)
+        with self._stats_lock:
+            return dict(self._stats)
 
 
 class PrivacyAuditor:

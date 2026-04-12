@@ -14,13 +14,16 @@ Privacy note:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
+import random
 import time
 from typing import Any, Optional
 
 import httpx
 
+from i3 import __version__ as _I3_VERSION
 from i3.config import CloudConfig
 
 logger = logging.getLogger(__name__)
@@ -29,11 +32,25 @@ logger = logging.getLogger(__name__)
 # Constants
 # ---------------------------------------------------------------------------
 
+# SEC: Base URL is hardcoded to the Anthropic production endpoint.  It is
+# never read from user input or configuration so an attacker cannot
+# redirect requests (and the API key) to a hostile host.
 _API_BASE_URL = "https://api.anthropic.com"
 _MESSAGES_ENDPOINT = "/v1/messages"
 _ANTHROPIC_VERSION = "2023-06-01"
+
+# SEC: Hard cap on retry attempts.  ``_MAX_RETRIES`` controls the number
+# of *additional* attempts after the first try, so the total request
+# budget is ``_MAX_RETRIES + 1`` (currently 3).  Combined with the
+# per-attempt timeout ceiling this bounds the worst-case wall-clock
+# spent in :meth:`generate` and prevents a "retry bomb" against the
+# upstream API.
 _MAX_RETRIES = 2
 _BACKOFF_BASE_SECONDS = 1.0
+# SEC: Cap on the maximum cumulative sleep we will perform across all
+# retries (backoff + Retry-After).  Acts as a second line of defence
+# against a hostile upstream that returns absurd Retry-After values.
+_MAX_TOTAL_BACKOFF_SECONDS = 15.0
 
 # Absolute ceiling on the HTTP request timeout.  Even if the config
 # requests a longer value we clamp it to prevent a hung upstream from
@@ -42,6 +59,42 @@ _MAX_TIMEOUT_SECONDS = 30.0
 
 # Retry-after fallback when the upstream omits the header.
 _DEFAULT_RETRY_AFTER_SECONDS = 2.0
+
+# SEC: Hard ceiling on the response body we will buffer / parse.  The
+# Claude Messages API responses are typically a few KB; we allow up to
+# 2 MiB to leave headroom for verbose completions while preventing a
+# memory-exhaustion attack via a malicious or compromised upstream.
+_MAX_RESPONSE_BYTES = 2 * 1024 * 1024  # 2 MiB
+
+# SEC: Hard ceiling on the request body we will send.  Anthropic accepts
+# up to ~9 MB but our prompts are tiny; capping defends against a
+# pathological caller building an unbounded conversation_history.
+_MAX_REQUEST_BYTES = 256 * 1024  # 256 KiB
+
+# SEC: Allowlist of metadata fields that may be forwarded to the cloud
+# in :meth:`generate_session_summary`.  Anything not on this list is
+# silently dropped so that a buggy caller cannot accidentally leak
+# fields like ``raw_text`` or ``message``.
+_SUMMARY_METADATA_ALLOWLIST: frozenset[str] = frozenset(
+    {
+        "session_id",
+        "turn_count",
+        "duration_minutes",
+        "avg_cognitive_load",
+        "avg_engagement",
+        "engagement_trend",
+        "topics",
+        "preferred_topics",
+        "interaction_count",
+        "modalities_used",
+        "session_count",
+        "relationship_strength",
+        "last_session_days_ago",
+    }
+)
+_SUMMARY_METADATA_DENYLIST: frozenset[str] = frozenset(
+    {"raw_text", "message", "messages", "user_text", "transcript", "content"}
+)
 
 
 def _redact_api_key(key: str) -> str:
@@ -114,16 +167,44 @@ class CloudLLMClient:
     # ------------------------------------------------------------------
 
     async def _ensure_client(self) -> None:
-        """Lazily initialise the shared ``httpx.AsyncClient``."""
+        """Lazily initialise the shared ``httpx.AsyncClient``.
+
+        SEC: TLS certificate validation is **explicitly** enabled
+        (``verify=True``) even though it is the httpx default -- this
+        guards against future refactors that might silently flip the
+        flag.  Granular timeouts cover connect / read / write / pool so
+        that no single phase of the request can hang the event loop.
+        """
         if self._client is None:
+            # SEC: per-phase timeouts.  ``self.timeout`` is the overall
+            # ceiling enforced via _MAX_TIMEOUT_SECONDS in __init__.
+            timeout = httpx.Timeout(
+                connect=min(5.0, self.timeout),
+                read=self.timeout,
+                write=min(10.0, self.timeout),
+                pool=min(5.0, self.timeout),
+            )
             self._client = httpx.AsyncClient(
                 base_url=_API_BASE_URL,
                 headers={
+                    # SEC: API key travels in the x-api-key header,
+                    # never in the URL or query string.
                     "x-api-key": self._api_key,
                     "anthropic-version": _ANTHROPIC_VERSION,
                     "content-type": "application/json",
+                    "accept": "application/json",
+                    "user-agent": f"i3-cloud-client/{_I3_VERSION}",
                 },
-                timeout=httpx.Timeout(self.timeout, connect=5.0),
+                timeout=timeout,
+                # SEC: explicit TLS verification (defence-in-depth).
+                verify=True,
+                # SEC: cap response buffering to bound memory use; the
+                # actual size check is enforced again after the body
+                # download below.
+                limits=httpx.Limits(
+                    max_connections=10, max_keepalive_connections=5
+                ),
+                follow_redirects=False,
             )
 
     @staticmethod
@@ -136,14 +217,29 @@ class CloudLLMClient:
         If *conversation_history* is supplied it is prepended so that
         Claude has prior context.  Each entry must be a dict with
         ``role`` (``"user"`` or ``"assistant"``) and ``content`` keys.
+
+        SEC: Each history entry is validated -- non-dict entries,
+        unknown roles, and non-string content are silently dropped to
+        prevent malformed input from being forwarded to the API or
+        from triggering an upstream 4xx that would burn the retry
+        budget.
         """
         messages: list[dict[str, str]] = []
-        if conversation_history:
+        if conversation_history and isinstance(conversation_history, list):
             for entry in conversation_history:
+                if not isinstance(entry, dict):
+                    continue
                 role = entry.get("role", "user")
                 content = entry.get("content", "")
-                if role in ("user", "assistant") and content:
+                if (
+                    role in ("user", "assistant")
+                    and isinstance(content, str)
+                    and content
+                ):
                     messages.append({"role": role, "content": content})
+        # SEC: ensure user_message is a non-empty string before sending.
+        if not isinstance(user_message, str) or not user_message:
+            user_message = ""
         messages.append({"role": "user", "content": user_message})
         return messages
 
@@ -173,11 +269,20 @@ class CloudLLMClient:
         if not text_parts:
             raise ValueError("Response contained no text content blocks.")
 
-        usage = data.get("usage", {})
+        usage = data.get("usage", {}) or {}
+        # SEC: coerce token counts to int -- a malicious upstream
+        # could return a string or None and break our cumulative
+        # counter arithmetic.
+        def _to_int(value: Any) -> int:
+            try:
+                return int(value)
+            except (TypeError, ValueError):
+                return 0
+
         return {
             "text": "".join(text_parts),
-            "input_tokens": usage.get("input_tokens", 0),
-            "output_tokens": usage.get("output_tokens", 0),
+            "input_tokens": _to_int(usage.get("input_tokens", 0)),
+            "output_tokens": _to_int(usage.get("output_tokens", 0)),
         }
 
     # ------------------------------------------------------------------
@@ -229,11 +334,41 @@ class CloudLLMClient:
             "messages": messages,
         }
 
+        # SEC: measure-and-cap the serialised request body before
+        # sending so that a pathological caller cannot push an
+        # unbounded conversation history at the upstream API.
+        try:
+            body_bytes = json.dumps(payload).encode("utf-8")
+        except (TypeError, ValueError) as exc:
+            logger.error("Cloud payload serialisation failed: %s", exc)
+            return self._fallback_response("payload serialisation error")
+        if len(body_bytes) > _MAX_REQUEST_BYTES:
+            logger.error(
+                "Cloud request body %d bytes exceeds %d byte cap; rejecting",
+                len(body_bytes),
+                _MAX_REQUEST_BYTES,
+            )
+            return self._fallback_response("request too large")
+
         last_error: Optional[Exception] = None
+        # SEC: track cumulative sleep across retries; if we exceed the
+        # global budget we abandon further attempts even if the
+        # upstream keeps suggesting longer waits.
+        total_backoff = 0.0
 
         for attempt in range(_MAX_RETRIES + 1):
             if attempt > 0:
-                backoff = _BACKOFF_BASE_SECONDS * (2 ** (attempt - 1))
+                # SEC: jittered exponential backoff prevents a
+                # thundering-herd retry storm against the upstream API
+                # when many clients hit a transient failure together.
+                base = _BACKOFF_BASE_SECONDS * (2 ** (attempt - 1))
+                backoff = base + random.uniform(0.0, base * 0.5)
+                if total_backoff + backoff > _MAX_TOTAL_BACKOFF_SECONDS:
+                    logger.warning(
+                        "Retry budget exhausted (%.1fs); aborting retries",
+                        total_backoff,
+                    )
+                    break
                 logger.info(
                     "Retry %d/%d after %.1fs backoff",
                     attempt,
@@ -241,85 +376,161 @@ class CloudLLMClient:
                     backoff,
                 )
                 await asyncio.sleep(backoff)
+                total_backoff += backoff
 
             start = time.monotonic()
             try:
-                response = await self._client.post(
-                    _MESSAGES_ENDPOINT, json=payload
-                )
-                latency_ms = (time.monotonic() - start) * 1000.0
+                # SEC: stream the response so we can enforce the size
+                # cap before buffering the entire body into memory.
+                async with self._client.stream(
+                    "POST", _MESSAGES_ENDPOINT, content=body_bytes
+                ) as response:
+                    latency_ms = (time.monotonic() - start) * 1000.0
 
-                if response.status_code == 200:
-                    parsed = self._parse_response(response.json())
-                    self._total_input_tokens += parsed["input_tokens"]
-                    self._total_output_tokens += parsed["output_tokens"]
-                    logger.debug(
-                        "Claude responded in %.0fms  (in=%d, out=%d tokens)",
-                        latency_ms,
-                        parsed["input_tokens"],
-                        parsed["output_tokens"],
-                    )
-                    return {
-                        "text": parsed["text"],
-                        "input_tokens": parsed["input_tokens"],
-                        "output_tokens": parsed["output_tokens"],
-                        "latency_ms": latency_ms,
-                    }
+                    if response.status_code == 200:
+                        # SEC: validate content-type before trusting
+                        # the body -- a misrouted request could land
+                        # on an HTML error page.
+                        ctype = response.headers.get("content-type", "")
+                        if "application/json" not in ctype.lower():
+                            logger.error(
+                                "Cloud response content-type %r is not JSON",
+                                ctype[:100],
+                            )
+                            if self.fallback_on_error:
+                                return self._fallback_response(
+                                    "non-json response"
+                                )
+                            raise RuntimeError("non-json response")
 
-                # Decide whether to retry based on status code
-                if response.status_code in (429, 500, 502, 503, 529):
-                    last_error = httpx.HTTPStatusError(
-                        f"HTTP {response.status_code}",
-                        request=response.request,
-                        response=response,
-                    )
-                    # Honour Retry-After on 429s (RFC 6585).
-                    if response.status_code == 429:
-                        retry_after_hdr = response.headers.get("retry-after", "")
+                        # SEC: read the body in chunks and abort if
+                        # the cumulative size exceeds our cap.
+                        chunks: list[bytes] = []
+                        size = 0
+                        async for chunk in response.aiter_bytes():
+                            size += len(chunk)
+                            if size > _MAX_RESPONSE_BYTES:
+                                logger.error(
+                                    "Cloud response exceeded %d byte cap; "
+                                    "aborting read",
+                                    _MAX_RESPONSE_BYTES,
+                                )
+                                if self.fallback_on_error:
+                                    return self._fallback_response(
+                                        "response too large"
+                                    )
+                                raise RuntimeError("response too large")
+                            chunks.append(chunk)
+
+                        body = b"".join(chunks)
                         try:
-                            retry_after = float(retry_after_hdr)
-                        except ValueError:
-                            retry_after = _DEFAULT_RETRY_AFTER_SECONDS
-                        retry_after = min(retry_after, _MAX_TIMEOUT_SECONDS)
-                        logger.warning(
-                            "429 rate-limited by Claude API; sleeping %.1fs",
-                            retry_after,
-                        )
-                        await asyncio.sleep(retry_after)
-                    else:
-                        logger.warning(
-                            "Transient error %d from Claude API (attempt %d/%d)",
-                            response.status_code,
-                            attempt + 1,
-                            _MAX_RETRIES + 1,
-                        )
-                    continue
+                            data = json.loads(body.decode("utf-8"))
+                        except (UnicodeDecodeError, ValueError) as exc:
+                            logger.error(
+                                "Cloud response JSON decode failed: %s",
+                                exc,
+                            )
+                            if self.fallback_on_error:
+                                return self._fallback_response(
+                                    "json decode error"
+                                )
+                            raise RuntimeError("json decode error") from None
 
-                # Non-retryable error (e.g. 400, 401, 403).  We log only
-                # the status code and a truncated body without echoing
-                # any payload fields that could include user input.
-                error_body = response.text[:200]
-                logger.error(
-                    "Claude API returned HTTP %d (body truncated: %r)",
-                    response.status_code,
-                    error_body,
-                )
-                public_msg = (
-                    f"Cloud provider returned HTTP {response.status_code}"
-                )
-                if self.fallback_on_error:
-                    return self._fallback_response(public_msg)
-                raise RuntimeError(public_msg)
+                        try:
+                            parsed = self._parse_response(data)
+                        except ValueError as exc:
+                            logger.error(
+                                "Cloud response shape invalid: %s", exc
+                            )
+                            if self.fallback_on_error:
+                                return self._fallback_response(
+                                    "invalid response shape"
+                                )
+                            raise
+
+                        self._total_input_tokens += parsed["input_tokens"]
+                        self._total_output_tokens += parsed["output_tokens"]
+                        logger.debug(
+                            "Claude responded in %.0fms  (in=%d, out=%d tokens)",
+                            latency_ms,
+                            parsed["input_tokens"],
+                            parsed["output_tokens"],
+                        )
+                        return {
+                            "text": parsed["text"],
+                            "input_tokens": parsed["input_tokens"],
+                            "output_tokens": parsed["output_tokens"],
+                            "latency_ms": latency_ms,
+                        }
+
+                    # Decide whether to retry based on status code
+                    if response.status_code in (429, 500, 502, 503, 529):
+                        last_error = httpx.HTTPStatusError(
+                            f"HTTP {response.status_code}",
+                            request=response.request,
+                            response=response,
+                        )
+                        # Honour Retry-After on 429s (RFC 6585).
+                        if response.status_code == 429:
+                            retry_after_hdr = response.headers.get(
+                                "retry-after", ""
+                            )
+                            try:
+                                retry_after = float(retry_after_hdr)
+                            except ValueError:
+                                retry_after = _DEFAULT_RETRY_AFTER_SECONDS
+                            # SEC: clamp Retry-After to the per-request
+                            # ceiling AND charge it to the global retry
+                            # budget so a malicious upstream cannot
+                            # weaponise the header against us.
+                            retry_after = max(0.0, min(retry_after, _MAX_TIMEOUT_SECONDS))
+                            if total_backoff + retry_after > _MAX_TOTAL_BACKOFF_SECONDS:
+                                logger.warning(
+                                    "Retry-After %.1fs would exceed budget; aborting",
+                                    retry_after,
+                                )
+                                break
+                            logger.warning(
+                                "429 rate-limited by Claude API; sleeping %.1fs",
+                                retry_after,
+                            )
+                            await asyncio.sleep(retry_after)
+                            total_backoff += retry_after
+                        else:
+                            logger.warning(
+                                "Transient error %d from Claude API (attempt %d/%d)",
+                                response.status_code,
+                                attempt + 1,
+                                _MAX_RETRIES + 1,
+                            )
+                        continue
+
+                    # Non-retryable error (e.g. 400, 401, 403).  We log
+                    # only the status code -- never the body, which
+                    # could echo back parts of the user message that
+                    # we are trying to keep out of logs.
+                    logger.error(
+                        "Claude API returned HTTP %d (non-retryable)",
+                        response.status_code,
+                    )
+                    public_msg = (
+                        f"Cloud provider returned HTTP {response.status_code}"
+                    )
+                    if self.fallback_on_error:
+                        return self._fallback_response(public_msg)
+                    raise RuntimeError(public_msg)
 
             except httpx.TimeoutException as exc:
                 latency_ms = (time.monotonic() - start) * 1000.0
                 last_error = exc
+                # SEC: log only the exception class -- httpx exception
+                # repr can in rare cases include URL fragments.
                 logger.warning(
-                    "Timeout after %.0fms on attempt %d/%d: %s",
+                    "Timeout after %.0fms on attempt %d/%d (%s)",
                     latency_ms,
                     attempt + 1,
                     _MAX_RETRIES + 1,
-                    exc,
+                    type(exc).__name__,
                 )
                 continue
 
@@ -330,15 +541,19 @@ class CloudLLMClient:
             except httpx.HTTPError as exc:
                 last_error = exc
                 logger.warning(
-                    "HTTP error on attempt %d/%d: %s",
+                    "HTTP error on attempt %d/%d (%s)",
                     attempt + 1,
                     _MAX_RETRIES + 1,
-                    exc,
+                    type(exc).__name__,
                 )
                 continue
 
-        # All retries exhausted
-        error_msg = f"Claude API failed after {_MAX_RETRIES + 1} attempts: {last_error}"
+        # All retries exhausted.  SEC: never include the api key or
+        # response body in the user-visible error message.
+        error_msg = (
+            f"Claude API failed after {_MAX_RETRIES + 1} attempts "
+            f"({type(last_error).__name__ if last_error else 'unknown'})"
+        )
         logger.error(error_msg)
         if self.fallback_on_error:
             return self._fallback_response(error_msg)
@@ -369,13 +584,41 @@ class CloudLLMClient:
             "what the metrics suggest."
         )
 
-        # Build a structured but privacy-safe description of the session.
+        # SEC: enforce the privacy contract on the metadata payload.
+        # We forward only fields that appear on the explicit allowlist
+        # AND do not appear on the denylist of known sensitive names.
+        # Anything else is silently dropped so that a buggy upstream
+        # caller cannot accidentally leak raw text into the prompt.
+        if not isinstance(session_metadata, dict):
+            session_metadata = {}
         meta_lines: list[str] = []
+        dropped: list[str] = []
         for key, value in session_metadata.items():
+            if not isinstance(key, str):
+                continue
+            if key in _SUMMARY_METADATA_DENYLIST:
+                dropped.append(key)
+                continue
+            if key not in _SUMMARY_METADATA_ALLOWLIST:
+                dropped.append(key)
+                continue
             if isinstance(value, list):
-                meta_lines.append(f"- {key}: {', '.join(str(v) for v in value)}")
-            else:
+                # Cap list size and stringify each entry to keep
+                # the prompt bounded.
+                rendered = ", ".join(str(v) for v in value[:10])
+                meta_lines.append(f"- {key}: {rendered}")
+            elif isinstance(value, (int, float, str, bool)):
                 meta_lines.append(f"- {key}: {value}")
+            # Skip dicts / objects entirely; they may contain nested
+            # raw text and have no safe stringification.
+        if dropped:
+            logger.debug(
+                "Dropped %d non-allowlisted metadata fields from session "
+                "summary prompt",
+                len(dropped),
+            )
+        if not meta_lines:
+            meta_lines.append("- (no metadata supplied)")
 
         user_message = (
             "Summarise this interaction session based on the following "

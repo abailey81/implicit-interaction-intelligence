@@ -35,8 +35,11 @@ logger = logging.getLogger(__name__)
 _LOGIT_CLIP = 10.0          # Clip logits to [-10, 10] for sigmoid stability
 _EPSILON = 1e-6             # Small constant for numerical stability
 _MIN_VARIANCE = 1e-8        # Floor for diagonal covariance entries
-_NEWTON_ITERS = 8           # Newton-Raphson iterations for MAP
+_NEWTON_ITERS = 8           # SEC: Hard cap on Newton-Raphson iterations (prevents infinite loop)
+_NEWTON_TOL = 1e-6          # SEC: Convergence tolerance for Newton step norm
 _COLD_START_PULLS = 5       # Use Beta fallback until this many pulls
+_MAX_HISTORY_PER_ARM = 10000  # SEC: Cap on observation history per arm to prevent unbounded memory growth
+_STATE_VERSION = 1          # SEC: Schema version for save/load state migration
 
 
 def _sigmoid(x: np.ndarray | float) -> np.ndarray | float:
@@ -139,6 +142,12 @@ class ContextualThompsonBandit:
                 f"Expected context of dim {self.context_dim}, "
                 f"got {context.shape[0]}"
             )
+        # SEC: Validate context is finite (no NaN/Inf) — sanitize defensively
+        if not np.all(np.isfinite(context)):
+            logger.warning(
+                "Non-finite values in context (NaN/Inf); replacing with 0.0."
+            )
+            context = np.nan_to_num(context, nan=0.0, posinf=0.0, neginf=0.0)
 
         sampled_rewards: list[float] = []
 
@@ -149,27 +158,47 @@ class ContextualThompsonBandit:
                     np.random.beta(self.alpha[arm], self.beta_param[arm])
                 )
             else:
-                # Sample weights from the multivariate-normal posterior
+                # Sample weights from the multivariate-normal posterior.
+                # SEC: Guard the covariance matrix against subtle non-PSD drift
+                # by symmetrising and clipping eigenvalues *before* sampling.
+                cov = self.weight_covs[arm]
+                cov = 0.5 * (cov + cov.T)
                 try:
                     sampled_weights = np.random.multivariate_normal(
-                        self.weight_means[arm], self.weight_covs[arm]
+                        self.weight_means[arm], cov
                     )
-                except np.linalg.LinAlgError:
-                    # Covariance not PSD (shouldn't happen, but be safe)
+                except (np.linalg.LinAlgError, ValueError):
+                    # Covariance still not PSD: rebuild via eigendecomposition
+                    # by clipping negative eigenvalues to _MIN_VARIANCE.
                     logger.warning(
-                        "Covariance not PSD for arm %d; falling back to "
-                        "diagonal sampling.",
+                        "Covariance not PSD for arm %d; repairing via "
+                        "eigendecomposition.",
                         arm,
                     )
-                    std = np.sqrt(
-                        np.maximum(np.diag(self.weight_covs[arm]), _MIN_VARIANCE)
-                    )
-                    sampled_weights = (
-                        self.weight_means[arm]
-                        + std * np.random.randn(self.context_dim)
-                    )
+                    try:
+                        eigvals, eigvecs = np.linalg.eigh(cov)
+                        eigvals = np.maximum(eigvals, _MIN_VARIANCE)
+                        cov_psd = (eigvecs * eigvals) @ eigvecs.T
+                        cov_psd = 0.5 * (cov_psd + cov_psd.T)
+                        sampled_weights = np.random.multivariate_normal(
+                            self.weight_means[arm], cov_psd
+                        )
+                    except (np.linalg.LinAlgError, ValueError):
+                        # Last-resort: diagonal sampling
+                        std = np.sqrt(
+                            np.maximum(np.diag(cov), _MIN_VARIANCE)
+                        )
+                        sampled_weights = (
+                            self.weight_means[arm]
+                            + std * np.random.randn(self.context_dim)
+                        )
 
-                logit = float(context @ sampled_weights) + self.exploration_bonus
+                # SEC: Clip the raw logit (before exploration bonus and
+                # before sigmoid) to prevent unbounded values from poisoned
+                # context * weights interactions.
+                raw_logit = float(context @ sampled_weights)
+                raw_logit = float(np.clip(raw_logit, -_LOGIT_CLIP, _LOGIT_CLIP))
+                logit = raw_logit + self.exploration_bonus
                 sampled_p = float(_sigmoid(logit))
 
             sampled_rewards.append(sampled_p)
@@ -213,17 +242,41 @@ class ContextualThompsonBandit:
                 f"Expected context of dim {self.context_dim}, "
                 f"got {context.shape[0]}"
             )
+        # SEC: Validate context is finite (no NaN/Inf) before persisting
+        if not np.all(np.isfinite(context)):
+            logger.warning(
+                "Non-finite values in update context (NaN/Inf); replacing with 0.0."
+            )
+            context = np.nan_to_num(context, nan=0.0, posinf=0.0, neginf=0.0)
 
-        # 1. Update Beta-Bernoulli posterior
-        if reward > 0.5:
-            self.alpha[arm] += 1.0
-        else:
-            self.beta_param[arm] += 1.0
+        # SEC: Clip reward to [0, 1]; reject NaN/Inf rewards.
+        reward_f = float(reward)
+        if not np.isfinite(reward_f):
+            logger.warning(
+                "Non-finite reward (%r) for arm %d; clamping to 0.0.",
+                reward, arm,
+            )
+            reward_f = 0.0
+        if reward_f < 0.0 or reward_f > 1.0:
+            logger.debug(
+                "Reward %.4f for arm %d outside [0,1]; clipping.", reward_f, arm
+            )
+            reward_f = float(np.clip(reward_f, 0.0, 1.0))
+
+        # 1. Update Beta-Bernoulli posterior using FRACTIONAL evidence so
+        #    soft engagement signals are not collapsed to a hard 0/1.
+        # SEC: previously a 0.49 reward and a 0.0 reward were treated identically.
+        self.alpha[arm] += reward_f
+        self.beta_param[arm] += 1.0 - reward_f
 
         # 2. Record observation for logistic regression
-        self.history[arm].append((context.copy(), float(reward)))
+        self.history[arm].append((context.copy(), reward_f))
+        # SEC: Cap history per arm to prevent unbounded memory growth.
+        # Keep the most recent observations for non-stationary adaptation.
+        if len(self.history[arm]) > _MAX_HISTORY_PER_ARM:
+            self.history[arm] = self.history[arm][-_MAX_HISTORY_PER_ARM:]
         self.total_pulls[arm] += 1
-        self.total_rewards[arm] += float(reward)
+        self.total_rewards[arm] += reward_f
 
         # 3. Refit Laplace approximation periodically
         if self.total_pulls[arm] % self.refit_interval == 0:
@@ -315,8 +368,8 @@ class ContextualThompsonBandit:
 
             w = w - step
 
-            # Check for convergence
-            if np.linalg.norm(step) < 1e-6:
+            # SEC: Check for convergence using configured tolerance.
+            if np.linalg.norm(step) < _NEWTON_TOL:
                 logger.debug(
                     "Newton-Raphson converged for arm %d at iteration %d.",
                     arm,
@@ -403,6 +456,8 @@ class ContextualThompsonBandit:
         path.parent.mkdir(parents=True, exist_ok=True)
 
         state: dict[str, Any] = {
+            # SEC: Schema version for safe migration on load
+            "version": _STATE_VERSION,
             "n_arms": self.n_arms,
             "context_dim": self.context_dim,
             "prior_precision": self.prior_precision,
@@ -438,7 +493,17 @@ class ContextualThompsonBandit:
         """
         path = Path(path)
         with open(path) as fh:
+            # SEC: JSON only, no pickle — protects against arbitrary code
+            # execution from a tampered state file.
             state: dict[str, Any] = json.load(fh)
+
+        # SEC: Validate schema version for safe forward migration.
+        loaded_version = state.get("version", 0)
+        if loaded_version > _STATE_VERSION:
+            raise ValueError(
+                f"State version {loaded_version} is newer than supported "
+                f"version {_STATE_VERSION}"
+            )
 
         # Validate compatibility
         if state["n_arms"] != self.n_arms:
@@ -451,6 +516,36 @@ class ContextualThompsonBandit:
                 f"has {self.context_dim}"
             )
 
+        # SEC: Strict shape validation on the loaded posterior arrays.
+        if len(state["weight_means"]) != self.n_arms:
+            raise ValueError(
+                f"weight_means has {len(state['weight_means'])} entries, "
+                f"expected {self.n_arms}"
+            )
+        if len(state["weight_covs"]) != self.n_arms:
+            raise ValueError(
+                f"weight_covs has {len(state['weight_covs'])} entries, "
+                f"expected {self.n_arms}"
+            )
+        loaded_means = [
+            np.array(w, dtype=np.float64) for w in state["weight_means"]
+        ]
+        loaded_covs = [
+            np.array(c, dtype=np.float64) for c in state["weight_covs"]
+        ]
+        for i, w in enumerate(loaded_means):
+            if w.shape != (self.context_dim,):
+                raise ValueError(
+                    f"weight_means[{i}] has shape {w.shape}, expected "
+                    f"({self.context_dim},)"
+                )
+        for i, c in enumerate(loaded_covs):
+            if c.shape != (self.context_dim, self.context_dim):
+                raise ValueError(
+                    f"weight_covs[{i}] has shape {c.shape}, expected "
+                    f"({self.context_dim}, {self.context_dim})"
+                )
+
         self.prior_precision = state["prior_precision"]
         self.exploration_bonus = state["exploration_bonus"]
         self.refit_interval = state["refit_interval"]
@@ -458,12 +553,8 @@ class ContextualThompsonBandit:
         self.beta_param = state["beta_param"]
         self.total_pulls = state["total_pulls"]
         self.total_rewards = state["total_rewards"]
-        self.weight_means = [
-            np.array(w, dtype=np.float64) for w in state["weight_means"]
-        ]
-        self.weight_covs = [
-            np.array(c, dtype=np.float64) for c in state["weight_covs"]
-        ]
+        self.weight_means = loaded_means
+        self.weight_covs = loaded_covs
         self.history = [
             [(np.array(ctx, dtype=np.float64), reward) for ctx, reward in arm_hist]
             for arm_hist in state["history"]

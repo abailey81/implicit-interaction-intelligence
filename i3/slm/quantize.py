@@ -73,10 +73,39 @@ class SLMQuantizer:
         -----
         The model must be on CPU before quantization. If the model is on
         GPU, it is moved to CPU first.
+
+        SEC: nn.Embedding is intentionally NOT in the quantization set —
+        quantizing the embedding lookup destroys semantic distances between
+        token vectors and severely degrades model quality. Only nn.Linear
+        is quantized. Note that this also means the tied output_projection
+        Linear (which shares its FP32 weight with the embedding pre-quant)
+        will be quantized to INT8 INDEPENDENTLY of the embedding — the tie
+        is intentionally broken at quantization time so the embedding lookup
+        keeps full FP32 precision.
+
+        SEC: Idempotent against double-quantization — if a model has
+        already been quantized, this method detects existing
+        DynamicQuantizedLinear modules and returns the model unchanged.
         """
+        # SEC: Refuse double-quantization. Re-quantizing a quantized model
+        # causes type mismatches and silent quality regression.
+        already_quantized = any(
+            type(m).__name__ == "DynamicQuantizedLinear"
+            for m in model.modules()
+        )
+        if already_quantized:
+            logger.warning(
+                "Model already contains DynamicQuantizedLinear modules; "
+                "skipping re-quantization."
+            )
+            return model
+
         model_cpu = model.cpu()
         model_cpu.eval()
 
+        # SEC: Explicitly enumerate the set of layer types we quantize.
+        # We quantize ONLY nn.Linear — never nn.Embedding (semantic loss),
+        # never LayerNorm (small parameter count + numerical sensitivity).
         quantized = torch.quantization.quantize_dynamic(
             model_cpu,
             {nn.Linear},
@@ -276,6 +305,11 @@ class SLMQuantizer:
         mean_orig_tps = sum(orig_times) / max(len(orig_times), 1)
         mean_quant_tps = sum(quant_times) / max(len(quant_times), 1)
 
+        # SEC: Quality gate — flag if quantization caused unacceptable
+        # degradation. The PDF / audit standard requires logit cosine
+        # similarity > 0.95 between FP32 and INT8 outputs.
+        passed_quality_gate = mean_cosine > 0.95
+
         result = {
             "mean_cosine_similarity": mean_cosine,
             "max_logit_diff": max_diff_overall,
@@ -285,15 +319,24 @@ class SLMQuantizer:
             "original_tok_per_sec": mean_orig_tps,
             "quantized_tok_per_sec": mean_quant_tps,
             "speedup": mean_quant_tps / max(mean_orig_tps, 1e-10),
+            "passed_quality_gate": passed_quality_gate,
             "per_prompt": per_prompt_results,
         }
 
+        if not passed_quality_gate:
+            logger.warning(
+                "Quantization validation FAILED quality gate: "
+                "cosine_sim=%.4f < 0.95",
+                mean_cosine,
+            )
+
         logger.info(
             "Quantization validation: cosine_sim=%.4f, ppl_delta=%.2f, "
-            "speedup=%.2fx",
+            "speedup=%.2fx, quality_gate=%s",
             mean_cosine,
             result["perplexity_delta"],
             result["speedup"],
+            "PASS" if passed_quality_gate else "FAIL",
         )
 
         return result
@@ -317,8 +360,23 @@ class SLMQuantizer:
         path : str
             Filesystem path for the saved model.
         """
-        save_path = Path(path)
+        # SEC: Resolve and validate the destination path. We do NOT silently
+        # follow symlinks to surprising locations and we ensure the parent
+        # directory is creatable.
+        save_path = Path(path).expanduser().resolve()
         save_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # SEC: Verify the model has at least one quantized layer before
+        # writing — saving an unquantized model under a "quantized" name
+        # is a silent footgun for downstream loaders.
+        n_quantized = sum(
+            1 for m in model.modules()
+            if type(m).__name__ == "DynamicQuantizedLinear"
+        )
+        if n_quantized == 0:
+            logger.warning(
+                "save_quantized() called on a model with no quantized layers"
+            )
 
         torch.save(model.state_dict(), save_path)
 

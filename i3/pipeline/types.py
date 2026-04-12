@@ -164,14 +164,17 @@ class EngagementSignal:
         - **Topic continuity**: Passed through directly (already [0, 1]).
         - **Sentiment shift**: Mapped from [-1, 1] to [0, 1].
         """
+        # SEC: Each sub-signal is clamped to [0, 1] before averaging so a
+        # bad upstream value (e.g. negative latency from a clock skew, or
+        # topic_continuity > 1) cannot push the composite outside [0, 1].
         signals = [
             1.0 if self.continued_conversation else 0.0,
-            max(0.0, 1.0 - self.response_latency_ms / 30_000.0),
-            min(1.0, self.response_length_ratio),
-            self.topic_continuity,
-            (self.sentiment_shift + 1.0) / 2.0,
+            max(0.0, min(1.0, 1.0 - self.response_latency_ms / 30_000.0)),
+            max(0.0, min(1.0, self.response_length_ratio)),
+            max(0.0, min(1.0, self.topic_continuity)),
+            max(0.0, min(1.0, (self.sentiment_shift + 1.0) / 2.0)),
         ]
-        return float(np.mean(signals))
+        return float(max(0.0, min(1.0, np.mean(signals))))
 
 
 # ---------------------------------------------------------------------------

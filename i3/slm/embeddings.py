@@ -45,14 +45,29 @@ class TokenEmbedding(nn.Module):
         padding_idx: int = 0,
     ) -> None:
         super().__init__()
+        # SEC: Validate constructor args to fail-fast on malformed input
+        # rather than producing a silently broken model.
+        if vocab_size <= 0:
+            raise ValueError(f"vocab_size must be > 0, got {vocab_size}")
+        if d_model <= 0:
+            raise ValueError(f"d_model must be > 0, got {d_model}")
+        if not 0 <= padding_idx < vocab_size:
+            raise ValueError(
+                f"padding_idx ({padding_idx}) must be in [0, {vocab_size})"
+            )
         self.d_model: int = d_model
+        self.padding_idx: int = padding_idx
         self.embedding = nn.Embedding(
             num_embeddings=vocab_size,
             embedding_dim=d_model,
             padding_idx=padding_idx,
         )
-        # Initialise weights from N(0, 1); the padding row stays at zero.
-        nn.init.normal_(self.embedding.weight, mean=0.0, std=1.0)
+        # SEC: GPT-2-style N(0, 0.02) init keeps embedding magnitudes small
+        # and matches the global init pass in AdaptiveSLM. Previously this
+        # used std=1.0 which produced embeddings ~16x too large after the
+        # sqrt(d_model) scaling, destabilising training and the residual
+        # stream variance.
+        nn.init.normal_(self.embedding.weight, mean=0.0, std=0.02)
         # Re-zero the padding vector after init (Embedding respects
         # padding_idx during forward, but init may have set it non-zero).
         with torch.no_grad():
@@ -146,12 +161,17 @@ class SinusoidalPositionalEncoding(nn.Module):
                         initialisation.
         """
         seq_len = x.size(1)
+        # SEC: Strict bound check — refuse over-length inputs rather than
+        # silently truncating, which would corrupt position information.
         if seq_len > self.pe.size(1):
             raise ValueError(
                 f"Input sequence length ({seq_len}) exceeds the maximum "
                 f"supported length ({self.pe.size(1)}). Increase "
                 f"max_seq_len at construction time."
             )
+        # SEC: Empty sequence — return as-is (dropout is a no-op on empty).
+        if seq_len == 0:
+            return self.dropout(x)
         x = x + self.pe[:, :seq_len]
         return self.dropout(x)
 

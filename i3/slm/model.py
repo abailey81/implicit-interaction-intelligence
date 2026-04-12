@@ -165,23 +165,40 @@ class AdaptiveSLM(nn.Module):
         self.final_ln = nn.LayerNorm(d_model)
         self.output_projection = nn.Linear(d_model, vocab_size, bias=False)
 
+        # ----- Weight initialisation --------------------------------------------
+        # SEC: init MUST happen BEFORE weight tying. If tying is done first
+        # and then `self.apply(_init_weights)` runs, Xavier-init on the
+        # output_projection will silently re-initialise the (shared) embedding
+        # weight, destroying the GPT-2 style N(0, 0.02) embedding init.
+        # Apply Xavier uniform to all Linear layers and normal init to all
+        # Embedding layers, THEN tie weights so the embedding init wins.
+        self.apply(self._init_weights)
+
         # ----- Weight tying (Press & Wolf, 2017) --------------------------------
         # The output projection shares its weight matrix with the token
         # embedding, reducing parameter count and improving generalisation.
+        # SEC: After tying, output_projection.weight IS embedding.weight
+        # (same Parameter object, identical data_ptr). state_dict round-trip
+        # preserves this because PyTorch saves the underlying tensor once
+        # and load_state_dict assigns by name (the Linear's weight will be
+        # restored, then the tied alias points to the loaded tensor).
+        self.tie_weights: bool = tie_weights
         if tie_weights:
             self.output_projection.weight = (
                 self.embedding.token_embedding.embedding.weight
             )
 
-        # ----- Weight initialisation --------------------------------------------
-        # Apply Xavier uniform to all Linear layers and normal init to all
-        # Embedding layers. This is applied AFTER weight tying so that the
-        # shared weight gets the Embedding initialisation (which is the one
-        # that matters for both input and output).
-        self.apply(self._init_weights)
-
         # ----- Parameter census -------------------------------------------------
-        self._n_params: int = sum(p.numel() for p in self.parameters())
+        # SEC: When weights are tied, sum(p.numel()) double-counts the shared
+        # tensor (PyTorch yields the same Parameter twice through different
+        # module attribute paths). Deduplicate by id() to get the true count.
+        seen: set[int] = set()
+        unique_params = 0
+        for p in self.parameters():
+            if id(p) not in seen:
+                seen.add(id(p))
+                unique_params += p.numel()
+        self._n_params: int = unique_params
 
     # ----- initialisation -------------------------------------------------------
 
@@ -245,17 +262,39 @@ class AdaptiveSLM(nn.Module):
             ``"cross_attn"`` weight tensors for interpretability /
             visualisation.
         """
+        # SEC: Validate input shape — must be 2D [batch, seq_len].
+        if input_ids.dim() != 2:
+            raise ValueError(
+                f"input_ids must be 2D [batch, seq_len], got shape {tuple(input_ids.shape)}"
+            )
         batch_size, seq_len = input_ids.shape
         device = input_ids.device
 
+        # SEC: Empty-sequence guard — return well-shaped empty logits rather
+        # than crash inside the embedding lookup or attention.
+        if seq_len == 0:
+            empty_logits = torch.zeros(
+                batch_size, 0, self.vocab_size, device=device
+            )
+            return empty_logits, {}
+
         # ----- Default conditioning if not provided -----------------------------
+        # SEC: Use adaptation/conditioning dims captured from the actual
+        # ConditioningProjector instance, not hard-coded literals — keeps
+        # forward() consistent with the configured model.
         if adaptation_vector is None:
-            adaptation_vector = torch.zeros(batch_size, 8, device=device)
-            adaptation_vector[:, 0] = 0.5   # cognitive_load  -- neutral midpoint
-            adaptation_vector[:, 5] = 0.5   # emotional_tone  -- neutral midpoint
+            adapt_dim = self.conditioning_projector.adaptation_dim
+            adaptation_vector = torch.zeros(batch_size, adapt_dim, device=device)
+            # Neutral midpoints for the two semantically-meaningful dims
+            # (cognitive_load and emotional_tone). Other dims stay at 0.
+            if adapt_dim > 0:
+                adaptation_vector[:, 0] = 0.5   # cognitive_load
+            if adapt_dim > 5:
+                adaptation_vector[:, 5] = 0.5   # emotional_tone
 
         if user_state is None:
-            user_state = torch.zeros(batch_size, 64, device=device)
+            user_state_dim = self.conditioning_projector.user_state_dim
+            user_state = torch.zeros(batch_size, user_state_dim, device=device)
 
         # ----- Embed tokens (lookup + sinusoidal position) ----------------------
         x = self.embedding(input_ids)  # [batch, seq_len, d_model]

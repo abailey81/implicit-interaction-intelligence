@@ -23,7 +23,9 @@ to prevent runaway adaptation and ensure stable behaviour.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
+from typing import Any
 
 import torch
 
@@ -32,9 +34,38 @@ import torch
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _clamp(value: float, lo: float = 0.0, hi: float = 1.0) -> float:
-    """Clamp *value* to the closed interval [lo, hi]."""
-    return max(lo, min(hi, value))
+def _clamp(value: Any, lo: float = 0.0, hi: float = 1.0) -> float:
+    """Clamp *value* to the closed interval [lo, hi].
+
+    Robust against NaN, +/-infinity, and ``None``:
+
+    - ``None`` or ``NaN`` -> midpoint of ``[lo, hi]`` (the safest default).
+    - ``+inf`` -> ``hi``.
+    - ``-inf`` -> ``lo``.
+    - Any other numeric value is clamped via ``max(lo, min(hi, value))``.
+
+    The result is always returned as a Python ``float`` -- this prevents
+    accidental ``int`` coercion when callers pass integer literals (e.g.
+    ``_clamp(0)`` would otherwise return the int ``0``).
+    """
+    # SEC: NaN/None/inf guard. Order-dependent ``min/max`` would otherwise
+    # silently return either the NaN itself or the wrong bound, depending on
+    # argument order, and propagate corruption through the adaptation vector.
+    if value is None:
+        return float((lo + hi) / 2.0)
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return float((lo + hi) / 2.0)
+    if math.isnan(v):
+        return float((lo + hi) / 2.0)
+    # +/-inf collapses cleanly through max/min once NaN is excluded, but we
+    # also defensively guard against a misconfigured ``lo > hi``.
+    lo_f = float(lo)
+    hi_f = float(hi)
+    if lo_f > hi_f:
+        lo_f, hi_f = hi_f, lo_f
+    return float(max(lo_f, min(hi_f, v)))
 
 
 # ---------------------------------------------------------------------------
@@ -91,16 +122,29 @@ class StyleVector:
 
     @classmethod
     def from_tensor(cls, t: torch.Tensor) -> StyleVector:
-        """Reconstruct a ``StyleVector`` from a tensor with >= 4 elements.
-
-        Only the first four elements are used; extras are silently ignored.
+        """Reconstruct a ``StyleVector`` from a 4-element tensor.
 
         Args:
-            t: A tensor with at least 4 elements.
+            t: A 1-D tensor with exactly 4 elements.
 
         Returns:
             A new ``StyleVector`` with values clamped to [0, 1].
+
+        Raises:
+            ValueError: If the tensor is not 1-D or does not have exactly
+                4 elements.
         """
+        # SEC: explicit shape/length validation -- previously the function
+        # accepted any tensor with >= 4 elements and silently ignored the
+        # rest, hiding upstream wiring bugs.
+        if t.dim() != 1:
+            raise ValueError(
+                f"StyleVector.from_tensor expects a 1-D tensor, got shape {tuple(t.shape)}."
+            )
+        if t.numel() != 4:
+            raise ValueError(
+                f"StyleVector.from_tensor expects exactly 4 elements, got {t.numel()}."
+            )
         vals = t.tolist()
         return cls(
             formality=vals[0],
@@ -117,6 +161,21 @@ class StyleVector:
             "emotionality": self.emotionality,
             "directness": self.directness,
         }
+
+    @classmethod
+    def from_dict(cls, d: dict[str, float]) -> StyleVector:
+        """Reconstruct a ``StyleVector`` from a dict produced by :meth:`to_dict`.
+
+        Missing keys default to 0.5 (the neutral midpoint).  This makes the
+        round-trip ``StyleVector.from_dict(v.to_dict())`` value-preserving.
+        """
+        # SEC: enables to_dict / from_dict round-trip required by the audit.
+        return cls(
+            formality=d.get("formality", 0.5),
+            verbosity=d.get("verbosity", 0.5),
+            emotionality=d.get("emotionality", 0.5),
+            directness=d.get("directness", 0.5),
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -214,17 +273,32 @@ class AdaptationVector:
 
     @classmethod
     def from_tensor(cls, t: torch.Tensor) -> AdaptationVector:
-        """Reconstruct an ``AdaptationVector`` from a tensor with >= 7 elements.
+        """Reconstruct an ``AdaptationVector`` from an 8-element tensor.
 
-        The reserved 8th dimension is ignored.  Values are clamped during
-        ``__post_init__``.
+        The 8th element is the reserved dimension and is intentionally
+        discarded -- it must always be ``0.0`` and is never mutated.  Values
+        are clamped during :meth:`__post_init__`.
 
         Args:
-            t: A tensor with at least 7 elements.
+            t: A 1-D tensor with exactly 8 elements.
 
         Returns:
             A new ``AdaptationVector``.
+
+        Raises:
+            ValueError: If the tensor is not 1-D or does not have exactly
+                8 elements.
         """
+        # SEC: strict length/shape validation; previously a tensor with 7 or
+        # more elements was accepted, hiding wiring mistakes between layers.
+        if t.dim() != 1:
+            raise ValueError(
+                f"AdaptationVector.from_tensor expects a 1-D tensor, got shape {tuple(t.shape)}."
+            )
+        if t.numel() != 8:
+            raise ValueError(
+                f"AdaptationVector.from_tensor expects exactly 8 elements, got {t.numel()}."
+            )
         vals = t.tolist()
         return cls(
             cognitive_load=vals[0],
@@ -236,6 +310,7 @@ class AdaptationVector:
             ),
             emotional_tone=vals[5],
             accessibility=vals[6],
+            # vals[7] is the reserved dimension -- ignored by design.
         )
 
     def to_dict(self) -> dict[str, object]:
@@ -251,3 +326,27 @@ class AdaptationVector:
             "emotional_tone": self.emotional_tone,
             "accessibility": self.accessibility,
         }
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> AdaptationVector:
+        """Reconstruct an ``AdaptationVector`` from a dict produced by
+        :meth:`to_dict`.
+
+        Missing scalar keys default to 0.5; a missing ``style_mirror`` key
+        defaults to :meth:`StyleVector.default`.  This makes the round-trip
+        ``AdaptationVector.from_dict(v.to_dict())`` value-preserving.
+        """
+        # SEC: enables to_dict / from_dict round-trip required by the audit.
+        style_payload = d.get("style_mirror")
+        if isinstance(style_payload, StyleVector):
+            style = style_payload
+        elif isinstance(style_payload, dict):
+            style = StyleVector.from_dict(style_payload)
+        else:
+            style = StyleVector.default()
+        return cls(
+            cognitive_load=d.get("cognitive_load", 0.5),
+            style_mirror=style,
+            emotional_tone=d.get("emotional_tone", 0.5),
+            accessibility=d.get("accessibility", 0.0),
+        )

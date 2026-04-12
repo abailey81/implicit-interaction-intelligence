@@ -82,6 +82,11 @@ _SENTENCE_END_RE = re.compile(r"[.!?]+")
 # Multi-part question pattern (multiple question marks or question words)
 _QUESTION_MARK_RE = re.compile(r"\?")
 
+# SEC: Truncate over-long inputs before analysis to bound CPU usage.
+# 32 KB is well above any plausible user query and prevents pathological
+# multi-megabyte payloads from causing slow text scans / regex evaluation.
+_MAX_TEXT_LEN = 32_768
+
 
 class QueryComplexityEstimator:
     """Estimates query complexity using a weighted combination of heuristic
@@ -140,6 +145,11 @@ class QueryComplexityEstimator:
         """
         if not text or not text.strip():
             return 0.0
+
+        # SEC: Bound input length to prevent slow text processing on
+        # adversarial multi-megabyte payloads.
+        if len(text) > _MAX_TEXT_LEN:
+            text = text[:_MAX_TEXT_LEN]
 
         text_lower = text.lower().strip()
         words = text_lower.split()
@@ -227,6 +237,10 @@ class QueryComplexityEstimator:
                 "conditional_language": 0.0,
                 "multi_part": 0.0,
             }
+
+        # SEC: Bound input length (mirror of estimate())
+        if len(text) > _MAX_TEXT_LEN:
+            text = text[:_MAX_TEXT_LEN]
 
         text_lower = text.lower().strip()
         words = text_lower.split()
