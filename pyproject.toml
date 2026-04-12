@@ -1,0 +1,270 @@
+#  ════════════════════════════════════════════════════════════════════════
+#
+#   Implicit Interaction Intelligence (I³)
+#
+#   An AI companion system that adapts to users from implicit interaction
+#   signals — keystroke dynamics, linguistic complexity, temporal patterns.
+#
+#   Managed with Poetry (https://python-poetry.org/)
+#
+#  ════════════════════════════════════════════════════════════════════════
+
+# ─── Build System ────────────────────────────────────────────────────────
+[build-system]
+requires      = ["poetry-core>=1.8.0"]
+build-backend = "poetry.core.masonry.api"
+
+# ─── Project Metadata ────────────────────────────────────────────────────
+[tool.poetry]
+name        = "implicit-interaction-intelligence"
+version     = "1.0.0"
+description = "Adaptive AI companion built from implicit interaction signals."
+readme      = "README.md"
+license     = "MIT"
+authors     = ["Tamer Atesyakar <tamer.atesyakar@bk.ru>"]
+maintainers = ["Tamer Atesyakar <tamer.atesyakar@bk.ru>"]
+homepage    = "https://github.com/abailey81/implicit-interaction-intelligence"
+repository  = "https://github.com/abailey81/implicit-interaction-intelligence"
+documentation = "https://github.com/abailey81/implicit-interaction-intelligence/blob/main/docs/ARCHITECTURE.md"
+keywords = [
+    "human-machine-interaction",
+    "user-modelling",
+    "small-language-model",
+    "contextual-bandit",
+    "edge-ai",
+    "personalisation",
+    "pytorch",
+    "fastapi",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Human Machine Interfaces",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
+packages = [
+    { include = "i3" },
+    { include = "server" },
+    { include = "training" },
+    { include = "demo" },
+]
+include = [
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "configs/*.yaml",
+]
+
+# ─── Runtime Dependencies ────────────────────────────────────────────────
+[tool.poetry.dependencies]
+python = "^3.10"
+
+# Deep learning stack
+torch          = ">=2.0,<3.0"
+numpy          = "^1.24"
+scipy          = "^1.10"
+scikit-learn   = "^1.3"
+
+# Web server
+fastapi        = "^0.110"
+"uvicorn"      = { version = "^0.29", extras = ["standard"] }
+websockets     = "^12.0"
+httpx          = "^0.27"
+python-multipart = "^0.0.9"
+
+# Configuration & data
+pyyaml         = "^6.0"
+pydantic       = "^2.6"
+pydantic-settings = "^2.2"
+aiosqlite      = "^0.20"
+
+# Privacy & cloud
+cryptography   = "^42.0"
+anthropic      = "^0.25"
+
+# ─── Development Dependencies ────────────────────────────────────────────
+[tool.poetry.group.dev.dependencies]
+pytest           = "^8.0"
+pytest-asyncio   = "^0.23"
+pytest-cov       = "^4.1"
+pytest-xdist     = "^3.5"      # Parallel test execution
+pytest-timeout   = "^2.2"
+ruff             = "^0.3"
+mypy             = "^1.9"
+ipython          = "^8.22"
+pre-commit       = "^3.6"
+
+# ─── Security Dependencies ───────────────────────────────────────────────
+[tool.poetry.group.security.dependencies]
+bandit           = { version = "^1.7", extras = ["toml"] }
+"pip-audit"      = "^2.7"
+safety           = "^3.0"
+
+# ─── Documentation Dependencies ──────────────────────────────────────────
+[tool.poetry.group.docs.dependencies]
+mkdocs           = "^1.5"
+mkdocs-material  = "^9.5"
+mkdocstrings     = { version = "^0.24", extras = ["python"] }
+
+# ─── CLI Entry Points ────────────────────────────────────────────────────
+[tool.poetry.scripts]
+i3-train-encoder = "training.train_encoder:main"
+i3-train-slm     = "training.train_slm:main"
+i3-evaluate      = "training.evaluate:main"
+i3-generate-data = "training.generate_synthetic:main"
+i3-serve         = "server.app:main"
+
+# ═══════════════════════════════════════════════════════════════════════
+#                         TOOL CONFIGURATION
+# ═══════════════════════════════════════════════════════════════════════
+
+# ─── Testing (pytest) ────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+minversion       = "8.0"
+asyncio_mode     = "auto"
+testpaths        = ["tests"]
+python_files     = ["test_*.py"]
+python_classes   = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--tb=short",
+    "--showlocals",
+    "--import-mode=importlib",
+]
+filterwarnings = [
+    "error",
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+    "ignore::UserWarning:torch.*",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "security: marks tests as security-focused",
+    "gpu: marks tests that require a GPU",
+]
+
+# ─── Coverage ────────────────────────────────────────────────────────────
+[tool.coverage.run]
+source       = ["i3", "server"]
+branch       = true
+parallel     = true
+omit = [
+    "*/tests/*",
+    "*/demo/*",
+    "*/__init__.py",
+    "training/*",
+]
+
+[tool.coverage.report]
+precision     = 2
+show_missing  = true
+skip_covered  = false
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+    "@abstract",
+]
+
+# ─── Linting & Formatting (Ruff) ─────────────────────────────────────────
+[tool.ruff]
+line-length    = 100
+target-version = "py310"
+extend-exclude = [
+    "data",
+    "checkpoints",
+    "web",
+    ".venv",
+    "dist",
+    "build",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "SIM",  # flake8-simplify
+    "RUF",  # Ruff-specific rules
+    "S",    # flake8-bandit (security)
+    "A",    # flake8-builtins
+    "PIE",  # flake8-pie
+    "RET",  # flake8-return
+    "PTH",  # flake8-use-pathlib
+]
+ignore = [
+    "E501",   # Line too long (handled by formatter)
+    "B008",   # Do not perform function call in argument defaults (FastAPI pattern)
+    "S101",   # Use of assert (fine in tests)
+    "N812",   # Lowercase imported as non-lowercase (torch convention)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*"    = ["S101", "S105", "S106"]  # Assert, hardcoded passwords in tests
+"training/*" = ["S311"]                    # Standard random in training data
+"demo/*"     = ["S311"]                    # Standard random in demo
+
+[tool.ruff.lint.isort]
+known-first-party = ["i3", "server", "training", "demo"]
+combine-as-imports = true
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+
+# ─── Type Checking (Mypy) ────────────────────────────────────────────────
+[tool.mypy]
+python_version           = "3.10"
+strict                   = false
+warn_return_any          = true
+warn_unused_configs      = true
+warn_redundant_casts     = true
+warn_unused_ignores      = true
+disallow_untyped_defs    = false
+check_untyped_defs       = true
+ignore_missing_imports   = true
+namespace_packages       = true
+show_error_codes         = true
+pretty                   = true
+exclude = [
+    "^tests/",
+    "^demo/",
+    "^training/",
+    "^build/",
+]
+
+[[tool.mypy.overrides]]
+module = [
+    "torch.*",
+    "sklearn.*",
+    "scipy.*",
+    "aiosqlite.*",
+]
+ignore_missing_imports = true
+
+# ─── Security Static Analysis (Bandit) ───────────────────────────────────
+[tool.bandit]
+exclude_dirs = ["tests", "demo", "build", "dist"]
+skips = ["B101"]  # assert_used — assertions are fine in our code

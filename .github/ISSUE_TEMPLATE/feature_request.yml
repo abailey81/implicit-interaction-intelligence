@@ -1,0 +1,120 @@
+name: Feature Request
+description: Suggest a new feature or enhancement for I³
+title: "[FEATURE] "
+labels: ["enhancement", "needs-triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a new feature! Please fill out the form below to help us
+        understand your idea and evaluate how it fits into the I³ roadmap.
+
+        **Before submitting:**
+        - Search [existing issues](https://github.com/abailey81/implicit-interaction-intelligence/issues) and [discussions](https://github.com/abailey81/implicit-interaction-intelligence/discussions) to see if this has been proposed.
+        - Consider whether this aligns with I³'s architectural principles (privacy-by-architecture, from-scratch components, edge-first).
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What problem does this feature solve? Who benefits? Why is this needed?
+      placeholder: |
+        Currently, the TCN encoder only supports fixed-length windows. When a user
+        session is shorter than the window size, we zero-pad, which biases the
+        embedding toward the padding token.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed Solution
+      description: Describe your proposed solution in detail. If you have API suggestions, include them.
+      placeholder: |
+        Add a `mask` parameter to `TCNEncoder.forward()` that indicates valid
+        timesteps. Pooling should ignore masked positions.
+
+        ```python
+        def forward(self, x: Tensor, mask: Tensor | None = None) -> Tensor:
+            ...
+        ```
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: What other approaches did you consider? Why did you choose this one?
+      placeholder: |
+        1. Dynamic window sizing — rejected because it breaks batching.
+        2. Transformer attention masks — considered but TCN is causal-conv based.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected Component
+      description: Which part of I³ does this touch?
+      multiple: true
+      options:
+        - Perception (TCN encoder)
+        - Contrastive (NT-Xent loss, training)
+        - Generation (SLM, tokenizer, decoder)
+        - Action (Thompson bandit)
+        - User Model (three-timescale)
+        - Privacy / Security
+        - FastAPI Server / WebSocket
+        - Frontend / Demo UI
+        - Edge Profiling
+        - Documentation
+        - Tests / CI
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this to you?
+      options:
+        - Nice to have
+        - Would improve my workflow
+        - Blocking my use case
+        - Critical for production
+    validations:
+      required: true
+
+  - type: textarea
+    id: usecase
+    attributes:
+      label: Use Case
+      description: Concrete example of how you would use this feature.
+      placeholder: |
+        I'm running I³ on a HarmonyOS tablet and user sessions average 15-30 seconds,
+        but the TCN expects 60-second windows. A mask parameter would let me use
+        real session data without padding artifacts.
+
+  - type: checkboxes
+    id: willing-to-contribute
+    attributes:
+      label: Contribution
+      options:
+        - label: I am willing to submit a pull request implementing this feature
+        - label: I would be willing to help test a beta implementation
+        - label: I am only filing this as a suggestion
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/abailey81/implicit-interaction-intelligence/blob/main/CODE_OF_CONDUCT.md).
+      options:
+        - label: I have read and agree to the Code of Conduct
+          required: true
+        - label: I have searched existing issues and discussions to avoid duplicates
+          required: true

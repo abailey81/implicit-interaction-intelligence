@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security Vulnerability
+    url: https://github.com/abailey81/implicit-interaction-intelligence/security/advisories/new
+    about: Please report security issues privately via GitHub Security Advisories.
+  - name: Discussion
+    url: https://github.com/abailey81/implicit-interaction-intelligence/discussions
+    about: Ask questions or share ideas.

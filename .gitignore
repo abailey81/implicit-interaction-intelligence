@@ -1,0 +1,203 @@
+# ─────────────────────────────────────────────────────────────────────────
+#  Implicit Interaction Intelligence (I³) — .gitignore
+#  Comprehensive ignore patterns for Python + ML + IDE artifacts.
+# ─────────────────────────────────────────────────────────────────────────
+
+# ─── Python ──────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+*.pyd
+*.so
+.Python
+
+# ─── Packaging & Distribution ────────────────────────────────────────────
+build/
+dist/
+*.egg-info/
+*.egg
+.eggs/
+pip-wheel-metadata/
+share/python-wheels/
+MANIFEST
+*.manifest
+*.spec
+
+# ─── Testing & Coverage ──────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+*.py,cover
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+nosetests.xml
+pytest-report.xml
+
+# ─── Type Checking & Linting ─────────────────────────────────────────────
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+.ruff_cache/
+.pylint.d/
+
+# ─── Virtual Environments ────────────────────────────────────────────────
+venv/
+env/
+ENV/
+.venv/
+.env/
+env.bak/
+venv.bak/
+pyvenv.cfg
+
+# ─── Environment & Secrets ───────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+*.crt
+*.p12
+secrets/
+.secrets/
+
+# ─── ML Model Artifacts ──────────────────────────────────────────────────
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.onnx
+*.bin
+*.h5
+*.hdf5
+*.pb
+*.tflite
+*.joblib
+*.pkl
+*.pickle
+
+# ─── ML Experiment Tracking ──────────────────────────────────────────────
+wandb/
+mlruns/
+mlflow/
+tensorboard_logs/
+tb_logs/
+lightning_logs/
+runs/
+outputs/
+ray_results/
+
+# ─── Data Directories ────────────────────────────────────────────────────
+data/raw/*
+data/processed/*
+data/synthetic/*
+data/interim/*
+data/external/*
+!data/**/.gitkeep
+!data/README.md
+
+# ─── Tabular / Binary Data ───────────────────────────────────────────────
+*.csv
+*.tsv
+*.parquet
+*.feather
+*.arrow
+*.npy
+*.npz
+*.mat
+!data/**/.gitkeep
+
+# ─── Model Checkpoints ───────────────────────────────────────────────────
+checkpoints/**/*.pt
+checkpoints/**/*.pth
+checkpoints/**/*.ckpt
+checkpoints/**/*.safetensors
+checkpoints/**/*.bin
+!checkpoints/**/.gitkeep
+
+# ─── Databases ───────────────────────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+*.sqlite3-journal
+*.db-journal
+
+# ─── Logs ────────────────────────────────────────────────────────────────
+*.log
+logs/
+log/
+*.log.*
+
+# ─── Jupyter Notebook ────────────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+profile_default/
+ipython_config.py
+
+# ─── IDE — VS Code ───────────────────────────────────────────────────────
+.vscode/
+!.vscode/settings.json.example
+!.vscode/extensions.json.example
+
+# ─── IDE — JetBrains (PyCharm / IntelliJ) ────────────────────────────────
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# ─── IDE — Sublime / Vim / Emacs ─────────────────────────────────────────
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*.swn
+*~
+\#*\#
+.\#*
+
+# ─── Operating System ────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ─── Documentation Builds ────────────────────────────────────────────────
+docs/_build/
+docs/build/
+site/
+.sphinx-cache/
+
+# ─── Node / Frontend (web/) ──────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.parcel-cache/
+
+# ─── Docker ──────────────────────────────────────────────────────────────
+.docker/
+docker-compose.override.yml
+
+# ─── Miscellaneous ───────────────────────────────────────────────────────
+*.bak
+*.tmp
+*.temp
+*.orig
+*.rej
+.cache/
+tmp/
+temp/

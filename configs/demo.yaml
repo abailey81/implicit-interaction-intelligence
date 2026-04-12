@@ -1,0 +1,13 @@
+# Demo overrides - faster responses, pre-seeded data
+user_model:
+  baseline_warmup: 3
+
+router:
+  exploration_bonus: 0.3  # More exploration during demo
+
+cloud:
+  model: "claude-haiku-4-5-20251001"
+  timeout: 5.0
+
+server:
+  host: "127.0.0.1"
