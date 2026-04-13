@@ -97,7 +97,7 @@ pydantic-settings = "^2.2"
 aiosqlite      = "^0.20"
 
 # Privacy
-cryptography   = "^43.0"          # SEC: close PKCS#12 + OpenSSL EC CVEs
+cryptography   = "^46.0"          # SEC: close PKCS#12 + OpenSSL EC CVEs
 
 # ─── Development Dependencies ────────────────────────────────────────────
 [tool.poetry.group.dev.dependencies]
