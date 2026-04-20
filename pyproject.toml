@@ -101,15 +101,15 @@ cryptography   = "^43.0"          # SEC: close PKCS#12 + OpenSSL EC CVEs
 
 # ─── Development Dependencies ────────────────────────────────────────────
 [tool.poetry.group.dev.dependencies]
-pytest           = "^8.0"
-pytest-asyncio   = "^0.23"
-pytest-cov       = "^4.1"
+pytest           = ">=8,<10"
+pytest-asyncio   = ">=0.23,<1.4"
+pytest-cov       = ">=4.1,<8.0"
 pytest-xdist     = "^3.5"      # Parallel test execution
 pytest-timeout   = "^2.2"
-ruff             = "^0.3"
+ruff             = ">=0.3,<0.16"
 mypy             = "^1.9"
 ipython          = "^8.22"
-pre-commit       = "^3.6"
+pre-commit       = ">=3.6,<5.0"
 
 # ─── Security Dependencies ───────────────────────────────────────────────
 [tool.poetry.group.security.dependencies]
@@ -121,7 +121,7 @@ safety           = "^3.0"
 [tool.poetry.group.docs.dependencies]
 mkdocs           = "^1.5"
 mkdocs-material  = "^9.5"
-mkdocstrings     = { version = "^0.24", extras = ["python"] }
+mkdocstrings     = { version = ">=0.24,<1.1", extras = ["python"] }
 
 # ─── CLI Entry Points ────────────────────────────────────────────────────
 [tool.poetry.scripts]
