@@ -1,0 +1,75 @@
+name: MCP Integration
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "i3/mcp/**"
+      - "scripts/run_mcp_server.py"
+      - "scripts/mcp_client_smoke.py"
+      - "tests/test_mcp_server.py"
+      - "configs/mcp_server_config.json"
+      - "Dockerfile.mcp"
+      - ".github/workflows/mcp-test.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "i3/mcp/**"
+      - "scripts/run_mcp_server.py"
+      - "scripts/mcp_client_smoke.py"
+      - "tests/test_mcp_server.py"
+      - "configs/mcp_server_config.json"
+      - "Dockerfile.mcp"
+      - ".github/workflows/mcp-test.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: mcp-test-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  mcp-test:
+    name: MCP unit tests + smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: mcp-pip-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
+
+      - name: Install MCP SDK and runtime deps
+        # We intentionally do not install the full I³ stack here; the MCP
+        # server degrades gracefully without a pipeline.  This keeps the
+        # MCP CI job fast and isolates any MCP-specific regressions.
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install \
+            "mcp[cli]>=1.0" \
+            "pydantic>=2.6" \
+            "aiosqlite>=0.20" \
+            "numpy>=1.24" \
+            "torch>=2.6" \
+            "pytest>=8.0" \
+            "pytest-asyncio>=0.23"
+
+      - name: Run MCP unit tests
+        run: pytest tests/test_mcp_server.py -v --tb=short
+
+      - name: Run MCP client smoke test
+        run: python -m scripts.mcp_client_smoke
+        env:
+          I3_MCP_LOG_LEVEL: INFO
+          PYTHONUNBUFFERED: "1"

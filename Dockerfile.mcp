@@ -1,0 +1,82 @@
+# syntax=docker/dockerfile:1.7
+# =============================================================================
+#  Implicit Interaction Intelligence (I³) — MCP Server Container
+# =============================================================================
+#  Minimal Docker image dedicated to running the I³ Model Context Protocol
+#  server over stdio.  Multi-stage, non-root, Python 3.11-slim.
+#
+#  Usage (host side):
+#     docker build -f Dockerfile.mcp -t i3-mcp:latest .
+#     docker run -i --rm i3-mcp:latest   # Claude pipes JSON-RPC over stdio
+#
+#  Security posture:
+#     * Pinned base image
+#     * Non-root user `mcp` (uid 10002)
+#     * No extra binaries in the runtime image
+#     * Stdio-only — no ports exposed by default
+# =============================================================================
+
+ARG PYTHON_IMAGE=python:3.11-slim-bookworm
+ARG APP_UID=10002
+ARG APP_GID=10002
+
+# -----------------------------------------------------------------------------
+#  Stage 1 — builder: install minimal Python deps into a venv
+# -----------------------------------------------------------------------------
+FROM ${PYTHON_IMAGE} AS builder
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /build
+
+# Create an isolated virtualenv and install only what the MCP server needs.
+# We deliberately avoid pulling the full I³ poetry-managed stack — the MCP
+# server degrades gracefully when the pipeline is unavailable, which keeps
+# the image small for agents that only want tool/resource access.
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:${PATH}"
+
+RUN pip install --upgrade pip && \
+    pip install \
+        "mcp[cli]>=1.0" \
+        "pydantic>=2.6" \
+        "aiosqlite>=0.20"
+
+# -----------------------------------------------------------------------------
+#  Stage 2 — runtime
+# -----------------------------------------------------------------------------
+FROM ${PYTHON_IMAGE} AS runtime
+
+ARG APP_UID
+ARG APP_GID
+
+LABEL org.opencontainers.image.title="i3-mcp" \
+      org.opencontainers.image.description="I³ MCP server (stdio)" \
+      org.opencontainers.image.source="https://github.com/abailey81/implicit-interaction-intelligence" \
+      org.opencontainers.image.licenses="MIT"
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PATH="/opt/venv/bin:${PATH}" \
+    I3_MCP_LOG_LEVEL="INFO"
+
+RUN groupadd --system --gid ${APP_GID} mcp && \
+    useradd --system --uid ${APP_UID} --gid mcp --home /app --shell /sbin/nologin mcp
+
+WORKDIR /app
+
+# Copy the prebuilt venv and just the source code we need.
+COPY --from=builder /opt/venv /opt/venv
+COPY --chown=mcp:mcp i3 /app/i3
+COPY --chown=mcp:mcp scripts /app/scripts
+COPY --chown=mcp:mcp configs /app/configs
+COPY --chown=mcp:mcp pyproject.toml /app/pyproject.toml
+
+USER mcp:mcp
+
+# MCP over stdio — no ports to expose.
+ENTRYPOINT ["python", "-m", "scripts.run_mcp_server", \
+            "--transport", "stdio", "--no-pipeline"]

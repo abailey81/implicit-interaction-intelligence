@@ -1,0 +1,19 @@
+{
+  "_comment": "Claude Desktop MCP server configuration. Paste the 'i3-hmi-companion' entry under 'mcpServers' in ~/.config/claude/mcp_servers.json (macOS: ~/Library/Application Support/Claude/mcp_servers.json) and restart Claude Desktop. The server uses stdio — Claude spawns it as a child process and communicates over pipes.",
+  "mcpServers": {
+    "i3-hmi-companion": {
+      "command": "python",
+      "args": [
+        "-m",
+        "scripts.run_mcp_server",
+        "--transport",
+        "stdio"
+      ],
+      "cwd": "${HOME}/implicit-interaction-intelligence",
+      "env": {
+        "PYTHONUNBUFFERED": "1",
+        "I3_MCP_LOG_LEVEL": "INFO"
+      }
+    }
+  }
+}
