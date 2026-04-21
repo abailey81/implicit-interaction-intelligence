@@ -1,0 +1,18 @@
+# PodDisruptionBudget — guarantee at least one I3 pod stays online during
+# voluntary disruptions (node drains, cluster upgrades, etc.).
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: i3
+  namespace: i3
+  labels:
+    app.kubernetes.io/name: i3
+    app.kubernetes.io/component: server
+    app.kubernetes.io/part-of: i3
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: i3
+      app.kubernetes.io/component: server

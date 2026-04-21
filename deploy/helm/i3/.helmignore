@@ -1,0 +1,30 @@
+# Patterns to ignore when building Helm charts (analogous to .gitignore).
+.DS_Store
+.git/
+.gitignore
+.bzr/
+.bzrignore
+.hg/
+.hgignore
+.svn/
+*.swp
+*.bak
+*.tmp
+*.orig
+*~
+.project
+.idea/
+*.tmproj
+.vscode/
+OWNERS
+
+# CI & local development artifacts
+.github/
+.circleci/
+.gitlab-ci.yml
+.pre-commit-config.yaml
+*.log
+
+# Test output
+tests/
+test-output/

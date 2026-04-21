@@ -1,0 +1,18 @@
+# Namespace for the Implicit Interaction Intelligence (I3) service.
+#
+# Overlays (kustomize) and Helm installations can override the namespace name
+# or skip creation entirely. This manifest is suitable for `kubectl apply -k`
+# against the base directory when you want the namespace created inline.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: i3
+  labels:
+    app.kubernetes.io/name: i3
+    app.kubernetes.io/part-of: i3
+    app.kubernetes.io/managed-by: kustomize
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+  annotations:
+    description: "Implicit Interaction Intelligence (I3) production namespace"

@@ -1,0 +1,195 @@
+# Deployment — I3 FastAPI + PyTorch server.
+#
+# Uvicorn entrypoint: `server.app:app` on port 8000. The container image is
+# built separately (see repo Dockerfile) and pushed to ghcr.io. The REPLACE_TAG
+# token is substituted by kustomize overlays / CI before apply.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: i3
+  namespace: i3
+  labels:
+    app.kubernetes.io/name: i3
+    app.kubernetes.io/component: server
+    app.kubernetes.io/part-of: i3
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    kubernetes.io/change-cause: "Initial manifest"
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: i3
+      app.kubernetes.io/component: server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: i3
+        app.kubernetes.io/component: server
+        app.kubernetes.io/part-of: i3
+        app.kubernetes.io/version: "1.0.0"
+        app.kubernetes.io/managed-by: kustomize
+      annotations:
+        # Trigger a rolling restart when the ConfigMap changes. The value is
+        # refreshed at apply time via `kubectl rollout restart` or by CI
+        # replacing this annotation with the ConfigMap hash.
+        checksum/config: "REPLACE_ME_WITH_CONFIGMAP_SHA"
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/api/metrics"
+    spec:
+      serviceAccountName: i3
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      # Prefer spreading replicas across different nodes and zones.
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: i3
+                    app.kubernetes.io/component: server
+                topologyKey: kubernetes.io/hostname
+            - weight: 50
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: i3
+                    app.kubernetes.io/component: server
+                topologyKey: topology.kubernetes.io/zone
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: i3
+              app.kubernetes.io/component: server
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: i3
+              app.kubernetes.io/component: server
+      containers:
+        - name: i3
+          image: "ghcr.io/abailey81/i3:REPLACE_TAG"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: i3-config
+            - secretRef:
+                name: i3-secrets
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2"
+              memory: "2Gi"
+          startupProbe:
+            httpGet:
+              path: /api/live
+              port: http
+            failureThreshold: 30
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /api/live
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+            successThreshold: 1
+          lifecycle:
+            preStop:
+              exec:
+                # Give the load balancer time to drain connections before the
+                # container exits. Paired with terminationGracePeriodSeconds.
+                command: ["/bin/sh", "-c", "sleep 10"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            privileged: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: app-data-tmp
+              mountPath: /app/data/tmp
+            - name: app-configs
+              mountPath: /app/configs
+              readOnly: true
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi
+        - name: app-data-tmp
+          emptyDir:
+            sizeLimit: 1Gi
+        - name: app-configs
+          configMap:
+            name: i3-config
+            optional: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: i3
+  namespace: i3
+  labels:
+    app.kubernetes.io/name: i3
+    app.kubernetes.io/component: server
+    app.kubernetes.io/part-of: i3
+    app.kubernetes.io/managed-by: kustomize
+automountServiceAccountToken: false

@@ -1,0 +1,84 @@
+# AppProject — scopes what the I3 ArgoCD Application can do.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: i3
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: i3
+    app.kubernetes.io/part-of: i3
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: "Implicit Interaction Intelligence (I3) application project"
+
+  sourceRepos:
+    - https://github.com/abailey81/implicit-interaction-intelligence.git
+    - https://github.com/abailey81/implicit-interaction-intelligence
+
+  destinations:
+    - namespace: i3-dev
+      server: https://kubernetes.default.svc
+    - namespace: i3-staging
+      server: https://kubernetes.default.svc
+    - namespace: i3-prod
+      server: https://kubernetes.default.svc
+
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: "rbac.authorization.k8s.io"
+      kind: ClusterRole
+    - group: "rbac.authorization.k8s.io"
+      kind: ClusterRoleBinding
+
+  namespaceResourceWhitelist:
+    - group: ""
+      kind: "*"
+    - group: "apps"
+      kind: "*"
+    - group: "batch"
+      kind: "*"
+    - group: "networking.k8s.io"
+      kind: "*"
+    - group: "policy"
+      kind: "*"
+    - group: "autoscaling"
+      kind: "*"
+    - group: "monitoring.coreos.com"
+      kind: "*"
+    - group: "bitnami.com"
+      kind: SealedSecret
+
+  orphanedResources:
+    warn: true
+
+  roles:
+    - name: readonly
+      description: "Read-only access to I3 resources"
+      policies:
+        - p, proj:i3:readonly, applications, get, i3/*, allow
+      groups:
+        - i3-viewers
+    - name: operator
+      description: "Sync + override for on-call operators"
+      policies:
+        - p, proj:i3:operator, applications, *, i3/*, allow
+        - p, proj:i3:operator, applications, override, i3/*, allow
+      groups:
+        - i3-operators
+
+  # Uncomment to enforce maintenance windows on sync operations.
+  # syncWindows:
+  #   - kind: allow
+  #     schedule: "0 9 * * 1-5"    # Mon-Fri 09:00
+  #     duration: 8h
+  #     applications:
+  #       - "*"
+  #     manualSync: true
+  #   - kind: deny
+  #     schedule: "0 0 * * 0,6"    # weekends
+  #     duration: 24h
+  #     applications:
+  #       - "i3-prod"
+  #     manualSync: false

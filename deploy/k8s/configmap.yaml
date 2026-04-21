@@ -1,0 +1,33 @@
+# ConfigMap — non-sensitive runtime configuration for the I3 service.
+#
+# Only NON-SECRET values live here. Secrets (I3_ENCRYPTION_KEY,
+# ANTHROPIC_API_KEY) must be provided via the `i3-secrets` Secret, see
+# secret.example.yaml.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: i3-config
+  namespace: i3
+  labels:
+    app.kubernetes.io/name: i3
+    app.kubernetes.io/component: server
+    app.kubernetes.io/part-of: i3
+    app.kubernetes.io/managed-by: kustomize
+data:
+  # Network binding — must be 0.0.0.0 inside a container.
+  I3_HOST: "0.0.0.0"
+  I3_PORT: "8000"
+  # Comma-separated list of origins permitted by the CORS middleware.
+  I3_CORS_ORIGINS: "https://app.example.com,https://admin.example.com"
+  # Database path on the writable emptyDir volume. The root filesystem is
+  # read-only; use a mounted volume for any writable state.
+  I3_DB_PATH: "/app/data/tmp/i3.db"
+  # Logging / observability defaults.
+  I3_LOG_LEVEL: "INFO"
+  I3_LOG_FORMAT: "json"
+  I3_METRICS_ENABLED: "true"
+  # Anthropic SDK tuning (non-secret). The API key itself is in the Secret.
+  ANTHROPIC_BASE_URL: "https://api.anthropic.com"
+  # Torch thread tuning for container CPU limits.
+  OMP_NUM_THREADS: "2"
+  MKL_NUM_THREADS: "2"

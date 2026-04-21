@@ -1,0 +1,91 @@
+# Skaffold pipeline for local dev iteration on Kubernetes.
+#
+# Usage:
+#   skaffold dev    # watch + rebuild + redeploy + port-forward
+#   skaffold run    # one-shot build/deploy
+#   skaffold debug  # debug with delve / debugpy
+#
+# Profiles: `dev` (default), `staging`, `prod`.
+apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
+  name: i3
+
+build:
+  local:
+    push: false
+    useBuildkit: true
+    useDockerCLI: true
+  tagPolicy:
+    gitCommit:
+      variant: AbbrevCommitSha
+  artifacts:
+    - image: ghcr.io/abailey81/i3
+      context: ..
+      docker:
+        dockerfile: Dockerfile
+      sync:
+        manual:
+          - src: "server/**/*.py"
+            dest: /app/server
+            strip: server/
+          - src: "i3/**/*.py"
+            dest: /app/i3
+            strip: i3/
+          - src: "configs/**/*.yaml"
+            dest: /app/configs
+            strip: configs/
+
+deploy:
+  helm:
+    releases:
+      - name: i3
+        chartPath: helm/i3
+        namespace: i3-dev
+        createNamespace: true
+        valuesFiles:
+          - helm/i3/values-dev.yaml
+        setValueTemplates:
+          image.repository: "{{.IMAGE_REPO_ghcr_io_abailey81_i3}}"
+          image.tag: "{{.IMAGE_TAG_ghcr_io_abailey81_i3}}@{{.IMAGE_DIGEST_ghcr_io_abailey81_i3}}"
+        setValues:
+          envFromSecret.existingSecret: "i3-secrets"
+        skipBuildDependencies: true
+        wait: true
+
+portForward:
+  - resourceType: service
+    resourceName: i3
+    namespace: i3-dev
+    port: 80
+    localPort: 8000
+
+profiles:
+  - name: staging
+    patches:
+      - op: replace
+        path: /deploy/helm/releases/0/namespace
+        value: i3-staging
+      - op: replace
+        path: /deploy/helm/releases/0/valuesFiles
+        value:
+          - helm/i3/values.yaml
+      - op: replace
+        path: /portForward/0/namespace
+        value: i3-staging
+
+  - name: prod
+    patches:
+      - op: replace
+        path: /build/local/push
+        value: true
+      - op: replace
+        path: /deploy/helm/releases/0/namespace
+        value: i3-prod
+      - op: replace
+        path: /deploy/helm/releases/0/valuesFiles
+        value:
+          - helm/i3/values-prod.yaml
+      - op: replace
+        path: /portForward/0/namespace
+        value: i3-prod

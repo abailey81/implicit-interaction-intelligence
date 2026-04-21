@@ -1,0 +1,35 @@
+# ServiceMonitor — Prometheus Operator integration. Scrapes /api/metrics on
+# the `http` port of the I3 Service every 30s.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: i3
+  namespace: i3
+  labels:
+    app.kubernetes.io/name: i3
+    app.kubernetes.io/component: server
+    app.kubernetes.io/part-of: i3
+    app.kubernetes.io/managed-by: kustomize
+    # This label is matched by the Prometheus resource's serviceMonitorSelector.
+    release: kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames:
+      - i3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: i3
+      app.kubernetes.io/component: server
+  endpoints:
+    - port: http
+      path: /api/metrics
+      interval: 30s
+      scrapeTimeout: 10s
+      honorLabels: true
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_pod_name]
+          targetLabel: pod
+        - sourceLabels: [__meta_kubernetes_namespace]
+          targetLabel: namespace
+        - sourceLabels: [__meta_kubernetes_pod_node_name]
+          targetLabel: node

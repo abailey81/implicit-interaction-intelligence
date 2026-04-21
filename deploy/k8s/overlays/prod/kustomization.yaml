@@ -1,0 +1,64 @@
+# Prod overlay — namespace `i3-prod`, HPA min 3, image tag policy.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: i3-prod
+
+commonLabels:
+  app.kubernetes.io/instance: i3-prod
+  environment: prod
+
+resources:
+  - ../../
+
+images:
+  # Prod image tag is populated by CI (git SHA or semver release tag).
+  # CI should run: `kustomize edit set image ghcr.io/abailey81/i3=...:<tag>`
+  - name: ghcr.io/abailey81/i3
+    newTag: "1.0.0"
+
+replicas:
+  - name: i3
+    count: 3
+
+patches:
+  - target:
+      kind: Namespace
+      name: i3
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: i3-prod
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: i3
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 3
+      - op: replace
+        path: /spec/maxReplicas
+        value: 20
+  - target:
+      kind: Deployment
+      name: i3
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: "1"
+            memory: "2Gi"
+          limits:
+            cpu: "4"
+            memory: "4Gi"
+  - target:
+      kind: Ingress
+      name: i3
+    patch: |-
+      - op: replace
+        path: /spec/tls/0/hosts/0
+        value: i3.example.com
+      - op: replace
+        path: /spec/rules/0/host
+        value: i3.example.com

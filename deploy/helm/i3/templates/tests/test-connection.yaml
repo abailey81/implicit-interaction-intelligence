@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "i3.fullname" . }}-test-connection"
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "i3.labels" . | nindent 4 }}
+    app.kubernetes.io/component: test
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 65534
+    runAsGroup: 65534
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: curl
+      image: curlimages/curl:8.9.1
+      imagePullPolicy: IfNotPresent
+      command: ["/bin/sh", "-c"]
+      args:
+        - >-
+          set -eu;
+          URL="http://{{ include "i3.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}";
+          echo "Probing $URL/api/live";
+          curl -fsS --max-time 10 "$URL/api/live";
+          echo "Probing $URL/api/ready";
+          curl -fsS --max-time 10 "$URL/api/ready";
+          echo "Probing $URL/api/health";
+          curl -fsS --max-time 10 "$URL/api/health";
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        privileged: false
+        capabilities:
+          drop:
+            - ALL
+      resources:
+        requests:
+          cpu: "10m"
+          memory: "16Mi"
+        limits:
+          cpu: "100m"
+          memory: "64Mi"

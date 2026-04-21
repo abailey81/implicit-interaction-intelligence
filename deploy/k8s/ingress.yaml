@@ -1,0 +1,56 @@
+# Ingress — public HTTPS entry point for I3.
+#
+# Requires:
+#   - ingress-nginx controller installed.
+#   - cert-manager installed with a ClusterIssuer named `letsencrypt-prod`.
+#
+# Rate limits and body size limits apply to the ingress class only.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: i3
+  namespace: i3
+  labels:
+    app.kubernetes.io/name: i3
+    app.kubernetes.io/component: server
+    app.kubernetes.io/part-of: i3
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    # cert-manager — automatic TLS certificate provisioning.
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # Force HTTPS redirect at the ingress layer.
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    # Body size cap aligns with the FastAPI middleware limit.
+    nginx.ingress.kubernetes.io/proxy-body-size: "4m"
+    # Rate limit: 60 requests/second burst, 600 rpm per client IP.
+    nginx.ingress.kubernetes.io/limit-rps: "60"
+    nginx.ingress.kubernetes.io/limit-rpm: "600"
+    nginx.ingress.kubernetes.io/limit-connections: "50"
+    # Proxy timeouts tuned for long-running inference requests.
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "10"
+    # Add strict security headers at the ingress layer (server also sets them).
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "Strict-Transport-Security: max-age=63072000; includeSubDomains; preload";
+      more_set_headers "X-Content-Type-Options: nosniff";
+      more_set_headers "X-Frame-Options: DENY";
+      more_set_headers "Referrer-Policy: no-referrer";
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - i3.example.com
+      secretName: i3-tls
+  rules:
+    - host: i3.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: i3
+                port:
+                  name: http

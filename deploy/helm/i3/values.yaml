@@ -1,0 +1,310 @@
+# Default values for the I3 Helm chart.
+# Values here are safe defaults for a small production cluster. Override per
+# environment with --values values-dev.yaml / --values values-prod.yaml.
+
+# ---------------------------------------------------------------------------
+# Naming
+# ---------------------------------------------------------------------------
+nameOverride: ""
+fullnameOverride: ""
+
+# ---------------------------------------------------------------------------
+# Image
+# ---------------------------------------------------------------------------
+image:
+  repository: ghcr.io/abailey81/i3
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+# - name: ghcr-pull-secret
+
+# ---------------------------------------------------------------------------
+# Replicas and update strategy
+# ---------------------------------------------------------------------------
+replicaCount: 2
+
+updateStrategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+
+revisionHistoryLimit: 5
+terminationGracePeriodSeconds: 30
+
+# ---------------------------------------------------------------------------
+# ServiceAccount
+# ---------------------------------------------------------------------------
+serviceAccount:
+  create: true
+  automountServiceAccountToken: false
+  annotations: {}
+  name: ""
+
+# ---------------------------------------------------------------------------
+# Pod- and container-level security
+# ---------------------------------------------------------------------------
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  privileged: false
+  capabilities:
+    drop:
+      - ALL
+
+# ---------------------------------------------------------------------------
+# Resources
+# ---------------------------------------------------------------------------
+resources:
+  requests:
+    cpu: "500m"
+    memory: "1Gi"
+  limits:
+    cpu: "2"
+    memory: "2Gi"
+
+# ---------------------------------------------------------------------------
+# Probes
+# ---------------------------------------------------------------------------
+probes:
+  liveness:
+    enabled: true
+    path: /api/live
+    initialDelaySeconds: 15
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+  readiness:
+    enabled: true
+    path: /api/ready
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+    successThreshold: 1
+  startup:
+    enabled: true
+    path: /api/live
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 30
+
+# ---------------------------------------------------------------------------
+# Service
+# ---------------------------------------------------------------------------
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8000
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8000"
+    prometheus.io/path: "/api/metrics"
+
+# ---------------------------------------------------------------------------
+# Ingress
+# ---------------------------------------------------------------------------
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "4m"
+    nginx.ingress.kubernetes.io/limit-rps: "60"
+    nginx.ingress.kubernetes.io/limit-rpm: "600"
+    nginx.ingress.kubernetes.io/limit-connections: "50"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "10"
+  hosts:
+    - host: i3.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: i3-tls
+      hosts:
+        - i3.example.com
+
+# ---------------------------------------------------------------------------
+# Autoscaling
+# ---------------------------------------------------------------------------
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+  customMetrics:
+    - type: Pods
+      pods:
+        metric:
+          name: http_requests_per_second
+        target:
+          type: AverageValue
+          averageValue: "50"
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+      selectPolicy: Min
+    scaleUp:
+      stabilizationWindowSeconds: 30
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 30
+        - type: Pods
+          value: 4
+          periodSeconds: 30
+      selectPolicy: Max
+
+# ---------------------------------------------------------------------------
+# PodDisruptionBudget
+# ---------------------------------------------------------------------------
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+  # maxUnavailable: null  # use either minAvailable OR maxUnavailable, not both
+
+# ---------------------------------------------------------------------------
+# NetworkPolicy
+# ---------------------------------------------------------------------------
+networkPolicy:
+  enabled: true
+  # Selector for the ingress controller namespace (by metadata label).
+  ingressNamespaceSelector:
+    kubernetes.io/metadata.name: ingress-nginx
+  monitoringNamespaceSelector:
+    kubernetes.io/metadata.name: monitoring
+  # Egress allowlist. Defaults allow DNS + HTTPS (Anthropic API).
+  allowDNS: true
+  allowHTTPSEgress: true
+  extraEgressRules: []
+
+# ---------------------------------------------------------------------------
+# ServiceMonitor (Prometheus Operator)
+# ---------------------------------------------------------------------------
+serviceMonitor:
+  enabled: true
+  interval: 30s
+  scrapeTimeout: 10s
+  path: /api/metrics
+  honorLabels: true
+  additionalLabels:
+    release: kube-prometheus-stack
+
+# ---------------------------------------------------------------------------
+# Configuration (non-secret environment variables)
+# ---------------------------------------------------------------------------
+config:
+  I3_HOST: "0.0.0.0"
+  I3_PORT: "8000"
+  I3_CORS_ORIGINS: "https://app.example.com,https://admin.example.com"
+  I3_DB_PATH: "/app/data/tmp/i3.db"
+  I3_LOG_LEVEL: "INFO"
+  I3_LOG_FORMAT: "json"
+  I3_METRICS_ENABLED: "true"
+  ANTHROPIC_BASE_URL: "https://api.anthropic.com"
+  OMP_NUM_THREADS: "2"
+  MKL_NUM_THREADS: "2"
+
+# Additional environment variables (name/value pairs or name/valueFrom).
+extraEnv: []
+# - name: MY_VAR
+#   value: "hello"
+# - name: POD_IP
+#   valueFrom:
+#     fieldRef:
+#       fieldPath: status.podIP
+
+# Secret containing sensitive env vars (I3_ENCRYPTION_KEY, ANTHROPIC_API_KEY).
+# Provide either a pre-existing secret name (envFromSecret.existingSecret) or
+# populate envFromSecret.data to have the chart create one.
+envFromSecret:
+  existingSecret: "i3-secrets"
+  # When data is non-empty, the chart will render a Secret; useful for local
+  # dev only. In production always use existingSecret with a SealedSecret or
+  # External Secret.
+  data: {}
+    # I3_ENCRYPTION_KEY: ""
+    # ANTHROPIC_API_KEY: ""
+
+# ---------------------------------------------------------------------------
+# Scheduling
+# ---------------------------------------------------------------------------
+nodeSelector: {}
+
+tolerations: []
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          topologyKey: kubernetes.io/hostname
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: i3
+              app.kubernetes.io/component: server
+      - weight: 50
+        podAffinityTerm:
+          topologyKey: topology.kubernetes.io/zone
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: i3
+              app.kubernetes.io/component: server
+
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: i3
+        app.kubernetes.io/component: server
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: i3
+        app.kubernetes.io/component: server
+
+priorityClassName: ""
+
+# Additional pod annotations (merged with built-in annotations).
+podAnnotations: {}
+
+# Additional pod labels (merged with built-in labels).
+podLabels: {}
+
+# ---------------------------------------------------------------------------
+# Volumes
+# ---------------------------------------------------------------------------
+volumes:
+  tmp:
+    sizeLimit: 256Mi
+  appDataTmp:
+    sizeLimit: 1Gi
+
+# Extra volumes and volume mounts beyond the built-in set.
+extraVolumes: []
+extraVolumeMounts: []

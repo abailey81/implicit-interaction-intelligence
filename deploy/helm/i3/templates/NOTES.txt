@@ -1,0 +1,50 @@
+Thank you for installing {{ .Chart.Name }} {{ .Chart.Version }} (appVersion {{ .Chart.AppVersion }}).
+
+Release: {{ .Release.Name }}
+Namespace: {{ .Release.Namespace }}
+
+1. Wait for pods to become Ready:
+
+   kubectl --namespace {{ .Release.Namespace }} rollout status deployment/{{ include "i3.fullname" . }}
+
+2. Verify the API is responding:
+
+{{- if .Values.ingress.enabled }}
+{{- range .Values.ingress.hosts }}
+{{- range .paths }}
+   https://{{ $host := . }}{{- end }}
+{{- end }}
+{{- range .Values.ingress.hosts }}
+   curl -fsS https://{{ .host }}/api/health
+{{- end }}
+{{- else if contains "NodePort" .Values.service.type }}
+   export NODE_PORT=$(kubectl --namespace {{ .Release.Namespace }} get services {{ include "i3.fullname" . }} -o jsonpath="{.spec.ports[0].nodePort}")
+   export NODE_IP=$(kubectl --namespace {{ .Release.Namespace }} get nodes -o jsonpath="{.items[0].status.addresses[0].address}")
+   curl -fsS http://$NODE_IP:$NODE_PORT/api/health
+{{- else if contains "LoadBalancer" .Values.service.type }}
+   export SERVICE_IP=$(kubectl --namespace {{ .Release.Namespace }} get svc {{ include "i3.fullname" . }} -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+   curl -fsS http://$SERVICE_IP:{{ .Values.service.port }}/api/health
+{{- else }}
+   kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "i3.fullname" . }} 8080:{{ .Values.service.port }} &
+   curl -fsS http://127.0.0.1:8080/api/health
+{{- end }}
+
+3. Useful diagnostic commands:
+
+   kubectl --namespace {{ .Release.Namespace }} get pods -l app.kubernetes.io/name={{ include "i3.name" . }}
+   kubectl --namespace {{ .Release.Namespace }} logs -l app.kubernetes.io/name={{ include "i3.name" . }} --tail=100 -f
+   kubectl --namespace {{ .Release.Namespace }} describe hpa {{ include "i3.fullname" . }}
+
+{{- if not (or .Values.envFromSecret.existingSecret (gt (len .Values.envFromSecret.data) 0)) }}
+
+WARNING: No Secret is configured. The pod will not have I3_ENCRYPTION_KEY or
+ANTHROPIC_API_KEY and will fail to start. Set either `envFromSecret.existingSecret`
+or `envFromSecret.data`.
+{{- end }}
+
+{{- if and (not .Values.autoscaling.enabled) (lt (int .Values.replicaCount) 2) }}
+
+NOTE: autoscaling is disabled and replicaCount < 2. The PodDisruptionBudget
+(minAvailable=1) may prevent voluntary evictions during cluster upgrades.
+Consider increasing replicaCount or enabling autoscaling.
+{{- end }}

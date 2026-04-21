@@ -1,0 +1,63 @@
+# Dev overlay — single replica, lower resources, namespace `i3-dev`.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: i3-dev
+nameSuffix: -dev
+
+commonLabels:
+  app.kubernetes.io/instance: i3-dev
+  environment: dev
+
+resources:
+  - ../../
+
+images:
+  - name: ghcr.io/abailey81/i3
+    newTag: dev
+
+replicas:
+  - name: i3
+    count: 1
+
+patches:
+  - target:
+      kind: Namespace
+      name: i3
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: i3-dev
+  - target:
+      kind: Deployment
+      name: i3
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+          limits:
+            cpu: "1"
+            memory: "1Gi"
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: i3
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 3
+  - target:
+      kind: Ingress
+      name: i3
+    patch: |-
+      - op: replace
+        path: /spec/tls/0/hosts/0
+        value: i3.dev.example.com
+      - op: replace
+        path: /spec/rules/0/host
+        value: i3.dev.example.com

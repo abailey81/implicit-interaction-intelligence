@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "i3.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "i3.labels" . | nindent 4 }}
+data:
+  {{- range $key, $value := .Values.config }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}
+{{- if and .Values.envFromSecret.data (gt (len .Values.envFromSecret.data) 0) }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "i3.fullname" . }}-env
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "i3.labels" . | nindent 4 }}
+type: Opaque
+stringData:
+  {{- range $key, $value := .Values.envFromSecret.data }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}
+{{- end }}

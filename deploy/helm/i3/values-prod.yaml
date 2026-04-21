@@ -1,0 +1,83 @@
+# Production environment overrides.
+#
+# Secrets are expected to be delivered via a SealedSecret named `i3-secrets`
+# in the release namespace. This file references that secret; it never
+# contains plaintext.
+replicaCount: 3
+
+image:
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+resources:
+  requests:
+    cpu: "1"
+    memory: "2Gi"
+  limits:
+    cpu: "4"
+    memory: "4Gi"
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 65
+  targetMemoryUtilizationPercentage: 75
+  customMetrics:
+    - type: Pods
+      pods:
+        metric:
+          name: http_requests_per_second
+        target:
+          type: AverageValue
+          averageValue: "75"
+
+ingress:
+  hosts:
+    - host: i3.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: i3-tls
+      hosts:
+        - i3.example.com
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "4m"
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+    nginx.ingress.kubernetes.io/limit-rpm: "3000"
+
+config:
+  I3_LOG_LEVEL: "INFO"
+  I3_LOG_FORMAT: "json"
+  I3_CORS_ORIGINS: "https://app.example.com,https://admin.example.com"
+
+# Reference a SealedSecret / ExternalSecret / manually-provisioned Secret.
+# The chart will NOT render its own Secret when data is empty.
+envFromSecret:
+  existingSecret: "i3-secrets"
+  data: {}
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+networkPolicy:
+  enabled: true
+
+serviceMonitor:
+  enabled: true
+
+priorityClassName: "high-priority"
+
+nodeSelector:
+  workload: general
+
+tolerations:
+  - key: "dedicated"
+    operator: "Equal"
+    value: "i3"
+    effect: "NoSchedule"

@@ -1,0 +1,30 @@
+# Base kustomization — apply with `kubectl apply -k deploy/k8s`.
+#
+# Environment overlays in deploy/k8s/overlays/{dev,staging,prod} layer on top
+# of this base.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: i3
+
+commonLabels:
+  app.kubernetes.io/name: i3
+  app.kubernetes.io/part-of: i3
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  # secret.example.yaml is intentionally excluded from the base to avoid
+  # accidentally applying the placeholder Secret. Create your own secret.yaml
+  # (gitignored) or use a SealedSecret and reference it in the overlay.
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+  - hpa.yaml
+  - pdb.yaml
+  - networkpolicy.yaml
+  - servicemonitor.yaml
+
+images:
+  - name: ghcr.io/abailey81/i3
+    newTag: REPLACE_TAG

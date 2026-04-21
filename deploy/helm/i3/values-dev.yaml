@@ -1,0 +1,43 @@
+# Dev environment overrides.
+replicaCount: 1
+
+image:
+  tag: "dev"
+  pullPolicy: Always
+
+resources:
+  requests:
+    cpu: "100m"
+    memory: "256Mi"
+  limits:
+    cpu: "1"
+    memory: "1Gi"
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+
+ingress:
+  hosts:
+    - host: i3.dev.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: i3-tls-dev
+      hosts:
+        - i3.dev.example.com
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-staging"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+
+config:
+  I3_LOG_LEVEL: "DEBUG"
+  I3_CORS_ORIGINS: "http://localhost:3000,https://i3.dev.example.com"
+
+serviceMonitor:
+  enabled: false
+
+podDisruptionBudget:
+  enabled: false

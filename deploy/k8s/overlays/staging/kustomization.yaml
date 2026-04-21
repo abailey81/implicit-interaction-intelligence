@@ -1,0 +1,50 @@
+# Staging overlay — prod-like with 2 replicas in namespace `i3-staging`.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: i3-staging
+nameSuffix: -staging
+
+commonLabels:
+  app.kubernetes.io/instance: i3-staging
+  environment: staging
+
+resources:
+  - ../../
+
+images:
+  - name: ghcr.io/abailey81/i3
+    newTag: staging
+
+replicas:
+  - name: i3
+    count: 2
+
+patches:
+  - target:
+      kind: Namespace
+      name: i3
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: i3-staging
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: i3
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+      - op: replace
+        path: /spec/maxReplicas
+        value: 6
+  - target:
+      kind: Ingress
+      name: i3
+    patch: |-
+      - op: replace
+        path: /spec/tls/0/hosts/0
+        value: i3.staging.example.com
+      - op: replace
+        path: /spec/rules/0/host
+        value: i3.staging.example.com

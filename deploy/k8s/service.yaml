@@ -1,0 +1,28 @@
+# ClusterIP Service fronting the I3 Deployment. Port 80 -> container 8000.
+apiVersion: v1
+kind: Service
+metadata:
+  name: i3
+  namespace: i3
+  labels:
+    app.kubernetes.io/name: i3
+    app.kubernetes.io/component: server
+    app.kubernetes.io/part-of: i3
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    # Native Prometheus text-format scraping (for clusters without the
+    # Prometheus Operator; ServiceMonitor below is preferred when available).
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8000"
+    prometheus.io/path: "/api/metrics"
+    prometheus.io/scheme: "http"
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: i3
+    app.kubernetes.io/component: server
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
