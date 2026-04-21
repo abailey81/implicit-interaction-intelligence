@@ -1,0 +1,506 @@
+/* ============================================================
+   Implicit Interaction Intelligence (I3) -- Advanced Panels
+   ------------------------------------------------------------
+   Styling for the optional "Advanced insights" drawer, cross
+   attention heatmap, what-if comparator, persona chips, and
+   the floating reset-session pill.
+   Uses the CSS custom properties declared in style.css.
+   ============================================================ */
+
+#i3-advanced-panels {
+    --i3-adv-cold: #0f3460;
+    --i3-adv-hot: #e94560;
+    --i3-adv-drawer-width: 360px;
+    --i3-adv-drawer-width-compact: 300px;
+    --i3-adv-shadow: 0 12px 48px rgba(0, 0, 0, 0.55);
+    font-family: var(--font-body);
+    color: var(--text-primary);
+}
+
+/* ---------- Drawer ---------- */
+
+.i3-adv-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: var(--i3-adv-drawer-width);
+    height: 100vh;
+    background: var(--bg-panel);
+    border-left: 1px solid var(--border);
+    box-shadow: var(--i3-adv-shadow);
+    transform: translateX(100%);
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    z-index: 500;
+    overflow: hidden;
+}
+
+.i3-adv-drawer.open {
+    transform: translateX(0);
+}
+
+.i3-adv-drawer-header {
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, var(--bg-panel), var(--bg-primary));
+}
+
+.i3-adv-drawer-header h2 {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.8px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.i3-adv-drawer-close {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.i3-adv-drawer-close:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+}
+
+.i3-adv-drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px 18px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.i3-adv-toggle {
+    position: fixed;
+    top: 50%;
+    right: 0;
+    transform: translateY(-50%);
+    width: 32px;
+    height: 96px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-right: none;
+    border-radius: var(--radius) 0 0 var(--radius);
+    color: var(--text-muted);
+    cursor: pointer;
+    z-index: 499;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transition: var(--transition);
+}
+
+.i3-adv-toggle:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+    box-shadow: -2px 0 10px var(--accent-glow);
+}
+
+.i3-adv-toggle.hidden {
+    display: none;
+}
+
+/* ---------- Section card ---------- */
+
+.i3-adv-section {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+}
+
+.i3-adv-section-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.8px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.i3-adv-section-hint {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0;
+    text-transform: none;
+    font-weight: 400;
+}
+
+/* ---------- Attention heatmap ---------- */
+
+.i3-attn-wrap {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.i3-attn-canvas {
+    width: 100%;
+    height: 180px;
+    display: block;
+    border-radius: var(--radius-sm);
+    background: #0d1b30;
+    border: 1px solid var(--border);
+}
+
+.i3-attn-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    gap: 3px;
+    height: 180px;
+    border-radius: var(--radius-sm);
+    padding: 4px;
+    background: #0d1b30;
+    border: 1px solid var(--border);
+}
+
+.i3-attn-cell {
+    --i3-fill: 0;
+    border-radius: 3px;
+    background: color-mix(in srgb,
+        var(--i3-adv-cold) calc((1 - var(--i3-fill)) * 100%),
+        var(--i3-adv-hot) calc(var(--i3-fill) * 100%));
+    transition: background 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    cursor: default;
+}
+
+.i3-attn-cell::after {
+    content: attr(data-val);
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: rgba(240, 240, 240, 0.75);
+    pointer-events: none;
+}
+
+.i3-attn-legend {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-dim);
+}
+
+.i3-attn-legend-bar {
+    flex: 1;
+    height: 6px;
+    margin: 0 10px;
+    border-radius: 3px;
+    background: linear-gradient(90deg, var(--i3-adv-cold), var(--i3-adv-hot));
+}
+
+.i3-attn-axis {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    padding: 0 2px;
+}
+
+/* ---------- What-if comparator ---------- */
+
+.i3-whatif-btn {
+    width: 100%;
+    padding: 10px 14px;
+    background: var(--secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-family: var(--font-body);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.i3-whatif-btn:hover:not(:disabled) {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.i3-whatif-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.i3-whatif-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.i3-whatif-col {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 100px;
+}
+
+.i3-whatif-col.canonical {
+    border-left: 3px solid var(--accent);
+}
+
+.i3-whatif-col-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.i3-whatif-col-text {
+    font-size: 12px;
+    color: var(--text-primary);
+    line-height: 1.5;
+    word-break: break-word;
+}
+
+.i3-whatif-col-meta {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+.i3-whatif-col-meta span {
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.i3-whatif-loading {
+    text-align: center;
+    padding: 14px;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 1px;
+}
+
+.i3-whatif-err {
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 8px 10px;
+    border: 1px dashed var(--accent);
+    border-radius: var(--radius-sm);
+}
+
+/* ---------- Persona switcher ---------- */
+
+.i3-persona-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.i3-persona-chip {
+    padding: 6px 12px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--text-muted);
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.i3-persona-chip:hover {
+    color: var(--text-primary);
+    border-color: var(--text-muted);
+}
+
+.i3-persona-chip.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+.i3-persona-chip:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ---------- Reset session pill ---------- */
+
+.i3-reset-btn {
+    position: fixed;
+    top: 14px;
+    right: 14px;
+    z-index: 450;
+    padding: 6px 14px;
+    background: rgba(233, 69, 96, 0.08);
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 999px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: var(--transition);
+    backdrop-filter: blur(4px);
+}
+
+.i3-reset-btn:hover {
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.i3-reset-confirm-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(26, 26, 46, 0.82);
+    backdrop-filter: blur(6px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+.i3-reset-confirm-overlay.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.i3-reset-confirm-box {
+    background: var(--bg-panel);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 22px 28px;
+    text-align: center;
+    box-shadow: var(--i3-adv-shadow);
+    min-width: 280px;
+}
+
+.i3-reset-confirm-box h3 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+
+.i3-reset-confirm-box p {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+}
+
+.i3-reset-confirm-countdown {
+    font-family: var(--font-mono);
+    font-size: 24px;
+    color: var(--accent);
+    font-weight: 700;
+    margin: 8px 0 14px;
+}
+
+.i3-reset-confirm-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.i3-reset-confirm-actions button {
+    padding: 6px 14px;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.6px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-primary);
+    transition: var(--transition);
+}
+
+.i3-reset-confirm-actions .confirm {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+
+.i3-reset-confirm-actions .confirm:hover {
+    background: #d63850;
+}
+
+.i3-reset-confirm-actions .cancel:hover {
+    border-color: var(--text-muted);
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 1024px) {
+    .i3-adv-drawer {
+        width: var(--i3-adv-drawer-width-compact);
+    }
+    .i3-whatif-grid {
+        grid-template-columns: 1fr;
+    }
+    .i3-reset-btn {
+        top: 10px;
+        right: 10px;
+        padding: 5px 10px;
+        font-size: 10px;
+    }
+}
+
+@media (max-width: 900px) {
+    .i3-adv-drawer {
+        width: 100vw;
+    }
+    .i3-adv-toggle {
+        display: none;
+    }
+}
