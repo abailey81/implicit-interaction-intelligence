@@ -1,0 +1,32 @@
+# Patterns DVC should ignore when tracking files and directories.
+# Keep this list conservative -- DVC only skips exact matches.
+
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Virtual environments & editor metadata
+.venv/
+venv/
+env/
+.env
+.idea/
+.vscode/
+
+# Build / dist output
+build/
+dist/
+*.egg-info/
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Local reports and run artefacts we never want to version via DVC
+reports/edge_profile_*.md
+mlruns/
+wandb/

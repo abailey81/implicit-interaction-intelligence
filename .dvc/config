@@ -1,0 +1,7 @@
+[core]
+    remote = default
+    analytics = false
+[cache]
+    type = copy,symlink,hardlink,reflink
+[remote "default"]
+    url = s3://i3-dvc-storage

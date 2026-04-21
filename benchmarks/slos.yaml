@@ -1,0 +1,78 @@
+# Service Level Objectives for the I3 system.
+#
+# These targets drive pytest-benchmark thresholds and the Locust/k6
+# load scripts.  Numbers reflect the measured latency on a 2023
+# mainstream laptop (8-core x86_64, 16 GiB RAM, CPU-only inference)
+# with the default random-init TCN + 6-8 M SLM; they should be tightened
+# further when the production checkpoints are profiled.
+
+version: 1
+
+# End-to-end (local) pipeline: sanitize + encode + route + SLM prefill.
+pipeline:
+  local:
+    p50_ms: 200
+    p95_ms: 260
+    p99_ms: 320
+  cloud:
+    # Cloud path is WAN-bound and captured for completeness.
+    p50_ms: 900
+    p95_ms: 1500
+    p99_ms: 2500
+
+# Per-component targets.
+encoder:
+  # Single-sample encode, [1, 10, 32] input.
+  single:
+    p50_ms: 5
+    p95_ms: 10
+    p99_ms: 20
+  # Batch-of-16 encode.
+  batch_16:
+    p50_ms: 20
+    p95_ms: 35
+    p99_ms: 60
+
+slm:
+  prefill_16:
+    p50_ms: 120
+    p95_ms: 200
+    p99_ms: 260
+  decode_per_token:
+    p50_ms: 4
+    p95_ms: 8
+    p99_ms: 16
+
+router:
+  decision:
+    p50_ms: 2
+    p95_ms: 5
+    p99_ms: 10
+
+sanitizer:
+  clean_text:
+    p50_ms: 1
+    p95_ms: 3
+    p99_ms: 5
+  pii_heavy:
+    p50_ms: 3
+    p95_ms: 8
+    p99_ms: 15
+
+# Load-test targets (Locust / k6).  error_rate is the fraction of failed
+# requests allowed during a sustained ramp-up test.
+load:
+  websocket:
+    ramp_up_seconds: 30
+    steady_seconds: 300
+    ramp_down_seconds: 30
+    target_users: 10
+    max_p95_ms: 400
+    max_error_rate: 0.01
+  rest:
+    ramp_up_seconds: 30
+    steady_seconds: 300
+    ramp_down_seconds: 30
+    target_users: 20
+    max_p95_ms: 250
+    max_error_rate: 0.01

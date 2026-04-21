@@ -1,0 +1,80 @@
+# DVC pipeline for Implicit Interaction Intelligence (I3).
+#
+# Tracks the full model lifecycle:
+#
+#   generate_synthetic  ->  train_encoder  ->  train_slm  ->  evaluate
+#
+# Each stage's `cmd` uses the existing Poetry entry points so the DVC
+# pipeline never drifts from the canonical CLI.  Hyperparameter changes
+# flow through `configs/default.yaml`, which is declared as a dependency
+# everywhere it matters.
+
+stages:
+
+  generate_synthetic:
+    cmd: python -m training.generate_synthetic --output data/synthetic
+    deps:
+      - training/generate_synthetic.py
+      - configs/default.yaml
+    params:
+      - configs/default.yaml:
+          - data
+    outs:
+      - data/synthetic/train.pt
+      - data/synthetic/val.pt
+      - data/synthetic/test.pt
+
+  train_encoder:
+    cmd: >
+      python -m training.train_encoder
+      --config configs/default.yaml
+      --data-dir data/synthetic
+      --checkpoint-dir models/encoder
+    deps:
+      - training/train_encoder.py
+      - i3/encoder
+      - data/synthetic/train.pt
+      - data/synthetic/val.pt
+      - configs/default.yaml
+    params:
+      - configs/default.yaml:
+          - encoder
+    outs:
+      - models/encoder/best_model.pt
+    metrics:
+      - models/encoder/metrics.json:
+          cache: false
+
+  train_slm:
+    cmd: >
+      python -m training.train_slm
+      --config configs/default.yaml
+      --checkpoint-dir models/slm
+    deps:
+      - training/train_slm.py
+      - i3/slm
+      - configs/default.yaml
+    params:
+      - configs/default.yaml:
+          - slm
+    outs:
+      - models/slm/best_model.pt
+    metrics:
+      - models/slm/metrics.json:
+          cache: false
+
+  evaluate:
+    cmd: >
+      python -m training.evaluate
+      --encoder models/encoder/best_model.pt
+      --slm     models/slm/best_model.pt
+      --data-dir data/synthetic
+      --output  reports/evaluation.json
+    deps:
+      - training/evaluate.py
+      - models/encoder/best_model.pt
+      - models/slm/best_model.pt
+      - data/synthetic/test.pt
+    metrics:
+      - reports/evaluation.json:
+          cache: false
