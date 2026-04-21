@@ -1,0 +1,62 @@
+# ==========================================================================
+# NeMo Guardrails top-level configuration for I³
+#
+# Loaded by i3.cloud.guardrails_nemo.GuardrailedCloudClient via
+# RailsConfig.from_path("configs/guardrails/").
+#
+# References:
+#   * NeMo Guardrails User Guide (NVIDIA 2024 release):
+#     https://docs.nvidia.com/nemo/guardrails/user_guides/configuration-guide.html
+#   * Rebedea et al. 2023, "NeMo Guardrails" (EMNLP 2023 system demo).
+# ==========================================================================
+
+# --- LLM configuration ----------------------------------------------------
+# The actual LLM call is issued by CloudLLMClient; the rails engine needs
+# its own lightweight LLM only to execute Colang reasoning steps. We
+# reuse Anthropic Claude Sonnet 4.5 so rail evaluation stays consistent
+# with the primary model. ANTHROPIC_API_KEY is read from the environment.
+models:
+  - type: main
+    engine: anthropic
+    model: claude-sonnet-4-5
+    parameters:
+      max_tokens: 512
+      temperature: 0.0
+
+# --- Colang rail files ----------------------------------------------------
+# Any *.co file in this directory is auto-discovered. We list the primary
+# file here for documentation purposes.
+colang_version: "2.x"
+rails_files:
+  - i3_rails.co
+
+# --- Rail composition -----------------------------------------------------
+rails:
+  input:
+    flows:
+      - refuse_prompt_injection
+      - redact_pii_before_llm
+  output:
+    flows:
+      - check_pii_output
+      - clamp_response_length
+      - check_forbidden_categories
+  retrieval:
+    flows: []
+
+# --- Instrumentation ------------------------------------------------------
+# Each rail trigger is logged as an OTel event so OpenLLMetry / Logfire
+# can surface them alongside LLM spans (see i3.observability.openllmetry).
+tracing:
+  enabled: true
+  adapters:
+    - name: OpenTelemetry
+      # The SDK exports via OTLP using the endpoint configured by
+      # i3.observability.openllmetry.setup_traceloop().
+
+# --- Safety posture -------------------------------------------------------
+# When an output rail fires, we return the canned refusal string rather
+# than attempt to "repair" the reply. This is the conservative posture
+# recommended by NVIDIA for production deployments.
+passthrough: false
+streaming: false
