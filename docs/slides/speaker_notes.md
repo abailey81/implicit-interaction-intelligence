@@ -217,7 +217,7 @@ This slide sells the structural decision. Lead with why, not what.
 
 ## Slide 8 — The intellectual centrepiece: Cross-attention conditioning (120 s)
 
-**Target:** 120 s. **Cumulative:** 12:00.
+**Target:** 120 s. **Cumulative:** 11:15.
 
 This is the slide the whole deck has been building toward. Two minutes.
 Do not hurry it.
@@ -252,7 +252,7 @@ Do not hurry it.
 
 ## Slide 9 — Live Demo (600 s / 10 min — intro 120 s + 8 min demo)
 
-**Target:** 600 s. **Cumulative:** 22:00.
+**Target:** 600 s. **Cumulative:** 21:15.
 
 Open the browser. Say:
 
@@ -290,7 +290,7 @@ No settings menu. No toggle. It just adapts."* **[Long beat.]**
 
 ## Slide 10 — Routing: Contextual Thompson Sampling (90 s)
 
-**Target:** 90 s. **Cumulative:** 23:30.
+**Target:** 90 s. **Cumulative:** 22:45.
 
 Post-demo, the panel's attention is highest. Use it.
 
@@ -321,7 +321,7 @@ asymmetric-cost problems like this one."*
 
 ## Slide 11 — Privacy by architecture (75 s)
 
-**Target:** 75 s. **Cumulative:** 24:45.
+**Target:** 75 s. **Cumulative:** 24:00.
 
 Lead with the structural claim, then the mechanisms.
 
@@ -350,9 +350,9 @@ owns."*
 
 ---
 
-## Slide 12 — Fits the devices — extrapolated, honestly (90 s)
+## Slide 12 — Fits the devices — extrapolated, honestly (75 s)
 
-**Target:** 90 s. **Cumulative:** 24:15.
+**Target:** 75 s. **Cumulative:** 25:15.
 
 This slide is a table and a caveat. The table is the headline; the
 caveat is the signal that you know the difference between measurement
@@ -388,7 +388,7 @@ pretence that I've run this on Kirin."*
 
 ## Slide 13 — What this prototype is *not* — the Matthew values moment (120 s)
 
-**Target:** 120 s. **Cumulative:** 26:45.
+**Target:** 120 s. **Cumulative:** 27:15.
 
 Slow down. This slide is the signal of maturity — the single most
 important moment outside the demo.
@@ -423,9 +423,9 @@ important moment outside the demo.
 
 ---
 
-## Slide 14 — Where this goes next (75 s)
+## Slide 14 — Where this goes next (90 s)
 
-**Target:** 75 s. **Cumulative:** 28:00.
+**Target:** 90 s. **Cumulative:** 28:45.
 
 Close the technical arc with the future.
 
@@ -454,7 +454,7 @@ Close the technical arc with the future.
 
 ## Slide 15 — Close (60 s)
 
-**Target:** 60 s. **Cumulative:** 29:00.
+**Target:** 60 s. **Cumulative:** 29:45.
 
 Land slowly. Deliver the closing line verbatim, without preamble, and
 then stop talking. Silence is the performance.
