@@ -1,0 +1,51 @@
+# ════════════════════════════════════════════════════════════════════════
+#
+#   mutmut configuration for Implicit Interaction Intelligence (I3)
+#
+#   Runs standard Python operator and constant mutations against the
+#   security-critical core modules. See tests/mutation/README.md for
+#   usage and interpretation guidance.
+#
+# ════════════════════════════════════════════════════════════════════════
+
+[tool.mutmut]
+
+# Modules to mutate. Keep this list tight so runs stay short enough to
+# be useful in CI (one process per mutant).
+paths_to_mutate = [
+    "i3/router/",
+    "i3/adaptation/",
+    "i3/privacy/",
+    "i3/encoder/",
+]
+
+# The test command executed for every mutant.  Exclude slow / load /
+# fuzz tests — they would multiply wall-clock cost without adding
+# detection power over the unit + property suites.
+#
+# -x    : stop at the first failing test (the mutant is "killed" as
+#         soon as ANY test detects it — keeps mutant evaluation fast).
+# -q    : quiet output so mutmut's own progress stays readable.
+# --no-cov : coverage collection adds overhead and is pointless here.
+runner = "poetry run pytest tests/ -x -q --no-cov -m 'not slow and not load and not fuzz'"
+
+# Where the tests live (mutmut scans for imports of mutated modules).
+tests_dir = "tests/"
+
+# Skip files that are pure re-exports or platform-specific thin wrappers
+# where mutations yield no actionable signal.
+exclude = [
+    "i3/router/__init__.py",
+    "i3/adaptation/__init__.py",
+    "i3/privacy/__init__.py",
+    "i3/encoder/__init__.py",
+]
+
+# Do not mutate inside TYPE_CHECKING blocks or logger formatting strings
+# (they have no runtime behaviour for us to regress).
+also_copy = []
+
+# When a mutant times out we assume the mutation introduced a non-
+# termination bug — treat it as killed so the suite is not gated on
+# wall-clock flakiness of slow tests.
+backup = false
