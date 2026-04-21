@@ -219,8 +219,19 @@ nav:
       - Cross-Attention: research/cross_attention.md
       - Contrastive Loss: research/contrastive_loss.md
       - Bandit Theory: research/bandit_theory.md
+      - Stretch Goals: research/stretch_goals.md
+      - Browser Inference: research/browser_inference.md
+      - Distributed Training: research/distributed_training.md
+      - Differential Privacy: research/differential_privacy.md
       - Model Card: model_card.md
       - Data Card: data_card.md
+  - Integration:
+      - Model Context Protocol: integration/mcp.md
+  - Cloud:
+      - LLM Ecosystem: cloud/llm_ecosystem.md
+  - Edge:
+      - edge/README.md
+      - Alternative Runtimes: edge/alternative_runtimes.md
   - Operations:
       - Deployment: operations/deployment.md
       - Observability: operations/observability.md
@@ -228,6 +239,10 @@ nav:
       - Kubernetes: operations/kubernetes.md
       - Runbook: operations/runbook.md
       - Troubleshooting: operations/troubleshooting.md
+      - Developer Experience: operations/developer_experience.md
+      - Reproducibility: operations/reproducibility.md
+      - uv Migration: operations/uv_migration.md
+      - Analytics: operations/analytics.md
       - Edge Profiling Report: edge_profiling_report.md
       - MLOps: mlops/README.md
   - Responsible AI:
@@ -251,6 +266,12 @@ nav:
       - Rehearsal Timings: slides/rehearsal_timings.md
       - Q&A Prep: slides/qa_prep.md
       - Closing Lines: slides/closing_lines.md
+  - Paper:
+      - paper/README.md
+      - Research Paper: paper/I3_research_paper.md
+      - Executive Summary: executive_summary.md
+      - Conference Poster: poster/conference_poster.md
+      - Patent Disclosure: patent/provisional_disclosure.md
   - ADRs:
       - adr/index.md
       - Template: adr/template.md
@@ -264,7 +285,9 @@ nav:
       - 0008 — Fernet: adr/0008-fernet-over-custom-crypto.md
       - 0009 — SQLite: adr/0009-sqlite-over-redis.md
       - 0010 — Pydantic v2: adr/0010-pydantic-v2-config.md
-  - Security: security/index.md
+  - Security:
+      - security/index.md
+      - Policy as Code: security/policy_as_code.md
   - Contributing: contributing/index.md
   - Reference:
       - Glossary: glossary.md

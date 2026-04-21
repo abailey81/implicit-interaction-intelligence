@@ -196,6 +196,163 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`server/app.py`**: one-line non-destructive call to
   `setup_observability(config, app)` after the middleware stack.
 
+### Added (wave 4 — brief gaps + stretch + interview deliverables)
+
+- **Operational plumbing** — `server/routes_admin.py` (/admin/reset,
+  /admin/profiling, /admin/seed, /admin/export/{id},
+  /admin/user/{id}), `demo/pre_seed.py` (20 sessions + 10 diary
+  exchanges + biased bandit posterior), `scripts/run_four_phases.py`
+  (WPM-paced scenario runner), `scripts/record_backup_demo.py`
+  (OBS integration + manual fallback), `scripts/run_preflight.sh`
+  (5-minute pre-flight checklist), `scripts/export_user_gdpr.py`
+  (GDPR export), `tests/load/test_soak_30min.py` (30-minute
+  WebSocket soak with psutil memory delta ≤ 50 MB).
+- **Advanced frontend** — `web/js/attention_viz.js` (live 4×4
+  cross-attention heatmap), `web/js/whatif.js` (side-by-side
+  alternative-adaptation responses), `web/js/persona_switcher.js`
+  (4 pre-built personas), `web/js/reset_button.js` (floating pill),
+  `web/js/wcag_audit.js` (in-browser WCAG 2.2 AA + AAA audit),
+  `web/js/advanced_init.js` (Alt+A toggle), `web/css/advanced.css`,
+  `web/README_ADVANCED.md`.
+- **Teaching notebooks** — 7 Jupyter notebooks (perception, TCN
+  from scratch, three-timescale user model, cross-attention
+  centrepiece, Thompson sampling, privacy by architecture, edge
+  profiling).
+- **Academic leave-behind** — `docs/paper/I3_research_paper.md`
+  (7 126-word IEEE/ACM-style draft), `docs/paper/references.bib`
+  (28 entries), `docs/patent/provisional_disclosure.md`
+  (attorney-ready invention disclosure with 3 independent + 7
+  dependent claims), `docs/executive_summary.md` (1 380-word
+  plain-English summary), `docs/poster/conference_poster.md`.
+- **Brief stretch goals** — `i3/slm/aux_losses.py`
+  (ConditioningConsistencyLoss + StyleFidelityLoss), `i3/
+  interpretability/` (FeatureAttributor via integrated gradients,
+  CrossAttentionExtractor, TokenHeatmap, optional SHAP), `i3/
+  adaptation/ablation.py` (AblationController composition),
+  `i3/biometric/` (keystroke-biometric user ID + continuous auth),
+  `server/routes_whatif.py` (/whatif/respond, /whatif/compare),
+  `docs/research/stretch_goals.md`.
+- **Future-work sketches** — `i3/multimodal/` (voice, touch, gaze,
+  accelerometer + fusion), `i3/federated/` (Flower client + FedAvg
+  server + secure-aggregation stub), `i3/crossdevice/` (HarmonyOS
+  Distributed Data Management sync with Fernet + SHA-256 integrity,
+  device registry, AI Glasses paired-phone arm), `i3/fairness/`
+  (per-archetype adaptation-bias + Efron 1979 bootstrap CI +
+  biometric FAR/FRR), `i3/privacy/differential_privacy.py`
+  (Opacus DP-SGD wrapper for the router posterior).
+
+### Added (wave 5 — next-gen 2026 technologies)
+
+- **2026 Python toolchain** — `uv.toml`, `.python-version`,
+  `.tool-versions`, `.mise.toml`, `justfile`, `devbox.json`,
+  `flake.nix` + `flake.lock`, `.envrc`, `scripts/uv_bootstrap.sh`,
+  `scripts/verify_reproducibility.sh`, `.github/workflows/uv-ci.yml`,
+  `docs/operations/uv_migration.md`, `docs/operations/
+  reproducibility.md`. Poetry workflow preserved unchanged.
+- **Chainguard Wolfi distroless image** — `Dockerfile.wolfi`
+  + `docker/wolfi-README.md`. Typical 30–60 H/C CVEs on
+  `python:3.11-slim` → 0 on Wolfi.
+- **Anthropic Model Context Protocol server** — `i3/mcp/` (7
+  tools / 5 resources / 2 prompts), `Dockerfile.mcp`,
+  `configs/mcp_server_config.json` (Claude Desktop snippet),
+  `scripts/run_mcp_server.py`, `scripts/mcp_client_smoke.py`,
+  `docs/integration/mcp.md`, `.github/workflows/mcp-test.yml`.
+- **In-browser inference** — `web/js/ort_loader.js` (ONNX Runtime
+  Web 1.18 with SRI), `web/js/webgpu_probe.js`, `web/js/
+  encoder_worker.js`, `web/js/browser_inference.js`, `web/js/
+  inference_toggle.js`, `web/js/inference_metrics_overlay.js`,
+  `server/routes_inference.py` (COOP/COEP headers + path-traversal
+  guard), `docs/research/browser_inference.md`.
+- **2026 LLM ecosystem** — `i3/cloud/dspy_adapter.py`,
+  `i3/cloud/guardrails_nemo.py` + `configs/guardrails/i3_rails.co`,
+  `i3/cloud/pydantic_ai_adapter.py`, `i3/cloud/instructor_adapter.py`,
+  `i3/cloud/outlines_constrained.py`, `i3/observability/
+  logfire_integration.py`, `i3/observability/openllmetry.py`
+  (OTel GenAI semconv for Anthropic), `scripts/
+  optimize_dspy_program.py`, `scripts/run_guardrails_demo.py`,
+  `docs/cloud/llm_ecosystem.md`.
+- **Modern data stack** — `i3/analytics/` (DuckDB analytics
+  attached READ_ONLY to SQLite, LanceDB IVF-PQ vector search,
+  Polars streaming features, Ibis portable queries, Arrow/Parquet
+  interop), `scripts/run_analytics_dashboard.py`,
+  `scripts/export_diary_to_parquet.py`,
+  `scripts/find_similar_users.py`, `docs/operations/analytics.md`.
+- **Distributed training + serving** — `training/train_encoder_
+  fabric.py`, `training/train_slm_fabric.py` (FSDP + `torch.compile`
+  max-autotune), `training/train_with_accelerate.py`,
+  `training/train_with_deepspeed.py`, `configs/distributed/
+  ds_config_zero3.json`, `i3/serving/ray_serve_app.py`,
+  `i3/serving/triton_config.py`, `i3/serving/vllm_server.py`,
+  `deploy/serving/docker-compose.triton.yml`, `deploy/serving/
+  ray_serve_manifest.yaml`, `docs/research/distributed_training.md`.
+- **Alternative edge runtimes** — `i3/edge/{mlx,llama_cpp,tvm,
+  iree,coreml,tensorrt_llm,openvino,mediapipe}_export.py`,
+  `scripts/export_all_runtimes.py`, `benchmarks/
+  test_edge_runtime_matrix.py`, `docs/edge/alternative_runtimes.md`
+  (3 512 words, 8-runtime decision matrix with Huawei NPU column).
+- **Dev experience** — `dagger/main.py` (programmable CI via
+  Dagger Python SDK), `Tiltfile` (local k8s hot-reload),
+  `i3/observability/pyroscope_integration.py`, `deploy/
+  observability/grafana-alloy.river`, `backstage/catalog-info.yaml`
+  + techdocs + system + api entities, `.github/codespaces/
+  devcontainer.json`, `.github/workflows/{act-local.md,
+  pyroscope.yml,serving-smoke.yml}`, `docs/operations/
+  developer_experience.md`.
+- **Policy + runtime security** — `deploy/policy/kyverno/`
+  (5 ClusterPolicies: signed-images, deny-latest, non-root,
+  network-policy-required, default-deny generator),
+  `deploy/policy/opa/` (Rego v1 admission + tests), `deploy/policy/
+  cedar/` (application-level authz in Cedar 4.x with 21 scenarios),
+  `deploy/policy/falco/` (custom runtime rules alerting on diary.db
+  reads, unexpected egress, exec, /app writes), `deploy/policy/
+  tracee/`, `deploy/policy/sigstore/policy-controller-config.yaml`,
+  `.github/allstar/`, `i3/authz/cedar_adapter.py`,
+  `tests/test_cedar_authz.py`, `.github/workflows/policy-test.yml`,
+  `docs/security/policy_as_code.md` (NIST 800-53 + CIS
+  Kubernetes Benchmark matrix + T1–T13 threat model).
+- **Audit reports** — `SECURITY_AUDIT_REPORT.md` (0 critical / 0
+  high / 2 medium / 4 low / 5 informational),
+  `CODE_QUALITY_AUDIT_REPORT.md` (0 high, module-by-module typing
+  and docstring coverage table), `COMPLETENESS_AUDIT_REPORT.md`
+  (~92% complete vs THE_COMPLETE_BRIEF.md with specific remaining
+  human-action items), `DOCUMENTATION_AUDIT_REPORT.md` (coverage
+  matrix, voice/tone findings, citation matrix, slide-deck
+  compliance, interview-ready verdict).
+
+### Changed (wave 4–5 integrations)
+
+- **`pyproject.toml`**: added `observability`, `mlops`, `ml-advanced`,
+  `analytics`, `distributed`, `llm-ecosystem`, `edge-runtimes`,
+  `future-work`, `policy`, `mcp` Poetry groups. Expanded `dev`
+  with Hypothesis, schemathesis, syrupy, mutmut, pytest-benchmark.
+  Expanded `docs` with MkDocs Material ecosystem plugins.
+- **`Makefile`**: new Docker, docs, observability, benchmarks,
+  ONNX export, edge profile, model signing, and conditioning-
+  evaluation targets.
+- **`.env.example`**: OTel, Sentry, Langfuse, MLflow, benchmarks,
+  OpenAPI disable, CORS wildcard override, I3_WORKERS,
+  I3_FORWARDED_IPS.
+- **`mkdocs.yml`**: nav expanded to surface Huawei, Slides,
+  Responsible AI, MLOps, Edge, Integration, Cloud, Paper,
+  Reproducibility, Analytics, uv migration, Developer Experience,
+  Policy as Code, Browser inference, Distributed training,
+  Differential privacy, Stretch goals.
+- **`README.md`**: 'Production Features (beyond the demo)' matrix
+  listing 13+ opt-in capability families with one-line summaries.
+
+### Fixed (wave 4 audit findings)
+
+- **`configs/default.yaml`**: cloud.model pinned to the brief-mandated
+  `claude-sonnet-4-5` (was `claude-sonnet-4-20250514`).
+- **`docs/slides/presentation.md`**: honesty slide title now
+  verbatim Title Case 'What This Prototype Is Not'.
+- **`.github/workflows/trivy.yml`**: `aquasecurity/trivy-action@master`
+  → `@0.24.0` (6 call sites).
+- **`.github/workflows/semgrep.yml`**: `semgrep/semgrep:latest` →
+  `semgrep/semgrep:1.78.0`.
+- **`docs/adr/*.md`**: stripped 96 check/cross/warning emoji glyphs
+  across 11 ADRs per the no-emoji style rule.
+
 
 ## [1.0.0] — 2026-04-12
 

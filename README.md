@@ -704,6 +704,32 @@ with zero extra dependencies.
 | Supply-chain auto  | Renovate (grouped), release-please, commitlint, lefthook git hooks                                  |
 | Interview ready    | 15-slide Marp deck, speaker notes, 52 Q&A pairs, NOTES.md engineering disclosure, brief analysis    |
 
+## Next-gen 2026 Technology Stack
+
+Additional opt-in capability families, each soft-imported so the core
+service boots without them:
+
+| Family              | Capability                                                                                                         |
+|:--------------------|:-------------------------------------------------------------------------------------------------------------------|
+| Python toolchain    | uv + uv.lock alongside Poetry; `ty` / mypy / Ruff; Nix flake; Devbox; mise + asdf; justfile                        |
+| Hardened containers | Chainguard Wolfi distroless variant (`Dockerfile.wolfi`) — zero H/C CVEs on base image                             |
+| MCP server          | Anthropic Model Context Protocol — 7 tools + 5 resources + 2 prompts for Claude Desktop / Code                      |
+| Browser inference   | ONNX Runtime Web + WebGPU — TCN runs on the user's GPU; keystroke packets never leave the device                   |
+| LLM ecosystem       | DSPy compile-time prompt optimisation, NeMo Guardrails, Pydantic AI, Instructor, Outlines, Logfire, OpenLLMetry    |
+| Modern data stack   | DuckDB analytics over SQLite, LanceDB IVF-PQ vector search, Polars streaming features, Ibis portable queries       |
+| Distributed         | Lightning Fabric (DDP + FSDP + `torch.compile`), Accelerate, DeepSpeed ZeRO-3, Ray Serve, NVIDIA Triton, vLLM      |
+| Edge runtimes       | Apple MLX, llama.cpp GGUF, Apache TVM, IREE, Core ML, TensorRT-LLM, OpenVINO, MediaPipe (plus existing ExecuTorch) |
+| Dev experience      | Dagger programmable CI, Tilt local k8s hot-reload, Grafana Pyroscope continuous profiling, Backstage, Alloy        |
+| Policy as code      | Kyverno + OPA + Sigstore Policy Controller (cluster), Cedar 4.x (app authz), Falco + Tracee (runtime), Allstar     |
+| Future-work code    | Multi-modal port (voice + touch + gaze + accelerometer), Flower federated learning, HarmonyOS DDM sync mock        |
+| Brief stretch       | Attention-conditioning aux losses, integrated-gradients interpretability, what-if API, ablation mode, biometric ID |
+| Interview package   | 7 Jupyter notebooks, research paper (7 126 words), attorney-ready patent disclosure, exec summary, A0 poster       |
+
+Audit trail: every batch of the above is accompanied by committed
+reports at the repo root — `SECURITY_AUDIT_REPORT.md`,
+`CODE_QUALITY_AUDIT_REPORT.md`, `COMPLETENESS_AUDIT_REPORT.md`,
+`DOCUMENTATION_AUDIT_REPORT.md`.
+
 See [CHANGELOG.md](CHANGELOG.md) `[Unreleased]` for the full list of
 additions over the v1.0.0 baseline.
 
