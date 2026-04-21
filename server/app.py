@@ -260,6 +260,10 @@ def create_app() -> FastAPI:
     app.include_router(api_router, prefix="/api")
     app.include_router(ws_router)
 
+    # Admin routes — gated by I3_DISABLE_ADMIN env var (see server/routes_admin.py).
+    from server.routes_admin import include_admin_routes
+    include_admin_routes(app)
+
     # ------------------------------------------------------------------
     # Static files -- serve the demo UI (must be mounted *last* so API
     # and WS routes take precedence)
