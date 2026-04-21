@@ -267,6 +267,92 @@ publish: build ## Publish to PyPI (requires credentials)
 release-check: check security-check ## Run all checks before release
 	@printf "$(BOLD)$(GREEN)✓ Release checks passed$(RESET)\n"
 
-docker-build: ## Build Docker image (placeholder)
-	@printf "$(YELLOW)▶ Docker build not yet implemented$(RESET)\n"
-	@printf "$(DIM)  (placeholder — Dockerfile to be added)$(RESET)\n"
+docker-build: ## Build the production Docker image (multi-stage, non-root, tini PID 1)
+	@printf "$(BLUE)▶ Building production Docker image (i3:latest)...$(RESET)\n"
+	DOCKER_BUILDKIT=1 docker build -t i3:latest .
+	@printf "$(GREEN)✓ Image built. Run: docker run --rm -p 8000:8000 i3:latest$(RESET)\n"
+
+docker-build-dev: ## Build the development Docker image (Dockerfile.dev, hot reload)
+	@printf "$(BLUE)▶ Building development Docker image (i3:dev)...$(RESET)\n"
+	DOCKER_BUILDKIT=1 docker build -f Dockerfile.dev -t i3:dev .
+	@printf "$(GREEN)✓ Image i3:dev built$(RESET)\n"
+
+docker-up: ## Start the service via docker compose (base profile)
+	@printf "$(BLUE)▶ Starting docker compose stack...$(RESET)\n"
+	docker compose up --build
+
+docker-up-prod: ## Start with hardened prod profile (read-only rootfs, cap_drop, nginx sidecar)
+	@printf "$(BLUE)▶ Starting production docker compose stack...$(RESET)\n"
+	docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+	@printf "$(GREEN)✓ Stack up. Logs: docker compose logs -f$(RESET)\n"
+
+docker-down: ## Tear down docker compose stack
+	@docker compose -f docker-compose.yml -f docker-compose.prod.yml down || docker compose down
+
+# ═════════════════════════════════════════════════════════════════════════
+#  Documentation (MkDocs Material)
+# ═════════════════════════════════════════════════════════════════════════
+
+.PHONY: docs docs-serve docs-build docs-strict docs-deploy
+
+docs: docs-serve ## Alias for docs-serve
+
+docs-serve: ## Serve MkDocs site locally on :8001 with hot reload
+	@printf "$(BLUE)▶ Starting MkDocs dev server on http://127.0.0.1:8001 ...$(RESET)\n"
+	$(POETRY) run mkdocs serve -a 127.0.0.1:8001
+
+docs-build: ## Build the static site into ./site
+	@printf "$(BLUE)▶ Building MkDocs site...$(RESET)\n"
+	$(POETRY) run mkdocs build
+	@printf "$(GREEN)✓ Site built in ./site$(RESET)\n"
+
+docs-strict: ## Build with --strict (fails on broken links / warnings)
+	@printf "$(BLUE)▶ Strict MkDocs build...$(RESET)\n"
+	$(POETRY) run mkdocs build --strict
+	@printf "$(GREEN)✓ Strict build passed$(RESET)\n"
+
+docs-deploy: ## Deploy docs to GitHub Pages (gh-pages branch)
+	@printf "$(BLUE)▶ Deploying MkDocs to GitHub Pages...$(RESET)\n"
+	$(POETRY) run mkdocs gh-deploy --force
+
+# ═════════════════════════════════════════════════════════════════════════
+#  Observability stack (OTel Collector + Prometheus + Grafana + Tempo)
+# ═════════════════════════════════════════════════════════════════════════
+
+.PHONY: obs-up obs-down
+
+obs-up: ## Start local observability stack (Grafana on :3000, Prometheus on :9090)
+	@printf "$(BLUE)▶ Starting observability stack...$(RESET)\n"
+	docker compose -f deploy/observability/docker-compose.observability.yml up -d
+	@printf "$(GREEN)✓ Grafana: http://localhost:3000  Prometheus: http://localhost:9090$(RESET)\n"
+
+obs-down: ## Tear down local observability stack
+	@docker compose -f deploy/observability/docker-compose.observability.yml down
+
+# ═════════════════════════════════════════════════════════════════════════
+#  Advanced ML tooling (ONNX export, edge profiling, model signing)
+# ═════════════════════════════════════════════════════════════════════════
+
+.PHONY: benchmarks bench-ci export-onnx verify-onnx profile-edge sign-model eval-conditioning
+
+benchmarks: ## Run pytest-benchmark micro-benchmarks (warmup 3 / measured 20)
+	@printf "$(BLUE)▶ Running benchmarks...$(RESET)\n"
+	$(PYTEST) benchmarks/ --benchmark-only
+
+bench-ci: ## Run benchmarks and emit JSON for CI regression tracking
+	$(PYTEST) benchmarks/ --benchmark-only --benchmark-json=benchmark-output.json
+
+export-onnx: ## Export TCN encoder + SLM to ONNX (checkpoints/ required)
+	$(PY) -m scripts.export_onnx --encoder checkpoints/encoder/best.pt --slm checkpoints/slm/best.pt --out exports/
+
+verify-onnx: ## Verify ONNX inference parity vs PyTorch (atol=1e-4)
+	$(PY) -m scripts.verify_onnx --onnx exports/
+
+profile-edge: ## Write reports/edge_profile_<date>.md using i3.profiling
+	$(PY) -m scripts.profile_edge
+
+sign-model: ## Sign a checkpoint with OpenSSF Model Signing v1.0 (sigstore)
+	$(PY) -m scripts.sign_model sign --model checkpoints/slm/best.pt --method sigstore
+
+eval-conditioning: ## Run the cross-attention conditioning-sensitivity evaluation
+	$(PY) -m scripts.evaluate_conditioning

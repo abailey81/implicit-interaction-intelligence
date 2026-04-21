@@ -7,6 +7,196 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+#### Container & Deployment Infrastructure
+- **Production Dockerfile** — multi-stage (builder + runtime), Python 3.11
+  slim-bookworm, non-root `i3:10001`, `tini` PID 1, OCI image labels,
+  CPU-only torch from the PyTorch wheel index, HEALTHCHECK via stdlib
+  `urllib`. Final image stripped of pip/poetry/build-essential/git/curl.
+- **`Dockerfile.dev`** for hot-reload development.
+- **`docker-compose.yml`** + **`docker-compose.prod.yml`** with `read_only`
+  root filesystem, `cap_drop: [ALL]`, `no-new-privileges`, nginx sidecar
+  for TLS, tmpfs for mutable paths.
+- **`.devcontainer/`** — VSCode dev container with Poetry 1.8.3 bootstrap,
+  pre-commit hook install, Python + Ruff + Pylance + mypy extensions.
+- **Kubernetes manifests** (`deploy/k8s/`) — deployment with RuntimeDefault
+  seccomp, read-only rootfs, cap_drop ALL, startupProbe + livenessProbe
+  (`/api/live`) + readinessProbe (`/api/ready`), HPA v2 (min 2 / max 10,
+  CPU 70% + custom `http_requests_per_second`), PDB, NetworkPolicy with
+  default-deny + narrow allow, ServiceMonitor for Prometheus Operator;
+  dev/staging/prod Kustomize overlays.
+- **Helm chart** (`deploy/helm/i3/`) with `_helpers.tpl`, comprehensive
+  `values.yaml` + `values-{dev,prod}.yaml`, NOTES.txt, tests/test-connection.
+- **Terraform reference module** (`deploy/terraform/`) targeting AWS EKS
+  via `kubernetes ~> 2.27` + `helm ~> 2.13` providers.
+- **Skaffold** config for local k8s iteration and **ArgoCD** GitOps
+  `application.yaml` + `appproject.yaml`.
+
+#### Observability
+- **`i3/observability/`** package with soft-imported OpenTelemetry +
+  structlog + Prometheus + Sentry stack. Each module is no-op when its
+  dependency is absent so the core pipeline boots unchanged.
+- **structlog JSON logging** with sensitive-key redaction processor
+  (`api_key`, `authorization`, `cookie`, `token`, `password`, `secret`,
+  `fernet`, `I3_ENCRYPTION_KEY`), stdlib-bridge, contextvars for
+  `request_id` / `user_id` / `trace_id` / `client_ip`.
+- **OpenTelemetry** `TracerProvider` with `BatchSpanProcessor`, OTLP gRPC
+  exporter, `ParentBased(TraceIdRatioBased)` sampling, auto-instrumentation
+  for FastAPI / httpx / sqlite3 / logging.
+- **Prometheus metrics**: HTTP RPS + latency histograms, pipeline stage
+  P95 stacked, router arm distribution + posterior-mean gauges, SLM
+  prefill/decode latency, TCN encoder latency, WebSocket concurrent gauge,
+  PII sanitizer hit counter by pattern type.
+- **Sentry** integration with PII-scrubbing `before_send` hook (uses
+  `PrivacySanitizer` lazily).
+- **Request correlation middleware** — `X-Request-ID`, contextvars binding,
+  latency logs.
+- **Health endpoints** in `server/routes_health.py`: `/api/health`,
+  `/api/live`, `/api/ready` (pipeline + encryption-key + disk checks
+  returning 503 on failure), `/api/metrics` (gated by `I3_METRICS_ENABLED`).
+- **`deploy/observability/`** docker-compose stack: OTel Collector +
+  Prometheus + Tempo + Grafana with a provisioned 10-panel I³ overview
+  dashboard.
+- **Langfuse LLM tracer** (`i3/observability/langfuse_client.py`) with
+  `@trace_generation` decorator and Anthropic Sonnet-4.5 pricing constants
+  for cost attribution.
+
+#### Advanced ML Capabilities
+- **`i3/encoder/loss.py`** — `NTXentLoss` nn.Module + `nt_xent_loss`
+  function alias extracted from `train.py` for reuse. SimCLR NT-Xent
+  (Chen et al. 2020, arXiv:2002.05709 Eq. 1). Uses `-1e9` diagonal mask
+  for fp16 compatibility.
+- **`i3/interaction/sentiment.py`** + `data/sentiment_lexicon.json` —
+  `ValenceLexicon` with JSON loader, silent inline-constant fallback,
+  negation window flipping, `score()` and `intensity()` methods.
+- **`i3/slm/quantize_torchao.py`** — PyTorch-native `Int4WeightOnlyConfig`
+  and `Int8DynamicConfig` quantizers parallel to existing `torch.quantization`.
+- **`i3/encoder/quantize.py`** — TCN INT8 dynamic quantization counterpart.
+- **`i3/mlops/`** — `ExperimentTracker` (MLflow soft-import), `Registry`
+  (filesystem + optional MLflow/W&B mirror), `save_with_hash` /
+  `load_verified` checkpoint integrity with SHA-256 sidecar + JSON metadata
+  (+ git SHA, torch version, config hash, hardware), `ModelSigner` wrapping
+  OpenSSF Model Signing v1.0 (sigstore / PKI / bare key backends).
+- **ONNX export** — `i3/encoder/onnx_export.py` (dynamic batch + time axes,
+  parity atol=1e-4) and `i3/slm/onnx_export.py` (prefill-only graph with
+  `conditioning_tokens` as explicit input).
+- **ExecuTorch hooks** — `i3/edge/` with `export_slm_to_executorch`,
+  `export_tcn_to_executorch`, and Huawei-target hooks in `i3/huawei/`.
+- **`i3/cloud/guardrails.py`** + `guarded_client.py` — input guardrail
+  (length cap, prompt-injection keyword list, loop detection) and output
+  guardrail (sensitive-token redaction, length trim) composing around
+  the existing `CloudLLMClient` without touching it.
+- **`i3/eval/`** — sliding-window perplexity, cross-attention
+  conditioning-sensitivity KL-divergence test, responsiveness golden set
+  (12-example tone-class harness).
+
+#### Huawei Ecosystem Integration (for HMI Lab)
+- **`docs/huawei/`** — `harmony_hmaf_integration.md` (HMAF four pillars,
+  distributed databus sync format `I3UserStateSync` ~680 B), `kirin_
+  deployment.md` (chip-by-chip budgets for Kirin 9000 / 9010 / A2 /
+  Smart Hanhan with Da Vinci op coverage), `l1_l5_framework.md`
+  (Eric Xu's device intelligence ladder with capability / primitive /
+  privacy triples for L3–L5), `edinburgh_joint_lab.md` (Prof. Malvina
+  Nissim's sparse-signal personalisation line of work), `smart_hanhan.md`
+  (encoder-only deployment pattern), `interview_talking_points.md`
+  (60-second pitch + 21 panel questions + 10 candidate questions).
+- **`i3/huawei/hmaf_adapter.py`** — typed `HMAFAgentAdapter` with
+  `register_capability` / `plan` / `execute` / `emit_telemetry` + raw-text
+  telemetry guard.
+- **`i3/huawei/kirin_targets.py`** — Pydantic v2 frozen `DeviceProfile`
+  with four canonical devices and `select_deployment_profile()`.
+
+#### Supply-Chain Security
+- **GitHub Actions workflows** (all new): `sbom` (CycloneDX + Syft),
+  `scorecard` (OSSF weekly with SARIF + badge), `semgrep` (9 curated
+  rulesets), `trivy` (fs + config + image scans, CRITICAL-fail),
+  `release` (release-please → build → SLSA L3 generic generator → PyPI
+  trusted publishing via OIDC), `docker` (multi-arch buildx + GHA cache,
+  cosign keyless sign, SBOM attest, SLSA L3 container generator),
+  `docs` (MkDocs strict build + gh-pages), `benchmark` (pytest-benchmark
+  + regression alerting), `stale`, `lockfile-audit`, `pr-title`
+  (semantic titles), `markdown-link-check`.
+- **Composite action** `.github/actions/setup-poetry` for DRY Poetry setup.
+- **`renovate.json`** with grouped rules (ml-core, web-stack, dev-tooling,
+  actions, docker-base-images), vulnerability alerts, lockfile maintenance.
+- **`commitlint.config.js`** (conventional-commit scopes).
+- **`lefthook.yml`** (pre-commit ruff/mypy/detect-secrets + pre-push
+  pytest smoke).
+- **`.sigstore.yaml`**, **`.trivyignore`**, **`.semgrepignore`**.
+- **`SLSA.md`** (Build L3 mapping + verification with `cosign` +
+  `slsa-verifier`) and **`SUPPLY_CHAIN.md`** (SBOM, vuln SLA, scanner matrix).
+- **`release-please`** config seeded for automated semver releases.
+
+#### Documentation Site (MkDocs Material)
+- **`mkdocs.yml`** with Material theme, light/dark palette toggle, full
+  Mermaid / MathJax / pymdownx extensions suite.
+- **10 Architecture Decision Records** (MADR 4.0) covering custom SLM,
+  TCN vs LSTM, Thompson sampling, privacy-by-architecture, FastAPI,
+  Poetry, OpenTelemetry, Fernet, SQLite, Pydantic v2.
+- **`docs/architecture/`, `docs/api/`, `docs/getting-started/`,
+  `docs/operations/`, `docs/research/`, `docs/glossary.md`** — full
+  documentation tree.
+- **Model cards** for SLM and TCN (Mitchell et al. format).
+- **Data card** for synthetic dataset + DailyDialog + EmpatheticDialogues
+  + valence lexicon (Gebru et al. format).
+- **Accessibility statement** — detection-vs-diagnosis boundary, opt-out
+  guarantees, WCAG 2.2 + ARIA + POUR mapping.
+
+#### Advanced Testing
+- **`tests/property/`** — 7 Hypothesis suites (encoder, feature vector,
+  adaptation, bandit, tokenizer, sanitizer, Welford).
+- **`tests/contract/`** — schemathesis ASGI REST tests + WebSocket JSON-
+  schema contract tests.
+- **`tests/fuzz/`** — atheris harnesses for sanitizer, config loader,
+  tokenizer.
+- **`tests/load/`** — WebSocket DoS (1000-frame flood, 128 KiB → WS 1009)
+  + REST rate-limit assertions.
+- **`tests/mutation/`** + `mutmut-config.toml` targeting router / adaptation
+  / privacy / encoder.
+- **`tests/chaos/`** — pipeline resilience with monkey-patched failures.
+- **`tests/snapshot/`** — syrupy snapshots for AdaptationVector fixtures
+  and bandit posterior stats.
+
+#### Interview Deliverables
+- **15-slide Marp deck** (`docs/slides/presentation.md`) with emotional
+  arc Hook → Tension → Context → Promise → Architecture → Live Demo →
+  Edge → Implications → *What This Prototype Is Not* → Close.
+- **`docs/slides/speaker_notes.md`** — 150–200 word notes per slide.
+- **`docs/slides/rehearsal_timings.md`** — second-by-second cue sheet.
+- **`docs/slides/qa_prep.md`** — 52 prepared Q&A pairs across 7 categories.
+- **`docs/edge_profiling_report.md`** — full interview-ready edge report
+  with device feasibility matrix and MindSpore Lite conversion path.
+- **`NOTES.md`** at repo root — engineering disclosure document covering
+  spec deviations (src/ → i3/ rename, Fernet-as-TrustZone-placeholder,
+  extrapolated Kirin numbers, what is NOT in the prototype).
+- **`BRIEF_ANALYSIS.md`** — structured summary of `THE_COMPLETE_BRIEF.md`.
+
+#### Benchmarks & MLOps
+- **`benchmarks/`** with pytest-benchmark suites (TCN, SLM, router,
+  sanitizer, end-to-end pipeline; 3 warmup / 20 measured rounds),
+  `locustfile.py` WebSocket + REST load scenarios, `k6/load.js`,
+  `slos.yaml` with P50/P95/P99 targets.
+- **DVC pipeline** (`dvc.yaml`) wiring `generate_synthetic → train_encoder
+  → train_slm → evaluate` stages.
+
+### Changed
+- **`pyproject.toml`**: added `observability`, `mlops`, `ml-advanced` Poetry
+  groups; expanded `dev` group with `hypothesis`, `schemathesis`, `syrupy`,
+  `mutmut`, `pytest-benchmark`, `jsonschema`; expanded `docs` group with
+  MkDocs Material ecosystem plugins; added `detect-secrets` to `security`
+  group.
+- **`Makefile`**: added `docker-build[-dev]`, `docker-up[-prod]`, `docs[-serve|-build|-strict|-deploy]`, `obs-up/down`, `benchmarks`,
+  `export-onnx`, `verify-onnx`, `profile-edge`, `sign-model`,
+  `eval-conditioning` targets.
+- **`.env.example`**: documented observability (log format/level, OTel,
+  Prometheus, Sentry, Langfuse), MLflow, benchmarks (`I3_BENCH_REQUIRE_CKPT`),
+  runtime tuning (`I3_WORKERS`, `I3_FORWARDED_IPS`), OpenAPI disable
+  (`I3_DISABLE_OPENAPI`), CORS wildcard override.
+- **`server/app.py`**: one-line non-destructive call to
+  `setup_observability(config, app)` after the middleware stack.
+
+
 ## [1.0.0] — 2026-04-12
 
 ### Added

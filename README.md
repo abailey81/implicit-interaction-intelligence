@@ -648,13 +648,64 @@ bandits. No sklearn. No NLTK.*
 
 ## Documentation
 
-- [**ARCHITECTURE.md**](docs/ARCHITECTURE.md) — Deep-dive system design, with
-  math, data flows, and design rationale
-- [**DEMO_SCRIPT.md**](docs/DEMO_SCRIPT.md) — The 4-phase interview demo
-  script with exact dialogue and timing
-- [pyproject.toml](pyproject.toml) — Dependencies and tooling configuration
-- [configs/default.yaml](configs/default.yaml) — All hyperparameters with
-  inline comments
+The project ships a full MkDocs Material site. Serve it locally:
+
+```bash
+poetry install --with docs
+poetry run mkdocs serve         # http://127.0.0.1:8000
+```
+
+Key documents:
+
+- [**ARCHITECTURE.md**](docs/ARCHITECTURE.md) — deep-dive system design,
+  math, data flows, and design rationale.
+- [**DEMO_SCRIPT.md**](docs/DEMO_SCRIPT.md) — the 4-phase interview demo
+  script with exact dialogue and timing.
+- [**edge_profiling_report.md**](docs/edge_profiling_report.md) — Kirin
+  9000 / 9010 / A2 / Smart Hanhan feasibility matrix + MindSpore Lite
+  conversion path + power-budget analysis.
+- [**docs/huawei/**](docs/huawei/) — HarmonyOS 6 / HMAF integration,
+  Kirin deployment, L1–L5 framework, Edinburgh Joint Lab positioning,
+  Smart Hanhan deployment, interview talking points.
+- [**docs/adr/**](docs/adr/) — 10 Architecture Decision Records (MADR 4.0).
+- [**docs/responsible_ai/**](docs/responsible_ai/) — model cards (SLM
+  and TCN), data card, accessibility statement.
+- [**docs/slides/**](docs/slides/) — 15-slide Marp deck + speaker notes
+  + 52 Q&A prep + rehearsal cue sheet.
+- [**SLSA.md**](SLSA.md), [**SUPPLY_CHAIN.md**](SUPPLY_CHAIN.md) —
+  Build Level 3 posture, SBOM distribution, image signing, vulnerability
+  SLAs.
+- [**NOTES.md**](NOTES.md) — engineering disclosure document
+  (deviations from spec, what is NOT in the prototype).
+- [pyproject.toml](pyproject.toml) — dependencies + tooling config.
+- [configs/default.yaml](configs/default.yaml) — all hyperparameters
+  with inline comments.
+
+## Production Features (beyond the demo)
+
+This repository is configured as a production-grade Python ML service,
+not just a notebook. Everything below is opt-in; the core pipeline boots
+with zero extra dependencies.
+
+| Area               | Capability                                                                                          |
+|:-------------------|:----------------------------------------------------------------------------------------------------|
+| Containers         | Multi-stage Dockerfile (non-root, tini PID 1), Compose + hardened prod profile, VSCode devcontainer |
+| Kubernetes         | Full `deploy/k8s/` manifests + Helm chart + Kustomize dev/staging/prod overlays + Terraform module  |
+| Observability      | OpenTelemetry traces, Prometheus metrics, structlog JSON logs, Sentry (opt-in), Grafana dashboard    |
+| LLM observability  | Langfuse tracer with Anthropic Sonnet 4.5 token + cost attribution                                  |
+| MLOps              | MLflow tracking, DVC pipeline, SHA-256 checkpoint sidecars, OpenSSF Model Signing v1.0 (sigstore)   |
+| Edge               | ONNX export + parity verification, torchao INT4/INT8, ExecuTorch `.pte` hooks                       |
+| Supply chain       | CycloneDX SBOM, Syft + Trivy image scans, cosign keyless sign, SLSA L3 provenance, OSSF Scorecard   |
+| CI/CD              | 13 workflows (CI, security, sbom, scorecard, semgrep, trivy, docker, release, docs, benchmark, …)   |
+| Testing            | Property (Hypothesis), contract (schemathesis), fuzz (atheris), load, mutation (mutmut), chaos, snapshot (syrupy) |
+| Benchmarks         | pytest-benchmark suites + Locust WS/REST scenarios + k6 script + SLO targets                        |
+| Documentation      | MkDocs Material site with 10 ADRs, model cards, data card, glossary, runbook, accessibility statement |
+| Huawei integration | HMAF adapter, Kirin target profiles, ExecuTorch hooks, MindSpore Lite conversion guide             |
+| Supply-chain auto  | Renovate (grouped), release-please, commitlint, lefthook git hooks                                  |
+| Interview ready    | 15-slide Marp deck, speaker notes, 52 Q&A pairs, NOTES.md engineering disclosure, brief analysis    |
+
+See [CHANGELOG.md](CHANGELOG.md) `[Unreleased]` for the full list of
+additions over the v1.0.0 baseline.
 
 ---
 
