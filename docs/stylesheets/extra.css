@@ -1,0 +1,207 @@
+/* ============================================================================
+   I³ — Implicit Interaction Intelligence
+   Brand palette: dark charcoal + warm amber (matches web/ SPA).
+   ============================================================================ */
+
+:root {
+  --i3-charcoal-900: #0f1012;
+  --i3-charcoal-800: #171a1e;
+  --i3-charcoal-700: #1f2328;
+  --i3-amber-400:   #ffc14d;
+  --i3-amber-500:   #ffb300;
+  --i3-amber-600:   #e59e00;
+  --i3-accent:      #ff8f00;
+  --i3-text-dim:    #9ca3af;
+}
+
+/* --- Palette override for dark scheme ------------------------------------- */
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color:        var(--i3-amber-500);
+  --md-primary-fg-color--light: var(--i3-amber-400);
+  --md-primary-fg-color--dark:  var(--i3-amber-600);
+  --md-accent-fg-color:         var(--i3-amber-400);
+  --md-default-bg-color:        var(--i3-charcoal-900);
+  --md-code-bg-color:           var(--i3-charcoal-700);
+  --md-code-fg-color:           #f4f4f5;
+  --md-typeset-a-color:         var(--i3-amber-400);
+}
+
+/* --- Palette override for light scheme ------------------------------------ */
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color:        var(--i3-accent);
+  --md-primary-fg-color--light: var(--i3-amber-400);
+  --md-primary-fg-color--dark:  var(--i3-amber-600);
+  --md-accent-fg-color:         var(--i3-accent);
+  --md-typeset-a-color:         var(--i3-accent);
+}
+
+/* --- Typography ---------------------------------------------------------- */
+.md-typeset h1 {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  border-bottom: 2px solid var(--md-primary-fg-color);
+  padding-bottom: 0.2em;
+  margin-bottom: 0.6em;
+}
+
+.md-typeset h2 {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-top: 1.8em;
+}
+
+.md-typeset h3 {
+  font-weight: 600;
+  color: var(--md-primary-fg-color--light);
+}
+
+/* --- Hero landing section ------------------------------------------------- */
+.i3-hero {
+  text-align: center;
+  padding: 3rem 1rem 2rem;
+  background:
+    radial-gradient(circle at 30% 20%,
+      rgba(255, 179, 0, 0.15) 0%, transparent 55%),
+    radial-gradient(circle at 70% 80%,
+      rgba(255, 143, 0, 0.10) 0%, transparent 55%);
+  border-radius: 0.6rem;
+  margin-bottom: 2rem;
+}
+
+.i3-hero__badge {
+  display: inline-block;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--i3-amber-500);
+  color: var(--i3-amber-400);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 1rem;
+}
+
+.i3-hero__title {
+  font-size: 2.8rem !important;
+  font-weight: 800;
+  line-height: 1.05;
+  margin: 0.2em 0;
+  border: none !important;
+}
+
+.i3-hero__tagline {
+  font-size: 1.15rem;
+  color: var(--i3-text-dim);
+  max-width: 58ch;
+  margin: 0 auto 1.5rem;
+}
+
+.i3-hero__actions {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* --- Feature grid -------------------------------------------------------- */
+.i3-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.i3-card {
+  border: 1px solid rgba(255, 179, 0, 0.18);
+  border-radius: 0.5rem;
+  padding: 1rem 1.1rem;
+  background: rgba(23, 26, 30, 0.6);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.i3-card:hover {
+  border-color: var(--i3-amber-500);
+  transform: translateY(-2px);
+}
+
+.i3-card h3 {
+  margin-top: 0 !important;
+  font-size: 1rem;
+  color: var(--i3-amber-400);
+}
+
+.i3-card p {
+  margin-bottom: 0;
+  font-size: 0.9rem;
+}
+
+/* --- Code block styling -------------------------------------------------- */
+.md-typeset pre > code {
+  font-size: 0.86em;
+  line-height: 1.55;
+}
+
+.md-typeset .highlight .filename {
+  background: var(--i3-charcoal-700);
+  color: var(--i3-amber-400);
+  border-bottom: 1px solid rgba(255, 179, 0, 0.25);
+  font-weight: 600;
+}
+
+/* --- Admonition accent tweaks ------------------------------------------- */
+.md-typeset .admonition {
+  border-left-width: 4px;
+}
+
+.md-typeset .admonition.tip,
+.md-typeset details.tip {
+  border-left-color: var(--i3-amber-500);
+}
+
+.md-typeset .admonition.tip > .admonition-title::before,
+.md-typeset details.tip > summary::before {
+  background-color: var(--i3-amber-500);
+}
+
+/* --- Tables -------------------------------------------------------------- */
+.md-typeset table:not([class]) {
+  border: 1px solid rgba(255, 179, 0, 0.15);
+  font-size: 0.85rem;
+}
+
+.md-typeset table:not([class]) th {
+  background: var(--i3-charcoal-700);
+  color: var(--i3-amber-400);
+  font-weight: 600;
+}
+
+/* --- Scrollbar ----------------------------------------------------------- */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--i3-charcoal-800);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 179, 0, 0.4);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--i3-amber-500);
+}
+
+/* --- Mermaid legibility in dark -------------------------------------- */
+.mermaid text {
+  fill: #f4f4f5 !important;
+}
+
+/* --- Utility: small caps label ----------------------------------------- */
+.i3-label {
+  font-variant: small-caps;
+  letter-spacing: 0.1em;
+  color: var(--i3-amber-400);
+  font-size: 0.8rem;
+}
