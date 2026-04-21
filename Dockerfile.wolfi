@@ -1,0 +1,103 @@
+# syntax=docker/dockerfile:1.7
+# ---------------------------------------------------------------------------
+# Dockerfile.wolfi
+#
+# Chainguard Wolfi distroless build of Implicit Interaction Intelligence (I3).
+# This is a ZERO-CVE alternative to the Debian-slim based Dockerfile that
+# lives next to this one. It is opt-in: CI builds both and you deploy whichever
+# satisfies your compliance posture.
+#
+# Builder:  cgr.dev/chainguard/python:latest-dev   (has apk, pip, shell)
+# Runtime:  cgr.dev/chainguard/python:latest       (distroless, no shell)
+#
+# Because the runtime has no shell, the ENTRYPOINT must be a direct
+# `python -m uvicorn` invocation — never a shell script.
+# ---------------------------------------------------------------------------
+
+ARG CHAINGUARD_TAG=latest
+
+# ---------------------------------------------------------------------------
+# Stage 1 — builder
+# ---------------------------------------------------------------------------
+FROM cgr.dev/chainguard/python:${CHAINGUARD_TAG}-dev AS builder
+
+USER root
+WORKDIR /build
+
+# Copy only dependency manifests first for Docker layer caching.
+COPY pyproject.toml uv.toml* poetry.lock* uv.lock* /build/
+COPY README.md /build/README.md
+
+# Create a venv we will copy wholesale into the runtime image.
+ENV VIRTUAL_ENV=/opt/venv
+RUN python -m venv "$VIRTUAL_ENV"
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+# Prefer uv when available (it is in latest-dev); fall back to pip.
+# We compile a hash-pinned requirements file first so the install is hermetic.
+RUN pip install --no-cache-dir --upgrade pip "uv==0.5.4" \
+    && uv pip compile pyproject.toml --universal -o /tmp/requirements.lock.txt
+
+# Install torch (CPU only) + the rest of the deps into the venv.
+RUN uv pip install --no-cache-dir --python "$VIRTUAL_ENV/bin/python" \
+        --extra-index-url https://download.pytorch.org/whl/cpu \
+        torch \
+    && uv pip install --no-cache-dir --python "$VIRTUAL_ENV/bin/python" \
+        -r /tmp/requirements.lock.txt
+
+# Copy the application source and install it into the venv.
+COPY i3       /build/i3
+COPY server   /build/server
+COPY configs  /build/configs
+RUN uv pip install --no-cache-dir --python "$VIRTUAL_ENV/bin/python" --no-deps .
+
+# Strip *.pyc files we don't need; compile only the ones we do.
+RUN python -m compileall -q -j 0 "$VIRTUAL_ENV/lib" /build/i3 /build/server \
+    && find "$VIRTUAL_ENV" -type d -name __pycache__ -prune -exec rm -rf {} + \
+    && find "$VIRTUAL_ENV" -type d -name "tests" -prune -exec rm -rf {} + \
+    || true
+
+# ---------------------------------------------------------------------------
+# Stage 2 — runtime  (distroless, no shell, non-root)
+# ---------------------------------------------------------------------------
+FROM cgr.dev/chainguard/python:${CHAINGUARD_TAG} AS runtime
+
+# Chainguard python images already run as non-root UID 65532 by default.
+# We make that explicit and pin the workdir.
+USER 65532:65532
+WORKDIR /app
+
+ENV VIRTUAL_ENV=/opt/venv \
+    PATH="/opt/venv/bin:$PATH" \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONHASHSEED=random \
+    PORT=8000
+
+COPY --from=builder --chown=65532:65532 /opt/venv /opt/venv
+COPY --from=builder --chown=65532:65532 /build/i3      /app/i3
+COPY --from=builder --chown=65532:65532 /build/server  /app/server
+COPY --from=builder --chown=65532:65532 /build/configs /app/configs
+
+EXPOSE 8000
+
+# -------------------------- OCI annotations --------------------------------
+LABEL org.opencontainers.image.title="implicit-interaction-intelligence" \
+      org.opencontainers.image.description="Behavioural-biometric authentication service (Wolfi distroless build)" \
+      org.opencontainers.image.vendor="I3 Project" \
+      org.opencontainers.image.licenses="Apache-2.0" \
+      org.opencontainers.image.source="https://github.com/i3/implicit-interaction-intelligence" \
+      org.opencontainers.image.base.name="cgr.dev/chainguard/python:${CHAINGUARD_TAG}" \
+      org.opencontainers.image.documentation="https://github.com/i3/implicit-interaction-intelligence/blob/main/docker/wolfi-README.md" \
+      io.chainguard.image.variant="wolfi-distroless" \
+      security.cve-profile="zero-known-cve"
+
+# IMPORTANT: distroless has NO shell. ENTRYPOINT must be exec-form and call
+# the python interpreter directly. Never wrap this in `sh -c`.
+ENTRYPOINT ["python", "-m", "uvicorn", \
+            "server.main:app", \
+            "--host", "0.0.0.0", \
+            "--port", "8000", \
+            "--workers", "2", \
+            "--proxy-headers", \
+            "--forwarded-allow-ips", "*"]

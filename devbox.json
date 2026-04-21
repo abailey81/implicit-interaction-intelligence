@@ -1,0 +1,45 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/main/.schema/devbox.schema.json",
+  "name":    "implicit-interaction-intelligence",
+  "description": "Reproducible dev shell for I3 without Docker. https://www.jetify.com/devbox",
+
+  "packages": [
+    "python@3.11",
+    "uv@0.5.4",
+    "poetry@1.8.3",
+    "nodejs@20",
+    "just@latest",
+    "mkdocs@latest",
+    "docker@latest",
+    "git@latest"
+  ],
+
+  "env": {
+    "UV_CACHE_DIR":                 "$PWD/.uv-cache",
+    "UV_PYTHON_PREFERENCE":         "system",
+    "POETRY_VIRTUALENVS_IN_PROJECT": "true",
+    "PYTHONDONTWRITEBYTECODE":      "1",
+    "PYTHONUNBUFFERED":             "1"
+  },
+
+  "shell": {
+    "init_hook": [
+      "echo ''",
+      "echo '  I3 :: devbox shell ready.'",
+      "echo '  python : '$(python --version)",
+      "echo '  uv     : '$(uv --version)",
+      "echo '  poetry : '$(poetry --version)",
+      "echo ''",
+      "if [ -f uv.lock ]; then uv sync --all-extras --all-groups; else uv sync; fi"
+    ],
+    "scripts": {
+      "test":     "uv run pytest",
+      "lint":     "uv run ruff check .",
+      "format":   "uv run ruff format .",
+      "docs":     "uv run mkdocs serve",
+      "api":      "uv run uvicorn server.main:app --reload",
+      "clean":    "rm -rf .uv-cache .venv dist build .pytest_cache .mypy_cache",
+      "bootstrap": "sh scripts/uv_bootstrap.sh"
+    }
+  }
+}

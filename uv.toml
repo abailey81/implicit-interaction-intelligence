@@ -1,0 +1,92 @@
+# uv.toml - Astral uv workspace configuration for Implicit Interaction Intelligence (I3)
+#
+# This file is an opt-in overlay for the Astral toolchain (uv + ruff + ty).
+# It lives ALONGSIDE pyproject.toml (Poetry) during the migration window.
+# Either tool may be used; `uv` is preferred for new installs as of 2026.
+#
+# Docs: https://docs.astral.sh/uv/configuration/files/
+
+managed = true
+cache-dir = ".uv-cache"
+python-version = "3.11"
+python-preference = "managed"
+compile-bytecode = true
+link-mode = "copy"
+
+# Use unsafe-best-match to allow resolving across multiple indexes (PyPI + CPU torch)
+index-strategy = "unsafe-best-match"
+
+# Do not attempt to auto-upgrade the lockfile on every invocation.
+frozen = false
+
+# Project-level extras always installed by default during dev.
+default-groups = ["dev", "test", "docs"]
+
+# -----------------------------------------------------------------------------
+# [tool.uv] overlay (this file is uv-native but we mirror [tool.uv] keys here
+# so tools that look up config via `tool.uv.*` also resolve the same values).
+# -----------------------------------------------------------------------------
+
+[[index]]
+name    = "pypi"
+url     = "https://pypi.org/simple"
+default = true
+
+[[index]]
+name     = "pytorch-cpu"
+url      = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+# Pin torch wheels to the CPU index to avoid the multi-GB CUDA downloads during
+# CI and local dev. Use `--extra gpu` for CUDA runners.
+[sources]
+torch       = { index = "pytorch-cpu" }
+torchvision = { index = "pytorch-cpu" }
+torchaudio  = { index = "pytorch-cpu" }
+
+# Additional indexes available if the user opts into `--extra gpu`.
+extra-index-url = [
+    "https://download.pytorch.org/whl/cpu",
+]
+
+# -----------------------------------------------------------------------------
+# Dependency groups (PEP 735). uv will resolve these into uv.lock.
+# -----------------------------------------------------------------------------
+[dependency-groups]
+dev = [
+    "ruff>=0.6.0",
+    "mypy>=1.10",
+    "pre-commit>=3.7",
+    "ipython>=8.20",
+]
+test = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "pytest-asyncio>=0.23",
+    "hypothesis>=6.100",
+]
+docs = [
+    "mkdocs>=1.6",
+    "mkdocs-material>=9.5",
+    "mkdocstrings[python]>=0.25",
+]
+bench = [
+    "pytest-benchmark>=4.0",
+    "memory-profiler>=0.61",
+]
+
+# Exclude large artifacts from the uv cache fingerprint so CI caches stay small.
+[cache]
+exclude = [
+    "checkpoints/**",
+    "data/**",
+    "notebooks/**/outputs/**",
+]
+
+# -----------------------------------------------------------------------------
+# Pip compatibility layer — `uv pip compile` will honor these defaults.
+# -----------------------------------------------------------------------------
+[pip]
+generate-hashes = true
+require-hashes  = false
+strict          = true

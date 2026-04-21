@@ -1,0 +1,58 @@
+# .mise.toml — mise (the rtx successor) configuration
+# https://mise.jdx.dev/
+#
+# Pinned toolchain versions for Implicit Interaction Intelligence (I3).
+# mise reads this file automatically when you cd into the repo and installs
+# any missing tools on demand. Developers who already use asdf will find the
+# identical pins in `.tool-versions`.
+
+[tools]
+python  = "3.11.9"
+uv      = "0.5.4"
+poetry  = "1.8.3"
+node    = "20.11.0"
+just    = "1.36.0"
+mkdocs  = "1.6.1"
+
+[env]
+# keep the uv cache inside the repo for reproducibility
+UV_CACHE_DIR            = "{{config_root}}/.uv-cache"
+UV_PYTHON_PREFERENCE    = "managed"
+POETRY_VIRTUALENVS_IN_PROJECT = "true"
+PYTHONDONTWRITEBYTECODE = "1"
+PYTHONUNBUFFERED        = "1"
+
+[settings]
+# mise should not auto-upgrade across minor versions — pin hard.
+experimental       = true
+python_compile     = false
+python_default_packages_file = ""
+legacy_version_file = true
+
+# -----------------------------------------------------------------------------
+# task definitions — mirror the `justfile` for users who prefer `mise run`
+# -----------------------------------------------------------------------------
+
+[tasks.install]
+description = "sync the project environment from uv.lock"
+run         = "uv sync --all-extras --all-groups"
+
+[tasks.test]
+description = "run the full pytest suite"
+run         = "uv run pytest -q"
+
+[tasks.lint]
+description = "ruff check"
+run         = "uv run ruff check ."
+
+[tasks.format]
+description = "ruff format"
+run         = "uv run ruff format ."
+
+[tasks.docs]
+description = "serve MkDocs locally"
+run         = "uv run mkdocs serve"
+
+[tasks.bootstrap]
+description = "one-shot bootstrap via uv"
+run         = "sh scripts/uv_bootstrap.sh"

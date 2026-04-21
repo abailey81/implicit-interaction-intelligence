@@ -1,0 +1,130 @@
+# ---------------------------------------------------------------------------
+# .github/workflows/uv-ci.yml
+#
+# Parallel CI workflow for the Astral toolchain (uv + ruff + ty).
+# Runs alongside the existing Poetry-backed ci.yml during the 2026 migration.
+# Both workflows must be green for a PR to merge until Poetry is retired.
+# ---------------------------------------------------------------------------
+name: uv-ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: uv-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  UV_CACHE_DIR: .uv-cache
+  # Reproducibility: never auto-update the lockfile inside CI.
+  UV_FROZEN: "1"
+  UV_NO_SYNC: "0"
+  PYTHONDONTWRITEBYTECODE: "1"
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  # -----------------------------------------------------------------------
+  # Lint — ruff check + ruff format --check.
+  # -----------------------------------------------------------------------
+  lint:
+    name: lint (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.5.4"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Sync (dev group only)
+        run: uv sync --group dev --frozen
+
+      - name: ruff check
+        run: uv run ruff check .
+
+      - name: ruff format --check
+        run: uv run ruff format --check .
+
+  # -----------------------------------------------------------------------
+  # Typecheck — mypy (authoritative) + ty (soft / informational).
+  # -----------------------------------------------------------------------
+  typecheck:
+    name: typecheck (mypy + ty soft)
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.5.4"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Sync (dev group)
+        run: uv sync --group dev --frozen
+
+      - name: mypy (strict, authoritative)
+        run: uv run mypy i3 server
+
+      - name: ty (Astral type-checker, soft-fail)
+        id: ty
+        continue-on-error: true
+        uses: astral-sh/ty@v0
+        with:
+          args: "check i3 server"
+
+      - name: note ty result
+        if: always()
+        run: |
+          echo "ty outcome: ${{ steps.ty.outcome }}"
+          echo "ty is currently advisory — failures do not block the pipeline."
+
+  # -----------------------------------------------------------------------
+  # Test matrix — pytest on 3.10 / 3.11 / 3.12.
+  # -----------------------------------------------------------------------
+  test:
+    name: test (py${{ matrix.python }})
+    runs-on: ubuntu-latest
+    needs: lint
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.5.4"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Pin Python ${{ matrix.python }}
+        run: uv python install ${{ matrix.python }}
+
+      - name: Sync (test + dev groups)
+        run: uv sync --group test --group dev --frozen --python ${{ matrix.python }}
+
+      - name: pytest
+        run: uv run --python ${{ matrix.python }} pytest -q --maxfail=1 --cov=i3 --cov-report=xml
+
+      - name: Upload coverage
+        if: matrix.python == '3.11'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-uv-${{ matrix.python }}
+          path: coverage.xml
+          if-no-files-found: ignore
