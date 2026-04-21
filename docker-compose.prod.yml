@@ -1,0 +1,127 @@
+# =============================================================================
+#  docker-compose.prod.yml  —  PRODUCTION overlay
+# -----------------------------------------------------------------------------
+#  Layered on top of docker-compose.yml:
+#
+#     docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+#  Hardens the I³ server, adds an nginx TLS-terminating reverse proxy, and
+#  applies OWASP container recommendations:
+#     * read-only root filesystem with explicit tmpfs for mutable dirs
+#     * cap_drop: [ALL]
+#     * security_opt: no-new-privileges
+#     * pinned images (no `latest`)
+#     * replicas via `deploy` (Swarm) / --scale (Compose)
+# =============================================================================
+
+services:
+  i3-server:
+    # Pinned image tag — CI should publish to this tag, prod never rebuilds.
+    image: i3:${I3_IMAGE_TAG:-1.0.0}
+    restart: always
+    # Harden the filesystem: nothing on / is writable at runtime; mutable
+    # directories are explicit tmpfs mounts or declared volumes.
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,noexec,size=128m
+      - /app/data/tmp:rw,nosuid,nodev,size=256m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    # Remove the external port mapping — nginx is the only ingress in prod.
+    ports: []
+    expose:
+      - "8000"
+    volumes:
+      # data mounted rw (the app needs to persist telemetry + user profiles).
+      - i3-data:/app/data:rw
+      # Checkpoints are strictly read-only in prod — model artefacts come from
+      # the build pipeline, not from a developer's laptop.
+      - ./checkpoints:/app/checkpoints:ro
+      - ./configs:/app/configs:ro
+    environment:
+      I3_WORKERS: "${I3_WORKERS:-4}"
+      I3_LOG_LEVEL: "${I3_LOG_LEVEL:-warning}"
+      I3_FORWARDED_IPS: "${I3_FORWARDED_IPS:-172.16.0.0/12}"
+    deploy:
+      replicas: ${I3_REPLICAS:-2}
+      update_config:
+        parallelism: 1
+        order: start-first
+        failure_action: rollback
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 5
+        window: 120s
+      resources:
+        limits:
+          memory: 2G
+          cpus: "2.0"
+        reservations:
+          memory: 1G
+          cpus: "1.0"
+
+  # ───────────────────────────────────────────────────────────────────────
+  #  nginx — TLS termination + HTTP/2 + rate limiting + static `web/` assets.
+  # ───────────────────────────────────────────────────────────────────────
+  #
+  #  Configuration files must be supplied at deploy time:
+  #     ./deploy/nginx/nginx.conf        — main config
+  #     ./deploy/nginx/certs/fullchain.pem
+  #     ./deploy/nginx/certs/privkey.pem
+  #
+  #  For ACME automation, swap this for jonasal/nginx-certbot or deploy a
+  #  Traefik sidecar instead.
+  # ───────────────────────────────────────────────────────────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: i3-nginx
+    restart: always
+    depends_on:
+      i3-server:
+        condition: service_healthy
+    ports:
+      - "${I3_HTTP_PORT:-80}:80"
+      - "${I3_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./deploy/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./deploy/nginx/certs:/etc/nginx/certs:ro
+      - ./web:/usr/share/nginx/html:ro
+    networks:
+      - i3-net
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx:rw,nosuid,nodev,size=32m
+      - /var/run:rw,nosuid,nodev,size=8m
+      - /tmp:rw,nosuid,nodev,noexec,size=32m
+    cap_drop:
+      - ALL
+    cap_add:
+      # nginx needs NET_BIND_SERVICE to listen on :80 / :443 as non-root.
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+
+volumes:
+  i3-data:
+    driver: local

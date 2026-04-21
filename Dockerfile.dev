@@ -1,0 +1,98 @@
+# syntax=docker/dockerfile:1.7
+# =============================================================================
+#  Implicit Interaction Intelligence (I³)  —  Development Container
+# =============================================================================
+#  Optimised for developer ergonomics, NOT for production:
+#     * Single stage, includes Poetry + dev/docs/security groups
+#     * Source is expected to be bind-mounted at runtime (`./:/app`)
+#     * uvicorn --reload   for hot reload on file change
+#     * ipython, ruff, mypy, pytest baked in
+#     * Runs as the non-root user `i3` but with shell access
+# =============================================================================
+
+ARG PYTHON_IMAGE=python:3.11-slim-bookworm
+ARG POETRY_VERSION=1.8.3
+ARG APP_UID=10001
+ARG APP_GID=10001
+
+FROM ${PYTHON_IMAGE} AS dev
+
+ARG POETRY_VERSION
+ARG APP_UID
+ARG APP_GID
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=off \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    POETRY_VERSION=${POETRY_VERSION} \
+    POETRY_HOME=/opt/poetry \
+    POETRY_VIRTUALENVS_CREATE=false \
+    POETRY_NO_INTERACTION=1 \
+    VENV_PATH=/opt/venv \
+    PATH=/opt/venv/bin:/opt/poetry/bin:$PATH \
+    I3_PORT=8000 \
+    I3_WORKERS=1 \
+    APP_HOME=/app
+
+# System deps: compiler for any C-extension rebuilds, tini for PID 1, git for
+# pre-commit hooks, curl for ad-hoc debugging, libgomp1 for torch.
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    rm -f /etc/apt/apt.conf.d/docker-clean && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        curl \
+        ca-certificates \
+        git \
+        tini \
+        libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Poetry in an isolated venv.
+RUN python -m venv ${POETRY_HOME} && \
+    ${POETRY_HOME}/bin/pip install --upgrade pip "poetry==${POETRY_VERSION}" && \
+    ln -sf ${POETRY_HOME}/bin/poetry /usr/local/bin/poetry
+
+# Create the application venv.
+RUN python -m venv ${VENV_PATH} && \
+    ${VENV_PATH}/bin/pip install --no-cache-dir --upgrade pip setuptools wheel ipython
+
+# Unprivileged dev user (matches prod for uid/gid parity on bind mounts).
+RUN groupadd --system --gid ${APP_GID} i3 && \
+    useradd --create-home --uid ${APP_UID} --gid ${APP_GID} \
+        --home-dir /home/i3 --shell /bin/bash i3 && \
+    mkdir -p ${APP_HOME} && chown -R i3:i3 ${APP_HOME} ${VENV_PATH}
+
+WORKDIR ${APP_HOME}
+
+# Copy dependency manifests only, to get fast iteration when only code changes.
+COPY --chown=i3:i3 pyproject.toml poetry.lock* README.md ./
+
+# CPU-only torch keeps the dev image lean and fast to rebuild.
+RUN --mount=type=cache,target=/root/.cache/pip \
+    ${VENV_PATH}/bin/pip install --no-cache-dir \
+        --index-url https://download.pytorch.org/whl/cpu \
+        --extra-index-url https://pypi.org/simple \
+        "torch>=2.6,<3.0"
+
+# Install ALL groups so contributors get the full toolchain.
+RUN --mount=type=cache,target=/root/.cache/pypoetry \
+    --mount=type=cache,target=/root/.cache/pip \
+    . ${VENV_PATH}/bin/activate && \
+    poetry install --with dev,docs,security --no-root --no-ansi
+
+# Drop privileges. The rest of the source tree is expected to be bind-mounted.
+USER i3:i3
+
+EXPOSE 8000
+
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["uvicorn", "server.app:app", \
+     "--host", "0.0.0.0", \
+     "--port", "8000", \
+     "--reload", \
+     "--reload-dir", "/app/server", \
+     "--reload-dir", "/app/i3", \
+     "--proxy-headers"]

@@ -1,0 +1,86 @@
+# =============================================================================
+#  docker-compose.yml  —  BASE profile (dev-oriented defaults)
+# -----------------------------------------------------------------------------
+#  Usage:
+#     docker compose up                                                 # dev
+#     docker compose -f docker-compose.yml -f docker-compose.prod.yml up # prod
+#
+#  Secrets / configuration:
+#     * `.env` at the repo root is loaded automatically. See `.env.example`.
+#     * `I3_ENCRYPTION_KEY` MUST be set (entrypoint refuses to start otherwise).
+# =============================================================================
+
+name: i3
+
+services:
+  # ───────────────────────────────────────────────────────────────────────
+  #  I³ FastAPI server (SLM + TCN + WebSocket + REST).
+  # ───────────────────────────────────────────────────────────────────────
+  i3-server:
+    image: i3:${I3_IMAGE_TAG:-1.0.0}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        IMAGE_VERSION: ${I3_IMAGE_TAG:-1.0.0}
+        IMAGE_REVISION: ${I3_GIT_SHA:-local}
+        IMAGE_CREATED: ${I3_BUILD_DATE:-unknown}
+    container_name: i3-server
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      I3_PORT: "8000"
+      I3_WORKERS: "${I3_WORKERS:-1}"
+      I3_FORWARDED_IPS: "${I3_FORWARDED_IPS:-127.0.0.1}"
+      I3_LOG_LEVEL: "${I3_LOG_LEVEL:-info}"
+    ports:
+      - "${I3_PUBLIC_PORT:-8000}:8000"
+    networks:
+      - i3-net
+    volumes:
+      - ./data:/app/data:rw
+      - ./checkpoints:/app/checkpoints:ro
+      - ./configs:/app/configs:ro
+    healthcheck:
+      test: ["CMD", "/app/docker/healthcheck.sh"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "2.0"
+        reservations:
+          memory: 512M
+          cpus: "0.5"
+    stop_grace_period: 30s
+
+  # ───────────────────────────────────────────────────────────────────────
+  #  OpenTelemetry collector — shipped commented-out until an observability
+  #  backend is chosen (Tempo / Jaeger / Honeycomb / etc.).
+  # ───────────────────────────────────────────────────────────────────────
+  # otel-collector:
+  #   image: otel/opentelemetry-collector-contrib:0.103.0
+  #   container_name: i3-otel
+  #   restart: unless-stopped
+  #   command: ["--config=/etc/otelcol-contrib/config.yaml"]
+  #   volumes:
+  #     - ./configs/otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+  #   networks:
+  #     - i3-net
+  #   ports:
+  #     - "4317:4317"   # OTLP/gRPC
+  #     - "4318:4318"   # OTLP/HTTP
+
+networks:
+  i3-net:
+    driver: bridge
+    name: i3-net

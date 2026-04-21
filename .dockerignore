@@ -1,0 +1,85 @@
+# =============================================================================
+#  .dockerignore — keeps the build context small, reproducible, and free of
+#  secrets or large artefacts that do not belong in the image.
+# =============================================================================
+
+# ─── Version control ────────────────────────────────────────────────────────
+.git
+.github
+.gitignore
+.gitattributes
+
+# ─── Python caches / build artefacts ────────────────────────────────────────
+.venv
+venv
+env
+__pycache__
+*.py[cod]
+*.pyc
+*.pyo
+*$py.class
+*.egg-info
+*.egg
+dist
+build
+
+# ─── Test / coverage / type-check caches ────────────────────────────────────
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.tox
+.nox
+htmlcov
+coverage.xml
+.coverage
+.coverage.*
+
+# ─── ML / data artefacts (never baked into the image) ───────────────────────
+data/
+checkpoints/
+wandb/
+mlruns/
+*.db
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+
+# ─── JS / Node (the `web/` bundle is served separately) ─────────────────────
+node_modules
+
+# ─── Env / secrets ──────────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ─── Tests & local dev ergonomics (not shipped in runtime) ──────────────────
+tests/
+docs/_build
+site/
+.pre-commit-config.yaml
+.pre-commit*
+.editorconfig
+
+# ─── IDE / OS noise ─────────────────────────────────────────────────────────
+.idea
+.vscode
+.DS_Store
+Thumbs.db
+
+# ─── Logs ───────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ─── Docker ergonomics (we never want the image copying itself) ─────────────
+Dockerfile
+Dockerfile.dev
+docker-compose*.yml
+docker-compose*.yaml
+.dockerignore
+
+# ─── Large in-repo docs that are not needed at runtime ─────────────────────
+THE_COMPLETE_BRIEF.md
+CHANGELOG.md
+CONTRIBUTING.md
+CODE_OF_CONDUCT.md
+SECURITY.md

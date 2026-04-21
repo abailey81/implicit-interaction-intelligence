@@ -1,0 +1,53 @@
+# =============================================================================
+#  docker-compose.override.yml.example
+# -----------------------------------------------------------------------------
+#  Copy this file to `docker-compose.override.yml` to enable hot-reload dev
+#  mode. Compose automatically merges `docker-compose.override.yml` on top of
+#  `docker-compose.yml` whenever you run plain `docker compose up`.
+#
+#     cp docker-compose.override.yml.example docker-compose.override.yml
+#     docker compose up --build
+#
+#  DO NOT commit your local `docker-compose.override.yml` — it is git-ignored.
+# =============================================================================
+
+services:
+  i3-server:
+    # Build the dev image (full Poetry toolchain + ipython + hot reload).
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: i3:dev
+
+    # Drop the prod entrypoint; uvicorn --reload is baked into Dockerfile.dev's
+    # CMD. If you need custom flags, uncomment and edit below.
+    # command: >-
+    #   uvicorn server.app:app
+    #   --host 0.0.0.0 --port 8000 --reload
+    #   --reload-dir /app/server --reload-dir /app/i3
+
+    environment:
+      # Use a throwaway key in dev — override in your real .env for anything
+      # resembling real data.
+      I3_ENCRYPTION_KEY: "${I3_ENCRYPTION_KEY:-dev-only-not-for-production-xxxxxxxxxxxxxxxx}"
+      I3_LOG_LEVEL: "debug"
+      PYTHONDONTWRITEBYTECODE: "1"
+
+    # Bind-mount the whole repo so code changes hot-reload without rebuilds.
+    # Named volume for .venv avoids clobbering the in-image venv with the
+    # host's .venv (which may not exist or may target the wrong platform).
+    volumes:
+      - .:/app:rw
+      - i3-dev-venv:/opt/venv
+
+    # Expose the debugger port for debugpy / VSCode attach sessions.
+    ports:
+      - "5678:5678"
+
+    # Developer ergonomics: keep stdin open so `docker compose attach` works
+    # for ipython breakpoints.
+    stdin_open: true
+    tty: true
+
+volumes:
+  i3-dev-venv:
