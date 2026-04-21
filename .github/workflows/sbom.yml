@@ -1,0 +1,126 @@
+name: SBOM
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+concurrency:
+  group: sbom-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  sbom-python:
+    name: CycloneDX SBOM (Python)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Poetry project
+        uses: ./.github/actions/setup-poetry
+        with:
+          python-version: "3.11"
+          with-groups: ""
+
+      - name: Install cyclonedx-py
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "cyclonedx-bom>=4.4,<5" "cyclonedx-python-lib>=7,<8"
+
+      - name: Export requirements from Poetry
+        run: |
+          poetry export --without-hashes --format=requirements.txt --output=requirements.txt
+          poetry export --without-hashes --format=requirements.txt --with dev --output=requirements-dev.txt || true
+
+      - name: Generate CycloneDX SBOM (Poetry)
+        run: |
+          cyclonedx-py poetry \
+            --output-format JSON \
+            --output-file sbom-python.json \
+            --mc-type application \
+            .
+          cyclonedx-py poetry \
+            --output-format XML \
+            --output-file sbom-python.xml \
+            --mc-type application \
+            . || true
+
+      - name: Validate SBOM JSON
+        run: |
+          python -c "import json, sys; json.load(open('sbom-python.json')); print('sbom-python.json is valid JSON')"
+
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-python
+          path: |
+            sbom-python.json
+            sbom-python.xml
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Attest SBOM (release only)
+        if: github.event_name == 'release'
+        uses: actions/attest-sbom@5026d3663739160db546203eeaffa6aa1c51a4d6 # v1.4.1
+        with:
+          subject-path: "sbom-python.json"
+          sbom-path: "sbom-python.json"
+
+  sbom-image:
+    name: Syft SBOM (container image)
+    runs-on: ubuntu-latest
+    # Best-effort: only runs if a published image exists for this ref.
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      packages: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Determine image reference
+        id: image
+        run: |
+          IMAGE="ghcr.io/abailey81/i3"
+          if [ "${{ github.event_name }}" = "release" ]; then
+            TAG="${{ github.event.release.tag_name }}"
+          else
+            TAG="sha-${GITHUB_SHA::7}"
+          fi
+          echo "ref=${IMAGE}:${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate image SBOM with Syft
+        uses: anchore/sbom-action@v0
+        continue-on-error: true
+        with:
+          image: ${{ steps.image.outputs.ref }}
+          format: spdx-json
+          output-file: sbom-image.spdx.json
+          upload-artifact: true
+          upload-artifact-retention: 90
+
+      - name: Attest image SBOM (release only)
+        if: github.event_name == 'release' && hashFiles('sbom-image.spdx.json') != ''
+        uses: actions/attest-sbom@5026d3663739160db546203eeaffa6aa1c51a4d6 # v1.4.1
+        with:
+          subject-name: ${{ steps.image.outputs.ref }}
+          sbom-path: sbom-image.spdx.json

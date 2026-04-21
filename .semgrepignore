@@ -1,0 +1,60 @@
+# Paths excluded from Semgrep scanning.
+# Follows the same glob syntax as .gitignore.
+# Keep this minimal — prefer in-rule excludes / annotations over broad ignores.
+
+# Version control.
+.git/
+
+# Virtualenvs and dependency caches.
+.venv/
+venv/
+env/
+__pypackages__/
+node_modules/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.tox/
+.nox/
+
+# Build / distribution output.
+build/
+dist/
+site/
+*.egg-info/
+
+# Compiled / generated artifacts.
+__pycache__/
+*.pyc
+*.pyo
+
+# Test fixtures that intentionally contain insecure patterns.
+tests/fixtures/insecure/
+tests/fixtures/vulnerable/
+
+# Third-party vendored sources.
+vendor/
+third_party/
+
+# Large binary and data artifacts.
+checkpoints/
+data/
+*.ckpt
+*.pt
+*.pth
+*.bin
+*.onnx
+*.safetensors
+
+# IDE.
+.idea/
+.vscode/
+
+# Generated SBOMs / SARIFs / coverage.
+sbom-*.json
+sbom-*.xml
+*.sarif
+coverage.xml
+.coverage
+.coverage.*
+htmlcov/

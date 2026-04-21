@@ -1,0 +1,14 @@
+# .trivyignore — suppression list for Trivy scans.
+#
+# Format (one per line):
+#   CVE-YYYY-NNNNN        # suppress a specific CVE (filesystem + image scans)
+#   AVD-XXX-NNNN          # suppress a Trivy IaC (Aqua Vuln DB) rule id
+#   # <justification>     # always precede the id with a justification comment
+#
+# Policy:
+#   - Entries MUST be reviewed every 90 days.
+#   - Entries MUST link to an advisory / upstream tracker.
+#   - If the finding is exploitable, fix it — do not suppress.
+#   - PRs that add entries require review by a CODEOWNER of /SECURITY.md.
+#
+# (intentionally empty — add entries below this line)

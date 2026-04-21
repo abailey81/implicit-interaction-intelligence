@@ -1,0 +1,24 @@
+# CODEOWNERS for Implicit Interaction Intelligence (I3)
+# Docs: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# The last matching pattern wins. Keep the most specific rules at the bottom.
+
+# Default owner for everything in the repo.
+*                @abailey81
+
+# Core model + router subsystems.
+/i3/slm/         @abailey81
+/i3/router/      @abailey81
+/i3/privacy/     @abailey81
+
+# Deployment, infrastructure, and packaging.
+/deploy/         @abailey81
+
+# Documentation.
+/docs/           @abailey81
+
+# GitHub configuration, workflows, policies.
+/.github/        @abailey81
+
+# Security policy must always be reviewed by a security owner.
+/SECURITY.md     @abailey81

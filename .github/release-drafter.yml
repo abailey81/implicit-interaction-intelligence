@@ -1,0 +1,53 @@
+# Release Drafter configuration (DISABLED — release-please is the canonical
+# release automation for this repository; see .github/workflows/release.yml).
+#
+# This file is retained so that teams migrating to release-drafter in the
+# future have a drop-in starting point. To enable, add a release-drafter
+# workflow and remove release-please-action@v4 from release.yml.
+# Docs: https://github.com/release-drafter/release-drafter
+
+name-template: "v$RESOLVED_VERSION"
+tag-template: "v$RESOLVED_VERSION"
+version-resolver:
+  major:
+    labels:
+      - "breaking"
+      - "semver:major"
+  minor:
+    labels:
+      - "feature"
+      - "enhancement"
+      - "semver:minor"
+  patch:
+    labels:
+      - "bug"
+      - "fix"
+      - "security"
+      - "semver:patch"
+  default: patch
+categories:
+  - title: "Breaking Changes"
+    labels: ["breaking", "semver:major"]
+  - title: "New Features"
+    labels: ["feature", "enhancement"]
+  - title: "Bug Fixes"
+    labels: ["bug", "fix"]
+  - title: "Security"
+    labels: ["security", "vulnerability"]
+  - title: "Documentation"
+    labels: ["docs", "documentation"]
+  - title: "Dependencies"
+    labels: ["dependencies", "deps"]
+  - title: "Internal / CI"
+    labels: ["ci", "chore", "refactor", "test"]
+exclude-labels:
+  - "skip-changelog"
+  - "ignore-for-release"
+change-template: "- $TITLE (#$NUMBER) @$AUTHOR"
+change-title-escapes: '\<*_&'
+template: |
+  ## What's Changed
+
+  $CHANGES
+
+  **Full Changelog**: https://github.com/abailey81/i3/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION

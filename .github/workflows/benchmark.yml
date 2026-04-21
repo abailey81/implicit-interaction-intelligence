@@ -1,0 +1,84 @@
+name: Benchmarks
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "i3/**"
+      - "benchmarks/**"
+      - "pyproject.toml"
+      - "poetry.lock"
+      - ".github/workflows/benchmark.yml"
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: benchmark-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    name: pytest-benchmark
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # required for github-action-benchmark to push benchmark history to gh-pages
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Poetry project
+        uses: ./.github/actions/setup-poetry
+        with:
+          python-version: "3.11"
+          with-groups: "dev,test"
+
+      - name: Verify benchmarks directory exists
+        id: probe
+        run: |
+          if [ -d benchmarks ]; then
+            echo "has_benchmarks=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_benchmarks=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No benchmarks/ directory found — skipping."
+          fi
+
+      - name: Run benchmarks
+        if: steps.probe.outputs.has_benchmarks == 'true'
+        run: |
+          poetry run pytest benchmarks/ \
+            --benchmark-only \
+            --benchmark-json=output.json \
+            --benchmark-columns=min,mean,median,stddev,ops \
+            -q
+
+      - name: Upload benchmark JSON
+        if: steps.probe.outputs.has_benchmarks == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-output
+          path: output.json
+          retention-days: 30
+
+      - name: Store benchmark result + comment on PR
+        if: steps.probe.outputs.has_benchmarks == 'true'
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          tool: pytest
+          output-file-path: output.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          comment-on-alert: true
+          summary-always: true
+          alert-threshold: "150%"
+          fail-on-alert: ${{ github.event_name == 'pull_request' }}
+          alert-comment-cc-users: "@abailey81"
+          benchmark-data-dir-path: "bench"

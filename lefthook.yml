@@ -1,0 +1,110 @@
+# Lefthook — fast Git hooks manager.
+# Complements (does NOT replace) .pre-commit-config.yaml. Use whichever
+# runner is installed locally; CI still runs pre-commit via its own hook.
+# Docs: https://lefthook.dev/
+
+# Refuse to run hooks without Poetry installed. Use `poetry run` to pick up
+# pinned tool versions from the dev group.
+min_version: 1.6.0
+skip_output:
+  - meta
+  - success
+colors: true
+
+pre-commit:
+  parallel: true
+  commands:
+    ruff-lint:
+      # Only scan files touched by the commit; autofix what's safe.
+      glob: "*.{py,pyi}"
+      run: poetry run ruff check --fix --exit-non-zero-on-fix {staged_files}
+      stage_fixed: true
+      tags:
+        - lint
+        - python
+
+    ruff-format:
+      glob: "*.{py,pyi}"
+      run: poetry run ruff format {staged_files}
+      stage_fixed: true
+      tags:
+        - format
+        - python
+
+    mypy-quick:
+      # Fast, per-file mypy (no cross-module inference). The full type check
+      # runs in CI. Kept here to catch obvious type errors before push.
+      glob: "*.py"
+      exclude:
+        - "tests/.*"
+        - "benchmarks/.*"
+        - "scripts/.*"
+      run: poetry run mypy --no-incremental --follow-imports=silent --ignore-missing-imports {staged_files}
+      tags:
+        - types
+        - python
+        - optional
+
+    detect-secrets:
+      glob: "*"
+      exclude:
+        - ".secrets.baseline"
+        - "poetry.lock"
+      run: |
+        if command -v detect-secrets >/dev/null 2>&1; then
+          detect-secrets-hook --baseline .secrets.baseline {staged_files}
+        else
+          echo "detect-secrets not installed — skipping (optional)"
+        fi
+      tags:
+        - security
+        - optional
+
+    check-merge-conflicts:
+      run: |
+        if grep -nE '^(<{7}|={7}|>{7})( |$)' {staged_files} >/dev/null 2>&1; then
+          echo "Merge conflict markers detected in staged files"
+          exit 1
+        fi
+      tags:
+        - sanity
+
+commit-msg:
+  commands:
+    commitlint:
+      run: |
+        if command -v commitlint >/dev/null 2>&1; then
+          commitlint --edit {1}
+        elif command -v npx >/dev/null 2>&1; then
+          npx --no -- commitlint --edit {1}
+        else
+          echo "commitlint not available locally — skipping (CI will enforce)"
+        fi
+      tags:
+        - commit-lint
+        - optional
+
+pre-push:
+  parallel: false
+  commands:
+    pytest-smoke:
+      # Quick smoke test — stops at first failure, no coverage, no benchmarks.
+      run: poetry run pytest -x --no-cov -q --ignore=benchmarks -m "not slow and not integration"
+      tags:
+        - test
+        - python
+      fail_text: >-
+        Quick smoke tests failed. Fix before pushing, or run
+        `poetry run pytest <failing test>` to iterate.
+
+    poetry-lockcheck:
+      # Keep poetry.lock in sync with pyproject.toml before anything hits CI.
+      run: |
+        if poetry check --lock >/dev/null 2>&1 || poetry lock --check >/dev/null 2>&1; then
+          exit 0
+        else
+          echo "poetry.lock is out of sync with pyproject.toml — run 'poetry lock --no-update'."
+          exit 1
+        fi
+      tags:
+        - lockfile

@@ -1,0 +1,92 @@
+name: Setup Poetry
+description: >-
+  Reusable composite action that installs a pinned Python version, installs
+  Poetry, restores the virtualenv + pip + Poetry caches, and runs
+  `poetry install` for the requested dependency groups.
+
+inputs:
+  python-version:
+    description: Python version to install.
+    required: false
+    default: "3.11"
+  poetry-version:
+    description: Poetry version to install.
+    required: false
+    default: "1.8.3"
+  install-args:
+    description: Extra arguments appended to `poetry install`.
+    required: false
+    default: "--no-interaction --no-ansi"
+  with-groups:
+    description: Comma-separated list of dependency groups to install (e.g. "dev,test,docs"). Empty installs the default groups.
+    required: false
+    default: ""
+  cache-key-suffix:
+    description: Optional suffix appended to cache keys to force isolation.
+    required: false
+    default: ""
+
+outputs:
+  python-version:
+    description: Resolved Python version.
+    value: ${{ steps.py.outputs.python-version }}
+  poetry-version:
+    description: Resolved Poetry version.
+    value: ${{ inputs.poetry-version }}
+  venv-path:
+    description: Absolute path of the project virtualenv created by Poetry.
+    value: ${{ steps.venv.outputs.path }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      id: py
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install Poetry
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install "poetry==${{ inputs.poetry-version }}"
+        poetry --version
+
+    - name: Configure Poetry
+      shell: bash
+      run: |
+        poetry config virtualenvs.in-project true
+        poetry config virtualenvs.create true
+        poetry config installer.parallel true
+
+    - name: Cache Poetry virtualenv
+      uses: actions/cache@v4
+      with:
+        path: |
+          .venv
+          ~/.cache/pypoetry
+          ~/.cache/pip
+        key: >-
+          poetry-${{ runner.os }}-py${{ steps.py.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}-${{ inputs.with-groups }}-${{ inputs.cache-key-suffix }}
+        restore-keys: |
+          poetry-${{ runner.os }}-py${{ steps.py.outputs.python-version }}-
+
+    - name: Install dependencies
+      shell: bash
+      env:
+        WITH_GROUPS: ${{ inputs.with-groups }}
+        INSTALL_ARGS: ${{ inputs.install-args }}
+      run: |
+        if [ -n "${WITH_GROUPS}" ]; then
+          poetry install --with "${WITH_GROUPS}" ${INSTALL_ARGS}
+        else
+          poetry install ${INSTALL_ARGS}
+        fi
+
+    - name: Expose virtualenv path
+      id: venv
+      shell: bash
+      run: |
+        VENV_PATH="$(poetry env info --path || true)"
+        echo "path=${VENV_PATH}" >> "$GITHUB_OUTPUT"

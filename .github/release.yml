@@ -1,0 +1,57 @@
+# GitHub auto-generated release notes configuration.
+# Categorises merged PRs into sections of the release body based on labels.
+# Docs: https://docs.github.com/en/repositories/releasing-projects-on-github/automatically-generated-release-notes
+
+changelog:
+  exclude:
+    labels:
+      - ignore-for-release
+      - duplicate
+      - invalid
+      - wontfix
+      - question
+    authors:
+      - dependabot[bot]
+      - renovate[bot]
+      - github-actions[bot]
+  categories:
+    - title: "Breaking Changes"
+      labels:
+        - "breaking"
+        - "breaking-change"
+        - "semver:major"
+    - title: "New Features"
+      labels:
+        - "feature"
+        - "enhancement"
+        - "semver:minor"
+    - title: "Bug Fixes"
+      labels:
+        - "bug"
+        - "fix"
+        - "semver:patch"
+    - title: "Security"
+      labels:
+        - "security"
+        - "vulnerability"
+    - title: "Performance"
+      labels:
+        - "performance"
+        - "perf"
+    - title: "Documentation"
+      labels:
+        - "documentation"
+        - "docs"
+    - title: "Dependencies"
+      labels:
+        - "dependencies"
+        - "deps"
+    - title: "Internal / CI"
+      labels:
+        - "ci"
+        - "chore"
+        - "refactor"
+        - "test"
+    - title: "Other Changes"
+      labels:
+        - "*"

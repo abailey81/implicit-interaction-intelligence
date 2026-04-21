@@ -1,0 +1,104 @@
+name: Security Report (Low-Severity / Public Disclosure Only)
+description: >-
+  Report a low-severity or already-public security issue. Do NOT use this form
+  for active exploitable vulnerabilities — please follow the private process
+  described in SECURITY.md instead.
+title: "[security]: "
+labels: ["security", "triage"]
+assignees:
+  - abailey81
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## STOP — Read This First
+
+        If the issue you are reporting is **exploitable**, affects confidentiality,
+        integrity, or availability of user data, or exposes secrets, **do not file
+        a public issue**.
+
+        Please follow the private vulnerability disclosure process documented in
+        [`SECURITY.md`](../../blob/main/SECURITY.md) instead. You can also use
+        GitHub's [private vulnerability reporting](https://docs.github.com/en/code-security/security-advisories/guidance-on-reporting-and-writing-information-about-vulnerabilities/privately-reporting-a-security-vulnerability)
+        which routes directly to the maintainers.
+
+        Only use this public form for:
+        - hardening suggestions
+        - supply-chain or policy concerns
+        - already-disclosed CVEs affecting a dependency
+        - documentation fixes related to security guidance
+
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Disclosure confirmation
+      description: You must confirm these before proceeding.
+      options:
+        - label: I have read `SECURITY.md` and confirmed this is NOT an exploitable vulnerability.
+          required: true
+        - label: I understand that any information I post here becomes public immediately.
+          required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options:
+        - Hardening suggestion
+        - Supply-chain / dependency concern
+        - Known CVE in a dependency
+        - Documentation / SECURITY.md clarification
+        - Configuration default is weaker than recommended
+        - Other (please describe)
+    validations:
+      required: true
+
+  - type: input
+    id: affected-component
+    attributes:
+      label: Affected component / path
+      placeholder: "e.g. i3/router, i3/privacy, Dockerfile, .github/workflows/ci.yml"
+    validations:
+      required: true
+
+  - type: input
+    id: affected-version
+    attributes:
+      label: Affected version(s)
+      placeholder: "e.g. 0.4.2 and later, or 'main@<sha>'"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe the issue and its scope. Do not include exploitation detail for live vulnerabilities.
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact / threat model
+      description: What is the worst-case impact? Who is affected?
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggested-fix
+    attributes:
+      label: Suggested remediation
+      description: Optional — any patches, configuration changes, or upstream fixes to reference.
+
+  - type: input
+    id: cve
+    attributes:
+      label: CVE / GHSA (if applicable)
+      placeholder: "CVE-2025-00000 or GHSA-xxxx-xxxx-xxxx"
+
+  - type: textarea
+    id: references
+    attributes:
+      label: References
+      description: Links to advisories, papers, or prior discussion.

@@ -1,0 +1,171 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "group:allNonMajor",
+    ":semanticCommits",
+    ":timezone(Europe/London)",
+    ":prHourlyLimitNone",
+    ":prConcurrentLimit10"
+  ],
+  "timezone": "Europe/London",
+  "schedule": ["before 6am on monday"],
+  "prCreation": "not-pending",
+  "rangeStrategy": "bump",
+  "dependencyDashboard": true,
+  "dependencyDashboardTitle": "Renovate dependency dashboard",
+  "semanticCommits": "enabled",
+  "commitMessagePrefix": "deps:",
+  "labels": ["dependencies"],
+  "reviewers": ["abailey81"],
+  "assignees": ["abailey81"],
+  "platformAutomerge": true,
+  "separateMajorMinor": true,
+  "separateMinorPatch": true,
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/.venv/**",
+    "**/venv/**",
+    "**/vendor/**",
+    "**/__pypackages__/**"
+  ],
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["security", "dependencies"],
+    "addLabels": ["vulnerability"],
+    "schedule": ["at any time"],
+    "minimumReleaseAge": "0 days",
+    "prCreation": "immediate",
+    "commitMessagePrefix": "security:"
+  },
+  "osvVulnerabilityAlerts": true,
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 4am on monday"],
+    "commitMessageAction": "lockfile maintenance",
+    "prBodyDefinitions": {
+      "Change": "All locked dependencies refreshed to latest compatible versions."
+    }
+  },
+  "postUpdateOptions": ["pythonPoetryExport"],
+  "python": {
+    "enabled": true
+  },
+  "poetry": {
+    "enabled": true
+  },
+  "github-actions": {
+    "enabled": true,
+    "fileMatch": [
+      "^\\.github/workflows/[^/]+\\.ya?ml$",
+      "^\\.github/actions/.+/action\\.ya?ml$"
+    ]
+  },
+  "packageRules": [
+    {
+      "description": "Torch / numpy / sklearn — deep-learning stack moves together.",
+      "matchManagers": ["poetry", "pip_requirements"],
+      "matchPackageNames": [
+        "torch",
+        "torchvision",
+        "torchaudio",
+        "numpy",
+        "scipy",
+        "scikit-learn",
+        "pandas"
+      ],
+      "groupName": "ml-core",
+      "schedule": ["before 6am on monday"],
+      "prPriority": 5,
+      "minimumReleaseAge": "3 days"
+    },
+    {
+      "description": "Web server stack — keep FastAPI + Starlette + httpx aligned.",
+      "matchManagers": ["poetry", "pip_requirements"],
+      "matchPackageNames": [
+        "fastapi",
+        "starlette",
+        "uvicorn",
+        "uvloop",
+        "httpx",
+        "httpcore",
+        "pydantic",
+        "pydantic-core",
+        "pydantic-settings"
+      ],
+      "groupName": "web-stack",
+      "schedule": ["before 6am on monday"],
+      "minimumReleaseAge": "2 days"
+    },
+    {
+      "description": "Dev/test tooling — pytest, ruff, mypy group.",
+      "matchManagers": ["poetry"],
+      "matchDepTypes": ["dev-dependencies"],
+      "matchPackageNames": [
+        "pytest",
+        "pytest-cov",
+        "pytest-benchmark",
+        "pytest-asyncio",
+        "pytest-xdist",
+        "pytest-mock",
+        "pytest-timeout",
+        "ruff",
+        "mypy",
+        "black",
+        "isort",
+        "pre-commit",
+        "coverage",
+        "hypothesis"
+      ],
+      "groupName": "dev-tooling",
+      "automerge": true,
+      "automergeType": "pr",
+      "matchUpdateTypes": ["patch"],
+      "schedule": ["before 6am on monday"]
+    },
+    {
+      "description": "All remaining dev dependencies — auto-merge patches.",
+      "matchManagers": ["poetry"],
+      "matchDepTypes": ["dev-dependencies"],
+      "matchUpdateTypes": ["patch"],
+      "automerge": true,
+      "automergeType": "pr",
+      "platformAutomerge": true,
+      "prPriority": -1
+    },
+    {
+      "description": "GitHub Actions — pin digests, group non-major.",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "github-actions",
+      "automerge": true,
+      "automergeType": "pr",
+      "pinDigests": true,
+      "schedule": ["before 6am on monday"]
+    },
+    {
+      "description": "Major GitHub Actions — require manual review.",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["major"],
+      "labels": ["dependencies", "major-upgrade"],
+      "automerge": false
+    },
+    {
+      "description": "Docker base images — keep separate, require review.",
+      "matchManagers": ["dockerfile"],
+      "groupName": "docker-base-images",
+      "schedule": ["before 6am on monday"],
+      "minimumReleaseAge": "7 days",
+      "automerge": false
+    },
+    {
+      "description": "Major upgrades of runtime deps — manual review only.",
+      "matchManagers": ["poetry", "pip_requirements"],
+      "matchDepTypes": ["dependencies"],
+      "matchUpdateTypes": ["major"],
+      "automerge": false,
+      "labels": ["dependencies", "major-upgrade"],
+      "prPriority": 10
+    }
+  ]
+}

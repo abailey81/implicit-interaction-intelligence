@@ -1,0 +1,77 @@
+name: Lockfile audit
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "pyproject.toml"
+      - "poetry.lock"
+      - ".github/workflows/lockfile-audit.yml"
+  push:
+    branches: [main]
+    paths:
+      - "pyproject.toml"
+      - "poetry.lock"
+  workflow_dispatch:
+
+concurrency:
+  group: lockfile-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: Verify poetry.lock is in sync with pyproject.toml
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Poetry
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "poetry==1.8.3"
+          poetry --version
+
+      - name: Verify lockfile integrity (poetry check --lock)
+        run: |
+          # Poetry >=1.8 prefers `poetry check --lock`; fall back to `poetry lock --check`.
+          if poetry check --lock 2>/tmp/poetry-check.err; then
+            echo "poetry check --lock passed"
+          else
+            if grep -qi "no such command" /tmp/poetry-check.err; then
+              echo "Falling back to legacy 'poetry lock --check'"
+              poetry lock --check
+            else
+              cat /tmp/poetry-check.err
+              exit 1
+            fi
+          fi
+
+      - name: Detect drift between pyproject and lockfile
+        run: |
+          # `poetry lock --no-update` should not change poetry.lock if it matches pyproject.
+          cp poetry.lock poetry.lock.orig
+          poetry lock --no-update
+          if ! diff -q poetry.lock poetry.lock.orig >/dev/null; then
+            echo "::error::poetry.lock is out of sync with pyproject.toml"
+            diff -u poetry.lock.orig poetry.lock | head -200 || true
+            exit 1
+          fi
+          echo "poetry.lock is consistent with pyproject.toml"
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Lockfile audit" >> "$GITHUB_STEP_SUMMARY"
+          echo "- \`poetry check --lock\` verifies hashes match \`pyproject.toml\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- \`poetry lock --no-update\` produces no diff" >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,61 @@
+# Sigstore / Cosign configuration for I3 container & artifact signing.
+#
+# Sigstore itself does not require a file on disk, but this document
+# records the canonical values used by `cosign sign` / `cosign verify`
+# in CI and during local verification. CI references these constants
+# directly in workflow YAML; humans use them when verifying releases.
+
+# --- Identity the signer must present in the Fulcio certificate SAN. ---
+#
+# For keyless signing via GitHub Actions OIDC, the expected identity is
+# the URL of the workflow file that performed the signing, on the
+# branch/tag it ran on.
+identities:
+  - description: docker.yml signing job on main branch
+    certificate-identity: https://github.com/abailey81/i3/.github/workflows/docker.yml@refs/heads/main
+    certificate-oidc-issuer: https://token.actions.githubusercontent.com
+
+  - description: docker.yml signing job on any tag
+    certificate-identity-regexp: ^https://github.com/abailey81/i3/\.github/workflows/docker\.yml@refs/tags/v.*$
+    certificate-oidc-issuer: https://token.actions.githubusercontent.com
+
+  - description: release.yml publishing job on any tag
+    certificate-identity-regexp: ^https://github.com/abailey81/i3/\.github/workflows/release\.yml@refs/tags/v.*$
+    certificate-oidc-issuer: https://token.actions.githubusercontent.com
+
+  - description: SLSA container generator reusable workflow
+    certificate-identity-regexp: ^https://github.com/slsa-framework/slsa-github-generator/\.github/workflows/generator_container_slsa3\.yml@refs/tags/v.*$
+    certificate-oidc-issuer: https://token.actions.githubusercontent.com
+
+# --- Public infrastructure endpoints (defaults, recorded here for clarity). ---
+rekor:
+  url: https://rekor.sigstore.dev
+fulcio:
+  url: https://fulcio.sigstore.dev
+oidc:
+  issuer: https://token.actions.githubusercontent.com
+
+# --- Policy ---
+policy:
+  require-tlog-entry: true          # every signature must be logged to Rekor
+  require-sbom-attestation: true    # image must have an attached SBOM attestation
+  require-slsa-provenance: true     # require SLSA L3 provenance
+  min-slsa-level: 3
+
+# --- Registry ---
+registry:
+  primary: ghcr.io/abailey81/i3
+  require-digest: true              # verification must always be by digest, not tag
+
+# --- Verification quick-reference (for humans) ---
+verification-examples:
+  image: |
+    cosign verify \
+      --certificate-identity-regexp '^https://github.com/abailey81/i3/\.github/workflows/docker\.yml@refs/(heads/main|tags/v.*)$' \
+      --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+      ghcr.io/abailey81/i3@sha256:<digest>
+  slsa: |
+    slsa-verifier verify-image \
+      --source-uri github.com/abailey81/i3 \
+      --source-branch main \
+      ghcr.io/abailey81/i3@sha256:<digest>

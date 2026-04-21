@@ -1,0 +1,138 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  release-please:
+    name: Prepare release PR / create release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    outputs:
+      release_created: ${{ steps.rp.outputs.release_created }}
+      tag_name: ${{ steps.rp.outputs.tag_name }}
+      version: ${{ steps.rp.outputs.version }}
+      upload_url: ${{ steps.rp.outputs.upload_url }}
+    steps:
+      - name: Run release-please
+        id: rp
+        uses: googleapis/release-please-action@v4
+        with:
+          release-type: python
+          package-name: i3
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # Full config is inlined so the repo does not require release-please-config.json.
+          config-file: .release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  build-distributions:
+    name: Build sdist + wheel
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      hashes: ${{ steps.hash.outputs.hashes }}
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release-please.outputs.tag_name }}
+          persist-credentials: false
+
+      - name: Set up Poetry project
+        uses: ./.github/actions/setup-poetry
+        with:
+          python-version: "3.11"
+          with-groups: ""
+
+      - name: Build distributions
+        run: poetry build
+
+      - name: Generate SHA256 hashes for SLSA
+        id: hash
+        working-directory: dist
+        run: |
+          HASHES=$(sha256sum * | base64 -w0)
+          echo "hashes=${HASHES}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
+
+  provenance:
+    name: SLSA Level 3 provenance
+    needs: [release-please, build-distributions]
+    if: needs.release-please.outputs.release_created == 'true'
+    permissions:
+      actions: read
+      id-token: write
+      contents: write
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
+    with:
+      base64-subjects: ${{ needs.build-distributions.outputs.hashes }}
+      upload-assets: true
+      upload-tag-name: ${{ needs.release-please.outputs.tag_name }}
+
+  publish-pypi:
+    name: Publish to PyPI (Trusted Publishing)
+    needs: [release-please, build-distributions, provenance]
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/i3
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Download dist artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish to PyPI via OIDC
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+          skip-existing: true
+          print-hash: true
+          verbose: true
+
+  attach-artifacts:
+    name: Attach sdist/wheel to GitHub release
+    needs: [release-please, build-distributions, publish-pypi]
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download dist artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Upload distributions to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.release-please.outputs.tag_name }}
+          files: dist/*

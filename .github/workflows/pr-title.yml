@@ -1,0 +1,80 @@
+name: PR Title (Conventional Commits)
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - edited
+      - synchronize
+      - reopened
+
+concurrency:
+  group: pr-title-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint-pr-title:
+    name: Validate PR title
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+      statuses: write
+    steps:
+      - name: Semantic PR title
+        uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Allowed Conventional-Commit types.
+          types: |
+            feat
+            fix
+            perf
+            refactor
+            docs
+            test
+            build
+            ci
+            chore
+            revert
+            security
+            style
+          # Scopes must match one of the modules listed in commitlint.config.js.
+          scopes: |
+            perception
+            encoder
+            user_model
+            adaptation
+            router
+            slm
+            cloud
+            diary
+            privacy
+            profiling
+            pipeline
+            server
+            web
+            training
+            demo
+            tests
+            ci
+            deps
+            docs
+            docker
+            k8s
+            helm
+          requireScope: false
+          disallowScopes: |
+            release
+          subjectPattern: ^(?![A-Z]).+$
+          subjectPatternError: |
+            The subject "{subject}" found in the pull request title "{title}"
+            must start with a lowercase character.
+          validateSingleCommit: false
+          # Allow bot authors to sidestep strict rules.
+          ignoreLabels: |
+            bot
+            release
