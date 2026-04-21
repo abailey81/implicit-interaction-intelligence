@@ -1,0 +1,37 @@
+apiVersion: 1
+
+# Grafana datasource provisioning — wires Prometheus and Tempo into the
+# UI on first boot.  Re-provisioning is safe (editable: true so operators
+# can tweak values without losing them on container restart).
+
+datasources:
+  - name: Prometheus
+    uid: i3-prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: true
+    jsonData:
+      httpMethod: POST
+      timeInterval: 15s
+      exemplarTraceIdDestinations:
+        - name: trace_id
+          datasourceUid: i3-tempo
+
+  - name: Tempo
+    uid: i3-tempo
+    type: tempo
+    access: proxy
+    url: http://tempo:3200
+    editable: true
+    jsonData:
+      httpMethod: GET
+      tracesToLogsV2:
+        datasourceUid: i3-prometheus
+      serviceMap:
+        datasourceUid: i3-prometheus
+      nodeGraph:
+        enabled: true
+      lokiSearch:
+        datasourceUid: i3-prometheus

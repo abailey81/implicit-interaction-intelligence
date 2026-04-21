@@ -1,0 +1,78 @@
+# OpenTelemetry Collector configuration for the I3 observability stack.
+#
+# Responsibilities:
+#   * Accept OTLP traces + metrics from the I3 server (gRPC :4317, HTTP :4318).
+#   * Forward traces to Tempo.
+#   * Expose a Prometheus endpoint so Prometheus can scrape metrics that
+#     were delivered via OTLP.
+#   * Provide a self-monitoring metrics endpoint and a healthcheck.
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+        max_recv_msg_size_mib: 16
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    send_batch_size: 1024
+    timeout: 5s
+  memory_limiter:
+    check_interval: 5s
+    limit_mib: 400
+    spike_limit_mib: 100
+  # Strip sensitive attributes defence-in-depth — the SDK should never
+  # include them, but an operator-supplied attribute could leak.
+  attributes/redact:
+    actions:
+      - key: http.request.header.authorization
+        action: delete
+      - key: http.request.header.cookie
+        action: delete
+      - key: http.request.header.x-api-key
+        action: delete
+      - key: db.statement
+        action: delete
+  resource:
+    attributes:
+      - key: collector.name
+        value: i3-otel
+        action: upsert
+
+exporters:
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    resource_to_telemetry_conversion:
+      enabled: true
+  debug:
+    verbosity: basic
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  pprof:
+    endpoint: 0.0.0.0:1777
+
+service:
+  extensions: [health_check, pprof]
+  telemetry:
+    metrics:
+      address: 0.0.0.0:8888
+    logs:
+      level: info
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, attributes/redact, resource, batch]
+      exporters: [otlp/tempo]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [prometheus]

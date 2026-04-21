@@ -1,0 +1,18 @@
+apiVersion: 1
+
+# Dashboard provider — Grafana watches /var/lib/grafana/dashboards for
+# JSON dashboards and auto-loads them.  Edits made in the UI are saved
+# back to disk when ``allowUiUpdates: true``.
+
+providers:
+  - name: I3 Dashboards
+    orgId: 1
+    folder: I3
+    folderUid: i3-folder
+    type: file
+    disableDeletion: false
+    allowUiUpdates: true
+    updateIntervalSeconds: 30
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: true

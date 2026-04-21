@@ -1,0 +1,52 @@
+# Observability configuration for Implicit Interaction Intelligence (I3).
+#
+# These values are **defaults**.  Any matching environment variable wins
+# over the value here, so operators can override individual knobs in a
+# container deployment without baking a new config image.
+#
+# The mapping (file key -> env var):
+#
+#   logging.level         -> I3_LOG_LEVEL
+#   logging.format        -> I3_LOG_FORMAT
+#   tracing.endpoint      -> OTEL_EXPORTER_OTLP_ENDPOINT
+#   tracing.sample_ratio  -> OTEL_TRACES_SAMPLER_ARG
+#   tracing.service_name  -> OTEL_SERVICE_NAME
+#   tracing.environment   -> OTEL_DEPLOYMENT_ENVIRONMENT
+#   metrics.enabled       -> I3_METRICS_ENABLED
+#   sentry.dsn            -> SENTRY_DSN
+#   sentry.traces_sample_rate -> SENTRY_TRACES_SAMPLE_RATE
+#   sentry.environment    -> SENTRY_ENVIRONMENT
+
+logging:
+  # json | console
+  format: json
+  level: INFO
+  # Additional keys whose values should be redacted from log output.
+  # (The sanitizer already knows about api_key, authorization, cookie,
+  # token, password, secret, fernet, encryption, and I3_ENCRYPTION_KEY.)
+  extra_redactions: []
+
+tracing:
+  enabled: true
+  service_name: i3
+  environment: development
+  # gRPC endpoint of the OTel collector.  The docker-compose stack
+  # under deploy/observability/ spins one up on :4317.
+  endpoint: http://localhost:4317
+  # Head-based sampling ratio in [0.0, 1.0].
+  sample_ratio: 1.0
+
+metrics:
+  enabled: true
+  # The Prometheus scrape endpoint is always /api/metrics when enabled.
+  # The OTel meter provider (configured automatically when the OTel SDK
+  # is installed) exports the same counters / histograms via OTLP.
+  otlp_export_interval_ms: 30000
+
+sentry:
+  # Leave empty to disable Sentry entirely.  The SDK is only initialised
+  # when SENTRY_DSN is a non-empty string.
+  dsn: ""
+  traces_sample_rate: 0.1
+  profiles_sample_rate: 0.0
+  environment: development

@@ -214,6 +214,10 @@ def create_app() -> FastAPI:
         max_age=600,
     )
 
+    # Observability (structlog + OTel + Prometheus + optional Sentry).
+    from i3.observability.instrumentation import setup_observability
+    setup_observability(config, app)
+
     # ------------------------------------------------------------------
     # Exception handlers — avoid leaking stack traces or internal paths.
     # ------------------------------------------------------------------

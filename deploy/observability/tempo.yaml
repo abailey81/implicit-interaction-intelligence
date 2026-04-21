@@ -1,0 +1,40 @@
+# Minimal Tempo configuration for local trace storage.
+#
+# This is a single-binary, file-backed setup appropriate for development
+# and demos.  Do not use in production — Tempo's S3 / GCS / Azure
+# backends should be configured there.
+
+server:
+  http_listen_port: 3200
+  grpc_listen_port: 9095
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+ingester:
+  max_block_duration: 5m
+  trace_idle_period: 10s
+
+compactor:
+  compaction:
+    block_retention: 48h
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /var/tempo/blocks
+    wal:
+      path: /var/tempo/wal
+    pool:
+      max_workers: 100
+      queue_depth: 10000
+
+usage_report:
+  reporting_enabled: false
