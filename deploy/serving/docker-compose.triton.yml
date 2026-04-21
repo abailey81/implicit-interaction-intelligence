@@ -1,0 +1,59 @@
+# ────────────────────────────────────────────────────────────────────────
+#  docker-compose.triton.yml
+#
+#  Runs NVIDIA Triton Inference Server against the local model repository
+#  and a thin Python client container that can hit the service over HTTP
+#  and gRPC. Intended for developer-box validation; production deployment
+#  is handled by the Kubernetes manifests under deploy/k8s/.
+#
+#  Usage:
+#      # Export ONNX first:
+#      python -m i3.encoder.onnx_export --checkpoint models/encoder/best_model.pt \
+#          --output model_repository/tcn_encoder/1/model.onnx
+#
+#      docker compose -f deploy/serving/docker-compose.triton.yml up
+# ────────────────────────────────────────────────────────────────────────
+
+services:
+  triton:
+    image: nvcr.io/nvidia/tritonserver:24.07-py3
+    container_name: i3-triton
+    restart: unless-stopped
+    command:
+      - tritonserver
+      - --model-repository=/models
+      - --strict-model-config=false
+      - --log-verbose=1
+    ports:
+      - "8000:8000"  # HTTP
+      - "8001:8001"  # gRPC
+      - "8002:8002"  # metrics
+    volumes:
+      - ../../model_repository:/models:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/v2/health/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 4g
+
+  triton-client:
+    image: nvcr.io/nvidia/tritonserver:24.07-py3-sdk
+    container_name: i3-triton-client
+    depends_on:
+      triton:
+        condition: service_healthy
+    working_dir: /workspace
+    command: ["sleep", "infinity"]
+    volumes:
+      - ../../:/workspace:ro
+    # Example one-off:
+    #   docker compose -f deploy/serving/docker-compose.triton.yml exec triton-client \
+    #       python3 /workspace/scripts/triton_smoke_client.py
+
+networks:
+  default:
+    name: i3-triton-net

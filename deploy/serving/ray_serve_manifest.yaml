@@ -1,0 +1,142 @@
+# ────────────────────────────────────────────────────────────────────────
+#  KubeRay RayService manifest for the I3 Serve application.
+#
+#  Deploys via `kubectl apply -f deploy/serving/ray_serve_manifest.yaml`.
+#  Assumes the KubeRay operator is installed in the cluster; see:
+#    https://docs.ray.io/en/latest/cluster/kubernetes/getting-started.html
+#
+#  Autoscaling is handled at two levels:
+#    1. Ray Serve replica autoscaling (min/max replicas per deployment)
+#    2. Ray Autoscaler v2 for the worker node group (GPU pool expansion)
+#  An optional Kubernetes HorizontalPodAutoscaler can sit on top of (2).
+# ────────────────────────────────────────────────────────────────────────
+
+apiVersion: ray.io/v1
+kind: RayService
+metadata:
+  name: i3-slm-serve
+  namespace: i3
+  labels:
+    app.kubernetes.io/name: i3
+    app.kubernetes.io/component: serving
+spec:
+  serviceUnhealthySecondThreshold: 300
+  deploymentUnhealthySecondThreshold: 300
+  serveConfigV2: |
+    applications:
+      - name: i3_slm
+        import_path: i3.serving.ray_serve_app:app
+        runtime_env:
+          working_dir: "https://example.com/i3-release.zip"
+          pip:
+            - torch>=2.6
+            - pydantic>=2.6
+        route_prefix: /i3
+        deployments:
+          - name: I3ServeDeployment
+            num_replicas: auto
+            ray_actor_options:
+              num_cpus: 2
+              num_gpus: 0
+            autoscaling_config:
+              min_replicas: 2
+              max_replicas: 16
+              target_ongoing_requests: 8
+              upscale_delay_s: 10
+              downscale_delay_s: 60
+          - name: I3BanditRouter
+            num_replicas: 2
+            ray_actor_options:
+              num_cpus: 1
+  rayClusterConfig:
+    rayVersion: "2.10.0"
+    enableInTreeAutoscaling: true
+    autoscalerOptions:
+      upscalingMode: Default
+      idleTimeoutSeconds: 60
+    headGroupSpec:
+      rayStartParams:
+        dashboard-host: "0.0.0.0"
+      template:
+        spec:
+          containers:
+            - name: ray-head
+              image: rayproject/ray:2.10.0-py310
+              resources:
+                requests:
+                  cpu: "2"
+                  memory: "4Gi"
+                limits:
+                  cpu: "4"
+                  memory: "8Gi"
+              ports:
+                - containerPort: 6379
+                  name: gcs
+                - containerPort: 8265
+                  name: dashboard
+                - containerPort: 10001
+                  name: client
+    workerGroupSpecs:
+      - groupName: cpu-workers
+        replicas: 2
+        minReplicas: 1
+        maxReplicas: 10
+        rayStartParams: {}
+        template:
+          spec:
+            containers:
+              - name: ray-worker
+                image: rayproject/ray:2.10.0-py310
+                resources:
+                  requests:
+                    cpu: "2"
+                    memory: "8Gi"
+                  limits:
+                    cpu: "4"
+                    memory: "16Gi"
+      - groupName: gpu-workers
+        replicas: 0
+        minReplicas: 0
+        maxReplicas: 4
+        rayStartParams: {}
+        template:
+          spec:
+            containers:
+              - name: ray-worker
+                image: rayproject/ray:2.10.0-py310-gpu
+                resources:
+                  requests:
+                    cpu: "4"
+                    memory: "16Gi"
+                    nvidia.com/gpu: "1"
+                  limits:
+                    cpu: "8"
+                    memory: "32Gi"
+                    nvidia.com/gpu: "1"
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: i3-slm-serve-hpa
+  namespace: i3
+spec:
+  scaleTargetRef:
+    apiVersion: ray.io/v1
+    kind: RayService
+    name: i3-slm-serve
+  minReplicas: 1
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80

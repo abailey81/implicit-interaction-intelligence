@@ -1,0 +1,46 @@
+# ────────────────────────────────────────────────────────────────────────
+#  Lightning Fabric distributed config for I3 training.
+#
+#  Loaded by training/train_encoder_fabric.py and train_slm_fabric.py when
+#  users pass --fabric-config. CLI flags override values set here.
+# ────────────────────────────────────────────────────────────────────────
+
+fabric:
+  accelerator: auto         # 'cpu' | 'cuda' | 'mps' | 'auto'
+  devices: auto             # 'auto' | int | list[int]
+  strategy: ddp             # 'ddp' | 'fsdp' | 'deepspeed' | 'single_device'
+  precision: bf16-mixed     # '32-true' | '16-mixed' | 'bf16-mixed'
+  num_nodes: 1
+  seed: 42
+
+loggers:
+  # Activated lazily by the training script when the package is installed;
+  # the scripts themselves only call fabric.log / fabric.log_dict.
+  tensorboard:
+    enabled: true
+    save_dir: logs/tensorboard
+  mlflow:
+    enabled: false
+    tracking_uri: http://mlflow.i3.local:5000
+    experiment_name: i3-encoder
+
+training:
+  epochs: 100
+  batch_size: 64
+  lr: 1.0e-3
+  grad_clip: 1.0
+  patience: 15
+  checkpoint_dir: checkpoints/encoder/fabric
+
+# Optional DeepSpeed sub-strategy knobs when strategy: deepspeed.
+deepspeed:
+  stage: 3
+  offload_optimizer: cpu
+  offload_parameters: cpu
+
+# Optional FSDP knobs when strategy: fsdp.
+fsdp:
+  sharding_strategy: FULL_SHARD
+  cpu_offload: false
+  activation_checkpointing: true
+  auto_wrap_policy: transformer_auto_wrap_policy
