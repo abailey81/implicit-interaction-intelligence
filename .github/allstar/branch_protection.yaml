@@ -1,0 +1,31 @@
+# ─── OSSF Allstar — Branch Protection policy ─────────────────────────────
+#
+# Enforces a strict branch-protection baseline on every branch considered
+# release-worthy (default branch and `release/*`).
+#
+# Reference:
+#   https://github.com/ossf/allstar/blob/main/pkg/policies/branch/README.md
+optConfig:
+  optIn: true
+
+action: issue
+
+# Apply these rules to the default branch and any release branch.
+enforceDefault: true
+enforceBranches:
+  - main
+  - "release/*"
+
+# Required policy settings.
+requireApproval: true
+approvalCount: 1
+requireCodeOwnerReviews: true
+dismissStaleReviews: true
+blockForcePush: true
+requireStatusChecks:
+  - "Lint & Format"
+  - "Test (3.11 / ubuntu-latest)"
+  - "CodeQL"
+requireSignedCommits: true
+requireUpToDateBranch: true
+blockAdminBypass: true

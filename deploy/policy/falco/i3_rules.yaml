@@ -1,0 +1,128 @@
+# ─── Falco rules for Implicit Interaction Intelligence (I³) ───────────────
+#
+# Conventions:
+#   • `list:` — named value sets reusable across macros/rules.
+#   • `macro:` — named boolean predicates.
+#   • `rule:` — the alertable conditions.
+#
+# These rules are injected via the Falco Helm chart's `customRules` hook
+# (see helm-values.yaml) so they run alongside the stock Falco rule set.
+#
+# References:
+#   https://falco.org/docs/rules/basic-elements/
+
+# ---------------------------------------------------------------------------
+# Named lists — edit here when the environment changes
+# ---------------------------------------------------------------------------
+- list: i3_allowed_egress
+  items:
+    - "api.anthropic.com"
+    - "rekor.sigstore.dev"
+    - "fulcio.sigstore.dev"
+
+- list: i3_diary_db_readers
+  # Only these binaries are allowed to open the diary DB.
+  items: ["uvicorn", "python3", "python"]
+
+- list: i3_container_images
+  # Image substrings that identify an I³ container.
+  items:
+    - "implicit-interaction-intelligence"
+    - "i3"
+
+# ---------------------------------------------------------------------------
+# Macros
+# ---------------------------------------------------------------------------
+- macro: is_i3_container
+  condition: >
+    container and
+    (container.image.repository contains "implicit-interaction-intelligence" or
+     k8s.ns.name = "i3")
+
+- macro: is_diary_db_path
+  condition: fd.name = "/app/data/diary.db"
+
+- macro: i3_outbound_connection
+  condition: >
+    evt.type in (connect, sendto) and
+    evt.dir = "<" and
+    fd.typechar = "4" and
+    fd.net != "127.0.0.0/8" and
+    fd.net != "::1/128"
+
+# ---------------------------------------------------------------------------
+# Rules
+# ---------------------------------------------------------------------------
+
+- rule: I3 diary.db accessed by unexpected process
+  desc: >
+    Only the in-container Python/uvicorn workers should open the diary
+    SQLite database.  Any other process touching that path indicates a
+    sidecar compromise, an attached debugger, or a container escape.
+  condition: >
+    is_i3_container and
+    evt.type in (open, openat, openat2) and
+    is_diary_db_path and
+    not proc.name in (i3_diary_db_readers)
+  output: >
+    Unexpected process opened diary.db (user=%user.name proc=%proc.name
+    pid=%proc.pid cmdline=%proc.cmdline file=%fd.name
+    container_id=%container.id image=%container.image.repository
+    ns=%k8s.ns.name pod=%k8s.pod.name)
+  priority: CRITICAL
+  tags: [i3, filesystem, data-exfiltration, mitre_collection]
+
+- rule: I3 outbound connection to disallowed host
+  desc: >
+    Alert when the I³ container makes an outbound connection to any
+    host outside the allow-list.  Keeps the LLM sidecar pinned to
+    api.anthropic.com and the signing endpoints.
+  condition: >
+    is_i3_container and
+    i3_outbound_connection and
+    not (fd.sip.name in (i3_allowed_egress)) and
+    not (fd.rip.name in (i3_allowed_egress))
+  output: >
+    Disallowed egress from i3 container (proc=%proc.name pid=%proc.pid
+    dest=%fd.sip:%fd.sport hostname=%fd.sip.name
+    container_id=%container.id image=%container.image.repository
+    ns=%k8s.ns.name pod=%k8s.pod.name)
+  priority: WARNING
+  tags: [i3, network, exfiltration, mitre_exfiltration]
+
+- rule: I3 container exec
+  desc: >
+    Any interactive exec into the I³ container is suspicious — the
+    service is not meant to host a shell. SREs should use kubectl debug
+    with an ephemeral container instead.
+  condition: >
+    is_i3_container and
+    evt.type = execve and
+    proc.vpid = 1 and
+    proc.pname exists and
+    not proc.pname in (uvicorn, python, python3)
+  output: >
+    Exec detected inside i3 container (cmdline=%proc.cmdline
+    parent=%proc.pname user=%user.name
+    container_id=%container.id image=%container.image.repository
+    ns=%k8s.ns.name pod=%k8s.pod.name)
+  priority: CRITICAL
+  tags: [i3, process, shell, mitre_execution]
+
+- rule: I3 write to read-only /app
+  desc: >
+    The container runs with readOnlyRootFilesystem=true; any successful
+    write under /app indicates either a misconfiguration or an active
+    compromise bypassing the runtime setting.
+  condition: >
+    is_i3_container and
+    evt.type in (write, writev, pwrite, pwritev, open, openat, openat2) and
+    (fd.name startswith "/app" or fd.directory startswith "/app") and
+    evt.is_open_write = true
+  output: >
+    Write to read-only /app tree inside i3 (proc=%proc.name
+    pid=%proc.pid cmdline=%proc.cmdline file=%fd.name
+    container_id=%container.id image=%container.image.repository
+    ns=%k8s.ns.name pod=%k8s.pod.name)
+  priority: CRITICAL
+  tags: [i3, filesystem, tampering, mitre_persistence]

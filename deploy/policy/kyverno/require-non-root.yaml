@@ -1,0 +1,116 @@
+# ─── Kyverno ClusterPolicy: hardened securityContext for I³ pods ───────────
+#
+# Enforces the four pillars of a hardened workload:
+#
+#   1. runAsNonRoot: true              — no root UID in the container
+#   2. readOnlyRootFilesystem: true    — prevents tampering with binaries
+#   3. seccompProfile.type: RuntimeDefault  — narrows the syscall surface
+#   4. allowPrivilegeEscalation: false — blocks setuid-style escalation
+#
+# The rules also forbid `capabilities.add` and require `capabilities.drop:
+# ALL`, meeting the CIS Kubernetes Benchmark Pod Security baseline.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: i3-require-non-root
+  annotations:
+    policies.kyverno.io/title: Enforce hardened securityContext
+    policies.kyverno.io/category: Pod Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      Enforces runAsNonRoot, readOnlyRootFilesystem, RuntimeDefault seccomp,
+      and allowPrivilegeEscalation=false on every pod in the i3 namespace.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: require-run-as-non-root
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - i3
+      validate:
+        message: "securityContext.runAsNonRoot must be true."
+        pattern:
+          spec:
+            =(securityContext):
+              =(runAsNonRoot): "true"
+            containers:
+              - name: "*"
+                securityContext:
+                  runAsNonRoot: true
+    - name: require-read-only-root-filesystem
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - i3
+      validate:
+        message: "securityContext.readOnlyRootFilesystem must be true."
+        pattern:
+          spec:
+            containers:
+              - name: "*"
+                securityContext:
+                  readOnlyRootFilesystem: true
+    - name: require-runtime-default-seccomp
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - i3
+      validate:
+        message: "seccompProfile.type must be RuntimeDefault."
+        anyPattern:
+          - spec:
+              securityContext:
+                seccompProfile:
+                  type: RuntimeDefault
+          - spec:
+              containers:
+                - name: "*"
+                  securityContext:
+                    seccompProfile:
+                      type: RuntimeDefault
+    - name: disallow-privilege-escalation
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - i3
+      validate:
+        message: "securityContext.allowPrivilegeEscalation must be false."
+        pattern:
+          spec:
+            containers:
+              - name: "*"
+                securityContext:
+                  allowPrivilegeEscalation: false
+    - name: drop-all-capabilities
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - i3
+      validate:
+        message: "containers must drop ALL capabilities."
+        pattern:
+          spec:
+            containers:
+              - name: "*"
+                securityContext:
+                  capabilities:
+                    drop:
+                      - "ALL"

@@ -1,0 +1,47 @@
+# ─── Kyverno ClusterPolicy: require a NetworkPolicy in the i3 namespace ────
+#
+# By default Kubernetes lets every pod talk to every other pod.  This policy
+# denies pod creation in the `i3` namespace if no `NetworkPolicy` exists —
+# forcing operators to explicitly define ingress/egress before workloads
+# spin up.  Combined with `generate-defaults.yaml`, new namespaces start
+# with a default-deny policy and must be opened on demand.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: i3-network-policy-required
+  annotations:
+    policies.kyverno.io/title: Require at least one NetworkPolicy per namespace
+    policies.kyverno.io/category: Multi-Tenancy
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/subject: Pod, NetworkPolicy
+    policies.kyverno.io/description: >-
+      Denies pod creation in the `i3` namespace if no NetworkPolicy is
+      present.  Pairs with `generate-defaults.yaml` which seeds a default-deny
+      policy on namespace creation.
+spec:
+  validationFailureAction: Enforce
+  background: false
+  rules:
+    - name: require-networkpolicy-exists
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - i3
+      context:
+        - name: npcount
+          apiCall:
+            urlPath: "/apis/networking.k8s.io/v1/namespaces/{{ request.namespace }}/networkpolicies"
+            jmesPath: "items | length(@)"
+      validate:
+        message: >-
+          Namespace '{{ request.namespace }}' must contain at least one
+          NetworkPolicy before workloads can be scheduled.
+        deny:
+          conditions:
+            any:
+              - key: "{{ npcount }}"
+                operator: LessThan
+                value: 1

@@ -193,6 +193,15 @@ bandit           = { version = "^1.7", extras = ["toml"] }
 safety           = "^3.0"
 detect-secrets   = "^1.5"              # Used by lefthook pre-commit hook
 
+# ─── Policy-as-Code Dependencies ─────────────────────────────────────────
+# Soft-imported by i3/authz/cedar_adapter.py. Adds the Cedar policy engine
+# binding so the application-level authorization layer (see
+# docs/security/policy_as_code.md §2.3) can evaluate policies in-process.
+# Cedar 4.x is required — 3.x lacks the schema-aware JSON request form
+# used by the adapter.
+[tool.poetry.group.policy.dependencies]
+cedarpy          = ">=4.0"
+
 # ─── Documentation Dependencies ──────────────────────────────────────────
 [tool.poetry.group.docs.dependencies]
 mkdocs                                   = "^1.5"

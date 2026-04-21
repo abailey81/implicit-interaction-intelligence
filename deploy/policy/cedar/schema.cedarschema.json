@@ -1,0 +1,125 @@
+{
+    "": {
+        "entityTypes": {
+            "User": {
+                "shape": {
+                    "type": "Record",
+                    "attributes": {
+                        "email": { "type": "String", "required": false }
+                    }
+                }
+            },
+            "Admin": {
+                "memberOfTypes": [],
+                "shape": {
+                    "type": "Record",
+                    "attributes": {
+                        "email": { "type": "String", "required": false }
+                    }
+                }
+            },
+            "Service": {
+                "shape": {
+                    "type": "Record",
+                    "attributes": {
+                        "name": { "type": "String", "required": false }
+                    }
+                }
+            },
+            "Diary": {
+                "shape": {
+                    "type": "Record",
+                    "attributes": {
+                        "owner": { "type": "Entity", "name": "User", "required": true }
+                    }
+                }
+            },
+            "UserProfile": {
+                "shape": {
+                    "type": "Record",
+                    "attributes": {
+                        "owner": { "type": "Entity", "name": "User", "required": true }
+                    }
+                }
+            },
+            "Adaptation": {
+                "shape": {
+                    "type": "Record",
+                    "attributes": {
+                        "owner":     { "type": "Entity", "name": "User", "required": true },
+                        "sanitized": { "type": "Boolean", "required": false }
+                    }
+                }
+            }
+        },
+        "actions": {
+            "read": {
+                "appliesTo": {
+                    "principalTypes": ["User", "Admin", "Service"],
+                    "resourceTypes":  ["Diary", "UserProfile", "Adaptation"],
+                    "context": {
+                        "type": "Record",
+                        "attributes": {
+                            "mfa":        { "type": "Boolean", "required": false },
+                            "sanitized":  { "type": "Boolean", "required": false },
+                            "reason":     { "type": "String",  "required": false },
+                            "ip_trusted": { "type": "Boolean", "required": false }
+                        }
+                    }
+                }
+            },
+            "write": {
+                "appliesTo": {
+                    "principalTypes": ["User", "Admin"],
+                    "resourceTypes":  ["Diary", "UserProfile", "Adaptation"],
+                    "context": {
+                        "type": "Record",
+                        "attributes": {
+                            "mfa":        { "type": "Boolean", "required": false },
+                            "ip_trusted": { "type": "Boolean", "required": false }
+                        }
+                    }
+                }
+            },
+            "export": {
+                "appliesTo": {
+                    "principalTypes": ["User", "Admin"],
+                    "resourceTypes":  ["Diary", "UserProfile", "Adaptation"],
+                    "context": {
+                        "type": "Record",
+                        "attributes": {
+                            "mfa":        { "type": "Boolean", "required": false },
+                            "ip_trusted": { "type": "Boolean", "required": false }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "appliesTo": {
+                    "principalTypes": ["User", "Admin"],
+                    "resourceTypes":  ["Diary", "UserProfile", "Adaptation"],
+                    "context": {
+                        "type": "Record",
+                        "attributes": {
+                            "reason":     { "type": "String",  "required": false },
+                            "ip_trusted": { "type": "Boolean", "required": false }
+                        }
+                    }
+                }
+            },
+            "bulkDelete": {
+                "appliesTo": {
+                    "principalTypes": ["Admin"],
+                    "resourceTypes":  ["Diary", "UserProfile", "Adaptation"],
+                    "context": {
+                        "type": "Record",
+                        "attributes": {
+                            "reason":     { "type": "String",  "required": false },
+                            "ip_trusted": { "type": "Boolean", "required": false }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

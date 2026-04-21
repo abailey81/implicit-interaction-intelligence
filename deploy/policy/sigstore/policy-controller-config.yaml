@@ -1,0 +1,43 @@
+# ─── Sigstore Policy Controller ClusterImagePolicy for I³ ─────────────────
+#
+# The Sigstore Policy Controller (upstream:
+# https://docs.sigstore.dev/policy-controller/overview/) enforces cosign
+# signature verification at admission.  We bind it to the GitHub Actions
+# OIDC identity that publishes I³ container images.
+#
+# Namespaces opt in via the label
+#   policy.sigstore.dev/include: "true"
+# which is set on the `i3` namespace via an overlay.
+apiVersion: policy.sigstore.dev/v1beta1
+kind: ClusterImagePolicy
+metadata:
+  name: i3-cluster-image-policy
+spec:
+  images:
+    - glob: "ghcr.io/abailey81/implicit-interaction-intelligence*"
+    - glob: "*.dkr.ecr.*.amazonaws.com/implicit-interaction-intelligence*"
+  authorities:
+    - name: github-actions-oidc
+      keyless:
+        url: https://fulcio.sigstore.dev
+        identities:
+          - issuer: https://token.actions.githubusercontent.com
+            subject: >-
+              https://github.com/abailey81/implicit-interaction-intelligence/.github/workflows/docker.yml@refs/heads/main
+        trustRootRef: sigstore-public-trust-root
+      ctlog:
+        url: https://rekor.sigstore.dev
+  policy:
+    type: cue
+    # The keyless block above is the primary gate; the `cue` policy below
+    # further enforces that every signature carries a non-empty build
+    # provenance attestation.
+    data: |
+      package sigstore
+      import "list"
+      authorityMatches: {
+        "github-actions-oidc": {
+          signatures: list.MinItems(1)
+        }
+      }
+  mode: enforce

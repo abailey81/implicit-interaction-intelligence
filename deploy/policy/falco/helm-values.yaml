@@ -1,0 +1,67 @@
+# ─── Falco Helm values for I³ ─────────────────────────────────────────────
+#
+# Install with:
+#
+#   helm install falco falcosecurity/falco \
+#     --namespace falco --create-namespace \
+#     -f deploy/policy/falco/helm-values.yaml
+#
+# Documentation:
+#   https://github.com/falcosecurity/charts/tree/master/charts/falco
+
+# Use the modern eBPF probe — no kernel modules required.
+driver:
+  kind: modern_ebpf
+
+# Run as DaemonSet across every node in the cluster.
+tty: true
+
+falco:
+  # Replace the stock JSON output with a friendlier, structured format.
+  json_output: true
+  json_include_output_property: true
+  log_stderr: true
+  log_syslog: false
+  priority: debug
+
+  # Do not skip unknown events; we want completeness.
+  buffered_outputs: false
+
+  # Outputs: write to stdout so a log aggregator (e.g. Loki / Splunk)
+  # can pick them up; also expose the HTTP endpoint for Falcosidekick.
+  http_output:
+    enabled: true
+    url: "http://falcosidekick:2801/"
+    user_agent: "falcosecurity/falco"
+
+# Inject our custom rules from i3_rules.yaml.
+customRules:
+  i3_rules.yaml: |-
+    # This block is populated at `helm upgrade` time by:
+    #   --set-file customRules.i3_rules\.yaml=deploy/policy/falco/i3_rules.yaml
+    # Operators can also copy the contents of that file inline.
+    # A placeholder rule below keeps the chart happy when the inline
+    # content is not overridden on the CLI.
+    - required_engine_version: 15
+    - rule: Placeholder — replace with deploy/policy/falco/i3_rules.yaml
+      desc: Ensure deployment passes `--set-file customRules.i3_rules\.yaml=...`
+      condition: never_true
+      output: "(unused)"
+      priority: INFO
+
+# Falcosidekick — ship alerts to Slack, PagerDuty, etc.
+falcosidekick:
+  enabled: true
+  replicaCount: 2
+  webui:
+    enabled: true
+    replicaCount: 1
+
+# Health and resource hints.
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi

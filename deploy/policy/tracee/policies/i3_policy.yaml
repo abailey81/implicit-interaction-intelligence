@@ -1,0 +1,74 @@
+# ─── Tracee Policy for I³ ────────────────────────────────────────────────
+#
+# Tracee v1beta1 Policy CRD.  Apply with `kubectl apply -f` or inject via
+# the Helm chart's `policies` key.
+#
+# Documentation:
+#   https://aquasecurity.github.io/tracee/latest/docs/policies/
+apiVersion: tracee.aquasec.com/v1beta1
+kind: Policy
+metadata:
+  name: i3-runtime-policy
+  annotations:
+    description: >-
+      Runtime forensics policy for the Implicit Interaction Intelligence
+      service.  Traces sensitive file access, outbound network activity,
+      and process exec for everything in the `i3` namespace.
+spec:
+  scope:
+    - "k8s.namespace=i3"
+  defaultActions:
+    - log
+  rules:
+    # -----------------------------------------------------------------
+    # File access — diary DB, model weights, secret mounts
+    # -----------------------------------------------------------------
+    - event: security_file_open
+      filters:
+        - "pathname=/app/data/diary.db"
+        - "pathname=/app/checkpoints/*"
+        - "pathname=/run/secrets/*"
+        - "pathname=/var/run/secrets/*"
+
+    - event: magic_write
+      filters:
+        - "pathname=/app/*"
+
+    # -----------------------------------------------------------------
+    # Network — outbound connects and DNS
+    # -----------------------------------------------------------------
+    - event: net_packet_tcp
+      filters:
+        - "net_packet_tcp.direction=outgoing"
+
+    - event: net_packet_dns_request
+      filters: []
+
+    # -----------------------------------------------------------------
+    # Process — exec and exit
+    # -----------------------------------------------------------------
+    - event: sched_process_exec
+      filters: []
+
+    - event: sched_process_exit
+      filters: []
+
+    # -----------------------------------------------------------------
+    # Kernel / privilege — module loads, ptrace, BPF
+    # -----------------------------------------------------------------
+    - event: init_module
+      filters: []
+    - event: finit_module
+      filters: []
+    - event: bpf_attach
+      filters: []
+    - event: ptrace
+      filters: []
+
+    # -----------------------------------------------------------------
+    # Container lifecycle
+    # -----------------------------------------------------------------
+    - event: container_create
+      filters: []
+    - event: container_remove
+      filters: []

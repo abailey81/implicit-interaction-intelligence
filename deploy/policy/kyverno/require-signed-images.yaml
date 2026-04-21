@@ -1,0 +1,58 @@
+# ─── Kyverno ClusterPolicy: require cosign signatures on I³ images ─────────
+#
+# Uses Kyverno's `verifyImages` rule with keyless cosign verification.  The
+# only accepted signer is the GitHub Actions OIDC identity issued to the
+# `abailey81/implicit-interaction-intelligence` repository when the
+# `.github/workflows/docker.yml` workflow runs on `refs/heads/main`.
+#
+# The policy runs in `Enforce` mode so any image without a matching signature
+# is rejected at admission.  `mutateDigest: true` pins the tag to its sha256
+# digest, eliminating the race window between signature verification and pull.
+#
+# References:
+#   • Kyverno docs – Verify Images:
+#     https://kyverno.io/docs/writing-policies/verify-images/sigstore/
+#   • Sigstore keyless verification (Fulcio):
+#     https://docs.sigstore.dev/cosign/keyless/
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: i3-require-signed-images
+  annotations:
+    policies.kyverno.io/title: Require cosign-signed images in i3 namespace
+    policies.kyverno.io/category: Supply Chain Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      Every container image admitted into the `i3` namespace must be signed
+      with cosign using the GitHub Actions OIDC identity from the canonical
+      I³ repository's release workflow.
+spec:
+  validationFailureAction: Enforce
+  webhookTimeoutSeconds: 30
+  background: false
+  rules:
+    - name: verify-i3-cosign-signatures
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - i3
+      verifyImages:
+        - imageReferences:
+            - "ghcr.io/abailey81/implicit-interaction-intelligence*"
+            - "*.dkr.ecr.*.amazonaws.com/implicit-interaction-intelligence*"
+          mutateDigest: true
+          verifyDigest: true
+          required: true
+          attestors:
+            - count: 1
+              entries:
+                - keyless:
+                    subject: >-
+                      https://github.com/abailey81/implicit-interaction-intelligence/.github/workflows/docker.yml@refs/heads/main
+                    issuer: "https://token.actions.githubusercontent.com"
+                    rekor:
+                      url: "https://rekor.sigstore.dev"

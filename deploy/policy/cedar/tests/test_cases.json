@@ -1,0 +1,220 @@
+{
+    "description": "Cedar scenario tests for the I³ authorization model. Each case pairs a request with the expected decision (`allow` or `deny`).",
+    "entities": [
+        {
+            "uid": { "type": "User",  "id": "alice" },
+            "attrs": { "email": "alice@example.com" },
+            "parents": []
+        },
+        {
+            "uid": { "type": "User",  "id": "bob" },
+            "attrs": { "email": "bob@example.com" },
+            "parents": []
+        },
+        {
+            "uid": { "type": "Admin", "id": "carol" },
+            "attrs": { "email": "carol@example.com" },
+            "parents": [ { "type": "Admin", "id": "admins" } ]
+        },
+        {
+            "uid": { "type": "Admin", "id": "admins" },
+            "attrs": {},
+            "parents": []
+        },
+        {
+            "uid": { "type": "Service", "id": "cloud" },
+            "attrs": { "name": "cloud-sanitizer" },
+            "parents": []
+        },
+        {
+            "uid": { "type": "Diary", "id": "diary-alice" },
+            "attrs": { "owner": { "__entity": { "type": "User", "id": "alice" } } },
+            "parents": []
+        },
+        {
+            "uid": { "type": "Diary", "id": "diary-bob" },
+            "attrs": { "owner": { "__entity": { "type": "User", "id": "bob" } } },
+            "parents": []
+        },
+        {
+            "uid": { "type": "UserProfile", "id": "profile-alice" },
+            "attrs": { "owner": { "__entity": { "type": "User", "id": "alice" } } },
+            "parents": []
+        },
+        {
+            "uid": { "type": "Adaptation", "id": "adapt-alice" },
+            "attrs": { "owner": { "__entity": { "type": "User", "id": "alice" } }, "sanitized": true },
+            "parents": []
+        }
+    ],
+    "cases": [
+        {
+            "name": "owner_reads_own_diary",
+            "principal": { "type": "User", "id": "alice" },
+            "action":    { "type": "Action", "id": "read" },
+            "resource":  { "type": "Diary", "id": "diary-alice" },
+            "context":   {},
+            "decision":  "allow"
+        },
+        {
+            "name": "other_user_reads_diary_denied",
+            "principal": { "type": "User", "id": "bob" },
+            "action":    { "type": "Action", "id": "read" },
+            "resource":  { "type": "Diary", "id": "diary-alice" },
+            "context":   {},
+            "decision":  "deny"
+        },
+        {
+            "name": "owner_writes_own_diary",
+            "principal": { "type": "User", "id": "alice" },
+            "action":    { "type": "Action", "id": "write" },
+            "resource":  { "type": "Diary", "id": "diary-alice" },
+            "context":   {},
+            "decision":  "allow"
+        },
+        {
+            "name": "other_user_writes_diary_denied",
+            "principal": { "type": "User", "id": "bob" },
+            "action":    { "type": "Action", "id": "write" },
+            "resource":  { "type": "Diary", "id": "diary-alice" },
+            "context":   {},
+            "decision":  "deny"
+        },
+        {
+            "name": "owner_deletes_own_diary",
+            "principal": { "type": "User", "id": "alice" },
+            "action":    { "type": "Action", "id": "delete" },
+            "resource":  { "type": "Diary", "id": "diary-alice" },
+            "context":   {},
+            "decision":  "allow"
+        },
+        {
+            "name": "admin_delete_without_reason_denied",
+            "principal": { "type": "Admin", "id": "carol" },
+            "action":    { "type": "Action", "id": "delete" },
+            "resource":  { "type": "Diary", "id": "diary-alice" },
+            "context":   {},
+            "decision":  "deny"
+        },
+        {
+            "name": "admin_delete_with_reason_allowed",
+            "principal": { "type": "Admin", "id": "carol" },
+            "action":    { "type": "Action", "id": "delete" },
+            "resource":  { "type": "Diary", "id": "diary-alice" },
+            "context":   { "reason": "GDPR erasure request #1142" },
+            "decision":  "allow"
+        },
+        {
+            "name": "admin_read_diary_forbidden",
+            "principal": { "type": "Admin", "id": "carol" },
+            "action":    { "type": "Action", "id": "read" },
+            "resource":  { "type": "Diary", "id": "diary-alice" },
+            "context":   { "reason": "support" },
+            "decision":  "deny"
+        },
+        {
+            "name": "admin_bulk_delete_without_reason_denied",
+            "principal": { "type": "Admin", "id": "carol" },
+            "action":    { "type": "Action", "id": "bulkDelete" },
+            "resource":  { "type": "Diary", "id": "diary-alice" },
+            "context":   { "ip_trusted": true },
+            "decision":  "deny"
+        },
+        {
+            "name": "admin_bulk_delete_without_trusted_ip_denied",
+            "principal": { "type": "Admin", "id": "carol" },
+            "action":    { "type": "Action", "id": "bulkDelete" },
+            "resource":  { "type": "Diary", "id": "diary-alice" },
+            "context":   { "reason": "retention policy" },
+            "decision":  "deny"
+        },
+        {
+            "name": "admin_bulk_delete_full_context_allowed",
+            "principal": { "type": "Admin", "id": "carol" },
+            "action":    { "type": "Action", "id": "bulkDelete" },
+            "resource":  { "type": "Diary", "id": "diary-alice" },
+            "context":   { "reason": "retention policy", "ip_trusted": true },
+            "decision":  "allow"
+        },
+        {
+            "name": "owner_export_without_mfa_denied",
+            "principal": { "type": "User", "id": "alice" },
+            "action":    { "type": "Action", "id": "export" },
+            "resource":  { "type": "Diary", "id": "diary-alice" },
+            "context":   {},
+            "decision":  "deny"
+        },
+        {
+            "name": "owner_export_with_mfa_allowed",
+            "principal": { "type": "User", "id": "alice" },
+            "action":    { "type": "Action", "id": "export" },
+            "resource":  { "type": "Diary", "id": "diary-alice" },
+            "context":   { "mfa": true },
+            "decision":  "allow"
+        },
+        {
+            "name": "cloud_reads_sanitized_adaptation_allowed",
+            "principal": { "type": "Service", "id": "cloud" },
+            "action":    { "type": "Action", "id": "read" },
+            "resource":  { "type": "Adaptation", "id": "adapt-alice" },
+            "context":   { "sanitized": true },
+            "decision":  "allow"
+        },
+        {
+            "name": "cloud_reads_unsanitized_adaptation_denied",
+            "principal": { "type": "Service", "id": "cloud" },
+            "action":    { "type": "Action", "id": "read" },
+            "resource":  { "type": "Adaptation", "id": "adapt-alice" },
+            "context":   {},
+            "decision":  "deny"
+        },
+        {
+            "name": "cloud_reads_diary_forbidden",
+            "principal": { "type": "Service", "id": "cloud" },
+            "action":    { "type": "Action", "id": "read" },
+            "resource":  { "type": "Diary", "id": "diary-alice" },
+            "context":   { "sanitized": true },
+            "decision":  "deny"
+        },
+        {
+            "name": "owner_reads_profile_allowed",
+            "principal": { "type": "User", "id": "alice" },
+            "action":    { "type": "Action", "id": "read" },
+            "resource":  { "type": "UserProfile", "id": "profile-alice" },
+            "context":   {},
+            "decision":  "allow"
+        },
+        {
+            "name": "other_user_reads_profile_denied",
+            "principal": { "type": "User", "id": "bob" },
+            "action":    { "type": "Action", "id": "read" },
+            "resource":  { "type": "UserProfile", "id": "profile-alice" },
+            "context":   {},
+            "decision":  "deny"
+        },
+        {
+            "name": "owner_writes_profile_allowed",
+            "principal": { "type": "User", "id": "alice" },
+            "action":    { "type": "Action", "id": "write" },
+            "resource":  { "type": "UserProfile", "id": "profile-alice" },
+            "context":   {},
+            "decision":  "allow"
+        },
+        {
+            "name": "other_user_writes_profile_denied",
+            "principal": { "type": "User", "id": "bob" },
+            "action":    { "type": "Action", "id": "write" },
+            "resource":  { "type": "UserProfile", "id": "profile-alice" },
+            "context":   {},
+            "decision":  "deny"
+        },
+        {
+            "name": "unknown_action_denied_by_default",
+            "principal": { "type": "User", "id": "alice" },
+            "action":    { "type": "Action", "id": "read" },
+            "resource":  { "type": "Diary", "id": "diary-bob" },
+            "context":   {},
+            "decision":  "deny"
+        }
+    ]
+}

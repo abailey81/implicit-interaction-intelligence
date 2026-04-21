@@ -1,0 +1,18 @@
+# ─── OSSF Allstar — repository opt-in ────────────────────────────────────
+#
+# Allstar (https://github.com/ossf/allstar) is a GitHub App run by the
+# OpenSSF that continuously enforces repo-level security policies.  This
+# file opts the `implicit-interaction-intelligence` repository into the
+# organisation-level Allstar configuration.
+#
+# Per-policy knobs live alongside this file:
+#   branch_protection.yaml — enforces PR reviews, signed commits, status checks
+#   security.yaml          — requires SECURITY.md
+optConfig:
+  optIn: true
+
+# Override org-level "issueLabel" so Allstar-filed issues are easy to spot.
+issueLabel: "ossf-allstar"
+
+# How often Allstar re-evaluates the policies (default 24h is fine).
+# schedule: "24h"

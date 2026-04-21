@@ -1,0 +1,12 @@
+# ─── OSSF Allstar — Security Policy policy ───────────────────────────────
+#
+# Ensures that the repository exposes a SECURITY.md (or equivalent) that
+# describes how to report vulnerabilities.  I³ already ships SECURITY.md
+# at the repo root; Allstar continuously verifies that it remains there.
+#
+# Reference:
+#   https://github.com/ossf/allstar/blob/main/pkg/policies/security/README.md
+optConfig:
+  optIn: true
+
+action: issue

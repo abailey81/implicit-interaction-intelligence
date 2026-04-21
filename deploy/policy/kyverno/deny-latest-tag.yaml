@@ -1,0 +1,56 @@
+# ─── Kyverno ClusterPolicy: reject `:latest` images ────────────────────────
+#
+# `:latest` images defeat supply-chain provenance because the mapping from
+# tag → digest is mutable and silent.  This policy rejects both explicitly
+# `:latest`-tagged and untagged images (Kubernetes defaults those to
+# `:latest`) across the entire cluster.
+#
+# Scope is cluster-wide because even images from ancillary namespaces that
+# the I³ pod might pull via init-containers or sidecars must carry an
+# immutable tag.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: deny-latest-tag
+  annotations:
+    policies.kyverno.io/title: Disallow `:latest` image tags
+    policies.kyverno.io/category: Best Practices
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      Reject pods using `:latest` or tagless images so that every deployment
+      is reproducible and auditable via a specific image tag / digest.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: disallow-latest-tag
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      validate:
+        message: >-
+          Images with `:latest` or no tag are forbidden. Pin to a specific
+          immutable tag (ideally a digest) — see deploy/policy/kyverno/README.md.
+        pattern:
+          spec:
+            containers:
+              - name: "*"
+                image: "!*:latest"
+    - name: require-tag
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      validate:
+        message: >-
+          An image tag is required. Untagged images default to `:latest` and
+          break reproducibility.
+        pattern:
+          spec:
+            containers:
+              - name: "*"
+                image: "*:*"
