@@ -1,0 +1,172 @@
+/* @theme i3 */
+/*
+ * Implicit Interaction Intelligence — Marp theme.
+ * Palette:
+ *   #1a1a2e  background
+ *   #16213e  panels / code
+ *   #0f3460  accent
+ *   #e94560  highlight
+ *   #a0a0b0  muted text
+ *   #f0f0f0  active text
+ */
+
+@import "default";
+
+:root {
+  --bg:        #1a1a2e;
+  --panel:     #16213e;
+  --accent:    #0f3460;
+  --highlight: #e94560;
+  --muted:     #a0a0b0;
+  --active:    #f0f0f0;
+  --mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+}
+
+section {
+  background-color: var(--bg);
+  color: var(--active);
+  font-family: var(--sans);
+  font-size: 26px;
+  padding: 56px 72px;
+}
+
+section::after {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 18px;
+}
+
+h1, h2, h3 {
+  color: var(--active);
+  font-family: var(--sans);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-bottom: 0.4em;
+}
+
+h1 {
+  font-size: 52px;
+  border-bottom: 2px solid var(--highlight);
+  padding-bottom: 0.2em;
+}
+
+h2 { font-size: 40px; }
+h3 { font-size: 28px; color: var(--muted); }
+
+strong { color: var(--highlight); }
+em { color: var(--muted); font-style: normal; }
+
+a { color: var(--highlight); text-decoration: none; border-bottom: 1px dotted var(--highlight); }
+
+ul, ol { line-height: 1.45; }
+li { margin: 0.28em 0; }
+li::marker { color: var(--highlight); }
+
+blockquote {
+  border-left: 4px solid var(--highlight);
+  background: var(--panel);
+  color: var(--active);
+  font-style: italic;
+  padding: 0.8em 1em;
+  margin: 0.8em 0;
+}
+
+code {
+  font-family: var(--mono);
+  background: var(--panel);
+  color: var(--active);
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+  font-size: 0.85em;
+}
+
+pre {
+  background: var(--panel);
+  color: var(--active);
+  border-left: 3px solid var(--highlight);
+  border-radius: 4px;
+  padding: 0.9em 1.1em;
+  font-family: var(--mono);
+  font-size: 20px;
+  line-height: 1.4;
+  overflow-x: auto;
+}
+
+pre code { background: none; padding: 0; }
+
+table {
+  border-collapse: collapse;
+  margin: 0.6em 0;
+  font-family: var(--mono);
+  font-size: 20px;
+  width: 100%;
+}
+
+th, td {
+  border-bottom: 1px solid var(--accent);
+  padding: 0.4em 0.7em;
+  text-align: left;
+  color: var(--active);
+}
+
+th {
+  color: var(--highlight);
+  font-weight: 600;
+  border-bottom: 2px solid var(--highlight);
+  letter-spacing: 0.02em;
+}
+
+tbody tr:nth-child(even) td { background: rgba(15, 52, 96, 0.35); }
+
+hr { border: 0; border-top: 1px solid var(--accent); margin: 1.2em 0; }
+
+footer, header {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 16px;
+}
+
+/* Title slide — marked with `<!-- _class: title -->` */
+section.title {
+  text-align: left;
+  padding-left: 96px;
+  background: linear-gradient(135deg, var(--bg) 0%, var(--accent) 100%);
+}
+
+section.title h1 {
+  font-size: 60px;
+  border: 0;
+  margin-bottom: 0.2em;
+}
+
+section.title h2 {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 28px;
+  border: 0;
+}
+
+/* Honesty slide — marked with `<!-- _class: honesty -->` */
+section.honesty h1 {
+  color: var(--highlight);
+  border-bottom-color: var(--active);
+}
+
+section.honesty strong { color: var(--active); }
+
+/* Close slide — marked with `<!-- _class: close -->` */
+section.close {
+  text-align: center;
+  background: radial-gradient(ellipse at center, var(--accent) 0%, var(--bg) 75%);
+}
+
+section.close blockquote {
+  font-size: 34px;
+  font-style: normal;
+  border: 0;
+  background: transparent;
+  color: var(--active);
+  margin: 0.6em auto;
+  max-width: 80%;
+}
