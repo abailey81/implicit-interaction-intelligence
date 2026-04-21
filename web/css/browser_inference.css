@@ -1,0 +1,250 @@
+/* ─────────────────────────────────────────────────────────────────
+ * browser_inference.css
+ * ─────────────────────
+ * Styling for the in-browser inference UI: the opt-in toggle,
+ * the floating latency / backend overlay, and the green
+ * "Verified local inference" pill.
+ *
+ * Palette matches the project accent (#e94560) and the dark
+ * background used in web/css/style.css.  All selectors are
+ * prefixed `.i3-` so they cannot collide with the existing
+ * stylesheet.
+ * ─────────────────────────────────────────────────────────────── */
+
+:root {
+    --i3-accent: #e94560;
+    --i3-accent-soft: rgba(233, 69, 96, 0.12);
+    --i3-verified: #2ecc71;
+    --i3-verified-soft: rgba(46, 204, 113, 0.18);
+    --i3-surface: rgba(26, 26, 46, 0.92);
+    --i3-surface-2: rgba(22, 33, 62, 0.94);
+    --i3-border: rgba(233, 69, 96, 0.35);
+    --i3-muted: rgba(255, 255, 255, 0.65);
+    --i3-text: #f5f5fa;
+    --i3-radius: 10px;
+}
+
+/* ── Floating container anchor ─────────────────────────────────── */
+#i3-browser-inference {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 9500;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 320px;
+    pointer-events: none; /* children re-enable */
+}
+
+#i3-browser-inference > * {
+    pointer-events: auto;
+}
+
+/* ── Toggle ────────────────────────────────────────────────────── */
+.i3-inference-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: var(--i3-surface);
+    border: 1px solid var(--i3-border);
+    border-radius: var(--i3-radius);
+    padding: 10px 12px;
+    color: var(--i3-text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 13px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(6px);
+}
+
+.i3-inference-toggle-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.25;
+}
+
+.i3-inference-toggle-label {
+    font-weight: 600;
+    color: var(--i3-text);
+    cursor: pointer;
+}
+
+.i3-inference-toggle-subtitle {
+    font-size: 11px;
+    color: var(--i3-muted);
+}
+
+.i3-inference-toggle-sliderwrap {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 22px;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.i3-inference-toggle-input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+}
+
+.i3-inference-toggle-slider {
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.14);
+    border-radius: 22px;
+    transition: background 0.18s ease;
+}
+
+.i3-inference-toggle-slider::before {
+    content: '';
+    position: absolute;
+    left: 3px;
+    top: 3px;
+    width: 16px;
+    height: 16px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.18s ease;
+}
+
+.i3-inference-toggle-input:checked + .i3-inference-toggle-slider {
+    background: var(--i3-accent);
+}
+
+.i3-inference-toggle-input:checked + .i3-inference-toggle-slider::before {
+    transform: translateX(18px);
+}
+
+.i3-inference-toggle-input:focus-visible + .i3-inference-toggle-slider {
+    outline: 2px solid var(--i3-accent);
+    outline-offset: 2px;
+}
+
+/* ── Metrics overlay ───────────────────────────────────────────── */
+.i3-metrics-overlay {
+    background: var(--i3-surface-2);
+    border: 1px solid var(--i3-border);
+    border-radius: var(--i3-radius);
+    color: var(--i3-text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 12px;
+    padding: 10px 12px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(6px);
+}
+
+.i3-metrics-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.i3-metrics-title {
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    color: var(--i3-accent);
+    text-transform: uppercase;
+    font-size: 11px;
+}
+
+/* ── Verified pill ─────────────────────────────────────────────── */
+.i3-metrics-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--i3-muted);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    transition: all 0.18s ease;
+}
+
+.i3-metrics-pill.is-active {
+    background: var(--i3-verified-soft);
+    color: var(--i3-verified);
+    border-color: var(--i3-verified);
+    box-shadow: 0 0 0 2px rgba(46, 204, 113, 0.18);
+}
+
+.i3-metrics-pill.is-active::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-right: 6px;
+    border-radius: 50%;
+    background: var(--i3-verified);
+    box-shadow: 0 0 6px var(--i3-verified);
+    animation: i3-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes i3-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.6; transform: scale(0.85); }
+}
+
+/* ── Metrics grid ──────────────────────────────────────────────── */
+.i3-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px 12px;
+}
+
+.i3-metrics-cell {
+    display: flex;
+    flex-direction: column;
+}
+
+.i3-metrics-label {
+    font-size: 10px;
+    color: var(--i3-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+}
+
+.i3-metrics-value {
+    font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+    font-size: 13px;
+    color: var(--i3-text);
+    font-variant-numeric: tabular-nums;
+}
+
+.i3-metrics-value.i3-metrics-p50 {
+    color: var(--i3-accent);
+}
+
+.i3-metrics-value.i3-metrics-backend {
+    font-size: 11px;
+    word-break: break-word;
+}
+
+/* ── Reduced-motion override ───────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+    .i3-metrics-pill.is-active::before { animation: none; }
+    .i3-inference-toggle-slider,
+    .i3-inference-toggle-slider::before {
+        transition: none;
+    }
+}
+
+/* ── Mobile / narrow viewport ──────────────────────────────────── */
+@media (max-width: 640px) {
+    #i3-browser-inference {
+        right: 8px;
+        bottom: 8px;
+        max-width: calc(100vw - 16px);
+    }
+    .i3-metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
