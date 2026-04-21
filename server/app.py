@@ -260,9 +260,17 @@ def create_app() -> FastAPI:
     app.include_router(api_router, prefix="/api")
     app.include_router(ws_router)
 
+    # What-if / adaptation-override endpoints for the interpretability panel.
+    from server.routes_whatif import include_whatif_routes
+    include_whatif_routes(app)
+
     # Admin routes — gated by I3_DISABLE_ADMIN env var (see server/routes_admin.py).
     from server.routes_admin import include_admin_routes
     include_admin_routes(app)
+
+    # Serve ONNX model blobs + cross-origin isolation headers for WebGPU/threaded WASM.
+    from server.routes_inference import include_inference_routes
+    include_inference_routes(app)
 
     # ------------------------------------------------------------------
     # Static files -- serve the demo UI (must be mounted *last* so API
