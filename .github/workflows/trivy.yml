@@ -30,7 +30,7 @@ jobs:
           persist-credentials: false
 
       - name: Run Trivy filesystem scan (SARIF)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.24.0
         with:
           scan-type: fs
           scan-ref: "."
@@ -49,7 +49,7 @@ jobs:
           category: trivy-fs
 
       - name: Fail on CRITICAL findings (filesystem)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.24.0
         with:
           scan-type: fs
           scan-ref: "."
@@ -72,7 +72,7 @@ jobs:
           persist-credentials: false
 
       - name: Run Trivy config scan (SARIF)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.24.0
         with:
           scan-type: config
           scan-ref: "."
@@ -90,7 +90,7 @@ jobs:
           category: trivy-config
 
       - name: Fail on CRITICAL config findings
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.24.0
         with:
           scan-type: config
           scan-ref: "."
@@ -126,7 +126,7 @@ jobs:
           echo "ref=${IMAGE}:${TAG}" >> "$GITHUB_OUTPUT"
 
       - name: Run Trivy image scan (SARIF)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.24.0
         continue-on-error: true
         with:
           image-ref: ${{ steps.image.outputs.ref }}
@@ -146,7 +146,7 @@ jobs:
 
       - name: Fail on CRITICAL image findings
         if: hashFiles('trivy-image.sarif') != ''
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.24.0
         with:
           image-ref: ${{ steps.image.outputs.ref }}
           severity: CRITICAL

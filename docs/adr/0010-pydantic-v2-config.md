@@ -59,24 +59,24 @@ time, with no chance of runtime drift.
 
 ### Option 2 — Pydantic v1 { #opt-2 }
 
-- ✅ Familiar.
-- ❌ Deprecated upstream. New FastAPI versions expect v2.
-- ❌ Slower validation.
-- ❌ `frozen` is awkward pre-v2.
+- Yes Familiar.
+- No Deprecated upstream. New FastAPI versions expect v2.
+- No Slower validation.
+- No `frozen` is awkward pre-v2.
 
 ### Option 3 — dataclass + manual validation { #opt-3 }
 
-- ✅ No third-party dependency.
-- ❌ Every cross-field rule written by hand.
-- ❌ YAML / env overlays require custom parsers.
-- ❌ Error messages are bespoke.
+- Yes No third-party dependency.
+- No Every cross-field rule written by hand.
+- No YAML / env overlays require custom parsers.
+- No Error messages are bespoke.
 
 ### Option 4 — Hydra / omegaconf { #opt-4 }
 
-- ✅ Excellent CLI composition, good for research sweeps.
-- ❌ Config is *not* a typed object — `DictConfig` loses IDE help.
-- ❌ Field validation is ad-hoc.
-- ❌ Overkill for our non-sweep production config.
+- Yes Excellent CLI composition, good for research sweeps.
+- No Config is *not* a typed object — `DictConfig` loses IDE help.
+- No Field validation is ad-hoc.
+- No Overkill for our non-sweep production config.
 
 ## References { #refs }
 

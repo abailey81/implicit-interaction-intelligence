@@ -62,17 +62,17 @@ to any one vendor.
 
 ### Option 2 — Prometheus only { #opt-2 }
 
-- ✅ Very simple.
-- ❌ No distributed traces.
-- ❌ Harder to answer "why was *this specific request* slow?"
-- ❌ No native correlation with logs.
+- Yes Very simple.
+- No No distributed traces.
+- No Harder to answer "why was *this specific request* slow?"
+- No No native correlation with logs.
 
 ### Option 3 — Vendor SDK { #opt-3 }
 
-- ✅ Richer out-of-the-box dashboards from the vendor.
-- ❌ Vendor lock-in.
-- ❌ Forces every operator to adopt the same backend.
-- ❌ Violates the "edge-ready" posture — most vendor SDKs have opinions
+- Yes Richer out-of-the-box dashboards from the vendor.
+- No Vendor lock-in.
+- No Forces every operator to adopt the same backend.
+- No Violates the "edge-ready" posture — most vendor SDKs have opinions
   about egress.
 
 ## References { #refs }

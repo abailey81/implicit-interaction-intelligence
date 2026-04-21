@@ -45,10 +45,10 @@ Tamer Atesyakar — UCL MSc Digital Finance & Banking — 29 April 2026
 
 # Your phone does not notice
 
-- Siri answers the words, not the **pace**, **pauses**, or **edits**.
-- ChatGPT is the same today as yesterday — **you** changed; it did not.
-- "Settings" is the wrong place to carry your state.
-- Implicit signals exist in every keystroke — nobody is reading them.
+- Siri answers the words — not the **pace**, **pauses**, or **edits**.
+- ChatGPT today is the same as yesterday; **you** are not.
+- "Settings" is the wrong home for your state.
+- Implicit signals are in every keystroke — nobody reads them.
 
 > Current conversational AI responds to **what** you say,
 > not **how** you say it.
@@ -62,7 +62,7 @@ Tamer Atesyakar — UCL MSc Digital Finance & Banking — 29 April 2026
 - **HarmonyOS 6 + HMAF** — large model, small model, agent core ¹
 - **Smart Hanhan** — launched Nov 2025, 1800 mAh, 64 MB class ²
 - **AI Glasses** — launched 21 April 2026, offloads to phone ³
-- **Edinburgh Joint Lab** — "sparse or implicit signals," Nissim, 10 Mar 2026 ⁴
+- **Edinburgh Joint Lab** — "sparse or implicit signals," Nissim, Mar 2026 ⁴
 - **Eric Xu** — "experience, not computing power" ⁵
 
 *Three-tier architecture + on-device-first + behavioural signals —
@@ -108,7 +108,7 @@ the fit is not accidental.*
 - Server-side linguistic: TTR, Flesch–Kincaid, formality, sentiment.
 - Raw stream → TCN encoder → 64-dim L2-normalised embedding.
 - Dilated causal convolutions, kernel `k=3`, dilations `[1,2,4,8]`.
-- Receptive field: `r = 1 + (k-1) · Σdᵢ = 1 + 2·(1+2+4+8) = 31` messages.
+- Receptive field `r = 1 + (k−1)·Σdᵢ = 31` messages.
 - Trained with **NT-Xent** contrastive loss on synthetic archetypes.
 
 <footer>Bai, Kolter, Koltun 2018 — receptive-field formula. Chen et al. 2020 (SimCLR) — NT-Xent.</footer>
@@ -121,9 +121,9 @@ the fit is not accidental.*
 - `Instant` — current message, drives this response.
 - `Session EMA` — within-conversation trend, detects drift.
 - `Long-term EMA` — baseline across sessions, detects today ≠ usual.
-- Running Welford statistics — no history re-read, O(1) per update.
-- Deviation `z = (x − μ) / σ` per feature feeds back as Group 4.
-- **Baseline established after 5 messages** — flag flips live in demo.
+- Welford online statistics — no history re-read, O(1) per update.
+- Deviation `z = (x − μ)/σ` feeds back as Group 4.
+- **Baseline after 5 messages** — flag flips live in the demo.
 
 *A single EMA collapses these; three keeps the structure.*
 
@@ -154,10 +154,10 @@ h = block.ffn(h)                                   # features
 
 # Live demo — four phases
 
-- **1. Cold start (2 min)** — 5 messages, baseline establishes, router favours cloud.
-- **2. Energetic (1 min)** — fast, long, rich; load rises, style mirrors up.
-- **3. Fatigue (2 min)** — slower, shorter; gauge drops, warmer + briefer; router flips local.
-- **4. Accessibility (2 min)** — many backspaces, fragments; yes/no register, simpler vocab.
+- **1. Cold start (2 min)** — 5 messages; baseline establishes; router favours cloud.
+- **2. Energetic (1 min)** — fast, long, rich; load rises; style mirrors up.
+- **3. Fatigue (2 min)** — shorter; warmer + briefer; router flips to local.
+- **4. Accessibility (2 min)** — backspaces, fragments; yes/no, simpler vocab.
 
 *Dashboard is the visual anchor — embedding trail, four gauges, routing confidence.*
 
@@ -170,7 +170,7 @@ h = block.ffn(h)                                   # features
 # Routing — when to spend a cloud call
 
 - **Two arms:** local SLM (latency) vs cloud Claude (quality).
-- **12-dim context:** state, complexity, sensitivity, patience, session, route history, time, count, cloud-latency estimate, SLM confidence.
+- **12-dim context:** state, complexity, sensitivity, patience, session, history, time, count, cloud latency, SLM confidence.
 - Bayesian logistic regression + **Laplace approximation**.
 - **Newton–Raphson MAP refit every 10 steps** — online posterior.
 - **Privacy override** — sensitive topic → cloud arm masked to zero.
@@ -184,7 +184,7 @@ h = block.ffn(h)                                   # features
 
 # Privacy by architecture, not policy
 
-- **Raw text is never stored** — enforced at the storage layer, no toggle.
+- **Raw text is never stored** — enforced at storage, no toggle.
 - **Embeddings Fernet-encrypted at rest** — `I3_ENCRYPTION_KEY`.
 - **10 PII regex patterns** — strip email/phone/address/date/card before cloud.
 - **Sensitive-topic classifier** — health / mental / financial / credentials.
@@ -208,7 +208,7 @@ h = block.ffn(h)                                   # features
 | `Laptop (M-class)`  | `16 GB` | `—`      | `~7 MB INT8` | `~150–220 ms`    |
 
 - Measured laptop P50: `150–220 ms` full pipeline; TCN `<5 ms`.
-- Kirin numbers are **extrapolation from quantised sizes + published NPU throughput** — not measured.
+- Kirin numbers are **extrapolated** from quantised sizes + NPU throughput — not measured.
 - Conversion target: **MindSpore Lite** (PyTorch → ONNX → MS Lite).
 
 <footer>Device specs: consumer.huawei.com / developer.huawei.com (2024–2026). NPU TOPS: public Kirin datasheets. Extrapolation is a caveat, not a claim.</footer>
@@ -217,12 +217,12 @@ h = block.ffn(h)                                   # features
 
 <!-- _class: honesty -->
 
-# What this prototype is *not*
+# What This Prototype Is Not
 
 - **Not a shipped product.** A 17-day prototype, on one laptop.
 - **Not trained on real user data** — synthetic archetypes from HCI literature.
-- **Not a strong SLM** — 8 M params, limited by synthetic dialogue training.
-- **Not universal accessibility detection** — keystroke-only misses screen-reader, voice-control, gaze users. Must stay opt-out capable.
+- **Not a strong SLM** — 8 M params, limited by synthetic dialogue.
+- **Not universal accessibility** — keystroke misses screen-reader, voice, gaze users. Must stay opt-out.
 - **Not zero-information embeddings** — lossy, abstract, still identity-signalling.
 - **Not multi-modal yet** — keystroke only; the TCN itself is modality-agnostic.
 
@@ -233,10 +233,10 @@ h = block.ffn(h)                                   # features
 # Where this goes next
 
 - **L1 → L5 intelligence.** Prototype lives at **L2–L3** (single-device proactive). ¹
-- **L4 — device-to-device handover.** Phone → AI Glasses → Smart Hanhan via HarmonyOS distributed databus.
+- **L4 — device-to-device handover.** Phone → Glasses → Hanhan over HarmonyOS databus.
 - **L5 — autonomous orchestration.** Goal-driven, multi-device, state-aware.
 - **Federated long-term profile** — MindSpore Federated, embeddings never leave device.
-- **Multi-modal extension is trivial** — TCN swaps keystroke for touch, gaze, voice pace, accelerometer.
+- **Multi-modal is a drop-in** — TCN swaps keystroke for touch, gaze, voice, motion.
 - **In scope next:** keystroke-biometric identification, fairness eval, interpretability panel, ablation toggle.
 
 <footer>¹ Huawei + Tsinghua IAIR — L1–L5 Intelligence Framework (public whitepaper, 2025).</footer>

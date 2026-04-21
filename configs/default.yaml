@@ -86,7 +86,7 @@ slm:
 
 cloud:
   provider: "anthropic"
-  model: "claude-sonnet-4-20250514"
+  model: "claude-sonnet-4-5"            # brief §8: locked model id
   max_tokens: 200
   timeout: 10.0
   fallback_on_error: true

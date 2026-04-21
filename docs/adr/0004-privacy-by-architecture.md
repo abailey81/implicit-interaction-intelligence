@@ -71,17 +71,17 @@ changing.
 
 ### Option 1 — Policy-based { #opt-1 }
 
-- ✅ Zero implementation effort.
-- ❌ Fails silently on the first refactor that forgets the rule.
-- ❌ Cannot satisfy a "no raw text on disk" auditor.
+- Yes Zero implementation effort.
+- No Fails silently on the first refactor that forgets the rule.
+- No Cannot satisfy a "no raw text on disk" auditor.
 
 ### Option 2 — Field-level encryption of raw text { #opt-2 }
 
-- ✅ Reversible for legitimate debugging.
-- ❌ Still writes data — a key-management failure or a mis-grant is a
+- Yes Reversible for legitimate debugging.
+- No Still writes data — a key-management failure or a mis-grant is a
   wholesale leak.
-- ❌ Complicates backup and migration.
-- ❌ Sends a worse signal about the product's posture.
+- No Complicates backup and migration.
+- No Sends a worse signal about the product's posture.
 
 ## References { #refs }
 

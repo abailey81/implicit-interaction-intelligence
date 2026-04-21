@@ -64,22 +64,22 @@ without re-training from a random initialisation.
 
 ### Option 2 — HuggingFace + LoRA adapter { #opt-2 }
 
-- ✅ Strong factual recall out of the box.
-- ✅ Massive community and tooling.
-- ❌ LoRA adds parameters into existing linear layers; it cannot synthesise
+- Yes Strong factual recall out of the box.
+- Yes Massive community and tooling.
+- No LoRA adds parameters into existing linear layers; it cannot synthesise
   new architecture (a dedicated cross-attention between self-attn and FFN).
-- ❌ Even with LoRA adapters, pre-trained attention patterns resist
+- No Even with LoRA adapters, pre-trained attention patterns resist
   re-purposing without full fine-tune.
-- ❌ Minimum useful size is > 500M params — infeasible for the 20 MB
+- No Minimum useful size is > 500M params — infeasible for the 20 MB
   INT8 target on a Kirin A2 wearable.
 
 ### Option 3 — ONNX Runtime + pre-compiled decoder { #opt-3 }
 
-- ✅ Very fast inference on many targets.
-- ✅ Removes a PyTorch dependency.
-- ❌ Cannot modify model graph inside a block at training time.
-- ❌ Pre-compiled decoders do not expose cross-attention hooks.
-- ❌ Loses the "every layer is custom" pedagogical value.
+- Yes Very fast inference on many targets.
+- Yes Removes a PyTorch dependency.
+- No Cannot modify model graph inside a block at training time.
+- No Pre-compiled decoders do not expose cross-attention hooks.
+- No Loses the "every layer is custom" pedagogical value.
 
 ## References { #refs }
 

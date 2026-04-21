@@ -62,19 +62,19 @@ We need a reproducible Python packaging story that:
 
 ### Option 2 — pip-tools { #opt-2 }
 
-- ✅ Minimal, composable.
-- ❌ No native group concept — requires multiple `requirements*.in`
+- Yes Minimal, composable.
+- No No native group concept — requires multiple `requirements*.in`
   files and tooling around them.
-- ❌ No built-in publish flow.
-- ❌ Discovery is worse for new contributors.
+- No No built-in publish flow.
+- No Discovery is worse for new contributors.
 
 ### Option 3 — uv + hatch { #opt-3 }
 
-- ✅ Very fast resolver.
-- ✅ PEP 621 purity with `hatch`.
-- ❌ uv is still maturing for group workflows (late 2025 /2026).
-- ❌ Ecosystem documentation assumes Poetry or pip-tools.
-- ❌ Two tools to learn instead of one.
+- Yes Very fast resolver.
+- Yes PEP 621 purity with `hatch`.
+- No uv is still maturing for group workflows (late 2025 /2026).
+- No Ecosystem documentation assumes Poetry or pip-tools.
+- No Two tools to learn instead of one.
 
 ## References { #refs }
 

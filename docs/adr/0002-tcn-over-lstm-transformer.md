@@ -62,19 +62,19 @@ Layer 2 encodes a sequence of 32-dim interaction feature vectors into a
 
 ### Option 2 — LSTM / GRU { #opt-2 }
 
-- ✅ Unbounded effective memory.
-- ❌ Serial forward pass; 3–4× slower per batch on CPU.
-- ❌ Gradient flow fragile on small synthetic datasets.
-- ❌ Harder to augment for contrastive learning (stateful).
+- Yes Unbounded effective memory.
+- No Serial forward pass; 3–4× slower per batch on CPU.
+- No Gradient flow fragile on small synthetic datasets.
+- No Harder to augment for contrastive learning (stateful).
 
 ### Option 3 — Transformer encoder { #opt-3 }
 
-- ✅ Fully parallel, attention is interpretable.
-- ❌ \(\mathcal{O}(T^2)\) attention at inference time; with sequences of
+- Yes Fully parallel, attention is interpretable.
+- No \(\mathcal{O}(T^2)\) attention at inference time; with sequences of
   60+ steps this exceeds our 5 ms CPU budget at 64-dim.
-- ❌ At 50k params, self-attention is under-provisioned and behaves
+- No At 50k params, self-attention is under-provisioned and behaves
   poorly with NT-Xent (collapses to uniform attention).
-- ❌ No strong inductive bias for locality, which the keystroke feature
+- No No strong inductive bias for locality, which the keystroke feature
   sequence has.
 
 ## References { #refs }

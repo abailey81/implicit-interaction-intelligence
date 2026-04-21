@@ -228,6 +228,29 @@ nav:
       - Kubernetes: operations/kubernetes.md
       - Runbook: operations/runbook.md
       - Troubleshooting: operations/troubleshooting.md
+      - Edge Profiling Report: edge_profiling_report.md
+      - MLOps: mlops/README.md
+  - Responsible AI:
+      - responsible_ai/README.md
+      - Model Card (SLM): responsible_ai/model_card_slm.md
+      - Model Card (TCN): responsible_ai/model_card_tcn.md
+      - Data Card: responsible_ai/data_card.md
+      - Accessibility Statement: responsible_ai/accessibility_statement.md
+  - Huawei:
+      - huawei/README.md
+      - HarmonyOS + HMAF Integration: huawei/harmony_hmaf_integration.md
+      - Kirin Deployment: huawei/kirin_deployment.md
+      - L1–L5 Framework: huawei/l1_l5_framework.md
+      - Edinburgh Joint Lab: huawei/edinburgh_joint_lab.md
+      - Smart Hanhan: huawei/smart_hanhan.md
+      - Interview Talking Points: huawei/interview_talking_points.md
+  - Slides:
+      - slides/README.md
+      - Presentation: slides/presentation.md
+      - Speaker Notes: slides/speaker_notes.md
+      - Rehearsal Timings: slides/rehearsal_timings.md
+      - Q&A Prep: slides/qa_prep.md
+      - Closing Lines: slides/closing_lines.md
   - ADRs:
       - adr/index.md
       - Template: adr/template.md

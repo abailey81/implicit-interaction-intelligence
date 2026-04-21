@@ -68,18 +68,18 @@ The framework needs to:
 
 ### Option 2 — Flask + extensions { #opt-2 }
 
-- ✅ Broadest third-party ecosystem.
-- ❌ Sync-first; async support is a retrofit.
-- ❌ Extension matrix is fragile and historically drifts with Flask
+- Yes Broadest third-party ecosystem.
+- No Sync-first; async support is a retrofit.
+- No Extension matrix is fragile and historically drifts with Flask
   majors.
-- ❌ No native OpenAPI — bolt-ons tend to lag framework updates.
+- No No native OpenAPI — bolt-ons tend to lag framework updates.
 
 ### Option 3 — aiohttp / Sanic { #opt-3 }
 
-- ✅ Async-native, lower overhead per request.
-- ❌ No first-class Pydantic integration; validation must be hand-written.
-- ❌ Smaller ecosystem for things like CORS/rate-limiting middleware.
-- ❌ Less production-audit-friendly OpenAPI story.
+- Yes Async-native, lower overhead per request.
+- No No first-class Pydantic integration; validation must be hand-written.
+- No Smaller ecosystem for things like CORS/rate-limiting middleware.
+- No Less production-audit-friendly OpenAPI story.
 
 ## References { #refs }
 

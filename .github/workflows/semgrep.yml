@@ -25,7 +25,7 @@ jobs:
       security-events: write
       actions: read
     container:
-      image: semgrep/semgrep:latest
+      image: semgrep/semgrep:1.78.0
     steps:
       - name: Checkout
         uses: actions/checkout@v4

@@ -60,22 +60,22 @@ important but should not require a downtime.
 
 ### Option 2 — AES-GCM { #opt-2 }
 
-- ✅ Faster on modern CPUs with AES-NI.
-- ✅ 256-bit keys.
-- ❌ Caller responsible for nonce uniqueness.
-- ❌ Multi-key rotation must be hand-rolled.
+- Yes Faster on modern CPUs with AES-NI.
+- Yes 256-bit keys.
+- No Caller responsible for nonce uniqueness.
+- No Multi-key rotation must be hand-rolled.
 
 ### Option 3 — ChaCha20-Poly1305 { #opt-3 }
 
-- ✅ Great on devices without AES-NI.
-- ❌ Same nonce-management footgun.
-- ❌ No library-level multi-key rotation.
+- Yes Great on devices without AES-NI.
+- No Same nonce-management footgun.
+- No No library-level multi-key rotation.
 
 ### Option 4 — Custom AES-CTR + HMAC { #opt-4 }
 
-- ❌ Cryptographic construction we would have to audit ourselves.
-- ❌ "Don't roll your own crypto" — especially in a privacy-first project.
-- ❌ Zero upside.
+- No Cryptographic construction we would have to audit ourselves.
+- No "Don't roll your own crypto" — especially in a privacy-first project.
+- No Zero upside.
 
 ## References { #refs }
 

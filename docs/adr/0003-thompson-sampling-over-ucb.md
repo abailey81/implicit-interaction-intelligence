@@ -59,21 +59,21 @@ We need an exploration strategy that:
 
 ### Option 2 — UCB { #opt-2 }
 
-- ✅ Deterministic; easier to reproduce in tests.
-- ✅ Well-understood confidence-bound tuning.
-- ❌ Requires an exploration parameter (`c`) that is non-trivial to set
+- Yes Deterministic; easier to reproduce in tests.
+- Yes Well-understood confidence-bound tuning.
+- No Requires an exploration parameter (`c`) that is non-trivial to set
   correctly under a logistic reward model.
-- ❌ Does not adapt as gracefully as Thompson to non-stationary rewards.
-- ❌ Sample complexity constants are worse than Thompson in the
+- No Does not adapt as gracefully as Thompson to non-stationary rewards.
+- No Sample complexity constants are worse than Thompson in the
   contextual linear case at realistic \(d\) and \(T\).
 
 ### Option 3 — Epsilon-greedy { #opt-3 }
 
-- ✅ Simplest possible.
-- ❌ Exploration is uncorrelated with data uncertainty.
-- ❌ The \(\epsilon\) schedule is either too aggressive early or too lazy
+- Yes Simplest possible.
+- No Exploration is uncorrelated with data uncertainty.
+- No The \(\epsilon\) schedule is either too aggressive early or too lazy
   late; every user drifts on a different schedule.
-- ❌ Rejects Bayesian machinery we already want for calibration.
+- No Rejects Bayesian machinery we already want for calibration.
 
 ## References { #refs }
 

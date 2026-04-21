@@ -61,18 +61,18 @@ load balancer.
 
 ### Option 2 — Redis { #opt-2 }
 
-- ✅ In-memory speed.
-- ❌ Requires a second process / container for the demo.
-- ❌ Persistence semantics (AOF / RDB) are configurable but not ACID.
-- ❌ Fernet-at-rest is awkward (Redis' own encryption is a paid feature).
-- ❌ Does not fit the "one-node, one-file" edge story.
+- Yes In-memory speed.
+- No Requires a second process / container for the demo.
+- No Persistence semantics (AOF / RDB) are configurable but not ACID.
+- No Fernet-at-rest is awkward (Redis' own encryption is a paid feature).
+- No Does not fit the "one-node, one-file" edge story.
 
 ### Option 3 — PostgreSQL { #opt-3 }
 
-- ✅ Industry-standard, rich query language.
-- ✅ Logical replication, high availability.
-- ❌ Overkill for on-device / single-node scope.
-- ❌ Requires operator to run a DB alongside the app.
+- Yes Industry-standard, rich query language.
+- Yes Logical replication, high availability.
+- No Overkill for on-device / single-node scope.
+- No Requires operator to run a DB alongside the app.
 
 ## References { #refs }
 
