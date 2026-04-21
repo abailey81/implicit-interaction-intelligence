@@ -1,0 +1,46 @@
+# Backstage API entities for I^3.
+#
+# FastAPI generates the OpenAPI JSON at runtime from its route metadata, so
+# ``spec.definition`` points at a placeholder path which is resolved by the
+# TechDocs build step (``$text`` is lazy-evaluated by the catalog backend).
+#
+# Docs: https://backstage.io/docs/features/software-catalog/descriptor-format#kind-api
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: i3-http-api
+  title: "I^3 HTTP API"
+  description: >-
+    REST + SSE endpoints exposed by the I^3 FastAPI server -- inference,
+    user-state queries, streaming traces, and admin operations.
+  tags:
+    - openapi
+    - fastapi
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+spec:
+  type: openapi
+  lifecycle: experimental
+  owner: group:default/hmi-lab
+  system: i3-system
+  definition:
+    $text: ./docs/api/openapi.json
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: i3-mcp-api
+  title: "I^3 MCP API"
+  description: >-
+    Model Context Protocol tools exposed to Claude Code and other MCP
+    clients. Schema follows the MCP JSON-RPC specification.
+  tags:
+    - mcp
+    - jsonrpc
+spec:
+  type: grpc  # closest Backstage-supported type for JSON-RPC-over-stdio
+  lifecycle: experimental
+  owner: group:default/hmi-lab
+  system: i3-system
+  definition:
+    $text: ./docs/api/mcp-tools.json

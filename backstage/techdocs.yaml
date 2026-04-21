@@ -1,0 +1,44 @@
+# Backstage TechDocs configuration for I^3.
+#
+# TechDocs is Backstage's "docs-as-code" feature: it builds MkDocs sites
+# on a schedule and serves them inside the developer portal. See
+# https://backstage.io/docs/features/techdocs/
+#
+# This file is picked up by the TechDocs builder whenever it clones the
+# I^3 repo; pointing `site.dir` at `docs/` reuses the main MkDocs config
+# (see ../mkdocs.yml).
+
+site_name: "I^3 Engineering Handbook"
+site_description: >-
+  Architecture, operations, and research documentation for Implicit
+  Interaction Intelligence.
+
+docs_dir: ../docs
+site_dir: site
+
+plugins:
+  - techdocs-core
+
+nav:
+  - Home: index.md
+  - Getting started:
+      - getting-started/index.md
+  - Architecture:
+      - ARCHITECTURE.md
+      - architecture/index.md
+  - Operations:
+      - operations/deployment.md
+      - operations/observability.md
+      - operations/runbook.md
+      - operations/developer_experience.md
+  - Security:
+      - security/index.md
+  - API reference:
+      - api/index.md
+
+# Backstage-specific metadata exposed to the catalog entry.
+backstage:
+  entity:
+    kind: Component
+    name: i3
+    namespace: default

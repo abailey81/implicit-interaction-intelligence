@@ -1,0 +1,56 @@
+# Backstage Service Catalog entry for Implicit Interaction Intelligence.
+#
+# Register this repo in your Backstage instance via:
+#   Create -> Register Existing Component ->
+#     https://github.com/hmi-lab/i3/blob/main/backstage/catalog-info.yaml
+#
+# Docs: https://backstage.io/docs/features/software-catalog/descriptor-format
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: i3
+  title: "Implicit Interaction Intelligence (I^3)"
+  description: >-
+    Privacy-preserving behavioural user modelling from passive signals --
+    FastAPI server, MCP bridge, and continuous learning pipeline.
+  tags:
+    - python
+    - fastapi
+    - ml
+    - mcp
+    - privacy
+    - observability
+  links:
+    - url: https://github.com/hmi-lab/i3
+      title: Source
+      icon: github
+    - url: https://i3.hmi-lab.example/docs
+      title: API docs
+      icon: docs
+    - url: https://grafana.hmi-lab.example/d/i3-overview
+      title: Grafana dashboards
+      icon: dashboard
+    - url: https://pyroscope.hmi-lab.example/explore?queryType=metrics&query=i3-server
+      title: Pyroscope profiles
+      icon: dashboard
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+    github.com/project-slug: hmi-lab/i3
+    github.com/workflows: "ci.yml,release.yml,pyroscope.yml"
+    pagerduty.com/integration-key: ${PAGERDUTY_I3_INTEGRATION_KEY}
+    prometheus.io/rule: i3-server
+    grafana/dashboard-selector: "tags @> 'i3'"
+    sonarqube.org/project-key: hmi-lab_i3
+    jira/project-key: I3
+    sentry.io/project-slug: hmi-lab/i3
+spec:
+  type: service
+  lifecycle: experimental
+  owner: group:default/hmi-lab
+  system: i3-system
+  providesApis:
+    - i3-http-api
+    - i3-mcp-api
+  dependsOn:
+    - resource:default/i3-observability
+    - resource:default/i3-model-registry

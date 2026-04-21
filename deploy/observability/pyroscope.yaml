@@ -1,0 +1,59 @@
+# Pyroscope server config for I^3 continuous profiling.
+#
+# Pyroscope (https://grafana.com/oss/pyroscope/) was acquired by Grafana
+# Labs in 2023 and re-released as the Grafana Pyroscope open-source
+# continuous profiling stack. It ingests pprof-compatible profiles
+# (CPU, allocations, goroutines, mutex, block) and renders flame graphs.
+
+server:
+  http_listen_port: 4040
+  log_level: info
+
+distributor:
+  ring:
+    kvstore:
+      store: memberlist
+
+ingester:
+  lifecycler:
+    ring:
+      kvstore:
+        store: memberlist
+      replication_factor: 1
+
+memberlist:
+  join_members:
+    - pyroscope:7946
+
+storage:
+  backend: filesystem
+  filesystem:
+    dir: /var/lib/pyroscope/data
+
+# 30-day retention for flame graphs
+limits:
+  max_query_length: 720h
+  max_query_parallelism: 16
+  retention_period: 720h
+
+# Which applications we expect to receive profiles from.
+# Note: clients *self-register*; this list is informational and used
+# for default dashboards.
+scrape_configs:
+  - job_name: i3-server
+    scrape_interval: 15s
+    static_configs:
+      - targets:
+          - i3-server:6060
+        labels:
+          service_name: i3-server
+          env: production
+
+  - job_name: i3-mcp
+    scrape_interval: 15s
+    static_configs:
+      - targets:
+          - i3-mcp:6060
+        labels:
+          service_name: i3-mcp
+          env: production

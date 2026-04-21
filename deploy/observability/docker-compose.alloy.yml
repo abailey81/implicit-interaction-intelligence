@@ -1,0 +1,49 @@
+# Stand-alone Grafana Alloy compose file.
+#
+# Run:  docker compose -f deploy/observability/docker-compose.alloy.yml up -d
+#
+# Alloy receives OTLP on 4317/4318, scrapes I^3 on :8000, and forwards
+# everything to the Tempo / Mimir / Loki endpoints configured via env.
+
+version: "3.9"
+
+services:
+  alloy:
+    image: grafana/alloy:v1.1.0
+    container_name: i3-alloy
+    restart: unless-stopped
+    command:
+      - run
+      - /etc/alloy/config.river
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+      - "9100:9100"   # node_exporter (host metrics)
+      - "12345:12345" # Alloy UI
+    volumes:
+      - ./grafana-alloy.river:/etc/alloy/config.river:ro
+      - alloy-data:/var/lib/alloy/data
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    environment:
+      TEMPO_ENDPOINT:         ${TEMPO_ENDPOINT:-tempo:4317}
+      TEMPO_INSECURE:         ${TEMPO_INSECURE:-true}
+      MIMIR_REMOTE_WRITE_URL: ${MIMIR_REMOTE_WRITE_URL:-http://mimir:9009/api/v1/push}
+      MIMIR_USERNAME:         ${MIMIR_USERNAME:-anonymous}
+      MIMIR_PASSWORD:         ${MIMIR_PASSWORD:-}
+      LOKI_PUSH_URL:          ${LOKI_PUSH_URL:-http://loki:3100/loki/api/v1/push}
+      LOKI_USERNAME:          ${LOKI_USERNAME:-anonymous}
+      LOKI_PASSWORD:          ${LOKI_PASSWORD:-}
+    networks:
+      - observability
+
+networks:
+  observability:
+    name: i3-observability
+    driver: bridge
+
+volumes:
+  alloy-data:

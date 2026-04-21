@@ -152,6 +152,40 @@ torchao        = ">=0.11"            # INT4/INT8 weight-only quantization
 executorch     = ">=0.4"             # On-device PyTorch runtime
 langfuse       = ">=2.40"            # LLM tracing + cost tracking
 
+# ─── Analytics Dependencies (2026 modern data stack) ─────────────────────
+# Soft-imported by i3/analytics/*; the runtime service boots without them.
+# Enables DuckDB-over-SQLite analytics, Polars streaming feature pipelines,
+# LanceDB vector similarity search, portable Ibis expressions, and Arrow/
+# Parquet interop — all without modifying the aiosqlite transactional path.
+[tool.poetry.group.analytics.dependencies]
+duckdb            = ">=1.0"
+polars            = ">=1.0"
+lancedb           = ">=0.11"
+"ibis-framework"  = { version = ">=9.0", extras = ["duckdb"] }
+pyarrow           = ">=15.0"
+
+# ─── Distributed Training + High-Throughput Serving ─────────────────────
+# All soft-imported by i3/serving/* and training/train_*_fabric|accelerate|
+# deepspeed.py. The scale-up path: Fabric / Accelerate / DeepSpeed for
+# multi-GPU and multi-node training, Ray Serve for replica-level
+# autoscaling, Triton for multi-model dynamic batching, vLLM for high-
+# throughput LLM serving once an export path exists.
+#
+# NOTE: vllm ships CUDA-only wheels (no CPU / no Windows) and pulls
+# xformers + flash-attn transitively. It is declared as an optional extra
+# so `poetry install --with distributed` still works on CPU-only or
+# non-Linux dev boxes; use `poetry install --with distributed -E vllm`
+# on CUDA Linux hosts.
+[tool.poetry.group.distributed.dependencies]
+lightning      = ">=2.3"             # Fabric (lightweight distributed)
+accelerate     = ">=0.30"            # HuggingFace Accelerate path
+"ray"          = { version = ">=2.10", extras = ["serve"] }
+deepspeed      = ">=0.14"            # ZeRO-3 + CPU offload
+vllm           = { version = ">=0.5", optional = true, markers = "platform_machine == 'x86_64' and sys_platform == 'linux'" }
+
+[tool.poetry.extras]
+vllm = ["vllm"]
+
 # ─── Security Dependencies ───────────────────────────────────────────────
 [tool.poetry.group.security.dependencies]
 bandit           = { version = "^1.7", extras = ["toml"] }

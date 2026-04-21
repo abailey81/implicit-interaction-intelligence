@@ -1,0 +1,161 @@
+// Grafana Alloy configuration for Implicit Interaction Intelligence (I^3).
+//
+// Alloy (https://grafana.com/docs/alloy/) is the next-gen telemetry
+// collector from Grafana Labs, announced in 2024 as the successor to the
+// Prometheus Agent mode and (with some overlap) to the OpenTelemetry
+// Collector + Fluent Bit combo. It speaks Prometheus, OTLP, Loki, and
+// Pyroscope natively.
+//
+// This config collects:
+//   * OTLP traces + metrics + logs on :4317 / :4318   (from the I^3 app)
+//   * Prometheus scrape of the I^3 /metrics endpoint  (on :8000)
+//   * Host-level node_exporter metrics                 (on :9100)
+//
+// And exports to:
+//   * Tempo   (traces)
+//   * Mimir   (metrics, Prom remote_write)
+//   * Loki    (logs)
+//
+// Sensitive keys are redacted to match the structlog redaction list in
+//   i3/observability/logging.py.
+
+// ===========================================================================
+// Receivers
+// ===========================================================================
+
+otelcol.receiver.otlp "default" {
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+
+  output {
+    traces  = [otelcol.processor.attributes.redact.input]
+    metrics = [otelcol.processor.attributes.redact.input]
+    logs    = [otelcol.processor.attributes.redact.input]
+  }
+}
+
+prometheus.scrape "i3_app" {
+  targets = [
+    { __address__ = "i3-server:8000", job = "i3" },
+  ]
+  metrics_path    = "/metrics"
+  scrape_interval = "15s"
+  forward_to      = [prometheus.relabel.default.receiver]
+}
+
+prometheus.exporter.unix "host" {
+  include_exporter_metrics = false
+}
+
+prometheus.scrape "node_exporter" {
+  targets    = prometheus.exporter.unix.host.targets
+  forward_to = [prometheus.relabel.default.receiver]
+}
+
+// ===========================================================================
+// Processors
+// ===========================================================================
+
+// Strip well-known sensitive attributes to match structlog redaction list.
+otelcol.processor.attributes "redact" {
+  action {
+    key    = "authorization"
+    action = "delete"
+  }
+  action {
+    key    = "api_key"
+    action = "delete"
+  }
+  action {
+    key    = "password"
+    action = "delete"
+  }
+  action {
+    key    = "anthropic_api_key"
+    action = "delete"
+  }
+  action {
+    key    = "i3_encryption_key"
+    action = "delete"
+  }
+  action {
+    key    = "cookie"
+    action = "delete"
+  }
+  action {
+    key    = "set-cookie"
+    action = "delete"
+  }
+  action {
+    key    = "x-user-id"
+    action = "hash"
+  }
+
+  output {
+    traces  = [otelcol.exporter.otlp.tempo.input]
+    metrics = [otelcol.exporter.prometheus.to_mimir.input]
+    logs    = [otelcol.exporter.loki.to_loki.input]
+  }
+}
+
+prometheus.relabel "default" {
+  rule {
+    source_labels = ["__address__"]
+    target_label  = "instance"
+  }
+  forward_to = [prometheus.remote_write.mimir.receiver]
+}
+
+// ===========================================================================
+// Exporters
+// ===========================================================================
+
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = sys.env("TEMPO_ENDPOINT")
+    tls {
+      insecure = sys.env("TEMPO_INSECURE") == "true"
+    }
+  }
+}
+
+prometheus.remote_write "mimir" {
+  endpoint {
+    url = sys.env("MIMIR_REMOTE_WRITE_URL")
+    basic_auth {
+      username = sys.env("MIMIR_USERNAME")
+      password = sys.env("MIMIR_PASSWORD")
+    }
+  }
+}
+
+otelcol.exporter.prometheus "to_mimir" {
+  forward_to = [prometheus.remote_write.mimir.receiver]
+}
+
+otelcol.exporter.loki "to_loki" {
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = sys.env("LOKI_PUSH_URL")
+    basic_auth {
+      username = sys.env("LOKI_USERNAME")
+      password = sys.env("LOKI_PASSWORD")
+    }
+  }
+}
+
+// ===========================================================================
+// Logging (self-observability)
+// ===========================================================================
+
+logging {
+  level  = "info"
+  format = "json"
+}

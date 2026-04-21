@@ -1,0 +1,6 @@
+{
+  "name": "i3",
+  "sdk": "python",
+  "source": ".",
+  "engineVersion": "v0.11.7"
+}

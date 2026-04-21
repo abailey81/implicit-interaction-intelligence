@@ -1,0 +1,64 @@
+# Backstage System entity grouping all I^3 components.
+#
+# A System in Backstage groups related Components, Resources, and APIs so
+# they appear together in the catalog graph. See
+# https://backstage.io/docs/features/software-catalog/system-model
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: i3-system
+  title: "I^3 System"
+  description: >-
+    End-to-end system for Implicit Interaction Intelligence: FastAPI
+    server, MCP bridge, observability stack (Tempo/Mimir/Loki/Pyroscope),
+    and continuous-learning pipeline.
+  tags:
+    - privacy
+    - behavioural-ml
+    - mcp
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+spec:
+  owner: group:default/hmi-lab
+  domain: domain:default/human-machine-interaction
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: i3-mcp
+  title: "I^3 MCP Server"
+  description: Model Context Protocol bridge exposing I^3 tools to Claude.
+  tags:
+    - mcp
+    - python
+spec:
+  type: service
+  lifecycle: experimental
+  owner: group:default/hmi-lab
+  system: i3-system
+  providesApis:
+    - i3-mcp-api
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: i3-observability
+  title: "I^3 Observability Stack"
+  description: >-
+    Grafana Alloy + Tempo + Mimir + Loki + Pyroscope deployment backing
+    all I^3 services.
+spec:
+  type: observability
+  owner: group:default/hmi-lab
+  system: i3-system
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: i3-model-registry
+  title: "I^3 Model Registry"
+  description: MLflow / DVC backed registry of trained I^3 encoders.
+spec:
+  type: model-registry
+  owner: group:default/hmi-lab
+  system: i3-system
