@@ -1,0 +1,9 @@
+# Azure OpenAI provider fragment.
+# Requires AZURE_OPENAI_API_KEY + AZURE_OPENAI_ENDPOINT env vars.
+provider: azure
+model: gpt-4.1
+deployment: my-gpt41-deployment   # Azure deployment name (required)
+max_tokens: 512
+timeout: 30.0
+fallback_on_error: true
+api_version: "2024-10-21"

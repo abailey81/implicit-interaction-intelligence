@@ -1,0 +1,14 @@
+# Huawei Cloud PanGu provider fragment.
+#
+# Access requires a Huawei Cloud account with the PanGu Large Models
+# service enabled.  Export HUAWEI_CLOUD_PANGU_APIKEY and optionally
+# HUAWEI_CLOUD_PANGU_REGION (default cn-southwest-2 / Guiyang).
+#
+# Strategic default model: PanGu Deep Thinking 5.5 (718 B MoE),
+# announced at WAIC 2025 (June 2025).
+provider: huawei_pangu
+model: pangu-deepthink-5.5
+region: cn-southwest-2
+max_tokens: 512
+timeout: 60.0
+fallback_on_error: true

@@ -1,0 +1,7 @@
+# Cohere provider fragment.
+# Supported models: command-r-plus, command-r.
+provider: cohere
+model: command-r-plus
+max_tokens: 512
+timeout: 30.0
+fallback_on_error: true

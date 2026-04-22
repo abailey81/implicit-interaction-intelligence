@@ -1,0 +1,10 @@
+# LiteLLM universal adapter fragment.
+# Uses LiteLLM's provider-prefixed model ids (openai/, anthropic/,
+# vertex_ai/, together_ai/, ...).  Individual provider credentials
+# must still be set via their native env vars.
+provider: litellm
+model: openai/gpt-4.1
+max_tokens: 512
+timeout: 60.0
+fallback_on_error: true
+extra_kwargs: {}

@@ -1,0 +1,8 @@
+# Ollama (local) provider fragment.
+# No API key required; point base_url at your running Ollama daemon.
+provider: ollama
+model: llama3.3
+base_url: http://localhost:11434
+max_tokens: 512
+timeout: 120.0
+fallback_on_error: true

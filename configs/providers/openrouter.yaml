@@ -1,0 +1,10 @@
+# OpenRouter provider fragment.
+# Requires OPENROUTER_API_KEY.  Model ids carry a provider prefix
+# (anthropic/, google/, meta-llama/, mistralai/, ...).
+provider: openrouter
+model: anthropic/claude-sonnet-4.5
+max_tokens: 512
+timeout: 60.0
+fallback_on_error: true
+referer: https://github.com/i3
+x_title: I3

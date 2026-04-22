@@ -1,0 +1,9 @@
+# OpenAI provider fragment.
+# Supported models: gpt-4.1, gpt-5-turbo, o3, o4-mini.
+provider: openai
+model: gpt-4.1
+max_tokens: 512
+timeout: 30.0
+fallback_on_error: true
+# Optional: override for OpenAI-compatible endpoints (vLLM, Together, ...)
+# base_url: https://api.together.xyz/v1

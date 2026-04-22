@@ -1,0 +1,8 @@
+# AWS Bedrock provider fragment.
+# Uses the default AWS credential chain (env, shared config, IAM role).
+provider: bedrock
+model: anthropic.claude-sonnet-4-5
+region: us-east-1
+max_tokens: 512
+timeout: 30.0
+fallback_on_error: true

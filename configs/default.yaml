@@ -90,6 +90,11 @@ cloud:
   max_tokens: 200
   timeout: 10.0
   fallback_on_error: true
+  # Universal provider layer (see i3/cloud/providers/ and docs/cloud/
+  # provider_universality.md). provider picks one concrete adapter;
+  # fallback_chain, if set, wraps MultiProviderClient around it.
+  fallback_chain: []  # e.g. [anthropic, google, ollama]
+  cost_tracking_enabled: true
 
 diary:
   db_path: "data/diary.db"

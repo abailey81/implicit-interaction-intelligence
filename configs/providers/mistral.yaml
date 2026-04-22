@@ -1,0 +1,7 @@
+# Mistral AI provider fragment.
+# Supported models: mistral-large-latest, codestral-latest.
+provider: mistral
+model: mistral-large-latest
+max_tokens: 512
+timeout: 30.0
+fallback_on_error: true

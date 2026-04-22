@@ -1,0 +1,7 @@
+# Anthropic Claude provider fragment.
+# Merge into the top-level `cloud:` block.
+provider: anthropic
+model: claude-sonnet-4-5
+max_tokens: 512
+timeout: 10.0
+fallback_on_error: true
