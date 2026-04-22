@@ -202,6 +202,16 @@ detect-secrets   = "^1.5"              # Used by lefthook pre-commit hook
 [tool.poetry.group.policy.dependencies]
 cedarpy          = ">=4.0"
 
+# ─── Text-to-Speech Dependencies (optional) ──────────────────────────────
+# Soft-imported by i3/tts/engine.py.  The package loads and the server
+# serves the Web Speech API directive path without any of these — install
+# `--with tts` only when server-side audio synthesis is required.
+# See docs/research/adaptive_tts.md for the design rationale.
+[tool.poetry.group.tts.dependencies]
+pyttsx3       = { version = ">=2.90", optional = true }   # OS-native SAPI5/NSSS/espeak
+"piper-tts"   = { version = ">=1.2",  optional = true }   # Rhasspy neural TTS (CPU)
+kokoro        = { version = ">=0.1",  optional = true }   # Kokoro 82M open-weight TTS
+
 # ─── Documentation Dependencies ──────────────────────────────────────────
 [tool.poetry.group.docs.dependencies]
 mkdocs                                   = "^1.5"

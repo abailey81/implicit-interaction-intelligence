@@ -277,6 +277,10 @@ def create_app() -> FastAPI:
     from server.routes_translate import include_translate_routes
     include_translate_routes(app)
 
+    # Adaptation-conditioned TTS — AI Glasses / Celia / Smart Hanhan output modality.
+    from server.routes_tts import include_tts_routes
+    include_tts_routes(app)
+
     # ------------------------------------------------------------------
     # Static files -- serve the demo UI (must be mounted *last* so API
     # and WS routes take precedence)
