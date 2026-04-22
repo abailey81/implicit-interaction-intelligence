@@ -1,0 +1,200 @@
+/* ────────────────────────────────────────────────────────────────
+ * explain_panel.css
+ * ─────────────────
+ * Styling for the uncertainty + counterfactual explanation panel.
+ *
+ * Palette (matches tts_player.css / advanced.css):
+ *   --i3-explain-accent        #0f3460  (deep indigo; project accent)
+ *   --i3-explain-accent-glow   #e94560  (red/pink glow hue)
+ *
+ * All selectors are prefixed `.i3-explain-` to avoid collisions.
+ * ──────────────────────────────────────────────────────────────── */
+
+:root {
+    --i3-explain-accent: #0f3460;
+    --i3-explain-accent-soft: rgba(15, 52, 96, 0.35);
+    --i3-explain-accent-glow: #e94560;
+    --i3-explain-accent-glow-soft: rgba(233, 69, 96, 0.22);
+    --i3-explain-surface: rgba(15, 52, 96, 0.92);
+    --i3-explain-surface-2: rgba(22, 33, 62, 0.94);
+    --i3-explain-border: rgba(15, 52, 96, 0.6);
+    --i3-explain-muted: rgba(255, 255, 255, 0.72);
+    --i3-explain-text: #f5f5fa;
+    --i3-explain-ok: #3ad29f;
+    --i3-explain-warn: #f2b531;
+    --i3-explain-refuse: #e94560;
+    --i3-explain-radius: 10px;
+}
+
+.i3-explain-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 12px 0 8px 0;
+    padding: 10px 12px;
+    background: var(--i3-explain-surface-2);
+    border: 1px solid var(--i3-explain-border);
+    border-radius: var(--i3-explain-radius);
+    color: var(--i3-explain-text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 13px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+    max-width: 480px;
+}
+
+.i3-explain-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: var(--i3-explain-accent);
+    color: var(--i3-explain-text);
+    border: 1px solid var(--i3-explain-accent-glow-soft);
+    border-radius: var(--i3-explain-radius);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 120ms ease, box-shadow 120ms ease;
+}
+
+.i3-explain-toggle:hover {
+    background: #113a6e;
+    box-shadow: 0 0 0 2px var(--i3-explain-accent-glow-soft);
+}
+
+.i3-explain-toggle:focus-visible {
+    outline: 2px solid var(--i3-explain-accent-glow);
+    outline-offset: 2px;
+}
+
+.i3-explain-toggle-caret {
+    display: inline-block;
+    width: 0.8em;
+    color: var(--i3-explain-accent-glow);
+    font-size: 11px;
+}
+
+.i3-explain-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 8px 4px 2px 4px;
+}
+
+.i3-explain-loading {
+    color: var(--i3-explain-muted);
+    font-style: italic;
+}
+
+.i3-explain-err {
+    color: var(--i3-explain-refuse);
+}
+
+/* ─────────── Per-dimension confidence rows ─────────── */
+
+.i3-explain-dim-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.i3-explain-dim-row {
+    display: grid;
+    grid-template-columns: 110px 1fr 90px auto;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 6px;
+    background: rgba(255, 255, 255, 0.04);
+    border-left: 3px solid var(--i3-explain-ok);
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.i3-explain-dim-row[data-classification='uncertain'] {
+    border-left-color: var(--i3-explain-warn);
+    background: rgba(242, 181, 49, 0.08);
+}
+
+.i3-explain-dim-label {
+    font-weight: 600;
+    color: var(--i3-explain-text);
+    text-transform: lowercase;
+    letter-spacing: 0.02em;
+}
+
+.i3-explain-bar-wrap {
+    position: relative;
+    height: 10px;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.i3-explain-bar-mean {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: var(--i3-explain-accent-glow);
+    opacity: 0.9;
+}
+
+.i3-explain-dim-row[data-classification='confident'] .i3-explain-bar-mean {
+    background: var(--i3-explain-ok);
+}
+
+.i3-explain-dim-row[data-classification='uncertain'] .i3-explain-bar-mean {
+    background: var(--i3-explain-warn);
+}
+
+.i3-explain-bar-std {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.2);
+    border-left: 1px solid rgba(255, 255, 255, 0.4);
+    border-right: 1px solid rgba(255, 255, 255, 0.4);
+    mix-blend-mode: overlay;
+}
+
+.i3-explain-dim-meta {
+    color: var(--i3-explain-muted);
+    font-variant-numeric: tabular-nums;
+    font-size: 11px;
+}
+
+.i3-explain-refuse-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    background: var(--i3-explain-refuse);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    border-radius: 3px;
+    letter-spacing: 0.05em;
+}
+
+/* ─────────── Counterfactual + summary + footer ─────────── */
+
+.i3-explain-cf {
+    padding: 8px 10px;
+    border-left: 3px solid var(--i3-explain-accent-glow);
+    background: var(--i3-explain-accent-glow-soft);
+    border-radius: 4px;
+    color: var(--i3-explain-text);
+    font-style: italic;
+}
+
+.i3-explain-summary {
+    color: var(--i3-explain-muted);
+    line-height: 1.45;
+    font-size: 12px;
+}
+
+.i3-explain-footer {
+    color: var(--i3-explain-muted);
+    font-size: 11px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}

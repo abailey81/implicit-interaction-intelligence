@@ -281,6 +281,10 @@ def create_app() -> FastAPI:
     from server.routes_tts import include_tts_routes
     include_tts_routes(app)
 
+    # Adaptation uncertainty + counterfactual explanations.
+    from server.routes_explain import include_explain_routes
+    include_explain_routes(app)
+
     # ------------------------------------------------------------------
     # Static files -- serve the demo UI (must be mounted *last* so API
     # and WS routes take precedence)
