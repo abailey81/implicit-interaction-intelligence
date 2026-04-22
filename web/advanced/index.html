@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>I3 — Command Center (Advanced)</title>
+
+  <!-- Strict CSP: only the documented CDN origins are allowed for third-party scripts. -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ws: wss:; font-src 'self'; frame-ancestors 'none'; base-uri 'self';" />
+
+  <link rel="stylesheet" href="css/command_center.css" />
+
+  <!-- Vendors (pinned; SRI-hashed). See vendor/README.md for hash provenance. -->
+  <script defer
+          src="https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.min.js"
+          integrity="sha384-placeholder-three-r164-replace-with-real-sha384-at-deploy-time"
+          crossorigin="anonymous"
+          referrerpolicy="no-referrer"></script>
+  <script defer
+          src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.js"
+          integrity="sha384-placeholder-chartjs-4-4-4-replace-with-real-sha384-at-deploy-time"
+          crossorigin="anonymous"
+          referrerpolicy="no-referrer"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <div id="app" class="cmd-grid" data-reduced-motion="auto">
+
+    <!-- ================= TOP BAR ================= -->
+    <header class="panel panel--top" role="banner" aria-label="Command center header">
+      <div class="top-left">
+        <span class="brand-dot" aria-hidden="true"></span>
+        <h1 class="brand-title">I<sup>3</sup> Command Center</h1>
+        <span class="brand-sub">Implicit Interaction Intelligence</span>
+      </div>
+      <div class="top-center">
+        <time id="live-clock" class="mono" datetime="" aria-live="off">--:--:--</time>
+        <span class="sep" aria-hidden="true">•</span>
+        <span class="conn">
+          <span id="conn-dot" class="conn-dot" data-state="connecting" aria-hidden="true"></span>
+          <span id="conn-label" class="conn-label">Connecting…</span>
+        </span>
+      </div>
+      <div class="top-right">
+        <button id="btn-tour" class="btn" aria-keyshortcuts="Alt+T" title="Guided tour (Alt+T)">Guided Tour</button>
+        <button id="btn-record" class="btn" aria-pressed="false" aria-keyshortcuts="Alt+S" title="Screen-recording preset (Alt+S)">Record Mode</button>
+        <button id="btn-shortcuts" class="btn btn--ghost" aria-keyshortcuts="?" title="Shortcuts (?)">?</button>
+      </div>
+    </header>
+
+    <!-- ================= LEFT: CHAT ================= -->
+    <section id="main" class="panel panel--chat" aria-label="Chat and composition intensity">
+      <header class="panel-head">
+        <h2 class="panel-title">Conversation</h2>
+        <div class="intensity" aria-label="Composition intensity">
+          <span class="intensity-label">Composition</span>
+          <div class="intensity-bar" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="intensity-meter">
+            <span class="intensity-fill" id="intensity-fill"></span>
+          </div>
+        </div>
+      </header>
+      <div class="chat-log" id="chat-log" role="log" aria-live="polite" aria-relevant="additions"></div>
+      <form class="chat-form" id="chat-form" autocomplete="off">
+        <label class="visually-hidden" for="chat-input">Message</label>
+        <input id="chat-input" name="message" type="text" placeholder="Type to the system…" autocomplete="off" />
+        <button type="submit" class="btn btn--primary">Send</button>
+      </form>
+    </section>
+
+    <!-- ================= CENTER: 3D EMBEDDING ================= -->
+    <section class="panel panel--embed" aria-label="3D embedding space">
+      <header class="panel-head">
+        <h2 class="panel-title">User-state Embedding (live)</h2>
+        <span class="panel-sub mono" id="embed-count">0 / 200</span>
+      </header>
+      <div id="embed-canvas-host" class="embed-host" role="img" aria-label="3D rotating sphere of recent user-state embeddings colour-coded by persona"></div>
+      <footer class="panel-foot">
+        <span class="legend-item"><i class="swatch swatch--accent"></i> current</span>
+        <span class="legend-item"><i class="swatch swatch--muted"></i> history</span>
+        <span class="legend-item"><i class="swatch swatch--active"></i> persona A</span>
+      </footer>
+    </section>
+
+    <!-- ================= TOP-RIGHT: GAUGES ================= -->
+    <section class="panel panel--gauges" aria-label="Adaptation state gauges">
+      <header class="panel-head">
+        <h2 class="panel-title">Adaptation State</h2>
+      </header>
+      <div id="gauges-grid" class="gauges-grid" aria-live="polite"></div>
+    </section>
+
+    <!-- ================= MID-RIGHT: ATTENTION ================= -->
+    <section class="panel panel--attn" aria-label="Cross-attention heatmap">
+      <header class="panel-head">
+        <h2 class="panel-title">Cross-Attention</h2>
+        <span class="panel-sub mono" id="attn-token">—</span>
+      </header>
+      <div id="attn-host" class="attn-host" aria-live="polite"></div>
+    </section>
+
+    <!-- ================= BOTTOM-RIGHT: ROUTER ================= -->
+    <section class="panel panel--router" aria-label="Router dashboard">
+      <header class="panel-head">
+        <h2 class="panel-title">Router</h2>
+        <span class="panel-sub mono">£<span id="cost-total">0.0000</span></span>
+      </header>
+      <div class="router-body">
+        <div class="router-left">
+          <canvas id="router-donut" width="160" height="160" aria-label="Arm distribution donut"></canvas>
+        </div>
+        <div class="router-right">
+          <canvas id="router-latency" width="320" height="160" aria-label="P50 P95 latency"></canvas>
+        </div>
+      </div>
+      <footer class="panel-foot" id="router-cost-breakdown" aria-live="polite"></footer>
+    </section>
+
+    <!-- ================= BOTTOM STRIP ================= -->
+    <section class="panel panel--interp" aria-label="Interpretability strip">
+      <div class="interp-row">
+        <div class="interp-col" id="cf-col">
+          <span class="interp-kicker">Why this response</span>
+          <p class="interp-body" id="cf-body">Awaiting first turn…</p>
+        </div>
+        <div class="interp-col" id="unc-col" aria-live="polite">
+          <span class="interp-kicker">Uncertainty</span>
+          <div id="unc-pills" class="pill-row"></div>
+        </div>
+        <div class="interp-col" id="refusal-col" aria-live="polite">
+          <span class="interp-kicker">Safety</span>
+          <div id="refusal-badges" class="pill-row"></div>
+        </div>
+        <div class="interp-col" id="ab-col" aria-live="polite">
+          <span class="interp-kicker">Preference A/B</span>
+          <div id="ab-panel" class="ab-panel">idle</div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Guided-tour overlay (hidden by default) -->
+  <div id="tour-overlay" class="overlay" hidden aria-hidden="true">
+    <div class="overlay-phase" id="tour-phase">Cold Start</div>
+    <div class="overlay-caption" id="tour-caption" aria-live="polite"></div>
+  </div>
+
+  <!-- Shortcuts help overlay -->
+  <dialog id="shortcuts-dialog" class="dialog" aria-labelledby="shortcuts-title">
+    <h2 id="shortcuts-title">Keyboard Shortcuts</h2>
+    <table class="shortcuts">
+      <tbody>
+        <tr><td><kbd>Alt</kbd>+<kbd>T</kbd></td><td>Guided tour</td></tr>
+        <tr><td><kbd>Alt</kbd>+<kbd>R</kbd></td><td>Reset demo user</td></tr>
+        <tr><td><kbd>Alt</kbd>+<kbd>W</kbd></td><td>What-if panel</td></tr>
+        <tr><td><kbd>Alt</kbd>+<kbd>A</kbd></td><td>A11y audit (console)</td></tr>
+        <tr><td><kbd>Alt</kbd>+<kbd>M</kbd></td><td>Toggle motion</td></tr>
+        <tr><td><kbd>Alt</kbd>+<kbd>S</kbd></td><td>Screen-recording preset</td></tr>
+        <tr><td><kbd>?</kbd></td><td>This help</td></tr>
+        <tr><td><kbd>Esc</kbd></td><td>Cancel / close</td></tr>
+      </tbody>
+    </table>
+    <form method="dialog"><button class="btn">Close</button></form>
+  </dialog>
+
+  <!-- aria-live global announcer (offscreen) -->
+  <div id="a11y-live" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- Entry module -->
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

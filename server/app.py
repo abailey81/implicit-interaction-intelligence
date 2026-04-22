@@ -294,6 +294,8 @@ def create_app() -> FastAPI:
     # and WS routes take precedence)
     # ------------------------------------------------------------------
     app.mount("/", StaticFiles(directory="web", html=True), name="static")
+    # Advanced cinematic demo UI (Batch G9) — served at /advanced.
+    app.mount("/advanced", StaticFiles(directory="web/advanced", html=True), name="advanced_ui")
 
     return app
 
