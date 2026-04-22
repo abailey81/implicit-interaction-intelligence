@@ -31,8 +31,8 @@ Deliver exactly as written. No paraphrasing. No preamble.
 
 Title is literal: **"What This Prototype Is *Not*"**. Use exactly that
 phrase on the slide. Six bullets in the order below — the ordering is
-load-bearing because the accessibility bullet is the Matthew-values moment
-and must come fourth, not first or last, so it lands in the middle of the
+load-bearing because the accessibility bullet is the hardest-to-fake
+moment and must come fourth, not first or last, so it lands in the middle of the
 slide's cognitive weight.
 
 1. **Not a shipped product.** A 17-day prototype, on one laptop.
@@ -42,10 +42,11 @@ slide's cognitive weight.
 5. **Not zero-information embeddings** — lossy, abstract, still identity-signalling.
 6. **Not multi-modal yet** — keystroke only; the TCN itself is modality-agnostic.
 
-**Delivery note on bullet 4:** make eye contact with Matthew for the
-duration of this bullet. It is the deliberate acknowledgement of his
-TextSpaced work and Apple accessibility lineage — restraint and honesty
-matter more than flourish.
+**Delivery note on bullet 4:** take the bullet slowly; restraint and
+honesty matter more than flourish. The accessibility statement in
+`docs/responsible_ai/` is the evidence behind this bullet — detection is
+one signal, it complements explicit settings, and it must fade with
+recovery.
 
 ---
 
@@ -56,17 +57,17 @@ gone. These are the three **default primaries** if no contextual reason
 overrides them. All six are available; choose based on what the panel
 has already revealed.
 
-### Primary 1 — Matthew's Apple-to-Huawei lineage
+### Primary 1 — The Darwin Centre's HMI trajectory
 
-> *"You spent a decade at Apple working on things like Fall Detection and
-> Crash Detection — features that infer user state from implicit signals.
-> What drew you to bringing that philosophy to Huawei, and how does the
-> London lab differ from what you were doing before?"*
+> *"The Darwin Research Centre is described publicly as 'building Europe's
+> leading AI R&D centre.' Where does HMI fit inside that vision over the
+> next 18 months — is it a service horizontal for Celia and the HarmonyOS
+> ecosystem, or its own publishable research track?"*
 
-**Why this primary:** It shows you have done homework without being creepy,
-it lets Matthew talk about his own work (flattering, honest), and it
-reveals his view of Huawei vs. Apple without asking pointed questions.
-Deploy this first — it is the warmest opener.
+**Why this primary:** It names the actual lab ("Darwin"), cites Huawei's
+own public framing back at them, and gives the panel a choice of two
+comfortable answers that both reveal useful information. Deploy this first
+— it is the warmest opener and lets them own the narrative.
 
 ### Primary 2 — Evaluation framework
 
@@ -139,7 +140,7 @@ Confirmed off-limits — route these through Vicky Li / HR later.
 After the candidate-Q&A segment, stand up, shake hands firmly and briefly,
 and deliver this verbatim:
 
-> *"Thank you, Matthew — I really appreciated the conversation."*
+> *"Thank you — I really appreciated the conversation."*
 
 Then walk out calmly. No phone in the building. Do not ask about next
 steps in the room; that goes through Vicky by email later.

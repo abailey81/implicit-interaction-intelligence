@@ -85,7 +85,7 @@ rather than the presentation itself.
   - *"Perception → Encoder → User Model → Adaptation → Router → Generation → Diary."*
   - *"The next three slides spotlight the layers I'm most proud of."*
 - **Likely interruption:** "Why seven?" → *"Empirical — this is where concerns separated cleanly. Maps to the codebase directly."* 15-second cost.
-- **Recovery:** if Matthew zooms in on a layer, answer briefly and point forward: *"Slide 8 covers that in depth — let's land there."*
+- **Recovery:** if the panel zooms in on a layer, answer briefly and point forward: *"Slide 8 covers that in depth — let's land there."*
 
 ### Slide 6 — Perception + Encoder (90 s)
 
@@ -176,8 +176,8 @@ rather than the presentation itself.
   - *"Embeddings are lossy, not zero-information."*
   - *"Keystroke-only; the TCN itself is modality-agnostic."*
 - **Likely interruption:** *"Why admit so much?"* → *"I'd rather name the limits than have you find them later. Your BS radar is better than my salesmanship."* 10-second cost, positive signal.
-- **Recovery — Matthew challenges accessibility claim:** *"You're right — an accessibility lead needs to review this before any user-facing trial. That's in scope before shipping."*
-- **Matthew values moment:** hold eye contact through the accessibility bullet.
+- **Recovery — the panel challenges accessibility claim:** *"You're right — an accessibility lead needs to review this before any user-facing trial. That's in scope before shipping."*
+- **the panel values moment:** hold eye contact through the accessibility bullet.
 
 ### Slide 14 — Where this goes next (90 s)
 
@@ -215,4 +215,4 @@ If running over at Slide 9 completion (cumulative > 22:00):
 If running under at Slide 9 completion (cumulative < 20:45):
 
 1. Add a second beat on the accessibility phase in the demo, re-narrating the "no toggle" line.
-2. Add a sentence on Slide 13 linking accessibility detection back to an ARIA-compliant inclusive-design practice — without naming TextSpaced explicitly.
+2. Add a sentence on Slide 13 linking accessibility detection back to an ARIA-compliant inclusive-design practice.

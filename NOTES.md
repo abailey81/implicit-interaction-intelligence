@@ -76,4 +76,4 @@ All listed on the slides' future-work slide.
 
 ## 10. Commit discipline
 
-Every commit message is written as if Matthew will read it.
+Every commit message is written as if the panel will read it.

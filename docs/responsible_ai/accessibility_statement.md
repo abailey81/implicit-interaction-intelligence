@@ -180,24 +180,22 @@ an accessibility product, but to combine it with explicit
 accessibility settings and with signal modalities that do cover
 those users.
 
-## 6. TextSpaced, Multi-User Contexts, and Lived Experience
+## 6. Lived-Experience Accessibility and the Standard to Meet
 
 I acknowledge that real accessibility expertise lives with people who
-ship accessibility features to real users every day. TextSpaced — a
-text-based MMO whose player base is more than half blind or
-partially-sighted — is the kind of system that has had to get this
-right under live conditions, because its users' ability to play
-depends on it. The I³ prototype is nowhere near that standard. It is
-a research prototype with a 17-day build window and no real
-accessibility user study.
+ship accessibility features to real users every day — and that
+accessible text-based systems have had to get this right under live
+conditions because their users' ability to participate depends on it.
+The I³ prototype is nowhere near that standard. It is a research
+prototype with a 17-day build window and no real accessibility user
+study.
 
-What the prototype does try to honour is a specific principle I
-associate with that lineage of work: **the interaction should adapt
-to the person, but the person should not have to become a label to
-get the adaptation**. That is what the EMA-based decay is for; that
-is what "accessibility is a property of the interaction, not a label
-on the person" means in practice. It is also why this document
-exists as a statement rather than as a feature.
+What the prototype does try to honour is a specific principle:
+**the interaction should adapt to the person, but the person should
+not have to become a label to get the adaptation**. That is what the
+EMA-based decay is for; that is what "accessibility is a property of
+the interaction, not a label on the person" means in practice. It is
+also why this document exists as a statement rather than as a feature.
 
 ## 7. Known Limitations of the Current Prototype
 

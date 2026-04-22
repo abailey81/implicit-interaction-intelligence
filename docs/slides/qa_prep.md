@@ -176,7 +176,7 @@ Citation style — use the exact phrasing:
 ### P28. If a user has a disability you don't detect, could adaptation harm them?
 - **Compressed:** Yes — that's exactly why it must stay opt-out capable.
 - **Elaboration:** Keystroke-only detection works for motor difficulty, misses vision, cognitive, voice-control users. Design principle: adaptation complements explicit accessibility settings, it must not replace them — the user can always say "treat me normally" and the system respects it.
-- **If pressed further:** The worst failure mode is adapting someone out of the experience they actually want — that's the Matthew-values alignment here.
+- **If pressed further:** The worst failure mode is adapting someone out of the experience they actually want — `docs/responsible_ai/accessibility_statement.md` is the written form of that design principle.
 
 ### P29. Can you reconstruct typed text from the embedding?
 - **Compressed:** Not under this encoder — the features are dynamics, not content.

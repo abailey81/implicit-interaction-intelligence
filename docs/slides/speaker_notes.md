@@ -62,13 +62,13 @@ Settings. That is the wrong place. Settings are explicit and declarative;
 state is implicit and continuous. The field has been trying to solve an
 implicit problem with an explicit UI.
 
-Do not bash competitors gratuitously. Matthew respects Apple; two of the
-examples are Apple products. Stay clinical — the claim is about the
+Do not bash competitors gratuitously. Two of the examples are Apple
+products. Stay clinical — the claim is about the
 interaction layer, not the companies.
 
 **Recovery lines.**
 - *If the footer citation link is broken:* "I've footnoted every product claim — if you want the exact source I'll send it."
-- *If Matthew challenges "ChatGPT is exactly the same":* "Fair — with memory on, less so. But the memory is explicit and policy-driven, not behavioural."
+- *If asked "ChatGPT is exactly the same":* "Fair — with memory on, less so. But the memory is explicit and policy-driven, not behavioural."
 
 ---
 
@@ -146,8 +146,8 @@ This slide is a map, not a deep-dive. Resist the urge to explain everything.
 **[Beat — gesture to the table.]** *"One sentence per layer. The next
 three slides spotlight the ones I'm most proud of."*
 
-This is also the slide where Matthew typically zooms in on one layer. If
-he interrupts, answer briefly and point forward to the spotlight slide.
+This is the slide where a panellist typically zooms in on one layer. If
+someone interrupts, answer briefly and point forward to the spotlight slide.
 Do not let him pull you off timing here; you have 23 minutes to protect.
 
 **Recovery lines.**
@@ -277,10 +277,12 @@ Slow down, shorten, simplify. Narrate: *"Watch the embedding dot migrate
 Response gets shorter. Warmer. And — the router just flipped to local.
 Latency matters more now than elegance."* **[Beat — let the gauges settle.]**
 
-**Phase 4 — Accessibility (120 s) — Matthew's values moment.**
+**Phase 4 — Accessibility (120 s) — the hardest-to-fake moment.**
 Many backspaces, fragments, long pauses. Narrate: *"Accessibility gauge
 lifting. System's responses are yes/no-shaped. Simpler vocabulary. Shorter.
-No settings menu. No toggle. It just adapts."* **[Long beat.]**
+No settings menu. No toggle. It just adapts."* **[Long beat.]** *"This is
+`user modeling` in the JD sense — shaping the interaction from how the
+person is typing, not from a profile they had to fill in."*
 
 **Recovery lines.**
 - *If the API call fails:* "Cloud dropped — router switches to local automatically; that's the fallback path. The adaptation layer is unaffected."
@@ -340,9 +342,10 @@ Lead with the structural claim, then the mechanisms.
 > *"Honest caveat: Fernet is software-only. Production moves the key into
 > TrustZone on Kirin. I name this as a placeholder, not a claim."*
 
-**[Beat.]** *"Matthew — I know you worked on Hearing Loss Prevention at
-Apple; sensitive-signal integrity is exactly the design axis this slide
-owns."*
+**[Beat.]** *"The Edinburgh Joint Lab's March 2026 session on
+personalisation from sparse signals made the same move — treat the
+signal itself as the privacy-sensitive asset, not just the payload.
+That's the design axis this slide owns."*
 
 **Recovery lines.**
 - *If asked "can you reconstruct text from embeddings":* "No, not under this encoder — it's trained on dynamics features, not content. Still lossy-not-zero; slide 13 is honest about it."
@@ -386,7 +389,7 @@ pretence that I've run this on Kirin."*
 
 ---
 
-## Slide 13 — What this prototype is *not* — the Matthew values moment (120 s)
+## Slide 13 — What this prototype is *not* — the credibility slide (120 s)
 
 **Target:** 120 s. **Cumulative:** 27:15.
 
@@ -407,9 +410,10 @@ important moment outside the demo.
 > *"Not universal accessibility detection. Keystroke-only misses
 > screen-reader users, voice-control users, gaze users. Adaptation must
 > stay opt-out capable. The worst failure mode is adapting someone out of
-> the experience they actually want. You ran TextSpaced with more than
-> half your players blind or partially sighted — you know this better
-> than I do."*
+> the experience they actually want. The accessibility statement in
+> `docs/responsible_ai/` is explicit: detection is one signal among
+> many, it complements rather than replaces explicit settings, and it
+> fades with recovery rather than pinning a label on the person."*
 
 **[Long beat — eye contact.]**
 

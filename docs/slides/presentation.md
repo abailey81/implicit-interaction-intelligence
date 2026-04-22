@@ -226,7 +226,7 @@ h = block.ffn(h)                                   # features
 - **Not zero-information embeddings** — lossy, abstract, still identity-signalling.
 - **Not multi-modal yet** — keystroke only; the TCN itself is modality-agnostic.
 
-*Matthew's values moment: adaptation complements explicit settings, it must not replace them.*
+*Values note: adaptation complements explicit settings, it must not replace them. Detection is one signal among many; recovery fades it.*
 
 ---
 

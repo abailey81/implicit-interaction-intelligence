@@ -143,9 +143,10 @@ class input.
 > databus is designed to sync silently across a user's device
 > constellation. The accessibility story is the most important of
 > these: the system adapts without a settings menu, which is the
-> product behaviour Matthew Riches's Apple work on
-> fall-detection, crash-detection, and hearing-loss prevention
-> established as the bar.
+> product behaviour the accessibility statement in
+> `docs/responsible_ai/` establishes as the bar — detection is
+> one signal among many, it complements explicit settings rather
+> than replacing them, and it fades with recovery.
 
 ---
 

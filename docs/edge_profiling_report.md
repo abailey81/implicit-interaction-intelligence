@@ -342,7 +342,7 @@ additional argument for routing to the local SLM when latency matters.
 ## 9. Risks and Unknowns
 
 This section is deliberately the honesty-slide analogue for the edge
-claim. If Matthew probes a vague claim, it will be one of these.
+claim. If the panel probes a vague claim, it will be one of these.
 
 1. **INT8 behaviour is not device-portable.** PyTorch dynamic
    quantisation wraps `Linear` in a `DynamicallyQuantizedLinear`

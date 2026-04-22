@@ -1,5 +1,43 @@
 # THE_COMPLETE_BRIEF — Structured Analysis
 
+> **Corrections notice (added after external verification).** The brief
+> contained several unverified claims about the hiring manager and related
+> public figures. Where public evidence (LinkedIn, job posting, company
+> records) disagrees with the brief, the public record is used below. The
+> original as-summarised content is preserved in later sections for
+> historical context; see §0.1 for the corrected facts.
+>
+> See `ADVANCEMENT_PLAN.md` §1 for the full discrepancy audit.
+
+## 0.1 Verified facts (April 2026 research)
+
+- **Hiring manager's role.** Matthew Riches is at Huawei Technologies R&D
+  (UK) Ltd, Greater London. His public LinkedIn describes him as
+  specialising in "design with a skew towards future technologies" — i.e.
+  a **senior HMI designer**, not an ML engineer. He will weight concept
+  clarity, design storytelling, UX prototype quality, and cross-
+  disciplinary communication over kernel-level ML micro-optimisation.
+- **VocalIQ connection.** His LinkedIn shows he created **VocalIQ branding
+  in February 2015**, before Apple's October 2015 acquisition. He was not
+  an Apple staff employee; the "VocalIQ → Siri" lineage is correct as
+  industry context but must not be framed as his personal Apple product
+  history.
+- **TextSpaced.** TextSpaced MMO was created by **Celina Riches** (podcast
+  interview record confirms this), not Matthew. The surname-match led to
+  an earlier misattribution. Do **not** reference TextSpaced as "his"
+  project in the interview.
+- **Fall Detection, Crash Detection, Hearing Loss Prevention, Apple
+  Intelligence, Siri, visionOS.** No public evidence ties Matthew Riches to
+  these as an employee; drop from any interviewer-facing material.
+- **Actual job description** (verified on huaweiuk.teamtailor.com):
+  "desired" skills include **user modeling, human-AI interaction, HCI
+  principles, design thinking, concept-driven prototyping, AI product
+  development or academic research.** Up to 2-year internship. London
+  Research Center.
+
+Use `user modeling` as the primary framing phrase — it's the single most
+load-bearing word in the JD for this project's positioning.
+
 ## 1. Context & Goals
 
 - **Project:** Implicit Interaction Intelligence (I³). An AI companion system that builds a rich, evolving user model from **implicit behavioural signals** (keystroke dynamics, pauses, edits, linguistic complexity, session dynamics) and adapts responses across four dimensions simultaneously: cognitive load, communication style, emotional tone, accessibility needs.
