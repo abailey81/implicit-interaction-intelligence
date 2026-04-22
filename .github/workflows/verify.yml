@@ -1,0 +1,80 @@
+name: verify-harness
+
+# The verification harness (scripts/verify_all.py) runs ~40 independent
+# PASS/FAIL/SKIP checks across the repo and emits a machine-readable
+# JSON blob plus a human-readable Markdown report.
+#
+# Triggers:
+#   - push to main
+#   - every pull request
+#   - manual workflow_dispatch
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Run verification harness
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Poetry 1.8.3
+        run: |
+          pipx install "poetry==1.8.3"
+          poetry --version
+
+      - name: Install project (with all verification-relevant extras)
+        run: |
+          poetry install --with dev,docs,security,providers,mlops,observability --no-interaction --no-ansi
+
+      - name: Ensure reports dir exists
+        run: mkdir -p reports
+
+      - name: Run verify_all.py
+        id: verify
+        continue-on-error: true
+        run: |
+          poetry run python scripts/verify_all.py \
+            --strict \
+            --out reports/verification_ci.json \
+            --out-md reports/verification_ci.md
+
+      - name: Upload verification artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: verification-report
+          path: reports/verification_ci.*
+          retention-days: 30
+
+      - name: Append Markdown report to job summary
+        if: always()
+        run: |
+          if [ -f reports/verification_ci.md ]; then
+            cat reports/verification_ci.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "verification_ci.md missing" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Propagate verify_all exit code
+        if: steps.verify.outcome == 'failure'
+        run: |
+          echo "Verification harness reported failures; see artifact."
+          exit 1
