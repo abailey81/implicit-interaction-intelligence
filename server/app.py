@@ -272,6 +272,11 @@ def create_app() -> FastAPI:
     from server.routes_inference import include_inference_routes
     include_inference_routes(app)
 
+    # Real-time translation endpoint (AI Glasses parallel — see docs/huawei/
+    # harmonyos6_ai_glasses_alignment.md §2).
+    from server.routes_translate import include_translate_routes
+    include_translate_routes(app)
+
     # ------------------------------------------------------------------
     # Static files -- serve the demo UI (must be mounted *last* so API
     # and WS routes take precedence)
