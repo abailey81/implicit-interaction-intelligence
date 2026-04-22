@@ -285,6 +285,10 @@ def create_app() -> FastAPI:
     from server.routes_explain import include_explain_routes
     include_explain_routes(app)
 
+    # Preference learning / active DPO feedback loop.
+    from server.routes_preference import include_preference_routes
+    include_preference_routes(app)
+
     # ------------------------------------------------------------------
     # Static files -- serve the demo UI (must be mounted *last* so API
     # and WS routes take precedence)

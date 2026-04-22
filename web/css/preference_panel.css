@@ -1,0 +1,161 @@
+/* ────────────────────────────────────────────────────────────────
+ * preference_panel.css
+ * ─────────────────────
+ * Styling for the active-preference A/B prompt.
+ *
+ * Palette mirrors explain_panel.css / advanced.css:
+ *   accent       #0f3460  (deep indigo)
+ *   accent-glow  #e94560  (red/pink)
+ *
+ * All selectors are prefixed `.i3-preference-` to avoid collisions.
+ * ──────────────────────────────────────────────────────────────── */
+
+:root {
+    --i3-pref-accent: #0f3460;
+    --i3-pref-accent-soft: rgba(15, 52, 96, 0.35);
+    --i3-pref-accent-glow: #e94560;
+    --i3-pref-accent-glow-soft: rgba(233, 69, 96, 0.22);
+    --i3-pref-surface: rgba(22, 33, 62, 0.95);
+    --i3-pref-surface-2: rgba(15, 52, 96, 0.75);
+    --i3-pref-border: rgba(15, 52, 96, 0.6);
+    --i3-pref-muted: rgba(255, 255, 255, 0.72);
+    --i3-pref-text: #f5f5fa;
+    --i3-pref-radius: 10px;
+    --i3-pref-ok: #3ad29f;
+}
+
+.i3-preference-host {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 12px 0;
+}
+
+.i3-preference-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px 16px;
+    background: var(--i3-pref-surface);
+    border: 1px solid var(--i3-pref-border);
+    border-left: 4px solid var(--i3-pref-accent-glow);
+    border-radius: var(--i3-pref-radius);
+    color: var(--i3-pref-text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 13px;
+    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45);
+    max-width: 640px;
+    animation: i3-pref-fade-in 240ms ease-out;
+}
+
+@keyframes i3-pref-fade-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.i3-preference-title {
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--i3-pref-text);
+    letter-spacing: 0.01em;
+}
+
+.i3-preference-prompt {
+    color: var(--i3-pref-muted);
+    font-style: italic;
+    padding: 6px 10px;
+    border-left: 2px solid var(--i3-pref-accent-soft);
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 4px;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.i3-preference-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+@media (max-width: 640px) {
+    .i3-preference-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.i3-preference-option {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 12px;
+    background: var(--i3-pref-surface-2);
+    color: var(--i3-pref-text);
+    border: 1px solid var(--i3-pref-accent-glow-soft);
+    border-radius: var(--i3-pref-radius);
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    font-size: 12px;
+    transition: background 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+}
+
+.i3-preference-option:hover {
+    background: #113a6e;
+    box-shadow: 0 0 0 2px var(--i3-pref-accent-glow-soft);
+    transform: translateY(-1px);
+}
+
+.i3-preference-option:focus-visible {
+    outline: 2px solid var(--i3-pref-accent-glow);
+    outline-offset: 2px;
+}
+
+.i3-preference-option-label {
+    font-weight: 700;
+    font-size: 11px;
+    color: var(--i3-pref-accent-glow);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.i3-preference-option-text {
+    color: var(--i3-pref-text);
+    line-height: 1.4;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.i3-preference-tie-row {
+    display: flex;
+    justify-content: center;
+}
+
+.i3-preference-tie {
+    padding: 6px 12px;
+    background: transparent;
+    color: var(--i3-pref-muted);
+    border: 1px solid var(--i3-pref-accent-soft);
+    border-radius: var(--i3-pref-radius);
+    font-size: 11px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: color 120ms ease, border-color 120ms ease;
+}
+
+.i3-preference-tie:hover {
+    color: var(--i3-pref-text);
+    border-color: var(--i3-pref-accent-glow);
+}
+
+.i3-preference-tie:focus-visible {
+    outline: 2px solid var(--i3-pref-accent-glow);
+    outline-offset: 2px;
+}
+
+.i3-preference-footer {
+    color: var(--i3-pref-muted);
+    font-size: 10px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+}
