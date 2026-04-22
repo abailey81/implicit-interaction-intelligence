@@ -1,0 +1,67 @@
+name: Red-Team Harness
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+
+permissions:
+  contents: read
+
+jobs:
+  redteam:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pipx and Poetry
+        run: |
+          python -m pip install --upgrade pip pipx
+          pipx install poetry==1.8.3
+
+      - name: Install project
+        run: |
+          poetry install --with dev,security --no-interaction --no-ansi
+
+      - name: Prepare reports directory
+        run: mkdir -p reports
+
+      - name: Run red-team harness
+        run: |
+          poetry run python scripts/run_redteam.py \
+            --targets fastapi,sanitizer,pddl,guardrails \
+            --fail-fast \
+            --out reports/redteam_ci.json \
+            --out-md reports/redteam_ci.md
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: redteam-reports
+          path: |
+            reports/redteam_ci.json
+            reports/redteam_ci.md
+          retention-days: 30
+
+      - name: Emit step summary
+        if: always()
+        run: |
+          if [ -f reports/redteam_ci.md ]; then
+            cat reports/redteam_ci.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No red-team report produced" >> "$GITHUB_STEP_SUMMARY"
+          fi
