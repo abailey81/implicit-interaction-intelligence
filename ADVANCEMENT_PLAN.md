@@ -224,3 +224,113 @@ Each with a small doc and a CLI demo.
 
 *Version history: v1 over-weighted individuals; v2 re-centred on the lab and
 Huawei's 2025-2026 direction.*
+
+---
+
+# Advancement Plan v3 (appendix) — research-rigour tier
+
+After Batches A-E completed, the largest remaining gap is **empirical
+teeth**: the project *claims* cross-attention conditioning is better, the
+three-timescale user model captures state correctly, the privacy override
+holds, etc., but none of these claims are *measured against ground truth*.
+v3 closes that gap.
+
+Filter used: "*if the panel asks 'what's novel here?' or 'how does this
+connect to the HMI Lab's agenda?', can I give a specific, verifiable,
+on-thesis answer?*"
+
+## Tier 1 — transforms the project from claims to measured results
+
+### G1. Simulation-based closed-loop evaluation + HCI persona library
+The single biggest empirical gap. Build 8 HCI personas (fresh user,
+fatigued user, motor-impaired user, second-language speaker, high-cognitive
+-load developer, dyslexic user, low-vision user, energetic user), each with
+a known typing + voice + reaction signature. Replay them through the full
+I³ pipeline. Measure: does the TCN encoder recover the true persona at
+message N? Does the adaptation vector converge toward the ground-truth
+profile? This is what HMI-lab-grade user-modelling evaluation actually
+looks like.
+
+**Files:** `i3/eval/simulation/personas.py`, `i3/eval/simulation/user_simulator.py`,
+`i3/eval/simulation/closed_loop.py`, `scripts/run_closed_loop_eval.py`,
+`docs/research/closed_loop_evaluation.md`, tests.
+
+### G2. Uncertainty quantification + counterfactual explanations
+Monte-Carlo-dropout confidence intervals on the AdaptationVector + per-
+decision counterfactuals explaining *why* the system adapted as it did.
+Matters because adaptation must be able to *explain itself* and *refuse
+to act when it is not confident*. The accessibility statement gives the
+design principle; this batch gives the machinery.
+
+**Files:** `i3/adaptation/uncertainty.py`, `i3/interpretability/counterfactuals.py`,
+`server/routes_explain.py`, `docs/research/uncertainty_and_counterfactuals.md`,
+tests.
+
+## Tier 2 — concrete product/research gaps
+
+### F-TTS (currently running). Adaptation-conditioned speech output.
+AI Glasses / Celia / Smart Hanhan have speakers. Matches input-side
+prosody.
+
+### F-1. Voice prosody + facial affect + multimodal fusion.
+AI Glasses + Smart Hanhan + Darwin CV lineage. Real librosa/MediaPipe
+extractors replacing the current stubs.
+
+### G3. Sparse autoencoders for cross-attention interpretability.
+Anthropic's own tool (Bricken 2023 → Templeton 2024 Claude 3 Sonnet
+scaling). Extends Batch B from "probes and patches" to "discovered
+monosemantic features." 2026 MIT Breakthrough Technology.
+
+### F-2. PPG / HRV wearable signals.
+Huawei Watch 5 ships the three-in-one sensor today. One more TCN modality.
+
+### G4. LLM-as-judge evaluation harness.
+Claude Sonnet 4.5 as pair-judge for response quality across conditions;
+removes self-evaluation circularity.
+
+### F-4. Active preference learning (online DPO).
+2025 ICLR Active Learning for DPO. Closes the reward loop the bandit's
+composite reward currently approximates.
+
+### F-5. Elastic Weight Consolidation (continual learning).
+The long-term-EMA claim has catastrophic-forgetting risk; EWC (Kirkpatrick
+2017) mitigates properly.
+
+## Tier 3 — credibility boosters
+
+### G5. Meta-learning (MAML) for few-shot user adaptation.
+Rebuttal to "5-message warmup is too slow."
+
+### G6. Red-team safety harness.
+50+ adversarial prompts against the privacy override; verify the PDDL
+planner holds; concrete safety numbers.
+
+## Explicitly excluded as noise
+
+RLHF from scratch, Neural Architecture Search, MoE encoder, Mamba/S4
+(TCN fine at edge scale), Neural ODE, diffusion generation, hyperbolic
+embeddings, GNN session modelling, homomorphic encryption, reservoir
+computing, acoustic-scene classification, ambient-light sensing, TTS
+from scratch, voice cloning, image generation, OCR, calendar/location
+context.
+
+## Sequencing
+
+Two agents concurrently per the user's relaxed preference; queue order:
+
+1. **G1** (simulation eval) — started with TTS still running.
+2. **G2** (uncertainty + counterfactuals) — pair with F-TTS/G1 completions.
+3. **F-1** (voice + vision + fusion).
+4. **G3** (SAEs).
+5. **F-2** (PPG / HRV).
+6. **G4** (LLM-as-judge).
+7. **F-4** (active DPO).
+8. **F-5** (EWC).
+9. **G5** (MAML).
+10. **G6** (red-team).
+
+Final integration commit after all ten close: CHANGELOG update, mkdocs.yml
+nav expansion, README matrix extension.
+
+*Version history: v2 → v3 appendix adds the G-series empirical-rigour and
+F-series ecosystem-fit batches.*
