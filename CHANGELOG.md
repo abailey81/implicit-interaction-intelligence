@@ -353,6 +353,117 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`docs/adr/*.md`**: stripped 96 check/cross/warning emoji glyphs
   across 11 ADRs per the no-emoji style rule.
 
+### Added (wave 6 — research-rigour + universal provider + advanced UI)
+
+Driven by `ADVANCEMENT_PLAN.md` v3 Tier 1-3 batches.
+
+#### Empirical + interpretability rigour
+- **Batch A** — preregistered empirical ablation study
+  (`docs/experiments/preregistration.md`, `i3/eval/ablation_experiment.py`,
+  `i3/eval/ablation_statistics.py`, CLI + paper-style report).
+- **Batch B** — mechanistic interpretability study
+  (`i3/interpretability/activation_patching.py`, `probing_classifiers.py`,
+  `attention_circuits.py`, CLI + 3 000-word paper).
+- **Batch C** — ImplicitAdaptBench benchmark
+  (`benchmarks/implicit_adapt_bench/` with data_schema, metrics,
+  data_generator, 3 baselines, scoring CLI, 2 500-word spec).
+- **Batch G1** — simulation-based closed-loop evaluation
+  (`i3/eval/simulation/personas.py` with 8 HCI personas,
+  `user_simulator.py`, `closed_loop.py`, CLI, paper, 31 tests).
+- **Batch G2** — uncertainty quantification + counterfactual explanations
+  (`i3/adaptation/uncertainty.py` MC Dropout,
+  `i3/interpretability/counterfactuals.py`, `/api/explain/adaptation`
+  endpoint, web panel).
+- **Batch G3** — sparse autoencoders for cross-attention
+  interpretability (`i3/interpretability/sparse_autoencoder.py`,
+  `activation_cache.py`, `sae_analysis.py`, `activation_steering.py`,
+  train + analyse CLIs, 3 000-word paper).
+- **Batch G4** — provider-agnostic LLM-as-judge harness
+  (`i3/eval/llm_judge.py`, `judge_rubric.py`, `judge_calibration.py`,
+  `judge_ensemble.py`, CLI, 34 tests).
+- **Batch G6** — red-team safety harness with 55 adversarial attacks
+  across 10 categories (`i3/redteam/attack_corpus.py`, `attacker.py`
+  with 4 target surfaces, `policy_check.py`, CLI, weekly CI,
+  2 500-word paper, 30 tests).
+
+#### Huawei-ecosystem-aligned features
+- **Batch D-1** — speculative decoding (Celia parallel) +
+  adaptive fast/slow compute router (PanGu 5.5 parallel).
+  (`i3/slm/speculative_decoding.py`, `i3/router/adaptive_compute.py`,
+  2 228-word research note).
+- **Batch D-2** — PDDL-grounded privacy-safety planner +
+  runnable HMAF agentic runtime + AI-Glasses translation endpoint.
+  (`i3/safety/pddl_planner.py`, `i3/huawei/agentic_core_runtime.py`,
+  `server/routes_translate.py`, 2 230-word agentic-core doc).
+- **Batch F-2** — PPG / HRV wearable signals (Huawei Watch 5 parallel)
+  (`i3/multimodal/ppg_hrv.py`, `wearable_ingest.py` with 6 vendor
+  formats, `i3/huawei/watch_integration.py`, 2 500-word paper).
+
+#### Next-gen capability stack
+- **Batch G7** — universal LLM provider layer (`i3/cloud/providers/`
+  with 11 first-class adapters — Anthropic, OpenAI, Google, Azure,
+  Bedrock, Mistral, Cohere, Ollama, OpenRouter, LiteLLM, Huawei PanGu;
+  `multi_provider.py` with sequential / parallel / best-of-N
+  strategies + circuit breaker; `prompt_translator.py`; `cost_tracker.py`
+  with 2026 pricing; 11 config fragments; .env.providers.example).
+- **Batch F-TTS** — adaptation-conditioned speech synthesis
+  (`i3/tts/conditioning.py` maps AdaptationVector → TTSParams;
+  3 soft-imported backends; server/routes_tts.py; web player;
+  2 100-word research note).
+- **Batch F-1** — voice prosody + facial affect + multimodal fusion
+  (`i3/multimodal/voice_real.py` 8-dim prosody via librosa,
+  `vision.py` MediaPipe Face Mesh 8 landmark-derived AUs,
+  `fusion_real.py` 3 strategies, live webcam+mic demo, 2 500-word paper).
+- **Batch F-4** — active preference learning / online DPO
+  (`i3/router/preference_learning.py` Bradley-Terry + Mehta 2025 active
+  selection, `server/routes_preference.py`, web A/B panel).
+- **Batch F-5** — Elastic Weight Consolidation + drift-triggered
+  auto-consolidation (`i3/continual/ewc.py`, `online_ewc` variant,
+  `drift_detector.py` ADWIN, `ewc_user_model.py` composable wrapper).
+- **Batch G5** — MAML + Reptile meta-learning for few-shot user
+  adaptation (`i3/meta_learning/maml.py`, `reptile.py`,
+  `few_shot_adapter.py`, `task_generator.py`).
+
+#### Interview deliverables + polish
+- **Batch G9** — advanced cinematic command-center demo UI at
+  `/advanced` (`web/advanced/`): 7-panel CSS-Grid layout, Three.js 3D
+  embedding cloud, Chart.js metric graphs, SVG radial adaptation gauges
+  with uncertainty bands, 4×4 cross-attention heatmap, guided-tour
+  Alt+T mode that walks the 4 demo phases autonomously, screen-
+  recording preset, runtime WCAG 2.2 AA contrast audit, palette-
+  disciplined (6 colours, no build step, vendor SRI-pinned).
+- **Batch G8** — comprehensive verification harness
+  (`scripts/verify_all.py` + `scripts/verification/` package with
+  46 checks across 6 categories — code integrity, config, runtime,
+  providers, infrastructure, interview-readiness).
+- **Batch G10** — four iterative verification passes took the harness
+  from 14 FAIL to **0 FAIL, 25 PASS, 21 SKIP**, exit 0 under
+  `--strict`. Reports under `reports/verification_pass{1,2,3,4_strict}.*`
+  committed as traceability artefacts.
+
+### Changed (wave 6)
+- **`pyproject.toml`**: six new Poetry groups — `providers`,
+  `multimodal`, `llm-ecosystem`, `mcp`, `future-work`, plus `tts`
+  was already present.
+- **`Makefile`**: new targets `verify`, `verify-strict`, `verify-quick`,
+  `redteam`, `run-ablation`, `run-closed-loop`, `run-sae`,
+  `run-llm-judge`, `run-ewc`, `run-maml`, `run-hmaf`.
+- **`mkdocs.yml`**: nav expanded with 17 new research pages +
+  experiments section + Provider Layer + Agentic Core.
+
+### Fixed (wave 6 — from iterative verification)
+- **`i3/encoder/onnx_export.py`** + **`i3/slm/onnx_export.py`**:
+  `print()` → `sys.stderr.write()` in CLI main blocks (was flagged by
+  `code.no_print_in_library`).
+- **`docs/slides/closing_lines.md`**: verbatim closing line unwrapped
+  onto a single line so `interview.closing_line_verbatim` finds it
+  (was split by a hard-wrapped blockquote).
+- **`scripts/verification/*`**: six harness-logic fixes so
+  environment-absent deps degrade to SKIP instead of FAIL;
+  Helm-templated YAML is excluded; function-scoped lazy imports are
+  accepted as the canonical soft-import pattern; verification reports
+  no longer self-match the secret-prefix scanner.
+
 
 ## [1.0.0] — 2026-04-12
 

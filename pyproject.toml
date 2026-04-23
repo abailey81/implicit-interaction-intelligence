@@ -207,6 +207,54 @@ cedarpy          = ">=4.0"
 # serves the Web Speech API directive path without any of these — install
 # `--with tts` only when server-side audio synthesis is required.
 # See docs/research/adaptive_tts.md for the design rationale.
+# ─── Universal LLM Provider Layer (Batch G7) ────────────────────────────
+# Optional. Soft-imported by every i3/cloud/providers/*.py adapter. A
+# minimal install (no provider SDK) still boots and routes to Anthropic
+# via the existing CloudLLMClient. Install all to enable vendor-neutral
+# routing via MultiProviderClient.
+[tool.poetry.group.providers.dependencies]
+openai               = ">=1.40"   # OpenAI + Azure OpenAI (base_url override)
+"google-generativeai"= ">=0.7"
+boto3                = ">=1.34"   # AWS Bedrock
+mistralai            = ">=1.0"
+cohere               = ">=5.0"
+litellm              = ">=1.50"
+
+# ─── Multimodal Extractors (Batch F-1 + F-2) ────────────────────────────
+# Real runnable extractors for voice prosody + facial affect + PPG HRV;
+# all soft-imported. Missing libs fall back to zero vectors with a warn.
+[tool.poetry.group.multimodal.dependencies]
+librosa                 = "^0.10"
+soundfile               = "^0.12"
+mediapipe               = "^0.10"
+"opencv-python-headless" = "^4.9"
+sounddevice             = "^0.4"
+
+# ─── 2026 LLM Ecosystem (Batch D-2 / G4) ────────────────────────────────
+# DSPy / NeMo Guardrails / Pydantic AI / Instructor / Outlines /
+# Logfire / Traceloop. All soft-imported.
+[tool.poetry.group.llm-ecosystem.dependencies]
+"dspy-ai"        = "^2.5"
+nemoguardrails   = "^0.11"
+"pydantic-ai"    = "^0.0.13"
+instructor       = "^1.6"
+outlines         = "^0.1"
+logfire          = { version = "^0.55", extras = ["fastapi", "httpx", "pydantic"] }
+"traceloop-sdk"  = "^0.30"
+
+# ─── Model Context Protocol (Anthropic's MCP server) ────────────────────
+# Soft-imported by i3/mcp/*; required only to run the MCP server.
+[tool.poetry.group.mcp.dependencies]
+mcp = { version = ">=1.0", extras = ["cli"] }
+
+# ─── Future-Work Tracks (Batches F-4 / F-5 / multi-modal federated) ─────
+# Flower federated learning, Opacus DP-SGD. Soft-imported. Heavy, install
+# only when actually training.
+[tool.poetry.group.future-work.dependencies]
+flwr    = ">=1.7"
+opacus  = ">=1.4"
+
+# ─── TTS (Batch F-TTS) ──────────────────────────────────────────────────
 [tool.poetry.group.tts.dependencies]
 pyttsx3       = { version = ">=2.90", optional = true }   # OS-native SAPI5/NSSS/espeak
 "piper-tts"   = { version = ">=1.2",  optional = true }   # Rhasspy neural TTS (CPU)

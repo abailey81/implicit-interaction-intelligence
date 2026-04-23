@@ -356,3 +356,46 @@ sign-model: ## Sign a checkpoint with OpenSSF Model Signing v1.0 (sigstore)
 
 eval-conditioning: ## Run the cross-attention conditioning-sensitivity evaluation
 	$(PY) -m scripts.evaluate_conditioning
+
+# ═════════════════════════════════════════════════════════════════════════
+#  Verification harness (Batch G8) + iterative verification (Batch G10)
+# ═════════════════════════════════════════════════════════════════════════
+
+.PHONY: verify verify-strict verify-quick redteam run-ablation run-closed-loop run-sae run-llm-judge run-ewc run-maml run-hmaf
+
+verify: ## Run the 46-check verification harness -> reports/verification_latest.md
+	@printf "$(BLUE)▶ Running verification harness...$(RESET)\n"
+	$(PY) scripts/verify_all.py --out reports/verification_latest.json --out-md reports/verification_latest.md
+	@printf "$(GREEN)✓ Verification report at reports/verification_latest.md$(RESET)\n"
+
+verify-strict: ## Run the harness in --strict mode (exit non-zero on any FAIL)
+	@printf "$(BLUE)▶ Strict verification (exit non-zero on any FAIL)...$(RESET)\n"
+	$(PY) scripts/verify_all.py --strict --out reports/verification_strict.json --out-md reports/verification_strict.md
+
+verify-quick: ## Only code + config + interview categories
+	$(PY) scripts/verify_all.py --categories code,config,interview \
+		--out reports/verification_quick.json --out-md reports/verification_quick.md
+
+redteam: ## Run the 55-attack red-team harness (Batch G6)
+	$(PY) scripts/run_redteam.py --targets sanitizer,pddl,guardrails --fail-fast
+
+run-ablation: ## Run the preregistered empirical ablation study (Batch A)
+	$(PY) -m scripts.run_ablation_study --out reports/ablation_latest.json --out-md reports/ablation_latest.md
+
+run-closed-loop: ## Run the closed-loop simulation evaluation (Batch G1)
+	$(PY) -m scripts.run_closed_loop_eval --out reports/closed_loop_latest.json --out-md reports/closed_loop_latest.md
+
+run-sae: ## Train + analyse sparse autoencoders on cross-attention (Batch G3)
+	$(PY) -m scripts.train_sae && $(PY) -m scripts.analyse_sae
+
+run-llm-judge: ## LLM-as-judge over an ablation or benchmark result (Batch G4)
+	$(PY) -m scripts.run_llm_judge --ablation-results reports/ablation_latest.json
+
+run-ewc: ## Sequential-task EWC training curve (Batch F-5)
+	$(PY) -m scripts.run_ewc_demo
+
+run-maml: ## Few-shot user-adaptation eval after MAML meta-training (Batch G5)
+	$(PY) -m scripts.run_few_shot_demo
+
+run-hmaf: ## Drive five canned HMAF intents end-to-end (Batch D-2)
+	$(PY) -m scripts.run_hmaf_runtime_demo

@@ -223,6 +223,23 @@ nav:
       - Browser Inference: research/browser_inference.md
       - Distributed Training: research/distributed_training.md
       - Differential Privacy: research/differential_privacy.md
+      - Adaptive TTS: research/adaptive_tts.md
+      - Adaptive Compute Router: research/adaptive_compute_router.md
+      - ImplicitAdaptBench: research/implicit_adapt_bench.md
+      - Mechanistic Interpretability: research/mechanistic_interpretability.md
+      - Sparse Autoencoders: research/sparse_autoencoders.md
+      - Closed-Loop Evaluation: research/closed_loop_evaluation.md
+      - Uncertainty + Counterfactuals: research/uncertainty_and_counterfactuals.md
+      - Multimodal Extension: research/multimodal_extension.md
+      - PPG HRV Integration: research/ppg_hrv_integration.md
+      - LLM-as-Judge: research/llm_as_judge.md
+      - Active Preference Learning: research/active_preference_learning.md
+      - Continual Learning EWC: research/continual_learning_ewc.md
+      - Meta-Learning MAML: research/meta_learning_maml.md
+      - Red-Team Results: research/redteam_results.md
+      - Experiments Overview: experiments/README.md
+      - Preregistration: experiments/preregistration.md
+      - Ablation Report: experiments/ablation_report.md
       - Model Card: model_card.md
       - Data Card: data_card.md
   - Integration:
@@ -243,8 +260,14 @@ nav:
       - Reproducibility: operations/reproducibility.md
       - uv Migration: operations/uv_migration.md
       - Analytics: operations/analytics.md
+      - Advanced Demo UI: operations/advanced_ui.md
+      - Verification Harness: operations/verification_harness.md
       - Edge Profiling Report: edge_profiling_report.md
       - MLOps: mlops/README.md
+  - Provider Layer:
+      - cloud/provider_universality.md
+  - Agentic Core:
+      - huawei/agentic_core.md
   - Responsible AI:
       - responsible_ai/README.md
       - Model Card (SLM): responsible_ai/model_card_slm.md
