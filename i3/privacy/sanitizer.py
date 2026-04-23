@@ -5,22 +5,19 @@ persisted, transmitted to cloud services, or logged. It provides defense-in-dept
 even if higher layers fail to strip PII, the sanitizer catches it.
 
 Classes:
-    SanitizationResult - Structured result of a sanitization pass
-    PrivacySanitizer   - PII detection and replacement engine
-    PrivacyAuditor     - Runtime auditing of privacy guarantees
+    SanitizationResult: Structured result of a sanitization pass.
+    PrivacySanitizer: PII detection and replacement engine.
+    PrivacyAuditor: Runtime auditing of privacy guarantees.
 """
 
-import re
-import json
 import logging
-import sqlite3
-import asyncio
+import re
 import threading
-import aiosqlite
-from pathlib import Path
-from typing import Optional
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
+from pathlib import Path
+
+import aiosqlite
 
 logger = logging.getLogger(__name__)
 
@@ -263,7 +260,7 @@ class PrivacyAuditor:
         # drops the oldest record in O(1).
         from collections import deque
 
-        self._findings: "deque[dict]" = deque(maxlen=1_000)
+        self._findings: deque[dict] = deque(maxlen=1_000)
         self._sanitizer = PrivacySanitizer(enabled=True)
 
     async def audit_database(self, db_path: str) -> dict:
@@ -322,7 +319,7 @@ class PrivacyAuditor:
                     tables_scanned += 1
                     # Get column info
                     cursor = await db.execute(
-                        f"PRAGMA table_info('{table}')"  # noqa: S608 -- audited identifier
+                        f"PRAGMA table_info('{table}')"
                     )
                     columns = await cursor.fetchall()
                     text_columns = [

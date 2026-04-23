@@ -23,11 +23,12 @@ import json
 import logging
 import os
 import shutil
+from collections.abc import Iterable, Mapping
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Iterable, Mapping, Optional
+from typing import Any
 
 from i3.mlops.checkpoint import compute_sha256
 
@@ -38,16 +39,16 @@ logger = logging.getLogger(__name__)
 # Soft imports
 # --------------------------------------------------------------------------- #
 
-_mlflow: Optional[ModuleType]
+_mlflow: ModuleType | None
 try:  # pragma: no cover
     import mlflow as _mlflow  # type: ignore[import-not-found]
-except Exception:  # noqa: BLE001
+except Exception:
     _mlflow = None
 
-_wandb: Optional[ModuleType]
+_wandb: ModuleType | None
 try:  # pragma: no cover
     import wandb as _wandb  # type: ignore[import-not-found]
-except Exception:  # noqa: BLE001
+except Exception:
     _wandb = None
 
 
@@ -150,7 +151,7 @@ class ModelRegistry:
         root: str | Path = "registry",
         use_mlflow: bool = True,
         use_wandb: bool = False,
-        wandb_project: Optional[str] = None,
+        wandb_project: str | None = None,
     ) -> None:
         self.root = Path(root)
         self.mlflow_enabled = bool(use_mlflow and _mlflow is not None)
@@ -199,10 +200,10 @@ class ModelRegistry:
         self,
         name: str,
         source_path: str | Path,
-        metrics: Optional[Mapping[str, float]] = None,
-        tags: Optional[Mapping[str, str]] = None,
-        metadata: Optional[Mapping[str, Any]] = None,
-        mlflow_run_id: Optional[str] = None,
+        metrics: Mapping[str, float] | None = None,
+        tags: Mapping[str, str] | None = None,
+        metadata: Mapping[str, Any] | None = None,
+        mlflow_run_id: str | None = None,
     ) -> RegistryEntry:
         """Copy a checkpoint into the registry and create a new version.
 
@@ -263,7 +264,7 @@ class ModelRegistry:
         logger.info("Registered %s v%d -> %s", name, version, dest)
         return entry
 
-    def get(self, name: str, version: Optional[int] = None) -> RegistryEntry:
+    def get(self, name: str, version: int | None = None) -> RegistryEntry:
         """Fetch a registered model entry.
 
         Args:
@@ -345,7 +346,7 @@ class ModelRegistry:
     def _mirror_mlflow(
         self,
         entry: RegistryEntry,
-        run_id: Optional[str],
+        run_id: str | None,
     ) -> None:
         """Mirror a registered entry into the MLflow model registry.
 
@@ -359,7 +360,7 @@ class ModelRegistry:
             client = _mlflow.tracking.MlflowClient()
             try:
                 client.create_registered_model(entry.name)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass  # Already exists.
             source = str(Path(entry.path).resolve().as_uri())
             client.create_model_version(
@@ -368,7 +369,7 @@ class ModelRegistry:
                 run_id=run_id,
                 tags={**entry.tags, "sha256": entry.sha256},
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("MLflow mirror failed for %s: %s", entry.name, exc)
 
     def _mirror_wandb(self, entry: RegistryEntry) -> None:
@@ -400,7 +401,7 @@ class ModelRegistry:
                 run.log_artifact(artifact, aliases=list(set(["latest", *entry.tags.values()])))
             finally:
                 run.finish()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("W&B mirror failed for %s: %s", entry.name, exc)
 
 

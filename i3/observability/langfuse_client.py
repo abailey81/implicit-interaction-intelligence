@@ -44,8 +44,9 @@ import logging
 import os
 import time
 import uuid
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
-from typing import Any, AsyncIterator, Awaitable, Callable, Optional, TypeVar
+from typing import Any, TypeVar
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +103,7 @@ class _NoopSpan:
         self.trace_id: str = trace_id
         self._start: float = time.monotonic()
 
-    def record(self, result: Any, **extra: Any) -> None:  # noqa: D401
+    def record(self, result: Any, **extra: Any) -> None:
         """Ignore the payload — no-op mode."""
         return
 
@@ -148,7 +149,7 @@ class LangfuseTracer:
         """
         self.default_model: str = default_model
         self.capture_io: bool = capture_io
-        self._client: Optional[Any] = None
+        self._client: Any | None = None
         self.enabled: bool = self._init_client()
 
     # ------------------------------------------------------------------
@@ -190,7 +191,7 @@ class LangfuseTracer:
             self._client = langfuse_cls(**kwargs)
             logger.info("LangfuseTracer initialised (host=%s)", host or "default")
             return True
-        except Exception as exc:  # noqa: BLE001 - defensive: SDK errors are varied
+        except Exception as exc:
             logger.warning(
                 "Failed to initialise Langfuse client (%s); tracer disabled.",
                 type(exc).__name__,
@@ -239,11 +240,11 @@ class LangfuseTracer:
         *,
         name: str,
         trace_id: str,
-        user_id: Optional[str],
+        user_id: str | None,
         metrics: dict[str, Any],
-        prompt: Optional[str],
-        completion: Optional[str],
-        error: Optional[BaseException],
+        prompt: str | None,
+        completion: str | None,
+        error: BaseException | None,
     ) -> None:
         """Send a single generation record to Langfuse (best-effort)."""
         if not self.enabled or self._client is None:
@@ -282,7 +283,7 @@ class LangfuseTracer:
                 trace_fn = getattr(self._client, "trace", None)
                 if callable(trace_fn):
                     trace_fn(**payload)
-        except Exception as exc:  # noqa: BLE001 - never let telemetry break prod
+        except Exception as exc:
             logger.debug(
                 "Langfuse emit failed (%s); swallowing.", type(exc).__name__
             )
@@ -295,7 +296,7 @@ class LangfuseTracer:
             flush_fn = getattr(self._client, "flush", None)
             if callable(flush_fn):
                 flush_fn()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug(
                 "Langfuse flush failed (%s); swallowing.", type(exc).__name__
             )
@@ -308,7 +309,7 @@ class LangfuseTracer:
         self,
         *,
         name: str = "cloud.generate",
-        user_id: Optional[str] = None,
+        user_id: str | None = None,
     ) -> Callable[[AsyncFn[T]], AsyncFn[T]]:
         """Decorator wrapping any async function that calls ``generate``.
 
@@ -331,7 +332,7 @@ class LangfuseTracer:
             async def wrapper(*args: Any, **kwargs: Any) -> T:
                 trace_id = str(uuid.uuid4())
                 started = time.monotonic()
-                err: Optional[BaseException] = None
+                err: BaseException | None = None
                 result: Any = None
                 try:
                     result = await fn(*args, **kwargs)
@@ -376,7 +377,7 @@ class LangfuseTracer:
         self,
         name: str = "cloud.generate",
         *,
-        user_id: Optional[str] = None,
+        user_id: str | None = None,
     ) -> AsyncIterator[_NoopSpan]:
         """Async context manager form of :meth:`trace_generation`.
 
@@ -403,7 +404,7 @@ class LangfuseTracer:
             original_record(result, **extra)
 
         span.record = record  # type: ignore[method-assign]
-        err: Optional[BaseException] = None
+        err: BaseException | None = None
         try:
             yield span
         except BaseException as exc:
@@ -437,9 +438,9 @@ class LangfuseTracer:
         input_tokens: int,
         output_tokens: int,
         latency_ms: float,
-        model: Optional[str] = None,
-        user_id: Optional[str] = None,
-        trace_id: Optional[str] = None,
+        model: str | None = None,
+        user_id: str | None = None,
+        trace_id: str | None = None,
     ) -> str:
         """Emit a single generation record without wrapping a callable.
 

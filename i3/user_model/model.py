@@ -19,7 +19,7 @@ import logging
 import math
 import time
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import torch
 
@@ -88,7 +88,7 @@ class UserModel:
         self,
         user_id: str,
         config: UserModelConfig,
-        profile: Optional[UserProfile] = None,
+        profile: UserProfile | None = None,
     ) -> None:
         self.user_id = user_id
         self.config = config
@@ -114,13 +114,13 @@ class UserModel:
             )
 
         # Session-level state (initialised by start_session)
-        self.current_session: Optional[SessionState] = None
+        self.current_session: SessionState | None = None
 
         # Instant state (most recent encoder output)
-        self.current_state: Optional[UserState] = None
+        self.current_state: UserState | None = None
 
         # Cached deviation metrics
-        self._deviation: Optional[DeviationMetrics] = None
+        self._deviation: DeviationMetrics | None = None
 
         # Running feature statistics for baseline computation (Welford's)
         self._feature_count: int = 0

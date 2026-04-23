@@ -23,8 +23,9 @@ from __future__ import annotations
 import logging
 import os
 import time
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Any, Iterator
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +66,7 @@ REGISTRY: CollectorRegistry = (
 class _NullMetric:
     """No-op stand-in used when prometheus_client is not installed."""
 
-    def labels(self, *_: Any, **__: Any) -> "_NullMetric":
+    def labels(self, *_: Any, **__: Any) -> _NullMetric:
         return self
 
     def inc(self, *_: Any, **__: Any) -> None:
@@ -309,12 +310,12 @@ def configure_otel_metrics(service_version: str = "0.0.0") -> None:
     endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
     try:
         from opentelemetry import metrics as otel_metrics
+        from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import (
+            OTLPMetricExporter,
+        )
         from opentelemetry.sdk.metrics import MeterProvider
         from opentelemetry.sdk.metrics.export import (
             PeriodicExportingMetricReader,
-        )
-        from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import (
-            OTLPMetricExporter,
         )
         from opentelemetry.sdk.resources import Resource
     except Exception as exc:  # pragma: no cover - import guarded

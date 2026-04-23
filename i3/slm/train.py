@@ -28,7 +28,7 @@ import logging
 import math
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -111,14 +111,13 @@ class CosineWarmupScheduler:
         if step < self.warmup_steps:
             # Linear warmup: 0 -> base_lr
             return self.base_lr * step / max(self.warmup_steps, 1)
-        else:
-            # Cosine decay: base_lr -> min_lr
-            decay_steps = max(self.max_steps - self.warmup_steps, 1)
-            progress = min(
-                (step - self.warmup_steps) / decay_steps, 1.0
-            )
-            cosine_factor = 0.5 * (1.0 + math.cos(math.pi * progress))
-            return self.min_lr + (self.base_lr - self.min_lr) * cosine_factor
+        # Cosine decay: base_lr -> min_lr
+        decay_steps = max(self.max_steps - self.warmup_steps, 1)
+        progress = min(
+            (step - self.warmup_steps) / decay_steps, 1.0
+        )
+        cosine_factor = 0.5 * (1.0 + math.cos(math.pi * progress))
+        return self.min_lr + (self.base_lr - self.min_lr) * cosine_factor
 
     def get_last_lr(self) -> list[float]:
         """Return the last computed learning rate.
@@ -348,7 +347,7 @@ class SLMTrainer:
         self,
         train_loader: DataLoader,
         val_loader: DataLoader,
-        max_steps: Optional[int] = None,
+        max_steps: int | None = None,
         log_every: int = 100,
         validate_every: int = 1000,
         patience: int = 10,

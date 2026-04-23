@@ -30,8 +30,9 @@ from __future__ import annotations
 
 import logging
 import math
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable, Optional
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -61,7 +62,7 @@ def _encode_corpus(tokenizer: Any, text: str) -> list[int]:
 
 
 def _chunks(
-    ids: list[int], context_len: int, stride: Optional[int] = None
+    ids: list[int], context_len: int, stride: int | None = None
 ) -> Iterable[list[int]]:
     """Yield overlapping chunks of length ``context_len + 1``.
 
@@ -90,10 +91,10 @@ def compute_perplexity(
     corpus_path: Path,
     *,
     context_len: int = 128,
-    stride: Optional[int] = None,
+    stride: int | None = None,
     device: str = "cpu",
-    adaptation_vector: Optional[torch.Tensor] = None,
-    user_state: Optional[torch.Tensor] = None,
+    adaptation_vector: torch.Tensor | None = None,
+    user_state: torch.Tensor | None = None,
     pad_id: int = 0,
 ) -> float:
     """Return held-out perplexity over *corpus_path*.

@@ -32,8 +32,6 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
-
-from server.auth import require_user_identity_from_body
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from i3.adaptation.types import AdaptationVector, StyleVector
@@ -46,6 +44,7 @@ from i3.tts import (
     explain_params,
     list_backend_statuses,
 )
+from server.auth import require_user_identity_from_body
 
 logger = logging.getLogger(__name__)
 
@@ -502,10 +501,10 @@ def include_tts_routes(app: FastAPI) -> None:
 
 __all__ = [
     "ARCHETYPES",
-    "AdaptationOverride",
     "CANONICAL_PREVIEW_PHRASE",
     "MAX_BODY_BYTES",
     "MAX_TEXT_CHARS",
+    "AdaptationOverride",
     "TTSRequest",
     "TTSResponse",
     "include_tts_routes",

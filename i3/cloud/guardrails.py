@@ -25,7 +25,8 @@ import logging
 import re
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Final, Optional, Pattern
+from re import Pattern
+from typing import Final
 
 logger = logging.getLogger(__name__)
 
@@ -61,8 +62,8 @@ class InputCheckResult:
     """Outcome of an input guardrail check."""
 
     ok: bool
-    reason: Optional[str] = None
-    category: Optional[str] = None
+    reason: str | None = None
+    category: str | None = None
 
 
 @dataclass
@@ -136,7 +137,7 @@ class InputGuardrail:
         *,
         max_tokens: int = DEFAULT_MAX_TOKENS,
         history_window: int = DEFAULT_HISTORY_WINDOW,
-        injection_patterns: Optional[tuple[str, ...]] = None,
+        injection_patterns: tuple[str, ...] | None = None,
     ) -> None:
         """Initialise the guardrail.
 
@@ -166,7 +167,7 @@ class InputGuardrail:
             1, int(len(text) / InputGuardrail._CHARS_PER_TOKEN_HEURISTIC)
         )
 
-    def _detect_injection(self, prompt: str) -> Optional[str]:
+    def _detect_injection(self, prompt: str) -> str | None:
         """Return the matching injection pattern, if any."""
         for pat in self.injection_patterns:
             if pat.search(prompt):
@@ -308,7 +309,7 @@ class OutputGuardrail:
         self,
         *,
         max_response_chars: int = DEFAULT_MAX_RESPONSE_CHARS,
-        policy_markers: Optional[tuple[str, ...]] = None,
+        policy_markers: tuple[str, ...] | None = None,
     ) -> None:
         """Initialise the guardrail.
 
@@ -382,7 +383,7 @@ class OutputGuardrail:
         self,
         text: str,
         *,
-        sensitive_tokens: Optional[tuple[str, ...]] = None,
+        sensitive_tokens: tuple[str, ...] | None = None,
     ) -> OutputCheckResult:
         """Apply output guardrails to *text*.
 

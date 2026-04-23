@@ -36,7 +36,7 @@ import json
 import logging
 import os
 import secrets
-from typing import Mapping
+from collections.abc import Mapping
 
 from fastapi import Header, HTTPException, Request, status
 
@@ -170,7 +170,7 @@ async def require_user_identity_from_body(
     # Cache the body so the route handler can re-parse it without a
     # second ``await request.body()`` that Starlette would reject.
     raw = await request.body()
-    request.state._i3_auth_body_cache = raw  # noqa: SLF001
+    request.state._i3_auth_body_cache = raw
     body_user_id: str | None = None
     if raw:
         try:

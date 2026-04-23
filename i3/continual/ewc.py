@@ -35,7 +35,7 @@ penalty_loss` which the caller adds to their task loss.
 from __future__ import annotations
 
 import logging
-from typing import Callable, Iterable, Optional
+from collections.abc import Callable, Iterable
 
 import torch
 from torch import nn
@@ -196,7 +196,7 @@ class ElasticWeightConsolidation:
         fisher_estimation_samples: int = _DEFAULT_FISHER_SAMPLES,
         *,
         fisher_epsilon: float = _DEFAULT_FISHER_EPSILON,
-        loss_closure: Optional[LossClosure] = None,
+        loss_closure: LossClosure | None = None,
     ) -> None:
         if lambda_ewc < 0:
             raise ValueError(
@@ -259,7 +259,7 @@ class ElasticWeightConsolidation:
         self,
         dataloader: Iterable[object],
         *,
-        device: Optional[torch.device] = None,
+        device: torch.device | None = None,
     ) -> FisherDict:
         """Estimate the diagonal Fisher Information on a dataset.
 
@@ -355,7 +355,7 @@ class ElasticWeightConsolidation:
         self,
         dataloader: Iterable[object],
         *,
-        device: Optional[torch.device] = None,
+        device: torch.device | None = None,
     ) -> None:
         """Finalise a task: snapshot params and store Fisher.
 
@@ -410,7 +410,7 @@ class ElasticWeightConsolidation:
                 return torch.zeros((), device=param.device)
             return torch.zeros(())
 
-        total: Optional[torch.Tensor] = None
+        total: torch.Tensor | None = None
         for name, param in self._iter_named_parameters():
             if name not in self._fisher or name not in self._star_params:
                 continue
@@ -487,7 +487,7 @@ class ElasticWeightConsolidation:
 
     @staticmethod
     def _move_to_device(
-        batch: object, device: Optional[torch.device]
+        batch: object, device: torch.device | None
     ) -> object:
         """Move tensor fields of *batch* to *device* without mutation."""
         if device is None:
@@ -545,7 +545,7 @@ class OnlineEWC(ElasticWeightConsolidation):
         *,
         gamma: float = _DEFAULT_ONLINE_GAMMA,
         fisher_epsilon: float = _DEFAULT_FISHER_EPSILON,
-        loss_closure: Optional[LossClosure] = None,
+        loss_closure: LossClosure | None = None,
     ) -> None:
         if not (0.0 < gamma <= 1.0):
             raise ValueError(f"gamma must be in (0, 1], got {gamma}")
@@ -564,7 +564,7 @@ class OnlineEWC(ElasticWeightConsolidation):
         self,
         dataloader: Iterable[object],
         *,
-        device: Optional[torch.device] = None,
+        device: torch.device | None = None,
     ) -> None:
         """Update running Fisher + star params using exponential decay.
 
@@ -618,7 +618,7 @@ def build_ewc_for_encoder(
     online: bool = False,
     gamma: float = _DEFAULT_ONLINE_GAMMA,
     fisher_estimation_samples: int = _DEFAULT_FISHER_SAMPLES,
-    loss_closure: Optional[LossClosure] = None,
+    loss_closure: LossClosure | None = None,
 ) -> ElasticWeightConsolidation:
     """Factory that returns either :class:`ElasticWeightConsolidation`
     or :class:`OnlineEWC` depending on ``online``.

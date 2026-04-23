@@ -67,7 +67,6 @@ import logging
 import math
 import time
 from dataclasses import dataclass, field
-from typing import Optional
 
 import torch
 import torch.nn.functional as F
@@ -248,10 +247,10 @@ class SpeculativeDecoder:
     def __init__(
         self,
         target_model: AdaptiveSLM,
-        draft_model: Optional[AdaptiveSLM] = None,
+        draft_model: AdaptiveSLM | None = None,
         num_drafts: int = 4,
         acceptance_threshold: float = 0.7,
-        vocab_size: Optional[int] = None,
+        vocab_size: int | None = None,
     ) -> None:
         if num_drafts < 1:
             raise ValueError(f"num_drafts must be >= 1, got {num_drafts}")
@@ -269,7 +268,7 @@ class SpeculativeDecoder:
 
         # ----- Draft model construction / auto-shrink ----------------------
         self.fallback_mode: bool = False
-        self.draft_model: Optional[AdaptiveSLM]
+        self.draft_model: AdaptiveSLM | None
 
         if draft_model is not None:
             self.draft_model = draft_model
@@ -303,7 +302,7 @@ class SpeculativeDecoder:
     @classmethod
     def _auto_shrink(
         cls, target: AdaptiveSLM
-    ) -> Optional[AdaptiveSLM]:
+    ) -> AdaptiveSLM | None:
         """Construct a smaller draft with half the layers and half the width.
 
         The shrink respects three invariants:
@@ -407,7 +406,7 @@ class SpeculativeDecoder:
     def generate(
         self,
         prompt_ids: torch.Tensor,
-        conditioning_tokens: Optional[dict[str, torch.Tensor]] = None,
+        conditioning_tokens: dict[str, torch.Tensor] | None = None,
         max_new_tokens: int = 64,
         temperature: float = 1.0,
     ) -> tuple[torch.Tensor, SpeculativeStats]:
@@ -575,9 +574,9 @@ class SpeculativeDecoder:
 
     @staticmethod
     def _unpack_conditioning(
-        conditioning_tokens: Optional[dict[str, torch.Tensor]],
+        conditioning_tokens: dict[str, torch.Tensor] | None,
         device: torch.device,
-    ) -> tuple[Optional[torch.Tensor], Optional[torch.Tensor]]:
+    ) -> tuple[torch.Tensor | None, torch.Tensor | None]:
         """Unpack the conditioning dict into ``(adaptation_vector, user_state)``.
 
         Either element may be ``None`` — the model will substitute
@@ -605,8 +604,8 @@ class SpeculativeDecoder:
     def _target_only_generate(
         self,
         prompt_ids: torch.Tensor,
-        adaptation_vector: Optional[torch.Tensor],
-        user_state: Optional[torch.Tensor],
+        adaptation_vector: torch.Tensor | None,
+        user_state: torch.Tensor | None,
         *,
         max_new_tokens: int,
         temperature: float,
@@ -641,8 +640,8 @@ class SpeculativeDecoder:
         prefix: torch.Tensor,
         k: int,
         *,
-        adaptation_vector: Optional[torch.Tensor],
-        user_state: Optional[torch.Tensor],
+        adaptation_vector: torch.Tensor | None,
+        user_state: torch.Tensor | None,
         temperature: float,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Propose ``k`` draft tokens autoregressively.
@@ -706,10 +705,10 @@ class SpeculativeDecoder:
         draft_ids: torch.Tensor,
         draft_probs: torch.Tensor,
         *,
-        adaptation_vector: Optional[torch.Tensor],
-        user_state: Optional[torch.Tensor],
+        adaptation_vector: torch.Tensor | None,
+        user_state: torch.Tensor | None,
         temperature: float,
-    ) -> tuple[torch.Tensor, Optional[torch.Tensor], int]:
+    ) -> tuple[torch.Tensor, torch.Tensor | None, int]:
         """Verify ``num_drafts`` proposals in a single target forward.
 
         Implements the rejection-sampling test of Leviathan et al.
@@ -767,7 +766,7 @@ class SpeculativeDecoder:
 
         # ----- Acceptance test ------------------------------------------
         accepted: list[int] = []
-        first_reject_idx: Optional[int] = None
+        first_reject_idx: int | None = None
 
         # SEC: detach draft_probs onto the target device just in case the
         # two models were placed on different devices.
@@ -805,7 +804,7 @@ class SpeculativeDecoder:
         )
 
         # ----- Bonus token ----------------------------------------------
-        bonus_id: Optional[torch.Tensor] = None
+        bonus_id: torch.Tensor | None = None
         if first_reject_idx is not None:
             # Sample from the residual max(p_target - p_draft, 0),
             # renormalised. This is the classical Leviathan recovery step.
@@ -876,7 +875,7 @@ class SpeculativeDecoder:
 # ---------------------------------------------------------------------------
 
 
-def clone_as_draft(target: AdaptiveSLM) -> Optional[AdaptiveSLM]:
+def clone_as_draft(target: AdaptiveSLM) -> AdaptiveSLM | None:
     """Public helper that returns an auto-shrunk draft for ``target``.
 
     Wraps :meth:`SpeculativeDecoder._auto_shrink` so external callers

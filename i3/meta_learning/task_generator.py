@@ -21,7 +21,6 @@ from __future__ import annotations
 import hashlib
 import logging
 from collections.abc import Iterator
-from typing import Optional
 
 from i3.eval.simulation.personas import HCIPersona
 from i3.eval.simulation.user_simulator import SimulatedMessage, UserSimulator
@@ -86,7 +85,7 @@ class PersonaTaskGenerator:
     # Public API
     # ------------------------------------------------------------------
 
-    def generate_task(self, persona: Optional[HCIPersona] = None) -> MetaTask:
+    def generate_task(self, persona: HCIPersona | None = None) -> MetaTask:
         """Produce a single :class:`MetaTask`.
 
         Args:
@@ -103,7 +102,7 @@ class PersonaTaskGenerator:
         # derived from (persona name, task counter).
         salt = int(
             hashlib.sha256(
-                f"{persona.name}:{self._task_counter}".encode("utf-8")
+                f"{persona.name}:{self._task_counter}".encode()
             ).hexdigest()[:8],
             16,
         )

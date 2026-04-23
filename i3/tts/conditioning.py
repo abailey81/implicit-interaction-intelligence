@@ -334,16 +334,16 @@ def explain_params(
 
 
 __all__ = [
-    "EnunciationMode",
     "PAUSE_MS_MAX",
     "PAUSE_MS_MIN",
     "PITCH_CENTS_MAX",
     "PITCH_CENTS_MIN",
     "RATE_WPM_MAX",
     "RATE_WPM_MIN",
-    "TTSParams",
     "VOLUME_DB_MAX",
     "VOLUME_DB_MIN",
+    "EnunciationMode",
+    "TTSParams",
     "derive_tts_params",
     "explain_params",
 ]

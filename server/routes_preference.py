@@ -27,13 +27,11 @@ from __future__ import annotations
 
 import logging
 from collections import OrderedDict
-from typing import Any
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Path, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
-from server.auth import require_user_identity, require_user_identity_from_body
 from i3.privacy.sanitizer import PrivacySanitizer
 from i3.router.preference_learning import (
     ActivePreferenceSelector,
@@ -43,6 +41,7 @@ from i3.router.preference_learning import (
     build_response_features,
 )
 from i3.router.router_with_preference import PreferenceAwareRouter
+from server.auth import require_user_identity, require_user_identity_from_body
 
 # SEC (H-2, 2026-04-23 audit): all free-text fields entering the preference
 # dataset and leaving through ``GET /api/preference/query/{user_id}`` MUST
@@ -196,7 +195,7 @@ class _UserCache:
 
     def __init__(self, max_entries: int = _MAX_USERS) -> None:
         self._max: int = int(max_entries)
-        self._store: "OrderedDict[str, _UserState]" = OrderedDict()
+        self._store: OrderedDict[str, _UserState] = OrderedDict()
 
     def get_or_create(self, user_id: str) -> _UserState:
         if user_id in self._store:
@@ -262,9 +261,9 @@ async def record_preference(request: Request) -> JSONResponse:
     # GET /api/preference/query/{user_id} or GET /api/preference/stats/
     # {user_id} must have been through the PII sanitiser first, otherwise
     # we become a cross-user PII harvester.
-    safe_prompt = _SANITIZER.sanitize(body.prompt)
-    safe_response_a = _SANITIZER.sanitize(body.response_a)
-    safe_response_b = _SANITIZER.sanitize(body.response_b)
+    safe_prompt = _SANITIZER.sanitize(body.prompt).sanitized_text
+    safe_response_a = _SANITIZER.sanitize(body.response_a).sanitized_text
+    safe_response_b = _SANITIZER.sanitize(body.response_b).sanitized_text
 
     try:
         pair = PreferencePair(

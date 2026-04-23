@@ -6,7 +6,6 @@ All components are built from scratch in PyTorch with no external libraries.
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -125,7 +124,7 @@ class ResidualBlock(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
         # -- Residual path ----------------------------------------------------
-        self.skip: Optional[nn.Conv1d] = None
+        self.skip: nn.Conv1d | None = None
         if input_dim != output_dim:
             self.skip = nn.Conv1d(input_dim, output_dim, kernel_size=1)
             init.xavier_uniform_(self.skip.weight)

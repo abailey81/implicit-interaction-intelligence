@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 
@@ -127,7 +127,7 @@ class I3FederatedServer:
     remains available for local testing and simulation.
     """
 
-    def __init__(self, config: Optional[I3ServerConfig] = None) -> None:
+    def __init__(self, config: I3ServerConfig | None = None) -> None:
         self.config = config or I3ServerConfig()
         self._strategy: Any = None
         if _FLWR_AVAILABLE:

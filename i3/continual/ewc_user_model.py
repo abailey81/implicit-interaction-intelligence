@@ -25,7 +25,8 @@ vanilla :class:`UserModel` unchanged.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Callable, Iterable, Optional
+from collections.abc import Callable, Iterable
+from typing import TYPE_CHECKING
 
 import torch
 from torch import nn
@@ -91,7 +92,7 @@ class EWCUserModel:
 
     def __init__(
         self,
-        inner_model: "UserModel",
+        inner_model: UserModel,
         encoder: nn.Module,
         *,
         lambda_ewc: float = 1000.0,
@@ -101,7 +102,7 @@ class EWCUserModel:
         replay_capacity: int = 512,
         drift_delta: float = 0.002,
         drift_min_sub_window: int = 8,
-        loss_closure: Optional[LossClosure] = None,
+        loss_closure: LossClosure | None = None,
         auto_consolidate_on_drift: bool = True,
     ) -> None:
         self._inner = inner_model
@@ -128,7 +129,7 @@ class EWCUserModel:
         # episodic memory so that consolidations have data to compute
         # the Fisher from even when the caller's training shard is
         # exhausted.
-        self._replay: Optional[ExperienceReplay] = None
+        self._replay: ExperienceReplay | None = None
         if replay_capacity > 0:
             self._replay = ExperienceReplay(
                 buffer=ReservoirReplayBuffer(capacity=replay_capacity),
@@ -145,19 +146,17 @@ class EWCUserModel:
         self._auto_consolidate_on_drift: bool = bool(auto_consolidate_on_drift)
         # Optional dataloader stashed by :meth:`set_consolidation_dataloader`
         # for the auto-consolidate path.
-        self._consolidation_dataloader: Optional[Iterable[object]] = None
+        self._consolidation_dataloader: Iterable[object] | None = None
 
         # Event hook a caller may register for observability.
-        self._external_drift_hook: Optional[
-            Callable[[DriftDetectionResult], None]
-        ] = None
+        self._external_drift_hook: Callable[[DriftDetectionResult], None] | None = None
 
     # ------------------------------------------------------------------
     # Inner-model delegation
     # ------------------------------------------------------------------
 
     @property
-    def inner(self) -> "UserModel":
+    def inner(self) -> UserModel:
         """The wrapped :class:`UserModel`."""
         return self._inner
 
@@ -177,8 +176,8 @@ class EWCUserModel:
     def update_state(
         self,
         embedding: torch.Tensor,
-        features: "InteractionFeatureVector",
-    ) -> "DeviationMetrics":
+        features: InteractionFeatureVector,
+    ) -> DeviationMetrics:
         """Forward to the inner model and feed the drift detector.
 
         The wrapper consumes the resulting
@@ -213,7 +212,7 @@ class EWCUserModel:
         return self._ewc
 
     @property
-    def replay(self) -> Optional[ExperienceReplay]:
+    def replay(self) -> ExperienceReplay | None:
         """The experience-replay wrapper, or ``None`` if disabled."""
         return self._replay
 
@@ -230,7 +229,7 @@ class EWCUserModel:
         self,
         dataloader: Iterable[object],
         *,
-        device: Optional[torch.device] = None,
+        device: torch.device | None = None,
     ) -> None:
         """Run an EWC consolidation step on the shared encoder."""
         self._ewc.consolidate(dataloader, device=device)

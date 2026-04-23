@@ -26,8 +26,9 @@ import logging
 import logging.config
 import os
 import sys
+from collections.abc import Iterable
 from datetime import datetime, timezone
-from typing import Any, Iterable
+from typing import Any
 
 _SENSITIVE_KEYS: frozenset[str] = frozenset(
     {
@@ -127,7 +128,7 @@ def _add_source_location(_logger: Any, _method: str, event_dict: dict[str, Any])
 class _FallbackJsonFormatter(logging.Formatter):
     """Minimal JSON formatter used when structlog cannot be imported."""
 
-    def format(self, record: logging.LogRecord) -> str:  # noqa: D401
+    def format(self, record: logging.LogRecord) -> str:
         extras = _extra_redactions()
         base: dict[str, Any] = {
             "timestamp": datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat(),

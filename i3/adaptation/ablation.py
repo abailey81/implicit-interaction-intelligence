@@ -27,7 +27,7 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from i3.adaptation.types import AdaptationVector, StyleVector
 
@@ -136,7 +136,7 @@ class ControllerView:
 
     def __init__(
         self,
-        inner: "AdaptationController",
+        inner: AdaptationController,
         mode: AblationMode,
     ) -> None:
         self._inner = inner
@@ -161,8 +161,8 @@ class ControllerView:
 
     def compute(
         self,
-        features: "InteractionFeatureVector",
-        deviation: "DeviationMetrics",
+        features: InteractionFeatureVector,
+        deviation: DeviationMetrics,
     ) -> AdaptationVector:
         """Run the underlying controller and ablate dimensions.
 
@@ -210,7 +210,7 @@ class AblationController:
     # vec.cognitive_load == 0.5 and vec.style_mirror == StyleVector.default()
     """
 
-    def __init__(self, controller: "AdaptationController") -> None:
+    def __init__(self, controller: AdaptationController) -> None:
         if controller is None:
             raise TypeError("controller must not be None")
         self._controller = controller
@@ -254,7 +254,7 @@ class AblationController:
         return ControllerView(self._controller, AblationMode())
 
     @property
-    def inner(self) -> "AdaptationController":
+    def inner(self) -> AdaptationController:
         """The wrapped underlying controller (read-only access)."""
         return self._controller
 

@@ -39,7 +39,7 @@ import os
 import time
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 import torch
@@ -47,7 +47,6 @@ import torch
 from i3.config import Config
 from i3.pipeline.types import (
     EngagementEstimator,
-    EngagementSignal,
     PipelineInput,
     PipelineOutput,
 )
@@ -111,18 +110,18 @@ class Pipeline:
         # Imports are deferred to __init__ rather than module level so that
         # the pipeline module can be imported without triggering heavy
         # transitive imports (torch, numpy, etc.) at parse time.
-        from i3.interaction.monitor import InteractionMonitor
-        from i3.encoder.inference import EncoderInference
         from i3.adaptation.controller import AdaptationController
+        from i3.cloud.client import CloudLLMClient
+        from i3.cloud.postprocess import ResponsePostProcessor
+        from i3.cloud.prompt_builder import PromptBuilder
+        from i3.diary.store import DiaryStore
+        from i3.encoder.inference import EncoderInference
+        from i3.interaction.monitor import InteractionMonitor
+        from i3.privacy.encryption import ModelEncryptor
+        from i3.privacy.sanitizer import PrivacySanitizer
         from i3.router.bandit import ContextualThompsonBandit
         from i3.router.complexity import QueryComplexityEstimator
         from i3.router.sensitivity import TopicSensitivityDetector
-        from i3.cloud.client import CloudLLMClient
-        from i3.cloud.prompt_builder import PromptBuilder
-        from i3.cloud.postprocess import ResponsePostProcessor
-        from i3.diary.store import DiaryStore
-        from i3.privacy.encryption import ModelEncryptor
-        from i3.privacy.sanitizer import PrivacySanitizer
 
         # ---- Interaction monitoring --------------------------------------
         self.monitor = InteractionMonitor(
@@ -131,7 +130,7 @@ class Pipeline:
         )
 
         # ---- TCN encoder (lazy -- needs checkpoint path) -----------------
-        self._encoder: Optional[EncoderInference] = None
+        self._encoder: EncoderInference | None = None
         self._encoder_config = config.encoder
 
         # ---- Per-user models (LRU-capped) --------------------------------
@@ -144,7 +143,7 @@ class Pipeline:
         self._max_users: int = int(
             os.environ.get("I3_MAX_TRACKED_USERS", "10000")
         )
-        self.user_models: "OrderedDict[str, Any]" = OrderedDict()
+        self.user_models: OrderedDict[str, Any] = OrderedDict()
 
         # ---- Adaptation --------------------------------------------------
         self.adaptation = AdaptationController(config.adaptation)
@@ -159,7 +158,7 @@ class Pipeline:
         self.sensitivity_detector = TopicSensitivityDetector()
 
         # ---- Response generation -----------------------------------------
-        self._slm_generator: Optional[Any] = None  # Lazy init
+        self._slm_generator: Any | None = None  # Lazy init
         self.cloud_client = CloudLLMClient(config)
         self.prompt_builder = PromptBuilder()
         self.postprocessor = ResponsePostProcessor()
@@ -172,7 +171,7 @@ class Pipeline:
         # encryptor warns and falls back to an ephemeral key; the pipeline
         # still routes embeddings through the versioned envelope format
         # so operators can retrofit a real key later without a migration.
-        self._encryptor: Optional[ModelEncryptor] = None
+        self._encryptor: ModelEncryptor | None = None
         if getattr(config.privacy, "encrypt_embeddings", False):
             try:
                 self._encryptor = ModelEncryptor(
@@ -184,7 +183,7 @@ class Pipeline:
                 logger.info(
                     "Embedding encryption ENABLED; stores will write Fernet envelopes."
                 )
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.error(
                     "Failed to initialise ModelEncryptor (%s); embeddings will "
                     "be written plaintext. Set I3_ENCRYPTION_KEY to enable "
@@ -199,7 +198,7 @@ class Pipeline:
         self.diary_store = DiaryStore(
             config.diary.db_path, encryptor=self._encryptor
         )
-        self._diary_logger: Optional[Any] = None  # After store init
+        self._diary_logger: Any | None = None  # After store init
 
         # ---- Engagement tracking (per-user) ------------------------------
         self._last_response_time: dict[str, float] = {}
@@ -344,7 +343,7 @@ class Pipeline:
 
     async def end_session(
         self, user_id: str, session_id: str
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """End an active session and generate a summary.
 
         Updates the user model's long-term profile, optionally generates
@@ -625,9 +624,7 @@ class Pipeline:
         # SEC: Ensure routing_confidence always contains every arm with
         # numeric values. Defends against future arms being added without
         # the bandit emitting a key.
-        full_confidence: dict[str, float] = {
-            name: 0.0 for name in self.config.router.arms
-        }
+        full_confidence: dict[str, float] = dict.fromkeys(self.config.router.arms, 0.0)
         for k, v in routing_confidence.items():
             try:
                 full_confidence[k] = float(v)
@@ -760,7 +757,7 @@ class Pipeline:
 
         if privacy_override:
             route_chosen = "local_slm"
-            confidence = {name: 0.0 for name in arms}
+            confidence = dict.fromkeys(arms, 0.0)
             confidence["local_slm"] = 1.0
             logger.info(
                 "Privacy override triggered (sensitivity=%.2f) -> local_slm",
@@ -1098,7 +1095,7 @@ class Pipeline:
             logger.debug("Created new UserModel for user_id=%s", user_id)
             return user_model
 
-    def _background_task_done(self, task: "asyncio.Task[Any]") -> None:
+    def _background_task_done(self, task: asyncio.Task[Any]) -> None:
         """Done-callback for fire-and-forget background tasks.
 
         SEC: Removes the task from the tracking set (so it can be GC'd)
@@ -1130,7 +1127,7 @@ class Pipeline:
         accidentally leaking sanitiser internals or PII.
         """
         arms = self.config.router.arms
-        confidence = {name: 0.0 for name in arms}
+        confidence = dict.fromkeys(arms, 0.0)
         if "local_slm" in confidence:
             confidence["local_slm"] = 1.0
         return PipelineOutput(
@@ -1294,9 +1291,9 @@ class Pipeline:
                 (``.json``).
         """
         try:
+            from i3.slm.generate import SLMGenerator
             from i3.slm.model import AdaptiveSLM
             from i3.slm.tokenizer import SimpleTokenizer
-            from i3.slm.generate import SLMGenerator
 
             tokenizer = SimpleTokenizer.load(tokenizer_path)
             model = AdaptiveSLM(

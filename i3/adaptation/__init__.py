@@ -20,21 +20,21 @@ EmotionalToneAdapter   Calibrates warmth/support based on distress signals.
 AccessibilityAdapter   Detects motor/cognitive difficulty and triggers simplification.
 """
 
-from i3.adaptation.types import AdaptationVector, StyleVector
 from i3.adaptation.controller import AdaptationController
 from i3.adaptation.dimensions import (
-    CognitiveLoadAdapter,
-    StyleMirrorAdapter,
-    EmotionalToneAdapter,
     AccessibilityAdapter,
+    CognitiveLoadAdapter,
+    EmotionalToneAdapter,
+    StyleMirrorAdapter,
 )
+from i3.adaptation.types import AdaptationVector, StyleVector
 
 __all__ = [
-    "AdaptationVector",
-    "StyleVector",
-    "AdaptationController",
-    "CognitiveLoadAdapter",
-    "StyleMirrorAdapter",
-    "EmotionalToneAdapter",
     "AccessibilityAdapter",
+    "AdaptationController",
+    "AdaptationVector",
+    "CognitiveLoadAdapter",
+    "EmotionalToneAdapter",
+    "StyleMirrorAdapter",
+    "StyleVector",
 ]

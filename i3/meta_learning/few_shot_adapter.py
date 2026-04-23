@@ -29,7 +29,6 @@ from __future__ import annotations
 
 import copy
 import logging
-from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -68,7 +67,7 @@ class FewShotAdapter:
         meta_trained_model: nn.Module,
         n_adaptation_steps: int = 3,
         adaptation_lr: float = 0.01,
-        adaptation_head: Optional[nn.Linear] = None,
+        adaptation_head: nn.Linear | None = None,
     ) -> None:
         if n_adaptation_steps < 1:
             raise ValueError(
@@ -94,7 +93,7 @@ class FewShotAdapter:
     def adapt_to_user(
         self,
         support_messages: list[InteractionFeatureVector],
-        target_hint: Optional[AdaptationVector] = None,
+        target_hint: AdaptationVector | None = None,
     ) -> nn.Module:
         """Produce a user-adapted copy of the meta-trained encoder.
 
@@ -126,7 +125,7 @@ class FewShotAdapter:
             )
 
         encoder_copy = copy.deepcopy(self.meta_trained_model)
-        head_copy: Optional[nn.Linear] = (
+        head_copy: nn.Linear | None = (
             copy.deepcopy(self.adaptation_head)
             if self.adaptation_head is not None
             else None
@@ -160,8 +159,8 @@ class FewShotAdapter:
     def amortised_representation(
         self,
         messages: list[InteractionFeatureVector],
-        user_id: Optional[str] = None,
-        target_hint: Optional[AdaptationVector] = None,
+        user_id: str | None = None,
+        target_hint: AdaptationVector | None = None,
     ) -> torch.Tensor:
         """Return the adapted embedding, caching the weight delta.
 
@@ -201,7 +200,7 @@ class FewShotAdapter:
             embedding = encoder_copy(seq)
         return embedding
 
-    def clear_cache(self, user_id: Optional[str] = None) -> None:
+    def clear_cache(self, user_id: str | None = None) -> None:
         """Evict one or all user entries from the amortisation cache.
 
         Args:
@@ -220,8 +219,8 @@ class FewShotAdapter:
     def _adaptation_loss(
         self,
         embedding: torch.Tensor,
-        head: Optional[nn.Linear],
-        target: Optional[torch.Tensor],
+        head: nn.Linear | None,
+        target: torch.Tensor | None,
     ) -> torch.Tensor:
         """Compute the inner-loop loss for few-shot adaptation.
 

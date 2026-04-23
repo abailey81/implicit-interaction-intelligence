@@ -23,9 +23,10 @@ import asyncio
 import json
 import logging
 import uuid
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, AsyncIterator, Optional
+from typing import TYPE_CHECKING
 
 import aiosqlite
 
@@ -46,8 +47,8 @@ _ENC_VERSION_FERNET_V1 = 0x01
 
 
 def encrypt_embedding_envelope(
-    tensor: "torch.Tensor",
-    encryptor: "ModelEncryptor | None",
+    tensor: torch.Tensor,
+    encryptor: ModelEncryptor | None,
 ) -> bytes:
     """Encode a 1-D torch tensor as a versioned envelope for persistence.
 
@@ -88,7 +89,7 @@ class DiaryStore:
     def __init__(
         self,
         db_path: str = "data/diary.db",
-        encryptor: "ModelEncryptor | None" = None,
+        encryptor: ModelEncryptor | None = None,
     ) -> None:
         self.db_path = db_path
         self._initialized = False
@@ -408,7 +409,7 @@ class DiaryStore:
     # Queries
     # ------------------------------------------------------------------
 
-    async def get_session(self, session_id: str) -> Optional[dict]:
+    async def get_session(self, session_id: str) -> dict | None:
         """Retrieve a single session by its identifier.
 
         Returns

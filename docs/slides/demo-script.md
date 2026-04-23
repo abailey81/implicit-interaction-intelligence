@@ -11,10 +11,10 @@
 
 1. [Before the Demo: Pre-Flight Checklist](#before-the-demo-pre-flight-checklist)
 2. [The Narrative Arc](#the-narrative-arc)
-3. [Phase 1 — Cold Start (2 min)](#phase-1--cold-start-2-min)
-4. [Phase 2 — Energetic Interaction (2 min)](#phase-2--energetic-interaction-2-min)
-5. [Phase 3 — Fatigue Simulation (2 min)](#phase-3--fatigue-simulation-2-min)
-6. [Phase 4 — Accessibility Adaptation (2 min)](#phase-4--accessibility-adaptation-2-min)
+3. [Phase 1 — Cold Start (2 min)](#phase-1-cold-start-2-min)
+4. [Phase 2 — Energetic Interaction (2 min)](#phase-2-energetic-interaction-2-min)
+5. [Phase 3 — Fatigue Simulation (2 min)](#phase-3-fatigue-simulation-2-min)
+6. [Phase 4 — Accessibility Adaptation (2 min)](#phase-4-accessibility-adaptation-2-min)
 7. [Post-Demo: What to Point At](#post-demo-what-to-point-at)
 8. [Recovery Playbook](#recovery-playbook)
 

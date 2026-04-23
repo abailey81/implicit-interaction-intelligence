@@ -24,7 +24,8 @@ References
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
 
 import torch
 
@@ -109,7 +110,7 @@ class SHAPAdapter:
     def attribute(
         self,
         feature_vector: torch.Tensor,
-        adaptation_vector: Optional[torch.Tensor] = None,
+        adaptation_vector: torch.Tensor | None = None,
     ) -> dict[str, dict[str, float]]:
         """Compute SHAP-or-IG attributions for the given feature vector.
 
@@ -163,7 +164,7 @@ class SHAPAdapter:
 
         # Convert mapping_fn to a numpy-in/numpy-out callable as required
         # by shap.KernelExplainer.
-        def _predict(x_np: "np.ndarray") -> "np.ndarray":
+        def _predict(x_np: np.ndarray) -> np.ndarray:
             t = torch.as_tensor(x_np, dtype=torch.float32)
             if t.dim() == 1:
                 t = t.unsqueeze(0)
@@ -191,7 +192,7 @@ class SHAPAdapter:
             arrays.append(np.zeros((1, self.feature_dim), dtype="float32"))
 
         result: dict[str, dict[str, float]] = {
-            feat: {dim: 0.0 for dim in ADAPTATION_DIMS[: self.adaptation_dim]}
+            feat: dict.fromkeys(ADAPTATION_DIMS[:self.adaptation_dim], 0.0)
             for feat in FEATURE_NAMES[: self.feature_dim]
         }
         for j, adapt_name in enumerate(ADAPTATION_DIMS[: self.adaptation_dim]):

@@ -24,7 +24,7 @@ import logging
 import sys
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ _DEFAULT_SEQ_LEN = 10
 _DEFAULT_FEATURES = 32
 
 
-def _soft_import(name: str) -> Optional[ModuleType]:
+def _soft_import(name: str) -> ModuleType | None:
     """Try to import ``name``; return ``None`` on failure.
 
     Args:
@@ -45,7 +45,7 @@ def _soft_import(name: str) -> Optional[ModuleType]:
     """
     try:
         return __import__(name)
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None
 
 
@@ -69,7 +69,7 @@ def export_tcn(
     verify: bool = True,
     dummy_batch: int = _DEFAULT_BATCH,
     dummy_seq_len: int = _DEFAULT_SEQ_LEN,
-    input_dim: Optional[int] = None,
+    input_dim: int | None = None,
 ) -> Path:
     """Export a TCN encoder to ONNX and optionally verify it.
 
@@ -109,7 +109,7 @@ def export_tcn(
     in_dim = input_dim or getattr(model, "input_dim", _DEFAULT_FEATURES)
     dummy = torch.randn(dummy_batch, dummy_seq_len, in_dim, dtype=torch.float32)
 
-    axes_map: Optional[dict[str, dict[int, str]]] = None
+    axes_map: dict[str, dict[int, str]] | None = None
     if dynamic_axes:
         axes_map = {
             "input": {0: "batch", 1: "time"},
@@ -128,7 +128,7 @@ def export_tcn(
             do_constant_folding=True,
             dynamic_axes=axes_map,
         )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         _fatal(
             f"TCN ONNX export failed at opset={opset}: {exc}. "
             "Try a newer opset (e.g. 18) or update torch."
@@ -137,7 +137,7 @@ def export_tcn(
     try:
         graph = onnx.load(output_path.as_posix())
         onnx.checker.check_model(graph)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         _fatal(f"onnx.checker rejected TCN graph: {exc}")
 
     logger.info("TCN exported to %s (opset=%d)", output_path, opset)
@@ -168,7 +168,7 @@ def export_tcn(
             logger.info("TCN parity OK (ONNXRuntime vs PyTorch, atol=1e-4)")
         except SystemExit:
             raise
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("TCN parity check errored (%s); continuing.", exc)
 
     return output_path
@@ -190,6 +190,7 @@ def _cli_main() -> None:  # pragma: no cover - convenience shim
     args = p.parse_args()
 
     import torch  # type: ignore[import-not-found]
+
     from i3.encoder.tcn import TemporalConvNet
 
     model = TemporalConvNet()

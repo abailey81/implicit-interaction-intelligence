@@ -24,7 +24,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from enum import Enum
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from i3.crossdevice.device_registry import DeviceClass, DeviceInfo, DeviceRegistry
 from i3.router.types import RouteChoice, RoutingContext, RoutingDecision
@@ -60,7 +60,7 @@ class ExtendedRoutingDecision:
 
     base_decision: RoutingDecision
     final_route: str
-    paired_device_id: Optional[int] = None
+    paired_device_id: int | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -133,7 +133,7 @@ class PairedDeviceRouter:
 
     def __init__(
         self,
-        inner_router: "IntelligentRouter",
+        inner_router: IntelligentRouter,
         current_device_class: DeviceClass,
         registry: DeviceRegistry,
         decision_threshold: float = 0.55,
@@ -149,7 +149,7 @@ class PairedDeviceRouter:
     def route(
         self,
         context: RoutingContext,
-        query_text: Optional[str] = None,
+        query_text: str | None = None,
     ) -> RoutingDecision | ExtendedRoutingDecision:
         """Pass-through to the inner router; post-hoc override on AI-Glasses.
 

@@ -47,12 +47,10 @@ validation.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -329,7 +327,7 @@ class StyleFidelityLoss(nn.Module):
     def forward(
         self,
         generated_ids: torch.Tensor,
-        target_style: "torch.Tensor | dict[str, float] | object",
+        target_style: torch.Tensor | dict[str, float] | object,
     ) -> torch.Tensor:
         """Compute the style-fidelity loss.
 
@@ -383,7 +381,7 @@ class StyleFidelityLoss(nn.Module):
 
     @staticmethod
     def _unpack_target(
-        target_style: "torch.Tensor | dict[str, float] | object",
+        target_style: torch.Tensor | dict[str, float] | object,
     ) -> tuple[float, float, float]:
         """Normalise a target-style object into (formality, verbosity, sentiment).
 
@@ -411,19 +409,19 @@ class StyleFidelityLoss(nn.Module):
         if hasattr(target_style, "formality") and hasattr(
             target_style, "emotionality"
         ):
-            formality = float(getattr(target_style, "formality"))
-            verbosity = float(getattr(target_style, "verbosity"))
+            formality = float(target_style.formality)
+            verbosity = float(target_style.verbosity)
             # StyleVector has no emotional_tone -- fall back to emotionality
             # mapped from [0, 1] to [-1, 1].
-            emotionality = float(getattr(target_style, "emotionality"))
+            emotionality = float(target_style.emotionality)
             return formality, verbosity, emotionality * 2.0 - 1.0
         if hasattr(target_style, "style_mirror") and hasattr(
             target_style, "emotional_tone"
         ):
-            style = getattr(target_style, "style_mirror")
-            formality = float(getattr(style, "formality"))
-            verbosity = float(getattr(style, "verbosity"))
-            emotional_tone = float(getattr(target_style, "emotional_tone"))
+            style = target_style.style_mirror
+            formality = float(style.formality)
+            verbosity = float(style.verbosity)
+            emotional_tone = float(target_style.emotional_tone)
             return formality, verbosity, emotional_tone * 2.0 - 1.0
         # Dict path.
         if isinstance(target_style, dict):
@@ -523,9 +521,9 @@ class AdaptationConditioningLoss(nn.Module):
 
     def forward(
         self,
-        logits_c1: Optional[torch.Tensor] = None,
-        logits_c2: Optional[torch.Tensor] = None,
-        generated_ids: Optional[torch.Tensor] = None,
+        logits_c1: torch.Tensor | None = None,
+        logits_c2: torch.Tensor | None = None,
+        generated_ids: torch.Tensor | None = None,
         target_style: object = None,
     ) -> AdaptationLossOutput:
         """Compute the combined conditioning loss.

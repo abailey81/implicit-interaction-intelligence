@@ -31,13 +31,11 @@ from __future__ import annotations
 import logging
 import time
 from collections import OrderedDict
-from typing import Any, Optional
+from typing import Any
 
 import torch
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Path, Request
 from fastapi.responses import JSONResponse
-
-from server.auth import require_user_identity, require_user_identity_from_body
 from pydantic import BaseModel, ConfigDict, Field
 
 from i3.adaptation.types import AdaptationVector
@@ -52,6 +50,7 @@ from i3.interpretability.counterfactuals import (
     Counterfactual,
     CounterfactualExplainer,
 )
+from server.auth import require_user_identity, require_user_identity_from_body
 
 logger = logging.getLogger(__name__)
 
@@ -141,9 +140,9 @@ class _ExplainCache:
 
     def __init__(self, max_entries: int = _MAX_CACHED_USERS) -> None:
         self._max = int(max_entries)
-        self._store: "OrderedDict[str, ExplainResponse]" = OrderedDict()
+        self._store: OrderedDict[str, ExplainResponse] = OrderedDict()
 
-    def get(self, user_id: str) -> Optional[ExplainResponse]:
+    def get(self, user_id: str) -> ExplainResponse | None:
         return self._store.get(user_id)
 
     def set(self, user_id: str, payload: ExplainResponse) -> None:
@@ -162,7 +161,7 @@ _CACHE = _ExplainCache()
 # ---------------------------------------------------------------------------
 
 
-def _resolve_estimator(request: Request) -> Optional[MCDropoutAdaptationEstimator]:
+def _resolve_estimator(request: Request) -> MCDropoutAdaptationEstimator | None:
     """Build an :class:`MCDropoutAdaptationEstimator` from live pipeline state.
 
     Returns ``None`` if the pipeline does not expose both an encoder
@@ -190,7 +189,7 @@ def _resolve_estimator(request: Request) -> Optional[MCDropoutAdaptationEstimato
 
 def _resolve_feature_window(
     request: Request, user_id: str
-) -> Optional[torch.Tensor]:
+) -> torch.Tensor | None:
     """Extract the user's most recent feature-window tensor from the pipeline.
 
     Returns ``None`` if the pipeline does not have a feature-window
@@ -235,7 +234,7 @@ def _classify(std: float, threshold: float) -> str:
 #: — a **global** side-effect that reseeded every other coroutine's RNG
 #: on every request (H-8, 2026-04-23 audit).  We now use a scoped
 #: ``torch.Generator`` so no global state is touched.
-_SURROGATE_LAYER: "torch.nn.Module | None" = None
+_SURROGATE_LAYER: torch.nn.Module | None = None
 
 
 def _surrogate_mapping_fn() -> torch.nn.Module:

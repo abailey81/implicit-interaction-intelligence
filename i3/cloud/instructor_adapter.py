@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any, Optional, Type, TypeVar
+from typing import Any, TypeVar
 
 from pydantic import BaseModel
 
@@ -90,7 +90,7 @@ class InstructorAdapter:
         self,
         *,
         model_name: str = "claude-sonnet-4-5",
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         max_tokens: int = 1024,
         max_retries: int = 2,
     ) -> None:
@@ -122,9 +122,9 @@ class InstructorAdapter:
     def structured_generate(
         self,
         prompt: str,
-        response_model: Type[T],
+        response_model: type[T],
         *,
-        system: Optional[str] = None,
+        system: str | None = None,
     ) -> T:
         """Return a validated instance of *response_model*.
 

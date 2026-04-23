@@ -25,7 +25,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from typing import Any, Optional, Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -73,7 +73,7 @@ class AttackResult(BaseModel):
     evidence: str = Field(default="", max_length=2048)
     duration_ms: int = Field(ge=0)
     severity: Severity
-    error: Optional[str] = Field(default=None, max_length=2048)
+    error: str | None = Field(default=None, max_length=2048)
 
 
 class RedTeamReport(BaseModel):
@@ -159,7 +159,7 @@ class RedTeamRunner:
     def __init__(
         self,
         target: TargetSurface,
-        corpus: Optional[list[Attack]] = None,
+        corpus: list[Attack] | None = None,
     ) -> None:
         self.target: TargetSurface = target
         self.corpus: list[Attack] = (
@@ -178,7 +178,7 @@ class RedTeamRunner:
                 result = await self.target.execute(attack)
             except asyncio.CancelledError:
                 raise
-            except Exception as exc:  # noqa: BLE001 -- reported via AttackResult.error
+            except Exception as exc:
                 duration_ms = int((time.perf_counter() - start) * 1000)
                 logger.warning(
                     "Attack %s raised %s: %s",
@@ -356,7 +356,7 @@ class FastAPITargetSurface:
         body = b"A" * max(size, 1)
         try:
             resp = self._client.post(path, content=body)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return "blocked", f"transport error: {type(exc).__name__}"
         if resp.status_code in (400, 411, 413, 422):
             return "blocked", f"HTTP {resp.status_code}"
@@ -367,7 +367,7 @@ class FastAPITargetSurface:
         path = str(attack.payload.get("path", "/"))
         try:
             resp = self._client.get(path)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return "blocked", f"transport error: {type(exc).__name__}"
         if resp.status_code in (400, 403, 404, 422):
             return "blocked", f"HTTP {resp.status_code}"
@@ -386,7 +386,7 @@ class FastAPITargetSurface:
                 resp = self._client.post(
                     path, headers=headers, json={"message": "hi"}
                 )  # type: ignore[arg-type]
-        except (ValueError, Exception) as exc:  # noqa: BLE001
+        except (ValueError, Exception) as exc:
             return "blocked", f"transport rejected header: {type(exc).__name__}"
         if resp.status_code in (400, 401, 403, 404, 422):
             return "blocked", f"HTTP {resp.status_code}"
@@ -414,7 +414,7 @@ class FastAPITargetSurface:
                     headers=headers,
                     json={"message": "hi", "user_id": "rt"},
                 )
-            except Exception:  # noqa: BLE001
+            except Exception:
                 continue
             if resp.status_code == 429:
                 got_429 = True
@@ -431,7 +431,7 @@ class FastAPITargetSurface:
                 "/api/chat",
                 json={"message": payload_text, "user_id": "rt"},
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return "blocked", f"transport error: {type(exc).__name__}"
 
         if resp.status_code in (400, 403, 404, 405, 422):
@@ -444,7 +444,7 @@ class FastAPITargetSurface:
         # call it "blocked" because the app responded with its own text.
         try:
             body_text = resp.text or ""
-        except Exception:  # noqa: BLE001
+        except Exception:
             body_text = ""
         if payload_text and payload_text in body_text:
             return "passed_through", "payload echoed in body"
@@ -541,7 +541,7 @@ class PDDLPlannerTargetSurface:
             from i3.privacy.sanitizer import PrivacySanitizer
 
             contains_pii = PrivacySanitizer(enabled=True).contains_pii(text)
-        except Exception:  # noqa: BLE001
+        except Exception:
             contains_pii = False
 
         ctx = SafetyContext(
@@ -577,7 +577,7 @@ class PDDLPlannerTargetSurface:
         try:
             self._planner.certify(plan, context=ctx)
             evidence = f"actions={list(actions)}"
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             outcome = "error"
             evidence = f"certify failed: {type(exc).__name__}: {exc}"
 

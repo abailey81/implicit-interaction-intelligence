@@ -26,12 +26,13 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Final, Mapping
+from typing import Final
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["ValenceLexicon", "DEFAULT_LEXICON_PATH"]
+__all__ = ["DEFAULT_LEXICON_PATH", "ValenceLexicon"]
 
 
 # --------------------------------------------------------------------------- #
@@ -138,7 +139,7 @@ class ValenceLexicon:
         self.negation_window = negation_window
 
     @classmethod
-    def default(cls) -> "ValenceLexicon":
+    def default(cls) -> ValenceLexicon:
         """Load the bundled lexicon from the JSON asset.
 
         Falls back to the inline dictionaries defined at module scope if the
@@ -151,7 +152,7 @@ class ValenceLexicon:
         return cls.from_json(DEFAULT_LEXICON_PATH)
 
     @classmethod
-    def from_json(cls, path: str | Path) -> "ValenceLexicon":
+    def from_json(cls, path: str | Path) -> ValenceLexicon:
         """Load a lexicon from a JSON file.
 
         The JSON file is expected to contain ``"positive"`` and/or
@@ -197,7 +198,7 @@ class ValenceLexicon:
         return cls(merged)
 
     @classmethod
-    def _from_fallback(cls) -> "ValenceLexicon":
+    def _from_fallback(cls) -> ValenceLexicon:
         """Build a lexicon from the inline fallback dictionaries."""
         merged: dict[str, float] = {}
         merged.update(_FALLBACK_POSITIVE)

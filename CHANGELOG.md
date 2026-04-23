@@ -119,6 +119,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   torch-dependent test modules in `collect_ignore_glob` when the
   binary install is broken — eliminating collection errors on
   Windows hosts with a missing VC++ runtime.
+- `server/routes_preference.py::record_preference` now unwraps
+  `PrivacySanitizer.sanitize()` via `.sanitized_text` before passing
+  the result into `PreferencePair`.  The previous code passed the
+  whole `SanitizationResult` dataclass where a `str` was expected —
+  caught by mypy and would have stored the dataclass repr into the
+  per-user dataset at runtime.
+- `ContextualThompsonBandit.reset()` now rebuilds the per-arm history
+  as `collections.deque(maxlen=_MAX_HISTORY_PER_ARM)` instead of a
+  plain `list`.  The list form silently re-introduced the unbounded
+  `list[-N:]` slice churn the deque was added to prevent (H-4 perf
+  issue from the 2026-04-23 audit).
+- `ContextualThompsonBandit.load_state()` now rehydrates `history`
+  as deques with the same `maxlen` bound.
+- `i3/privacy/encryption.py`: `MultiFernet` is now imported at
+  module scope so the `rotate_to()` return-type annotation resolves
+  correctly under `from __future__ import annotations`; the inner
+  `torch` import is renamed `_torch` so mypy no longer sees a
+  shadowed free variable on the `except ImportError` branch.
+- `i3/router/sensitivity.py::detect_detailed` return type broadened
+  from `dict[str, float | list[str]]` to
+  `dict[str, float | list[str] | dict[str, float]]` so mypy
+  recognises the `"category_scores"` nested dict.
+- `i3/data/sources.py`: `_speaker_or_none` now returns
+  `Optional[Literal["user","assistant","system","narrator"]]` so
+  the resulting value type-checks against `RecordSchema.speaker`
+  without a `# type: ignore[return-value]`; `_int_or_zero` narrows
+  its `object` input through explicit `isinstance` branches so the
+  unused `# type: ignore[arg-type]` is gone.
+- `i3/privacy/differential_privacy.py::DifferentialPrivacyAccountant.privacy_spent`
+  now explicitly casts the Opacus return value to a
+  `tuple[float, float]` so the return type is not `Any`.
+- `i3/data/lineage.py::Lineage.with_transform`,
+  `server/routes_health.py::live`,
+  `server/routes_whatif.py::_generate_response`, and
+  `server/middleware.py::client_ip` all now bind their returns to a
+  locally-annotated variable before returning — mypy
+  `--strict`-level `no-any-return` compliance across all nine
+  modules in `i3/data/ + server/auth.py + server/routes_*.py`.
+- **mkdocs `--strict` build** — added an explicit
+  `validation:` block that classifies cross-repo source-file links
+  (`../../i3/...`) and repo-root links (`../README.md`,
+  `../SECURITY.md`) as `info` rather than `warn`.  These links are
+  deliberately meaningful on GitHub but fall outside the rendered
+  mkdocs tree; anchor / nav / omitted-file checks still fail the
+  build.  Four previously-orphaned pages
+  (`huawei/harmonyos6_ai_glasses_alignment.md`,
+  `research/closed_loop_quickstart.md`,
+  `research/interpretability_quickstart.md`,
+  `research/ppg_hrv_quickstart.md`) added to `nav`.  Five anchor
+  mismatches fixed (`architecture/full-reference.md`,
+  `slides/demo-script.md`) where a TOC link contained two dashes
+  but the slugified heading had one.
+- **mkdocstrings / griffe** — `i3/privacy/sanitizer.py` module
+  docstring now formats its `Classes:` section with a `:`
+  separator, as griffe's Google-style parser requires.
 
 ### Research + applied findings
 

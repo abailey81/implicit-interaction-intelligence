@@ -33,7 +33,8 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Iterable, Optional
+from collections.abc import Iterable
+from typing import Any
 
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field
@@ -199,7 +200,7 @@ class ClosedLoopResult(BaseModel):
         default_factory=dict
     )
 
-    convergence_speeds: dict[str, Optional[float]] = Field(default_factory=dict)
+    convergence_speeds: dict[str, float | None] = Field(default_factory=dict)
 
     persona_confusion_matrix: list[list[int]] = Field(default_factory=list)
 
@@ -281,7 +282,7 @@ class ClosedLoopEvaluator:
                 f"n_messages_per_session must be >= 1, "
                 f"got {n_messages_per_session}"
             )
-        if not (0.0 < adapt_converged_threshold):
+        if not (adapt_converged_threshold > 0.0):
             raise ValueError(
                 f"adapt_converged_threshold must be > 0, "
                 f"got {adapt_converged_threshold}"
@@ -329,7 +330,7 @@ class ClosedLoopEvaluator:
         per_persona_message_errors: dict[str, list[float]] = {
             name: [] for name in persona_order
         }
-        per_persona_convergence: dict[str, list[Optional[int]]] = {
+        per_persona_convergence: dict[str, list[int | None]] = {
             name: [] for name in persona_order
         }
         # For router bias: list of 1/0 per message (1 => local_slm).
@@ -361,7 +362,7 @@ class ClosedLoopEvaluator:
 
                 final_inferred: AdaptationVector | None = None
                 session_errors: list[float] = []
-                converged_at: Optional[int] = None
+                converged_at: int | None = None
                 user_id = f"persona:{persona.name}:session:{session_idx}"
                 session_id = await self._start_session(user_id)
 
@@ -456,7 +457,7 @@ class ClosedLoopEvaluator:
                 )
             per_persona_error_by_message[name] = trace
 
-        convergence_speeds: dict[str, Optional[float]] = {}
+        convergence_speeds: dict[str, float | None] = {}
         for name in persona_order:
             converged_indices = [
                 float(v) for v in per_persona_convergence[name] if v is not None

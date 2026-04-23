@@ -14,12 +14,10 @@ Modules:
 """
 
 import math
-from typing import Optional
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
 
 # ---------------------------------------------------------------------------
 # Multi-Head Self-Attention
@@ -87,8 +85,8 @@ class MultiHeadSelfAttention(nn.Module):
         # SEC: These are PER-INSTANCE (self.*), not class-level / global, so
         # concurrent model instances do not share state. Callers should still
         # avoid sharing a single AdaptiveSLM instance across threads.
-        self._cache_k: Optional[torch.Tensor] = None
-        self._cache_v: Optional[torch.Tensor] = None
+        self._cache_k: torch.Tensor | None = None
+        self._cache_v: torch.Tensor | None = None
 
         # Initialise weights
         self._init_weights()
@@ -110,7 +108,7 @@ class MultiHeadSelfAttention(nn.Module):
     def forward(
         self,
         x: torch.Tensor,
-        mask: Optional[torch.Tensor] = None,
+        mask: torch.Tensor | None = None,
         use_cache: bool = False,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Compute multi-head self-attention.
@@ -294,7 +292,7 @@ _MASK_NEG: float = -1.0e9
 
 def create_causal_mask(
     seq_len: int,
-    device: Optional[torch.device] = None,
+    device: torch.device | None = None,
 ) -> torch.Tensor:
     """Create a causal (autoregressive) attention mask.
 

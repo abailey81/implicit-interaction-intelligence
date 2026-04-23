@@ -22,7 +22,6 @@ from __future__ import annotations
 import logging
 import secrets
 from dataclasses import dataclass, field
-from typing import Optional
 
 import numpy as np
 
@@ -127,7 +126,7 @@ class SecureAggregator:
         self._pending.clear()
 
     def aggregate(
-        self, dropped_clients: Optional[set[int]] = None
+        self, dropped_clients: set[int] | None = None
     ) -> list[np.ndarray]:
         """Aggregate the buffered masked updates into the plaintext sum.
 

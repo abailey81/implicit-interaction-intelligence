@@ -32,14 +32,12 @@ import threading
 import time
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Deque, Optional
 
 from i3.interaction.features import BaselineTracker, FeatureExtractor
 from i3.interaction.types import (
     InteractionFeatureVector,
     KeystrokeEvent,
 )
-
 
 # ====================================================================
 # Per-user session state (internal)
@@ -57,7 +55,7 @@ class _UserSession:
     # overflow trim is O(1) via ``maxlen`` rather than the previous
     # ``pop(0)`` which is O(n).  ``maxlen`` is set by the monitor on
     # session construction to mirror ``self._feature_window_size``.
-    feature_window: "deque[InteractionFeatureVector]" = field(
+    feature_window: deque[InteractionFeatureVector] = field(
         default_factory=lambda: deque(maxlen=10)
     )
 

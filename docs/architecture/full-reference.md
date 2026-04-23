@@ -19,7 +19,7 @@
 8. [The Novel Cross-Attention Conditioning](#8-the-novel-cross-attention-conditioning)
 9. [Privacy Architecture](#9-privacy-architecture)
 10. [Edge Feasibility Analysis](#10-edge-feasibility-analysis)
-11. [Design Decisions & Trade-offs](#11-design-decisions--trade-offs)
+11. [Design Decisions & Trade-offs](#11-design-decisions-trade-offs)
 12. [Future Work](#12-future-work)
 
 ---

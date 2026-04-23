@@ -51,9 +51,10 @@ from __future__ import annotations
 import logging
 import math
 import time
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterable, Sequence
+from typing import Any
 
 import numpy as np
 import torch
@@ -61,10 +62,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 try:
-    import aiosqlite  # type: ignore[import-not-found]
+    import aiosqlite
     _AIOSQLITE_AVAILABLE = True
 except ImportError:  # pragma: no cover - exercised only when aiosqlite missing
-    aiosqlite = None  # type: ignore[assignment]
+    aiosqlite = None
     _AIOSQLITE_AVAILABLE = False
 
 logger = logging.getLogger(__name__)

@@ -62,8 +62,8 @@ from i3.continual.replay_buffer import (
 __all__: list[str] = [
     "ConceptDriftDetector",
     "DriftDetectionResult",
-    "ElasticWeightConsolidation",
     "EWCUserModel",
+    "ElasticWeightConsolidation",
     "ExperienceReplay",
     "FisherDict",
     "OnlineEWC",

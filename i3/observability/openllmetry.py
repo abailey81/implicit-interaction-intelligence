@@ -31,7 +31,6 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass, field
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -89,8 +88,8 @@ def setup_traceloop(
     *,
     app_name: str = "i3",
     model: str = "claude-sonnet-4-5",
-    endpoint: Optional[str] = None,
-    api_key: Optional[str] = None,
+    endpoint: str | None = None,
+    api_key: str | None = None,
     disable_batch: bool = False,
 ) -> TraceloopStatus:
     """Initialise Traceloop / OpenLLMetry.
@@ -162,7 +161,7 @@ def setup_traceloop(
         if resolved_key:
             kwargs["api_key"] = resolved_key
         Traceloop.init(**kwargs)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.warning("Traceloop.init() failed: %s", exc)
         return TraceloopStatus(
             enabled=False,

@@ -11,7 +11,6 @@ import logging
 import threading
 from collections import defaultdict, deque
 from pathlib import Path
-from typing import Deque, Optional
 
 import numpy as np
 import torch
@@ -52,9 +51,9 @@ class EncoderInference:
         device: str = "cpu",
         quantise_int8: bool = False,
         input_dim: int = 32,
-        hidden_dims: Optional[list[int]] = None,
+        hidden_dims: list[int] | None = None,
         kernel_size: int = 3,
-        dilations: Optional[list[int]] = None,
+        dilations: list[int] | None = None,
         embedding_dim: int = 64,
         dropout: float = 0.1,
     ) -> None:
@@ -120,7 +119,7 @@ class EncoderInference:
         # deque(maxlen=window_size) gives O(1) append + automatic eviction
         # and removes the rebind-list footgun the previous list-based
         # implementation had.
-        self._windows: dict[str, Deque[torch.Tensor]] = defaultdict(
+        self._windows: dict[str, deque[torch.Tensor]] = defaultdict(
             lambda: deque(maxlen=self.window_size)
         )
         # SEC: protect _windows and _proj_matrix from concurrent encode/clear
@@ -129,7 +128,7 @@ class EncoderInference:
         self._lock = threading.RLock()
 
         # -- 2-D projection (fitted lazily) -----------------------------------
-        self._proj_matrix: Optional[torch.Tensor] = None  # [64, 2]
+        self._proj_matrix: torch.Tensor | None = None  # [64, 2]
         self._proj_is_pca: bool = False
 
         logger.info(

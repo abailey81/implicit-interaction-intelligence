@@ -13,7 +13,8 @@ OpenAI-compatible proxies, new providers, mocks) via
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, TYPE_CHECKING
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:  # pragma: no cover
     from i3.cloud.providers.base import CloudProvider
@@ -40,7 +41,7 @@ class _Registry:
 
     def get(
         self, name: str, options: dict[str, Any] | None = None
-    ) -> "CloudProvider":
+    ) -> CloudProvider:
         key = name.lower().strip()
         if key not in self._factories:
             available = ", ".join(sorted(self._factories)) or "<none>"
@@ -72,7 +73,7 @@ class ProviderRegistry:
     @classmethod
     def get(
         cls, name: str, options: dict[str, Any] | None = None
-    ) -> "CloudProvider":
+    ) -> CloudProvider:
         """Instantiate a provider by name with ``options``."""
         return _REGISTRY.get(name, options)
 
@@ -82,7 +83,7 @@ class ProviderRegistry:
         return _REGISTRY.names()
 
     @classmethod
-    def from_config(cls, config: Any) -> "CloudProvider":
+    def from_config(cls, config: Any) -> CloudProvider:
         """Build a provider from an I3 ``CloudConfig`` (or dict-like).
 
         Reads ``config.cloud.provider`` (or ``config["cloud"]["provider"]``)
@@ -141,7 +142,7 @@ def _register_defaults() -> None:
     registering provider Y.
     """
 
-    def _anthropic(opts: dict[str, Any]) -> "CloudProvider":
+    def _anthropic(opts: dict[str, Any]) -> CloudProvider:
         from i3.cloud.providers.anthropic import AnthropicProvider
 
         return AnthropicProvider(
@@ -151,7 +152,7 @@ def _register_defaults() -> None:
             fallback_on_error=bool(opts.get("fallback_on_error", False)),
         )
 
-    def _openai(opts: dict[str, Any]) -> "CloudProvider":
+    def _openai(opts: dict[str, Any]) -> CloudProvider:
         from i3.cloud.providers.openai import OpenAIProvider
 
         return OpenAIProvider(
@@ -161,7 +162,7 @@ def _register_defaults() -> None:
             base_url=opts.get("base_url"),
         )
 
-    def _google(opts: dict[str, Any]) -> "CloudProvider":
+    def _google(opts: dict[str, Any]) -> CloudProvider:
         from i3.cloud.providers.google import GoogleProvider
 
         return GoogleProvider(
@@ -170,7 +171,7 @@ def _register_defaults() -> None:
             timeout=float(opts.get("timeout", 30.0)),
         )
 
-    def _azure(opts: dict[str, Any]) -> "CloudProvider":
+    def _azure(opts: dict[str, Any]) -> CloudProvider:
         from i3.cloud.providers.azure import AzureOpenAIProvider
 
         deployment = opts.get("deployment") or opts.get("model")
@@ -186,7 +187,7 @@ def _register_defaults() -> None:
             api_version=opts.get("api_version"),
         )
 
-    def _bedrock(opts: dict[str, Any]) -> "CloudProvider":
+    def _bedrock(opts: dict[str, Any]) -> CloudProvider:
         from i3.cloud.providers.bedrock import BedrockProvider
 
         return BedrockProvider(
@@ -196,7 +197,7 @@ def _register_defaults() -> None:
             timeout=float(opts.get("timeout", 30.0)),
         )
 
-    def _mistral(opts: dict[str, Any]) -> "CloudProvider":
+    def _mistral(opts: dict[str, Any]) -> CloudProvider:
         from i3.cloud.providers.mistral import MistralProvider
 
         return MistralProvider(
@@ -205,7 +206,7 @@ def _register_defaults() -> None:
             timeout=float(opts.get("timeout", 30.0)),
         )
 
-    def _cohere(opts: dict[str, Any]) -> "CloudProvider":
+    def _cohere(opts: dict[str, Any]) -> CloudProvider:
         from i3.cloud.providers.cohere import CohereProvider
 
         return CohereProvider(
@@ -214,7 +215,7 @@ def _register_defaults() -> None:
             timeout=float(opts.get("timeout", 30.0)),
         )
 
-    def _ollama(opts: dict[str, Any]) -> "CloudProvider":
+    def _ollama(opts: dict[str, Any]) -> CloudProvider:
         from i3.cloud.providers.ollama import OllamaProvider
 
         return OllamaProvider(
@@ -224,7 +225,7 @@ def _register_defaults() -> None:
             timeout=float(opts.get("timeout", 120.0)),
         )
 
-    def _openrouter(opts: dict[str, Any]) -> "CloudProvider":
+    def _openrouter(opts: dict[str, Any]) -> CloudProvider:
         from i3.cloud.providers.openrouter import OpenRouterProvider
 
         return OpenRouterProvider(
@@ -235,7 +236,7 @@ def _register_defaults() -> None:
             x_title=opts.get("x_title"),
         )
 
-    def _litellm(opts: dict[str, Any]) -> "CloudProvider":
+    def _litellm(opts: dict[str, Any]) -> CloudProvider:
         from i3.cloud.providers.litellm import LiteLLMProvider
 
         return LiteLLMProvider(
@@ -245,7 +246,7 @@ def _register_defaults() -> None:
             extra_kwargs=opts.get("extra_kwargs") or {},
         )
 
-    def _pangu(opts: dict[str, Any]) -> "CloudProvider":
+    def _pangu(opts: dict[str, Any]) -> CloudProvider:
         from i3.cloud.providers.huawei_pangu import HuaweiPanGuProvider
 
         return HuaweiPanGuProvider(

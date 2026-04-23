@@ -42,7 +42,7 @@ import json
 import logging
 import statistics
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -111,7 +111,7 @@ def _next_token_distribution(
     model: nn.Module,
     input_ids: torch.Tensor,
     adaptation_vector: torch.Tensor,
-    user_state: Optional[torch.Tensor],
+    user_state: torch.Tensor | None,
 ) -> torch.Tensor:
     """Return the next-token probability distribution ``[vocab_size]``."""
     with torch.inference_mode():
@@ -148,7 +148,7 @@ def measure_conditioning_sensitivity(
     adaptation_vectors: dict[str, torch.Tensor],
     *,
     device: str = "cpu",
-    user_state: Optional[torch.Tensor] = None,
+    user_state: torch.Tensor | None = None,
 ) -> dict[str, Any]:
     """Compute pairwise KL divergences between conditioning variants.
 

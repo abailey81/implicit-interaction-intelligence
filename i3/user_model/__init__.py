@@ -29,20 +29,20 @@ DeviationMetrics   How the current state deviates from baselines.
 UserModelStore     Async SQLite store for user profiles.
 """
 
+from i3.user_model.model import UserModel
+from i3.user_model.store import UserModelStore
 from i3.user_model.types import (
     DeviationMetrics,
     SessionState,
     UserProfile,
     UserState,
 )
-from i3.user_model.model import UserModel
-from i3.user_model.store import UserModelStore
 
 __all__ = [
-    "UserModel",
-    "UserProfile",
-    "SessionState",
-    "UserState",
     "DeviationMetrics",
+    "SessionState",
+    "UserModel",
     "UserModelStore",
+    "UserProfile",
+    "UserState",
 ]

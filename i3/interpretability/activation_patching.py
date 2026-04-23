@@ -37,14 +37,13 @@ References
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from types import TracebackType
-from typing import Callable, Optional
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
 
 # ---------------------------------------------------------------------------
 # Component-name canonicalisation.
@@ -197,7 +196,7 @@ class ActivationPatcher:
     def __init__(
         self,
         model: nn.Module,
-        components: Optional[list[str]] = None,
+        components: list[str] | None = None,
     ) -> None:
         if not isinstance(model, nn.Module):
             raise TypeError(
@@ -216,16 +215,16 @@ class ActivationPatcher:
     # Context-manager protocol.
     # ------------------------------------------------------------------
 
-    def __enter__(self) -> "ActivationPatcher":
+    def __enter__(self) -> ActivationPatcher:
         """Initialise the patch state. Hooks are attached lazily."""
         self._state = _PatchState()
         return self
 
     def __exit__(
         self,
-        exc_type: Optional[type[BaseException]],
-        exc: Optional[BaseException],
-        tb: Optional[TracebackType],
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
     ) -> None:
         """Remove any outstanding hooks. Idempotent."""
         self._detach_all()
@@ -375,7 +374,7 @@ class ActivationPatcher:
         return _hook
 
 
-def _extract_primary_tensor(output: object) -> Optional[torch.Tensor]:
+def _extract_primary_tensor(output: object) -> torch.Tensor | None:
     """Return the first tensor of a module output, or ``None``.
 
     Some sub-modules return ``(hidden, attn_weights)``; others return a
@@ -445,7 +444,7 @@ def trace_causal_effect(
     model: nn.Module,
     clean_input: dict[str, torch.Tensor],
     corrupted_input: dict[str, torch.Tensor],
-    components: Optional[list[str]] = None,
+    components: list[str] | None = None,
 ) -> dict[str, CausalEffect]:
     """Iterate patching over every component and return per-component effects.
 

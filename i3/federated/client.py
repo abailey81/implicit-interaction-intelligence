@@ -14,7 +14,8 @@ dry runs.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import torch
@@ -123,10 +124,10 @@ class I3FederatedClient(NumPyClient):
     def __init__(
         self,
         model: nn.Module,
-        train_loader: "DataLoader[Any]",
+        train_loader: DataLoader[Any],
         loss_fn: Callable[[nn.Module, Any], torch.Tensor],
         max_grad_norm: float = 1.0,
-        noise_multiplier: Optional[float] = None,
+        noise_multiplier: float | None = None,
         local_epochs: int = 1,
         learning_rate: float = 1e-3,
         device: str = "cpu",

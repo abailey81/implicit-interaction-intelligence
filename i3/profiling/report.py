@@ -7,9 +7,9 @@ Smart Hanhan IoT hub).
 """
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -88,13 +88,13 @@ class ProfileReport:
     memory: MemoryReport
     latency: LatencyReport
     latency_quantized: LatencyReport
-    device_assessments: List[DeviceFeasibility]
+    device_assessments: list[DeviceFeasibility]
 
     # ---------------------------------------------------------------- #
     # Serialization helpers
     # ---------------------------------------------------------------- #
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to a JSON-serializable dictionary for API responses."""
         return {
             "model_name": self.model_name,
@@ -240,7 +240,7 @@ class EdgeProfiler:
         print(report.to_markdown())
     """
 
-    DEFAULT_DEVICES: List[TargetDevice] = [
+    DEFAULT_DEVICES: list[TargetDevice] = [
         TargetDevice("Kirin 9000 (Phone)", memory_mb=512, tops=2.0),
         TargetDevice("Kirin A2 (Wearable)", memory_mb=128, tops=0.5),
         TargetDevice("Smart Hanhan (IoT)", memory_mb=64, tops=0.1),
@@ -265,7 +265,7 @@ class EdgeProfiler:
 
         if config and hasattr(config, "profiling"):
             prof_cfg = config.profiling
-            self.devices: List[TargetDevice] = [
+            self.devices: list[TargetDevice] = [
                 TargetDevice(d.name, d.memory_mb, d.tops)
                 for d in getattr(prof_cfg, "target_devices", self.DEFAULT_DEVICES)
             ]
@@ -388,7 +388,7 @@ class EdgeProfiler:
         )
 
         # 4. Device feasibility
-        assessments: List[DeviceFeasibility] = []
+        assessments: list[DeviceFeasibility] = []
         for device in self.devices:
             fits = memory.int8_size_mb < device.memory_budget_mb
             utilization = memory.int8_size_mb / device.memory_budget_mb
@@ -438,7 +438,7 @@ class EdgeProfiler:
         slm: nn.Module,
         encoder_input: torch.Tensor,
         slm_input: torch.Tensor,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Profile the complete I3 system (encoder + SLM).
 
         Generates individual :class:`ProfileReport` instances for each

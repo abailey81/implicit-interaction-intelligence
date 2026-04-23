@@ -14,12 +14,10 @@ user's established baselines.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 
 import torch
-
 
 # ---------------------------------------------------------------------------
 # Instantaneous state
@@ -146,9 +144,9 @@ class UserProfile:
     """
 
     user_id: str
-    baseline_embedding: Optional[torch.Tensor]          # 64-dim long-term baseline
-    baseline_features_mean: Optional[dict[str, float]]   # Mean of each feature
-    baseline_features_std: Optional[dict[str, float]]    # Std of each feature
+    baseline_embedding: torch.Tensor | None          # 64-dim long-term baseline
+    baseline_features_mean: dict[str, float] | None   # Mean of each feature
+    baseline_features_std: dict[str, float] | None    # Std of each feature
     total_sessions: int
     total_messages: int
     relationship_strength: float                         # 0-1

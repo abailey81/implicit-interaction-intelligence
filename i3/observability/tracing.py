@@ -26,22 +26,22 @@ _TRACER_PROVIDER: Any = None
 
 
 class _NoopSpan:
-    def set_attribute(self, *_: Any, **__: Any) -> None:  # noqa: D401
+    def set_attribute(self, *_: Any, **__: Any) -> None:
         return None
 
-    def set_status(self, *_: Any, **__: Any) -> None:  # noqa: D401
+    def set_status(self, *_: Any, **__: Any) -> None:
         return None
 
-    def record_exception(self, *_: Any, **__: Any) -> None:  # noqa: D401
+    def record_exception(self, *_: Any, **__: Any) -> None:
         return None
 
-    def add_event(self, *_: Any, **__: Any) -> None:  # noqa: D401
+    def add_event(self, *_: Any, **__: Any) -> None:
         return None
 
-    def end(self) -> None:  # noqa: D401
+    def end(self) -> None:
         return None
 
-    def __enter__(self) -> "_NoopSpan":
+    def __enter__(self) -> _NoopSpan:
         return self
 
     def __exit__(self, *_: Any) -> None:
@@ -53,7 +53,7 @@ class _NoopTracer:
     def start_as_current_span(self, *_: Any, **__: Any):
         yield _NoopSpan()
 
-    def start_span(self, *_: Any, **__: Any) -> _NoopSpan:  # noqa: D401
+    def start_span(self, *_: Any, **__: Any) -> _NoopSpan:
         return _NoopSpan()
 
 

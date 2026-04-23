@@ -23,7 +23,7 @@ Install hint::
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional, Union
+from typing import Any, Union
 
 logger = logging.getLogger(__name__)
 
@@ -69,10 +69,10 @@ JsonSchema = Union[str, dict[str, Any], type]
 def constrained_generate(
     model: Any,
     prompt: str,
-    regex_or_schema: Union[str, JsonSchema],
+    regex_or_schema: str | JsonSchema,
     *,
     max_tokens: int = 256,
-    sampler: Optional[Any] = None,
+    sampler: Any | None = None,
 ) -> Any:
     """Generate text that satisfies a regex or JSON-schema constraint.
 

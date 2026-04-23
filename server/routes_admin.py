@@ -31,7 +31,16 @@ import secrets
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Path as FPath, Request, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    FastAPI,
+    Header,
+    HTTPException,
+    Path as FPath,
+    Request,
+    status,
+)
 from fastapi.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
@@ -182,7 +191,7 @@ async def admin_reset(request: Request) -> JSONResponse:
 
     profile_removed = False
     try:
-        from i3.user_model.store import UserModelStore  # noqa: PLC0415
+        from i3.user_model.store import UserModelStore
 
         db_path = getattr(pipeline.config.user_model, "db_path", "data/user_model.db")
         async with UserModelStore(db_path) as store:
@@ -250,9 +259,9 @@ async def admin_profiling(request: Request) -> JSONResponse:
         )
 
     try:
-        import torch  # noqa: PLC0415
+        import torch
 
-        from i3.profiling.report import EdgeProfiler  # noqa: PLC0415
+        from i3.profiling.report import EdgeProfiler
     except ImportError as exc:
         logger.exception("admin_profiling.import_failed")
         raise HTTPException(
@@ -297,7 +306,7 @@ async def admin_seed(request: Request) -> JSONResponse:
     pipeline = _get_pipeline(request)
 
     try:
-        from demo.pre_seed import seed_pipeline  # noqa: PLC0415
+        from demo.pre_seed import seed_pipeline
     except ImportError as exc:
         logger.exception("admin_seed.import_failed")
         raise HTTPException(
@@ -362,7 +371,7 @@ async def admin_export(
 
     profile_payload: dict[str, Any] | None = None
     try:
-        from i3.user_model.store import UserModelStore  # noqa: PLC0415
+        from i3.user_model.store import UserModelStore
 
         db_path = getattr(pipeline.config.user_model, "db_path", "data/user_model.db")
         async with UserModelStore(db_path) as store:
@@ -538,7 +547,7 @@ async def admin_delete_user(
     # Profile purge ---------------------------------------------------
     profile_removed = False
     try:
-        from i3.user_model.store import UserModelStore  # noqa: PLC0415
+        from i3.user_model.store import UserModelStore
 
         db_path = getattr(pipeline.config.user_model, "db_path", "data/user_model.db")
         async with UserModelStore(db_path) as store:

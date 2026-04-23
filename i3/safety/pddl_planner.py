@@ -42,8 +42,8 @@ Example
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Mapping
 
 logger = logging.getLogger(__name__)
 
@@ -467,7 +467,7 @@ class PrivacySafetyPlanner:
         plan: SafetyPlan,
         *,
         context: SafetyContext | None = None,
-    ) -> "SafetyCertificate":
+    ) -> SafetyCertificate:
         """Bundle a plan into a machine-checkable
         :class:`~i3.safety.certificates.SafetyCertificate`.
 
@@ -557,8 +557,8 @@ class PrivacySafetyPlanner:
 
 
 __all__ = [
-    "Action",
     "PRIVACY_SAFETY_DOMAIN",
+    "Action",
     "PddlDomain",
     "PrivacySafetyPlanner",
     "SafetyContext",

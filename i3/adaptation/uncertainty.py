@@ -44,8 +44,9 @@ from __future__ import annotations
 
 import logging
 import math
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Iterable, Optional, Sequence
+from typing import TYPE_CHECKING
 
 import torch
 import torch.nn as nn
@@ -263,8 +264,8 @@ class MCDropoutAdaptationEstimator:
 
     def __init__(
         self,
-        encoder: "TemporalConvNet",
-        controller: "AdaptationController",
+        encoder: TemporalConvNet,
+        controller: AdaptationController,
         n_samples: int = 30,
         dropout_p: float = 0.1,
     ) -> None:
@@ -389,7 +390,7 @@ class MCDropoutAdaptationEstimator:
         # does not progressively drift the style mirror toward the
         # observed style across the N forward passes. We want to sample
         # the *current* posterior, not an EMA over the posterior.
-        saved_style: Optional[StyleVector] = None
+        saved_style: StyleVector | None = None
         if hasattr(self._controller, "_current_style"):
             saved_style = getattr(self._controller, "_current_style", None)
         try:

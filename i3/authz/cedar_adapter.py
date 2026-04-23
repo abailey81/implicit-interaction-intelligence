@@ -33,11 +33,11 @@ Install hint::
 
 from __future__ import annotations
 
-import json
 import logging
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, Optional, Sequence, Tuple
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +100,7 @@ def _default_schema_path() -> Path:
 # ---------------------------------------------------------------------------
 
 
-EntityRef = Tuple[str, str]
+EntityRef = tuple[str, str]
 """An ``(EntityType, entity_id)`` tuple, e.g. ``("User", "alice")``."""
 
 Entity = Mapping[str, Any]
@@ -119,8 +119,8 @@ class AuthzDecision:
     """
 
     allowed: bool
-    determining_policies: Tuple[str, ...]
-    errors: Tuple[str, ...]
+    determining_policies: tuple[str, ...]
+    errors: tuple[str, ...]
 
 
 # ---------------------------------------------------------------------------
@@ -146,15 +146,15 @@ class CedarAuthorizer:
     def __init__(
         self,
         policy_src: str,
-        schema_src: Optional[str] = None,
+        schema_src: str | None = None,
     ) -> None:
         self._policy_src: str = policy_src
-        self._schema_src: Optional[str] = schema_src
+        self._schema_src: str | None = schema_src
 
     # -- Constructors ------------------------------------------------------
 
     @classmethod
-    def from_default_policy_file(cls) -> "CedarAuthorizer":
+    def from_default_policy_file(cls) -> CedarAuthorizer:
         """Load the canonical I³ policy set from the repo.
 
         Returns:
@@ -172,7 +172,7 @@ class CedarAuthorizer:
                 f"Cedar policy file not found at {policy_path}"
             )
         policy_src: str = policy_path.read_text(encoding="utf-8")
-        schema_src: Optional[str]
+        schema_src: str | None
         if schema_path.is_file():
             schema_src = schema_path.read_text(encoding="utf-8")
         else:
@@ -183,8 +183,8 @@ class CedarAuthorizer:
     def from_path(
         cls,
         policy_path: Path,
-        schema_path: Optional[Path] = None,
-    ) -> "CedarAuthorizer":
+        schema_path: Path | None = None,
+    ) -> CedarAuthorizer:
         """Load a policy set from an arbitrary file path.
 
         Args:
@@ -196,7 +196,7 @@ class CedarAuthorizer:
         """
 
         policy_src: str = Path(policy_path).read_text(encoding="utf-8")
-        schema_src: Optional[str] = None
+        schema_src: str | None = None
         if schema_path is not None:
             schema_src = Path(schema_path).read_text(encoding="utf-8")
         return cls(policy_src=policy_src, schema_src=schema_src)
@@ -208,8 +208,8 @@ class CedarAuthorizer:
         principal: EntityRef,
         action: str,
         resource: EntityRef,
-        context: Optional[Mapping[str, Any]] = None,
-        entities: Optional[Sequence[Entity]] = None,
+        context: Mapping[str, Any] | None = None,
+        entities: Sequence[Entity] | None = None,
     ) -> bool:
         """Return whether the request is allowed by the policy set.
 
@@ -244,8 +244,8 @@ class CedarAuthorizer:
         principal: EntityRef,
         action: str,
         resource: EntityRef,
-        context: Optional[Mapping[str, Any]] = None,
-        entities: Optional[Sequence[Entity]] = None,
+        context: Mapping[str, Any] | None = None,
+        entities: Sequence[Entity] | None = None,
     ) -> AuthzDecision:
         """Evaluate a request and return the full :class:`AuthzDecision`.
 

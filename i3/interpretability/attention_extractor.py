@@ -32,7 +32,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from types import TracebackType
-from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -67,7 +66,7 @@ class _ExtractorState:
     handles: list[torch.utils.hooks.RemovableHandle] = field(
         default_factory=list
     )
-    captured: list[Optional[torch.Tensor]] = field(default_factory=list)
+    captured: list[torch.Tensor | None] = field(default_factory=list)
 
 
 class CrossAttentionExtractor:
@@ -159,7 +158,7 @@ class CrossAttentionExtractor:
     # Context-manager protocol
     # ------------------------------------------------------------------
 
-    def __enter__(self) -> "CrossAttentionExtractor":
+    def __enter__(self) -> CrossAttentionExtractor:
         """Register one forward hook per cross-attention module."""
         # Initialise the captured slot list to match n_layers so indexing
         # via layer_index is always safe.
@@ -173,9 +172,9 @@ class CrossAttentionExtractor:
 
     def __exit__(
         self,
-        exc_type: Optional[type[BaseException]],
-        exc: Optional[BaseException],
-        tb: Optional[TracebackType],
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
     ) -> None:
         """Remove all hooks registered during :meth:`__enter__`.
 
@@ -221,11 +220,9 @@ class CrossAttentionExtractor:
 
         found: list[tuple[int, nn.Module]] = []
         for i, mod in enumerate(self._model.modules()):
-            if MultiHeadCrossAttention is not None and isinstance(
+            if (MultiHeadCrossAttention is not None and isinstance(
                 mod, MultiHeadCrossAttention
-            ):
-                found.append((i, mod))
-            elif (
+            )) or (
                 MultiHeadCrossAttention is None
                 and type(mod).__name__ == "MultiHeadCrossAttention"
             ):
@@ -234,7 +231,7 @@ class CrossAttentionExtractor:
 
     def _make_hook(
         self, layer_idx: int
-    ) -> "callable[[nn.Module, tuple, object], None]":
+    ) -> callable[[nn.Module, tuple, object], None]:
         """Produce a forward hook closure bound to ``layer_idx``.
 
         The hook extracts the attention-weight tensor from the module's
@@ -249,7 +246,7 @@ class CrossAttentionExtractor:
             _inputs: tuple,
             output: object,
         ) -> None:
-            weights: Optional[torch.Tensor] = None
+            weights: torch.Tensor | None = None
             if isinstance(output, tuple) and len(output) >= 2:
                 candidate = output[1]
                 if isinstance(candidate, torch.Tensor):

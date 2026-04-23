@@ -25,13 +25,11 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import Optional
 
 import torch
 import torch.nn.functional as F
 
 from i3.biometric.keystroke_id import KeystrokeBiometricID
-
 
 # 3-sigma threshold -- the classical "out-of-control" rule from
 # statistical process control (Shewhart, 1931).
@@ -165,7 +163,7 @@ class ContinuousAuthentication:
         self._identifier = identifier
         self._sigma_threshold: float = float(sigma_threshold)
         self._min_observations: int = int(min_observations)
-        self._active_user: Optional[str] = None
+        self._active_user: str | None = None
         self._stats: _SessionStats = _SessionStats()
 
     # ------------------------------------------------------------------
@@ -200,7 +198,7 @@ class ContinuousAuthentication:
     async def observe(
         self,
         embedding: torch.Tensor,
-    ) -> Optional[AuthenticationEvent]:
+    ) -> AuthenticationEvent | None:
         """Feed a new session embedding and maybe return an event.
 
         Args:
@@ -270,7 +268,7 @@ class ContinuousAuthentication:
     # ------------------------------------------------------------------
 
     @property
-    def active_user(self) -> Optional[str]:
+    def active_user(self) -> str | None:
         """The user currently under observation, or ``None``."""
         return self._active_user
 
@@ -291,8 +289,8 @@ class ContinuousAuthentication:
 
 
 __all__ = [
-    "AuthenticationEvent",
-    "ContinuousAuthentication",
     "DEFAULT_SIGMA_THRESHOLD",
     "MIN_OBSERVATIONS",
+    "AuthenticationEvent",
+    "ContinuousAuthentication",
 ]

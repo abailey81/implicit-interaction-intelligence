@@ -29,15 +29,14 @@ References
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional, Sequence
 
 import numpy as np
 import torch
 import torch.nn as nn
 
 from i3.interpretability.attention_extractor import CrossAttentionExtractor
-
 
 # ---------------------------------------------------------------------------
 # Dataclasses.
@@ -123,9 +122,9 @@ def extract_attention_patterns(
     model: nn.Module,
     prompt: torch.Tensor,
     conditioning_vector: torch.Tensor,
-    user_state: Optional[torch.Tensor] = None,
+    user_state: torch.Tensor | None = None,
     max_tokens: int = 32,
-    decoded_tokens: Optional[Sequence[str]] = None,
+    decoded_tokens: Sequence[str] | None = None,
 ) -> AttentionPattern:
     """Run the model and extract a structured cross-attention pattern.
 

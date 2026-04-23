@@ -32,7 +32,7 @@ annotated with ``blocked=True`` and a ``block_reason`` string.
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from i3.cloud.guardrails import (
     GuardrailViolation,
@@ -61,8 +61,8 @@ class GuardedCloudClient:
         self,
         client: Any,
         *,
-        input_guardrail: Optional[InputGuardrail] = None,
-        output_guardrail: Optional[OutputGuardrail] = None,
+        input_guardrail: InputGuardrail | None = None,
+        output_guardrail: OutputGuardrail | None = None,
     ) -> None:
         """Initialise the guarded client.
 
@@ -110,9 +110,9 @@ class GuardedCloudClient:
         self,
         user_message: str,
         system_prompt: str,
-        conversation_history: Optional[list[dict[str, str]]] = None,
+        conversation_history: list[dict[str, str]] | None = None,
         *,
-        user_id: Optional[str] = None,
+        user_id: str | None = None,
     ) -> dict[str, Any]:
         """Run input guardrails, call the inner client, sanitise output.
 
@@ -213,7 +213,7 @@ class GuardedCloudClient:
         if callable(close_fn):
             await close_fn()
 
-    async def __aenter__(self) -> "GuardedCloudClient":
+    async def __aenter__(self) -> GuardedCloudClient:
         enter_fn = getattr(self.client, "__aenter__", None)
         if callable(enter_fn):
             await enter_fn()

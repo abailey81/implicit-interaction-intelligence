@@ -42,7 +42,7 @@ import copy
 import logging
 import time
 from types import ModuleType
-from typing import Any, Optional
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -55,7 +55,9 @@ logger = logging.getLogger(__name__)
 
 try:  # pragma: no cover - environment-dependent import
     import torchao as _torchao_module  # type: ignore[import-not-found]
-    from torchao.quantization import quantize_ as _torchao_quantize  # type: ignore[import-not-found]
+    from torchao.quantization import (
+        quantize_ as _torchao_quantize,  # type: ignore[import-not-found]
+    )
 
     _TORCHAO_AVAILABLE: bool = True
 except ImportError:  # pragma: no cover - exercised when dep absent
@@ -159,7 +161,9 @@ def quantize_int8_dynamic(model: nn.Module) -> nn.Module:
     """
     _require_torchao()
     try:
-        from torchao.quantization import Int8DynamicActivationInt8WeightConfig  # type: ignore[import-not-found]
+        from torchao.quantization import (
+            Int8DynamicActivationInt8WeightConfig,  # type: ignore[import-not-found]
+        )
     except ImportError as exc:  # pragma: no cover
         raise RuntimeError(
             "torchao is installed but the INT8 dynamic config is missing. "
@@ -212,8 +216,8 @@ def _measure_latency(
 
 def benchmark_quantization(
     fp32_model: nn.Module,
-    int8_model: Optional[nn.Module],
-    int4_model: Optional[nn.Module],
+    int8_model: nn.Module | None,
+    int4_model: nn.Module | None,
     example_inputs: tuple[Any, ...],
     *,
     n_warmup: int = 3,

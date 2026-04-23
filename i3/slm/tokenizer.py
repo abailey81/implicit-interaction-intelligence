@@ -375,7 +375,7 @@ class SimpleTokenizer:
             ValueError: If the JSON schema is invalid or special tokens are
                         missing / mis-indexed.
         """
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
 
         # SEC: Strict schema validation. A maliciously crafted or corrupted

@@ -403,7 +403,7 @@ class FacialAffectExtractor:
         if self._face_mesh is not None:
             try:
                 self._face_mesh.close()
-            except Exception:  # noqa: BLE001 - defensive cleanup
+            except Exception:
                 logger.debug("FacialAffectExtractor: close raised", exc_info=True)
             finally:
                 self._face_mesh = None

@@ -30,10 +30,11 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:  # pragma: no cover
     import numpy as np
@@ -451,4 +452,4 @@ class LanceUserEmbeddingStore:
         try:
             return int(table.count_rows())
         except AttributeError:  # pragma: no cover
-            return int(len(table.to_pandas()))
+            return len(table.to_pandas())

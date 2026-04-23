@@ -40,8 +40,8 @@ transport explicit avoids an ImportError-at-import-time foot-gun.
 from __future__ import annotations
 
 import logging
-import threading
 import os
+import threading
 import time
 from typing import Any
 
@@ -52,7 +52,6 @@ from i3.cloud.providers.base import (
     CompletionRequest,
     CompletionResult,
     PermanentError,
-    ProviderError,
     RateLimitedError,
     TokenUsage,
     TransientError,

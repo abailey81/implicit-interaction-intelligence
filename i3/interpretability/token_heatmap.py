@@ -28,7 +28,6 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 import torch
 
@@ -84,7 +83,7 @@ class TokenHeatmap:
     """
 
     def __init__(
-        self, conditioning_labels: Optional[list[str]] = None
+        self, conditioning_labels: list[str] | None = None
     ) -> None:
         self.conditioning_labels: list[str] = (
             list(conditioning_labels)

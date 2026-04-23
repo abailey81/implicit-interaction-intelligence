@@ -30,10 +30,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import math
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import Final, Literal
+from typing import Final
 
 from i3.adaptation.types import AdaptationVector
 from i3.eval.llm_judge import LLMJudge, Winner
@@ -103,8 +102,8 @@ def cohens_kappa(
     p_o = agree / n
     # Expected agreement by chance.
     categories = _ALLOWED_WINNERS
-    count_a: dict[Winner, int] = {c: 0 for c in categories}
-    count_b: dict[Winner, int] = {c: 0 for c in categories}
+    count_a: dict[Winner, int] = dict.fromkeys(categories, 0)
+    count_b: dict[Winner, int] = dict.fromkeys(categories, 0)
     for a in labels_a:
         count_a[a] = count_a.get(a, 0) + 1
     for b in labels_b:
@@ -143,7 +142,7 @@ def fleiss_kappa(matrix: Sequence[Sequence[Winner]]) -> float:
     # n_ij : count of judges that assigned category j to item i.
     per_item_counts: list[dict[Winner, int]] = []
     for i in range(n_items):
-        counts: dict[Winner, int] = {c: 0 for c in categories}
+        counts: dict[Winner, int] = dict.fromkeys(categories, 0)
         for j in range(n_judges):
             counts[matrix[j][i]] = counts.get(matrix[j][i], 0) + 1
         per_item_counts.append(counts)
@@ -156,7 +155,7 @@ def fleiss_kappa(matrix: Sequence[Sequence[Winner]]) -> float:
     p_bar = sum(p_items) / n_items
 
     # p_j: marginal probability of category j.
-    totals: dict[Winner, int] = {c: 0 for c in categories}
+    totals: dict[Winner, int] = dict.fromkeys(categories, 0)
     for counts in per_item_counts:
         for c in categories:
             totals[c] += counts[c]
@@ -248,7 +247,7 @@ class JudgeCalibrator:
             for _ in range(n_samples)
         ]
         answers: list[Winner] = await asyncio.gather(*tasks)
-        counts: dict[Winner, int] = {c: 0 for c in _ALLOWED_WINNERS}
+        counts: dict[Winner, int] = dict.fromkeys(_ALLOWED_WINNERS, 0)
         for ans in answers:
             counts[ans] = counts.get(ans, 0) + 1
         modal = max(counts.values())

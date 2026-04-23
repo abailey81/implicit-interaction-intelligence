@@ -31,7 +31,8 @@ References
 from __future__ import annotations
 
 import logging
-from typing import Literal, Mapping
+from collections.abc import Mapping
+from typing import Literal
 
 import numpy as np
 import torch
@@ -137,7 +138,7 @@ class MultimodalFusion(nn.Module):
             )
 
         if modality_dim_map is None:
-            modality_dim_map = {name: 8 for name in _DEFAULT_MODALITY_ORDER}
+            modality_dim_map = dict.fromkeys(_DEFAULT_MODALITY_ORDER, 8)
         # Preserve insertion order explicitly.
         self._modality_order: tuple[str, ...] = tuple(modality_dim_map.keys())
         self._modality_dims: dict[str, int] = dict(modality_dim_map)

@@ -14,17 +14,16 @@ import json
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+
+# SEC: Optional encryption primitive — imported lazily via attribute access
+# in __init__ so this module still imports in tests that don't need it.
+from typing import TYPE_CHECKING
 
 import aiosqlite
 import numpy as np
 import torch
 
 from i3.user_model.types import UserProfile
-
-# SEC: Optional encryption primitive — imported lazily via attribute access
-# in __init__ so this module still imports in tests that don't need it.
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from i3.privacy.encryption import ModelEncryptor
@@ -135,7 +134,7 @@ _ENC_VERSION_FERNET_V1 = 0x01
 
 def _maybe_encrypt_embedding(
     tensor: torch.Tensor,
-    encryptor: "ModelEncryptor | None",
+    encryptor: ModelEncryptor | None,
 ) -> bytes:
     """Encrypt a 1-D embedding tensor if an encryptor is provided.
 
@@ -147,7 +146,7 @@ def _maybe_encrypt_embedding(
         return bytes([_ENC_VERSION_PLAINTEXT]) + _tensor_to_bytes(tensor)
     try:
         payload = encryptor.encrypt_embedding(tensor)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise ProfileSerializationError(
             f"Failed to encrypt embedding: {type(exc).__name__}"
         ) from exc
@@ -157,7 +156,7 @@ def _maybe_encrypt_embedding(
 def _maybe_decrypt_embedding(
     data: bytes,
     dim: int,
-    encryptor: "ModelEncryptor | None",
+    encryptor: ModelEncryptor | None,
 ) -> torch.Tensor:
     """Decrypt a versioned embedding envelope produced by :func:`_maybe_encrypt_embedding`.
 
@@ -184,7 +183,7 @@ def _maybe_decrypt_embedding(
             )
         try:
             return encryptor.decrypt_embedding(payload, dim=dim)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise ProfileSerializationError(
                 f"Failed to decrypt embedding: {type(exc).__name__}"
             ) from exc
@@ -244,10 +243,10 @@ class UserModelStore:
     def __init__(
         self,
         db_path: str | Path,
-        encryptor: "ModelEncryptor | None" = None,
+        encryptor: ModelEncryptor | None = None,
     ) -> None:
         self._db_path = Path(db_path)
-        self._db: Optional[aiosqlite.Connection] = None
+        self._db: aiosqlite.Connection | None = None
         # SEC: When set, baseline embeddings are encrypted at rest via
         # Fernet before being written to SQLite. The versioned envelope
         # format lets legacy plaintext rows be read transparently.
@@ -283,7 +282,7 @@ class UserModelStore:
             for migration in _MIGRATIONS:
                 try:
                     await self._db.execute(migration)
-                except Exception as mig_exc:  # noqa: BLE001
+                except Exception as mig_exc:
                     if "duplicate column name" not in str(mig_exc).lower():
                         raise
             await self._db.commit()
@@ -315,7 +314,7 @@ class UserModelStore:
 
     # -- CRUD operations ---------------------------------------------------
 
-    async def load_profile(self, user_id: str) -> Optional[UserProfile]:
+    async def load_profile(self, user_id: str) -> UserProfile | None:
         """Load a user profile from the database.
 
         Args:
@@ -343,7 +342,7 @@ class UserModelStore:
                 return None
 
             # Deserialize embedding
-            baseline_embedding: Optional[torch.Tensor] = None
+            baseline_embedding: torch.Tensor | None = None
             if row["baseline_embedding"] is not None:
                 # SEC: Honour the persisted dimension when present so that the
                 # store can survive an encoder dim change without corrupting

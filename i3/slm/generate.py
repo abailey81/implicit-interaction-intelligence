@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import logging
 import math
-from typing import Optional
 
 import torch
 import torch.nn.functional as F
@@ -57,8 +56,8 @@ class SLMGenerator:
 
     def __init__(
         self,
-        model: "AdaptiveSLM",
-        tokenizer: "SimpleTokenizer",
+        model: AdaptiveSLM,
+        tokenizer: SimpleTokenizer,
         device: str = "cpu",
     ) -> None:
         self.model = model
@@ -79,14 +78,14 @@ class SLMGenerator:
     def generate(
         self,
         prompt: str,
-        adaptation_vector: Optional[torch.Tensor] = None,
-        user_state: Optional[torch.Tensor] = None,
+        adaptation_vector: torch.Tensor | None = None,
+        user_state: torch.Tensor | None = None,
         max_new_tokens: int = 100,
         temperature: float = 0.8,
         top_k: int = 50,
         top_p: float = 0.9,
         repetition_penalty: float = 1.2,
-        stop_tokens: Optional[list[int]] = None,
+        stop_tokens: list[int] | None = None,
     ) -> str:
         """Generate text autoregressively from a prompt.
 
@@ -284,8 +283,8 @@ class SLMGenerator:
     def generate_batch(
         self,
         prompts: list[str],
-        adaptation_vectors: Optional[list[torch.Tensor]] = None,
-        user_states: Optional[list[torch.Tensor]] = None,
+        adaptation_vectors: list[torch.Tensor] | None = None,
+        user_states: list[torch.Tensor] | None = None,
         max_new_tokens: int = 100,
         temperature: float = 0.8,
         top_k: int = 50,
@@ -351,8 +350,8 @@ class SLMGenerator:
         self,
         prompt: str,
         generated_text: str,
-        adaptation_vector: Optional[torch.Tensor] = None,
-        user_state: Optional[torch.Tensor] = None,
+        adaptation_vector: torch.Tensor | None = None,
+        user_state: torch.Tensor | None = None,
     ) -> dict[str, float]:
         """Estimate the model's confidence in a generated sequence.
 
@@ -464,7 +463,7 @@ class SLMGenerator:
         logits: torch.Tensor,
         generated_ids: list[int],
         penalty: float,
-        protected_ids: Optional[set[int]] = None,
+        protected_ids: set[int] | None = None,
     ) -> torch.Tensor:
         """Apply repetition penalty to logits for previously generated tokens.
 

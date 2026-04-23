@@ -39,8 +39,9 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Literal, Optional
+from typing import Any, Literal
 
 import torch
 
@@ -251,14 +252,14 @@ def _generate_with(
     generator: Any,
     prompt: str,
     adaptation_vector: torch.Tensor,
-    user_state: Optional[torch.Tensor],
+    user_state: torch.Tensor | None,
 ) -> str:
     """Call the generator with a conditioning vector and return text.
 
     Accepts any object whose ``generate`` method follows the shape of
     :class:`i3.slm.generate.SLMGenerator.generate`.
     """
-    gen_fn: Optional[Callable[..., Any]] = getattr(generator, "generate", None)
+    gen_fn: Callable[..., Any] | None = getattr(generator, "generate", None)
     if not callable(gen_fn):
         raise TypeError("generator must expose a generate() method")
     try:
@@ -278,10 +279,10 @@ def _generate_with(
 
 def evaluate_golden_set(
     generator: Any,
-    golden_set: Optional[list[GoldenExample]] = None,
+    golden_set: list[GoldenExample] | None = None,
     *,
-    adaptation_vectors: Optional[dict[str, torch.Tensor]] = None,
-    user_state: Optional[torch.Tensor] = None,
+    adaptation_vectors: dict[str, torch.Tensor] | None = None,
+    user_state: torch.Tensor | None = None,
 ) -> EvaluationResult:
     """Run the golden set and return agreement statistics.
 

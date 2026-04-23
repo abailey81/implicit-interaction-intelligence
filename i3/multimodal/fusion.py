@@ -30,7 +30,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Optional
 
 import numpy as np
 import torch
@@ -163,14 +162,14 @@ class ModalityFusion:
     # ------------------------------------------------------------------
     def fuse(
         self,
-        keystroke: Optional[np.ndarray] = None,
-        message: Optional[np.ndarray] = None,
-        session: Optional[np.ndarray] = None,
-        deviation: Optional[np.ndarray] = None,
-        voice: Optional[np.ndarray] = None,
-        touch: Optional[np.ndarray] = None,
-        gaze: Optional[np.ndarray] = None,
-        accelerometer: Optional[np.ndarray] = None,
+        keystroke: np.ndarray | None = None,
+        message: np.ndarray | None = None,
+        session: np.ndarray | None = None,
+        deviation: np.ndarray | None = None,
+        voice: np.ndarray | None = None,
+        touch: np.ndarray | None = None,
+        gaze: np.ndarray | None = None,
+        accelerometer: np.ndarray | None = None,
     ) -> FusedFeatureFrame:
         """Fuse per-modality 8-dim vectors into a single :class:`FusedFeatureFrame`.
 
@@ -194,7 +193,7 @@ class ModalityFusion:
             ValueError: If any supplied modality does not have exactly 8
                 elements.
         """
-        supplied: dict[str, Optional[np.ndarray]] = {
+        supplied: dict[str, np.ndarray | None] = {
             "keystroke": keystroke,
             "message": message,
             "session": session,

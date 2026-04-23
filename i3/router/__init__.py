@@ -15,18 +15,18 @@ Public API:
     IntelligentRouter         -- high-level router combining all components
 """
 
-from i3.router.types import RouteChoice, RoutingContext, RoutingDecision
 from i3.router.bandit import ContextualThompsonBandit
 from i3.router.complexity import QueryComplexityEstimator
-from i3.router.sensitivity import TopicSensitivityDetector
 from i3.router.router import IntelligentRouter
+from i3.router.sensitivity import TopicSensitivityDetector
+from i3.router.types import RouteChoice, RoutingContext, RoutingDecision
 
 __all__ = [
     "ContextualThompsonBandit",
-    "RoutingDecision",
-    "RoutingContext",
-    "RouteChoice",
-    "QueryComplexityEstimator",
-    "TopicSensitivityDetector",
     "IntelligentRouter",
+    "QueryComplexityEstimator",
+    "RouteChoice",
+    "RoutingContext",
+    "RoutingDecision",
+    "TopicSensitivityDetector",
 ]

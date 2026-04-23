@@ -213,7 +213,7 @@ class MultiJudgeEnsemble:
     @staticmethod
     def _majority_winner(per_judge: list[JudgementResult]) -> Winner:
         """Return the modal winner; ties (within 1 vote) resolve to ``'tie'``."""
-        counts: dict[Winner, int] = {c: 0 for c in _ALLOWED_WINNERS}
+        counts: dict[Winner, int] = dict.fromkeys(_ALLOWED_WINNERS, 0)
         for r in per_judge:
             counts[r.winner] = counts.get(r.winner, 0) + 1
         sorted_counts = sorted(

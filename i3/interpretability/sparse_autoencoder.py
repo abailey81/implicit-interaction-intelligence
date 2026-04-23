@@ -48,13 +48,12 @@ References
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable, Optional
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
 
 # ---------------------------------------------------------------------------
 # SparseAutoencoder.
@@ -355,24 +354,24 @@ class SAETrainer:
     def __init__(
         self,
         weight_decay: float = 0.0,
-        device: Optional[torch.device | str] = None,
-        seed: Optional[int] = None,
+        device: torch.device | str | None = None,
+        seed: int | None = None,
     ) -> None:
         if weight_decay < 0.0:
             raise ValueError(
                 f"weight_decay must be >= 0, got {weight_decay}"
             )
         self.weight_decay: float = float(weight_decay)
-        self.device: Optional[torch.device] = (
+        self.device: torch.device | None = (
             torch.device(device) if device is not None else None
         )
-        self.seed: Optional[int] = seed
+        self.seed: int | None = seed
 
     def fit(
         self,
         activations: torch.Tensor,
-        sae: Optional[SparseAutoencoder] = None,
-        d_dict: Optional[int] = None,
+        sae: SparseAutoencoder | None = None,
+        d_dict: int | None = None,
         sparsity_coef: float = 1e-3,
         epochs: int = 100,
         batch_size: int = 256,
@@ -455,7 +454,7 @@ class SAETrainer:
         )
 
         loss_history: list[float] = []
-        initial_loss: Optional[float] = None
+        initial_loss: float | None = None
         final_loss = 0.0
         final_recon_mse = 0.0
         final_sparsity = 0.0
@@ -544,7 +543,7 @@ class FeatureDictionary:
         self,
         sae: SparseAutoencoder,
         activations: torch.Tensor,
-        input_ids: Optional[torch.Tensor] = None,
+        input_ids: torch.Tensor | None = None,
     ) -> None:
         if activations.dim() != 2:
             raise ValueError(
@@ -559,7 +558,7 @@ class FeatureDictionary:
 
         self.sae: SparseAutoencoder = sae
         self._activations: torch.Tensor = activations.detach()
-        self._input_ids: Optional[torch.Tensor] = (
+        self._input_ids: torch.Tensor | None = (
             input_ids.detach() if input_ids is not None else None
         )
 
@@ -702,7 +701,7 @@ def iter_activations_flat(
         ValueError: If the inputs do not share a trailing dimension.
     """
     flat: list[torch.Tensor] = []
-    d_model: Optional[int] = None
+    d_model: int | None = None
     for t in activations:
         if not isinstance(t, torch.Tensor):
             raise ValueError("activations must contain torch.Tensor values")

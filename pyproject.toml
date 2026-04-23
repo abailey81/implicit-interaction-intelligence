@@ -382,6 +382,13 @@ ignore = [
 "tests/*"    = ["S101", "S105", "S106"]  # Assert, hardcoded passwords in tests
 "training/*" = ["S311"]                    # Standard random in training data
 "demo/*"     = ["S311"]                    # Standard random in demo
+# Analytics + diary use parameterised IN-clauses built from ``?`` placeholder
+# strings (the f-string NEVER carries user data — values flow through bound
+# parameters).  ruff's S608 cannot distinguish this pattern; we suppress it
+# at the file level with a comment rather than annotate every call site.
+"i3/analytics/*"            = ["S608"]
+"i3/diary/store.py"         = ["S608"]
+"i3/redteam/policy_check.py" = ["S608"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["i3", "server", "training", "demo"]

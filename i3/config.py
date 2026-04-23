@@ -30,7 +30,6 @@ import numpy as np
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
-
 # ---------------------------------------------------------------------------
 # Custom exception
 # ---------------------------------------------------------------------------
@@ -605,7 +604,7 @@ def _load_yaml_file(path: Path) -> dict[str, Any]:
         )
 
     try:
-        with open(path, "r", encoding="utf-8") as fh:
+        with open(path, encoding="utf-8") as fh:
             data = yaml.safe_load(fh) or {}
     except yaml.YAMLError as exc:
         # PyYAML attaches a problem_mark with line/column information.

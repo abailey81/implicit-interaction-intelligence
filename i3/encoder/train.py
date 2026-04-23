@@ -11,15 +11,13 @@ metrics (silhouette_score, KNeighborsClassifier).
 from __future__ import annotations
 
 import logging
-import os
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 logger = logging.getLogger(__name__)
@@ -108,7 +106,7 @@ def train_epoch(
     optimizer: torch.optim.Optimizer,
     temperature: float = 0.07,
     grad_clip: float = 1.0,
-    device: Optional[torch.device] = None,
+    device: torch.device | None = None,
 ) -> dict[str, float]:
     """Run a single training epoch.
 
@@ -155,7 +153,7 @@ def validate(
     model: nn.Module,
     dataloader: DataLoader,
     temperature: float = 0.07,
-    device: Optional[torch.device] = None,
+    device: torch.device | None = None,
 ) -> dict[str, float]:
     """Evaluate the encoder on a validation set.
 
@@ -242,7 +240,7 @@ def train(
     checkpoint_dir: str | Path = "models/encoder",
     checkpoint_every: int = 10,
     patience: int = 15,
-    device: Optional[torch.device] = None,
+    device: torch.device | None = None,
 ) -> dict[str, Any]:
     """Full training procedure with scheduling, checkpointing, and early stop.
 

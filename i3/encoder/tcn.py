@@ -10,7 +10,6 @@ Built entirely from scratch in PyTorch -- no external temporal-conv libraries.
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -51,9 +50,9 @@ class TemporalConvNet(nn.Module):
     def __init__(
         self,
         input_dim: int = 32,
-        hidden_dims: Optional[list[int]] = None,
+        hidden_dims: list[int] | None = None,
         kernel_size: int = 3,
-        dilations: Optional[list[int]] = None,
+        dilations: list[int] | None = None,
         embedding_dim: int = 64,
         dropout: float = 0.1,
     ) -> None:

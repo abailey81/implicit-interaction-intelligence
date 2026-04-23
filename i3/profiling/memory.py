@@ -9,8 +9,7 @@ import logging
 import os
 import tempfile
 import tracemalloc
-from dataclasses import dataclass, field
-from typing import Dict
+from dataclasses import dataclass
 
 import torch
 import torch.nn as nn
@@ -79,7 +78,7 @@ class MemoryProfiler:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def count_parameters(model: nn.Module) -> Dict[str, int]:
+    def count_parameters(model: nn.Module) -> dict[str, int]:
         """Count total, trainable, and buffer elements.
 
         Args:

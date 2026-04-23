@@ -48,7 +48,7 @@ from __future__ import annotations
 
 import logging
 import math
-from typing import Callable, Optional, Sequence
+from collections.abc import Callable, Sequence
 
 import torch
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -169,8 +169,8 @@ class CounterfactualExplainer:
     def __init__(
         self,
         mapping_fn: Callable[[torch.Tensor], torch.Tensor],
-        feature_names: Optional[Sequence[str]] = None,
-        dimension_names: Optional[Sequence[str]] = None,
+        feature_names: Sequence[str] | None = None,
+        dimension_names: Sequence[str] | None = None,
         target_delta: float = 0.2,
     ) -> None:
         if not callable(mapping_fn):

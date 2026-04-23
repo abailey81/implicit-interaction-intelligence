@@ -21,4 +21,4 @@ from __future__ import annotations
 from i3.observability.instrumentation import setup_observability
 from i3.observability.logging import get_logger
 
-__all__ = ["setup_observability", "get_logger"]
+__all__ = ["get_logger", "setup_observability"]

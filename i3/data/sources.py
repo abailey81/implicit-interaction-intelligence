@@ -31,7 +31,12 @@ import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator, Mapping, Optional
+from typing import Iterator, Literal, Mapping, Optional, cast
+
+SpeakerRole = Literal["user", "assistant", "system", "narrator"]
+_VALID_SPEAKERS: frozenset[str] = frozenset(
+    {"user", "assistant", "system", "narrator"}
+)
 
 from i3.data.lineage import Lineage, RecordSchema
 
@@ -343,17 +348,23 @@ def _str_or_none(v: object) -> Optional[str]:
     return None
 
 
-def _speaker_or_none(v: object) -> Optional[str]:
-    if isinstance(v, str) and v in {"user", "assistant", "system", "narrator"}:
-        return v  # type: ignore[return-value]
+def _speaker_or_none(v: object) -> Optional[SpeakerRole]:
+    if isinstance(v, str) and v in _VALID_SPEAKERS:
+        return cast(SpeakerRole, v)
     return None
 
 
 def _int_or_zero(v: object) -> int:
-    try:
-        return int(v)  # type: ignore[arg-type]
-    except (TypeError, ValueError):
-        return 0
+    if isinstance(v, bool):
+        return int(v)
+    if isinstance(v, int):
+        return v
+    if isinstance(v, (str, float)):
+        try:
+            return int(v)
+        except (TypeError, ValueError):
+            return 0
+    return 0
 
 
 def _column(row: Mapping[str, str], key: Optional[str]) -> Optional[str]:

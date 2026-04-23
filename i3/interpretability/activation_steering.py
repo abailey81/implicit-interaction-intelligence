@@ -38,13 +38,11 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 import torch
 import torch.nn as nn
 
 from i3.interpretability.sparse_autoencoder import SparseAutoencoder
-
 
 # ---------------------------------------------------------------------------
 # SteeringResult.
@@ -149,9 +147,9 @@ class ActivationSteerer:
         feature_idx: int,
         magnitude: float = 1.0,
         target_layer: int = 2,
-        tokenizer: Optional[object] = None,
-        adaptation_vector: Optional[torch.Tensor] = None,
-        user_state: Optional[torch.Tensor] = None,
+        tokenizer: object | None = None,
+        adaptation_vector: torch.Tensor | None = None,
+        user_state: torch.Tensor | None = None,
         max_new_tokens: int = 32,
     ) -> SteeringResult:
         """Steer generation along the named feature direction.
@@ -201,7 +199,7 @@ class ActivationSteerer:
                 f"feature_idx {feature_idx} out of range [0, {sae.d_dict})"
             )
 
-        layers = getattr(model, "layers")
+        layers = model.layers
         if not 0 <= target_layer < len(layers):
             raise ValueError(
                 f"target_layer {target_layer} out of range "
@@ -282,7 +280,7 @@ class ActivationSteerer:
     @staticmethod
     def _prepare_input_ids(
         prompt: str | torch.Tensor,
-        tokenizer: Optional[object],
+        tokenizer: object | None,
     ) -> torch.Tensor:
         """Normalise the supplied prompt into a 2-D id tensor."""
         if isinstance(prompt, torch.Tensor):
@@ -353,9 +351,9 @@ def _maybe_decode(
     model: nn.Module,
     input_ids: torch.Tensor,
     steered_last_logits: torch.Tensor,
-    tokenizer: Optional[object],
-    adaptation_vector: Optional[torch.Tensor],
-    user_state: Optional[torch.Tensor],
+    tokenizer: object | None,
+    adaptation_vector: torch.Tensor | None,
+    user_state: torch.Tensor | None,
     direction: torch.Tensor,
     magnitude: float,
     target_layer: int,
@@ -374,7 +372,7 @@ def _maybe_decode(
     if decode_fn is None:
         return f"<steered: feature at layer {target_layer}>"
 
-    layers = getattr(model, "layers")
+    layers = model.layers
     ids = input_ids.clone()
     handle = layers[target_layer].register_forward_hook(
         _make_steering_hook(direction, magnitude)
@@ -389,9 +387,7 @@ def _maybe_decode(
                     [ids, torch.tensor([[next_id]], dtype=ids.dtype)],
                     dim=-1,
                 )
-                if hasattr(tokenizer, "EOS_ID") and next_id == getattr(
-                    tokenizer, "EOS_ID"
-                ):
+                if hasattr(tokenizer, "EOS_ID") and next_id == tokenizer.EOS_ID:
                     break
     finally:
         try:

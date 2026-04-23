@@ -14,22 +14,22 @@ FeatureExtractor        Computes the 32-dim feature vector from raw data.
 LinguisticAnalyzer      From-scratch NLP utilities (no external libraries).
 """
 
+from i3.interaction.features import FeatureExtractor
+from i3.interaction.linguistic import LinguisticAnalyzer
+from i3.interaction.monitor import InteractionMonitor
 from i3.interaction.types import (
+    FEATURE_NAMES,
     InteractionEvent,
     InteractionFeatureVector,
     KeystrokeEvent,
-    FEATURE_NAMES,
 )
-from i3.interaction.monitor import InteractionMonitor
-from i3.interaction.features import FeatureExtractor
-from i3.interaction.linguistic import LinguisticAnalyzer
 
 __all__ = [
+    "FEATURE_NAMES",
+    "FeatureExtractor",
     "InteractionEvent",
     "InteractionFeatureVector",
-    "KeystrokeEvent",
     "InteractionMonitor",
-    "FeatureExtractor",
+    "KeystrokeEvent",
     "LinguisticAnalyzer",
-    "FEATURE_NAMES",
 ]

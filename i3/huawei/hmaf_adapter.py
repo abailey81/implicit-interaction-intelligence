@@ -37,8 +37,9 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 logger = logging.getLogger(__name__)
 
@@ -323,7 +324,7 @@ class HMAFAgentAdapter:
             produced = None
             error = f"not_implemented:{exc}"
             logger.warning("Step %s not implemented: %s", capability, exc)
-        except Exception as exc:  # noqa: BLE001 — report all failures
+        except Exception as exc:
             produced = None
             error = f"{type(exc).__name__}:{exc}"
             logger.error("Step %s failed: %s", capability, exc)

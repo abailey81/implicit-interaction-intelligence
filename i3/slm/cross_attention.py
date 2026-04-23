@@ -35,7 +35,6 @@ Author: Implicit Interaction Intelligence (I3) Project
 """
 
 import math
-from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -379,7 +378,7 @@ class ConditioningProjector(nn.Module):
         batch_size: int = 1,
         adaptation_dim: int = 8,
         user_state_dim: int = 64,
-        device: Optional[torch.device] = None,
+        device: torch.device | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Create default (neutral) conditioning vectors for inference without

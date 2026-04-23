@@ -21,7 +21,7 @@ import logging
 import threading
 import time
 from collections import OrderedDict, deque
-from typing import Awaitable, Callable, Deque, Iterable
+from collections.abc import Awaitable, Callable, Iterable
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -308,7 +308,7 @@ class _SlidingWindowLimiter:
         # eviction (``popitem(last=False)``) instead of the O(n) scan that a
         # plain dict + ``min(..., key=...)`` required.  Under hostile key
         # churn this drops the per-accept cost from O(n) to O(1).
-        self._events: "OrderedDict[str, Deque[float]]" = OrderedDict()
+        self._events: OrderedDict[str, deque[float]] = OrderedDict()
         self._lock = threading.Lock()
 
     def allow(self, key: str) -> bool:
@@ -480,7 +480,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 return fwd.split(",")[0].strip() or "unknown"
         if request.client is None:
             return "unknown"
-        return request.client.host
+        host: str = request.client.host
+        return host
 
     @staticmethod
     def ws_limiter(
@@ -500,10 +501,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
 
 __all__ = [
-    "SecurityHeadersMiddleware",
-    "RequestSizeLimitMiddleware",
-    "RateLimitMiddleware",
-    "DEFAULT_MAX_BODY_BYTES",
     "DEFAULT_API_RATE_LIMIT",
+    "DEFAULT_MAX_BODY_BYTES",
     "DEFAULT_WS_USER_RATE_LIMIT",
+    "RateLimitMiddleware",
+    "RequestSizeLimitMiddleware",
+    "SecurityHeadersMiddleware",
 ]

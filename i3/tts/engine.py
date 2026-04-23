@@ -682,10 +682,10 @@ AdaptationVectorToTTSParams = "i3.tts.conditioning.derive_tts_params"
 
 
 __all__ = [
+    "MAX_TTS_TEXT_CHARS",
     "AdaptationVectorToTTSParams",
     "BackendStatus",
     "KokoroBackend",
-    "MAX_TTS_TEXT_CHARS",
     "PiperBackend",
     "PyttsxBackend",
     "TTSEngine",

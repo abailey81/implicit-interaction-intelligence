@@ -31,7 +31,8 @@ References
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Callable, Optional, Protocol, runtime_checkable
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field
@@ -185,8 +186,8 @@ def _extract_adaptation_vector(exchange: dict) -> np.ndarray | None:
 
 async def _collect_adaptations_by_archetype(
     diary: AsyncDiary,
-    archetypes: "Sequence[str]",
-    archetype_resolver: Optional[Callable[[dict, dict], Optional[str]]] = None,
+    archetypes: Sequence[str],
+    archetype_resolver: Callable[[dict, dict], str | None] | None = None,
     user_id: str | None = None,
     max_sessions: int = 500,
 ) -> dict[str, list[np.ndarray]]:
@@ -229,7 +230,7 @@ async def compute_per_archetype_adaptation_bias(
     ci_level: float = 0.95,
     num_resamples: int = 2000,
     seed: int | None = None,
-    archetype_resolver: Optional[Callable[[dict, dict], Optional[str]]] = None,
+    archetype_resolver: Callable[[dict, dict], str | None] | None = None,
     max_sessions: int = 500,
 ) -> FairnessReport:
     """Compute the per-archetype adaptation fairness report.

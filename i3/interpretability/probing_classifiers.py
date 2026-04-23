@@ -29,8 +29,8 @@ References
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import Iterable, Optional, Sequence
 
 import torch
 import torch.nn as nn
@@ -109,7 +109,7 @@ class ProbingExample:
 
     input_ids: torch.Tensor
     adaptation_vector: torch.Tensor
-    user_state: Optional[torch.Tensor] = None
+    user_state: torch.Tensor | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -168,7 +168,7 @@ class ProbingSuite:
         model: nn.Module,
         adaptation_dataset: Sequence[ProbingExample],
         target_dimension: str,
-        layer_indices: Optional[list[int]] = None,
+        layer_indices: list[int] | None = None,
     ) -> dict[int, float]:
         """Train one probe per layer and return held-out R² per layer.
 
@@ -260,7 +260,7 @@ class ProbingSuite:
 
         def _make_hook(idx: int) -> object:
             def _hook(_m: nn.Module, _inp: tuple, out: object) -> None:
-                tensor: Optional[torch.Tensor] = None
+                tensor: torch.Tensor | None = None
                 if isinstance(out, tuple) and out:
                     head = out[0]
                     if isinstance(head, torch.Tensor):

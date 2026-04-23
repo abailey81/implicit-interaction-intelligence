@@ -48,9 +48,9 @@ __license__ = "MIT"
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 # ─── Eager public API (lightweight — no torch) ──────────────────────
+from i3.adaptation.types import AdaptationVector, StyleVector
 from i3.config import Config, load_config
 from i3.interaction.types import InteractionFeatureVector, KeystrokeEvent
-from i3.adaptation.types import AdaptationVector, StyleVector
 from i3.pipeline.types import PipelineInput, PipelineOutput
 
 # ─── Lazy public API (heavy — torch / transformers / etc.) ──────────

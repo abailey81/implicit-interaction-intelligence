@@ -24,7 +24,6 @@ from i3.cloud.providers.base import (
     CompletionRequest,
     CompletionResult,
     PermanentError,
-    ProviderError,
     RateLimitedError,
     TokenUsage,
     TransientError,

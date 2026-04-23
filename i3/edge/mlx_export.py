@@ -52,9 +52,10 @@ Usage::
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Sequence
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -271,7 +272,7 @@ def mlx_inference_smoke(
 
 
 __all__ = [
-    "convert_tcn_to_mlx",
     "convert_slm_to_mlx",
+    "convert_tcn_to_mlx",
     "mlx_inference_smoke",
 ]

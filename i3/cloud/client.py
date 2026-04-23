@@ -19,7 +19,7 @@ import logging
 import os
 import random
 import time
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 
@@ -144,13 +144,13 @@ class CloudLLMClient:
         self.fallback_on_error: bool = cloud.fallback_on_error
 
         self._api_key: str = os.environ.get("ANTHROPIC_API_KEY", "")
-        self._client: Optional[httpx.AsyncClient] = None
+        self._client: httpx.AsyncClient | None = None
         # SEC (H-6, 2026-04-23 audit): serialise lazy-client construction
         # so two concurrent first-hit callers do not both build a client
         # and leak the loser's connection pool.  The lock is created
         # lazily on first await so it binds to the event loop actually
         # driving the request.
-        self._client_init_lock: Optional[asyncio.Lock] = None
+        self._client_init_lock: asyncio.Lock | None = None
 
         # Cumulative token counters
         self._total_input_tokens: int = 0
@@ -227,7 +227,7 @@ class CloudLLMClient:
     @staticmethod
     def _build_messages(
         user_message: str,
-        conversation_history: Optional[list[dict[str, str]]] = None,
+        conversation_history: list[dict[str, str]] | None = None,
     ) -> list[dict[str, str]]:
         """Assemble the ``messages`` array for the API request.
 
@@ -310,7 +310,7 @@ class CloudLLMClient:
         self,
         user_message: str,
         system_prompt: str,
-        conversation_history: Optional[list[dict[str, str]]] = None,
+        conversation_history: list[dict[str, str]] | None = None,
     ) -> dict[str, Any]:
         """Send a message to Claude and return the response.
 
@@ -367,7 +367,7 @@ class CloudLLMClient:
             )
             return self._fallback_response("request too large")
 
-        last_error: Optional[Exception] = None
+        last_error: Exception | None = None
         # SEC: track cumulative sleep across retries; if we exceed the
         # global budget we abandon further attempts even if the
         # upstream keeps suggesting longer waits.
@@ -703,7 +703,7 @@ class CloudLLMClient:
     # Context manager support
     # ------------------------------------------------------------------
 
-    async def __aenter__(self) -> "CloudLLMClient":
+    async def __aenter__(self) -> CloudLLMClient:
         await self._ensure_client()
         return self
 

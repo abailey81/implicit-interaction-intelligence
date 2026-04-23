@@ -216,11 +216,11 @@ def select_deployment_profile(
 
 __all__ = [
     "ALL_PROFILES",
-    "DeviceClass",
-    "DeviceProfile",
     "KIRIN_9000",
     "KIRIN_9010",
     "KIRIN_A2",
     "SMART_HANHAN",
+    "DeviceClass",
+    "DeviceProfile",
     "select_deployment_profile",
 ]

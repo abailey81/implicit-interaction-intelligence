@@ -32,18 +32,18 @@ __all__ = [
     "DuckDBAnalytics",
     "LanceUserEmbeddingStore",
     "PolarsFeatureExtractor",
-    "i3_ibis_backend",
-    "top_topics_by_day",
     "adaptation_deviation_outliers",
+    "arrow_table_from_diary",
     "cross_device_activity",
     "embedding_batch_to_arrow",
-    "arrow_table_from_diary",
-    "write_parquet",
+    "i3_ibis_backend",
     "read_parquet",
+    "top_topics_by_day",
+    "write_parquet",
 ]
 
 
-def __getattr__(name: str):  # noqa: D401 - lazy re-export
+def __getattr__(name: str):
     """Lazily resolve public symbols to avoid importing heavy deps at import time."""
     if name == "DuckDBAnalytics":
         from i3.analytics.duckdb_engine import DuckDBAnalytics

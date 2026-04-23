@@ -10,7 +10,7 @@ Exports:
     PrivacyAuditor   - Runtime auditing of privacy guarantees
 """
 
-from i3.privacy.sanitizer import PrivacySanitizer, SanitizationResult, PrivacyAuditor
 from i3.privacy.encryption import ModelEncryptor
+from i3.privacy.sanitizer import PrivacyAuditor, PrivacySanitizer, SanitizationResult
 
-__all__ = ["PrivacySanitizer", "SanitizationResult", "ModelEncryptor", "PrivacyAuditor"]
+__all__ = ["ModelEncryptor", "PrivacyAuditor", "PrivacySanitizer", "SanitizationResult"]

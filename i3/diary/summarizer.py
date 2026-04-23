@@ -22,7 +22,7 @@ AI response text is ever included in the prompt or the resulting summary.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from i3.cloud.client import CloudLLMClient
@@ -45,7 +45,7 @@ class SessionSummarizer:
         cloud LLM.  Otherwise the template fallback is used.
     """
 
-    def __init__(self, cloud_client: Optional[CloudLLMClient] = None) -> None:
+    def __init__(self, cloud_client: CloudLLMClient | None = None) -> None:
         self.cloud_client = cloud_client
 
     # ------------------------------------------------------------------

@@ -227,3 +227,27 @@ for result in report.results:
   to `$GITHUB_STEP_SUMMARY` and uploads the artifact.
 - `tests/test_verification_framework.py` — unit tests for the
   framework itself.
+
+---
+
+## 8. Environment-only verification gaps
+
+The following checks are **intentionally not part of the local harness**
+because they depend on native binaries or services that are not
+guaranteed on a developer workstation. They are verified on GitHub
+Actions runners, which have the required system libraries pre-installed:
+
+| Gap | Why it cannot run locally (on this author's workstation) | Where it runs |
+|---|---|---|
+| Full `pytest` sweep with PyTorch loaded | `torch>=2.11+cpu` fails to initialise `c10.dll` on this Windows box with `WinError 1114` (a DLL side-by-side dependency issue unrelated to I³). Tests that do not `import torch` still run via `tests/conftest.py`'s `collect_ignore_glob` fallback. | `ci.yml` on `ubuntu-latest` |
+| `mkdocs build --strict` with social cards | The `mkdocs-material[imaging]` social-card generator needs `libcairo-2.dll`, which is not bundled with the Windows wheel for `cairosvg`. All *content* issues (anchor slugs, nav coverage, griffe docstrings) are fixed and pass locally once the social plugin is disabled. | `docs.yml` on `ubuntu-latest` |
+| `docker build -t i3 .` and the container smoke test | The local Docker daemon is not always running; the verify harness explicitly SKIPs when the socket is unreachable. | `docker.yml` on `ubuntu-latest` |
+| End-to-end browser UI walkthrough | Requires a live browser + the `uvicorn` dev server; harness checks only `create_app()` structure + route registration. | Manual / Playwright on-demand |
+| 4th red-team invariant (`bandit.poisoning_resistance`) | Indirectly loads torch at import time via `i3.adaptation`. | `redteam.yml` on `ubuntu-latest` |
+
+**What the local harness DOES verify, despite the above:**
+
+- Every non-torch module parses, imports, and passes `mypy --follow-imports=silent`.
+- Every YAML in `.github/**`, `configs/**`, `docs/**` round-trips through `yaml.safe_load`.
+- Every check in `scripts/verification/checks_*.py` that does not require torch or Docker returns `PASS` or `SKIP` (never `FAIL`).
+- The `verify_all.py --strict` exit code is `0` when only optional deps are missing.

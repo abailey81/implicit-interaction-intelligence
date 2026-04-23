@@ -26,14 +26,14 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Optional
+from typing import Any
 
 import torch
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field, field_validator
 
 from server.auth import require_user_identity_from_body
-from pydantic import BaseModel, Field, field_validator
 
 logger = logging.getLogger(__name__)
 
@@ -78,13 +78,13 @@ class AdaptationOverride(BaseModel):
         accessibility: Accessibility mode in ``[0, 1]``.
     """
 
-    cognitive_load: Optional[float] = Field(default=None, ge=0.0, le=1.0)
-    formality: Optional[float] = Field(default=None, ge=0.0, le=1.0)
-    verbosity: Optional[float] = Field(default=None, ge=0.0, le=1.0)
-    emotionality: Optional[float] = Field(default=None, ge=0.0, le=1.0)
-    directness: Optional[float] = Field(default=None, ge=0.0, le=1.0)
-    emotional_tone: Optional[float] = Field(default=None, ge=0.0, le=1.0)
-    accessibility: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    cognitive_load: float | None = Field(default=None, ge=0.0, le=1.0)
+    formality: float | None = Field(default=None, ge=0.0, le=1.0)
+    verbosity: float | None = Field(default=None, ge=0.0, le=1.0)
+    emotionality: float | None = Field(default=None, ge=0.0, le=1.0)
+    directness: float | None = Field(default=None, ge=0.0, le=1.0)
+    emotional_tone: float | None = Field(default=None, ge=0.0, le=1.0)
+    accessibility: float | None = Field(default=None, ge=0.0, le=1.0)
 
 
 class WhatIfRespondRequest(BaseModel):
@@ -185,7 +185,7 @@ def _apply_override(
     # Start from the baseline tensor then patch each provided override.
     values = base.to_tensor().tolist()  # length 8, layout documented above.
 
-    def _set(idx: int, val: Optional[float]) -> None:
+    def _set(idx: int, val: float | None) -> None:
         if val is None:
             return
         # Field validators already clamped to [0, 1]; defensive clamp here
@@ -284,11 +284,12 @@ async def _generate_with_override(
     slm_gen = getattr(pipeline, "_slm_generator", None)
     if slm_gen is not None:
         try:
-            return slm_gen.generate(
+            generated: str = slm_gen.generate(
                 prompt=message,
                 adaptation_vector=adaptation_override.unsqueeze(0),
                 user_state=user_state.unsqueeze(0),
             )
+            return generated
         except Exception:
             logger.exception(
                 "SLM generation failed in what-if; using rule-based fallback."
@@ -298,7 +299,8 @@ async def _generate_with_override(
     try:
         fallback = getattr(pipeline, "_fallback_response", None)
         if fallback is not None:
-            return fallback(adaptation_obj)
+            fallback_text: str = fallback(adaptation_obj)
+            return fallback_text
     except Exception:  # pragma: no cover - defensive
         logger.exception("Fallback response failed; returning stub.")
     return "(what-if response unavailable)"

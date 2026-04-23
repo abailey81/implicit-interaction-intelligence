@@ -39,7 +39,6 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 import torch
 import torch.nn.functional as F
@@ -77,7 +76,7 @@ class IdentificationResult:
             computing a per-query confidence margin).
     """
 
-    user_id: Optional[str]
+    user_id: str | None
     similarity: float
     second_best_similarity: float
 
@@ -107,9 +106,9 @@ class KeystrokeBiometricID:
 
     def __init__(
         self,
-        db_path: "str | Path" = DEFAULT_DB_PATH,
+        db_path: str | Path = DEFAULT_DB_PATH,
         embedding_dim: int = EMBEDDING_DIM,
-        encryptor: Optional[ModelEncryptor] = None,
+        encryptor: ModelEncryptor | None = None,
     ) -> None:
         if embedding_dim <= 0:
             raise ValueError(
@@ -326,7 +325,7 @@ class KeystrokeBiometricID:
         await self._ensure_initialized()
         return list(self._centroids.keys())
 
-    async def get_centroid(self, user_id: str) -> Optional[torch.Tensor]:
+    async def get_centroid(self, user_id: str) -> torch.Tensor | None:
         """Return a *copy* of the registered centroid for ``user_id``.
 
         Returns ``None`` if the user is not registered.  The return is

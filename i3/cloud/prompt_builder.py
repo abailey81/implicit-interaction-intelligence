@@ -19,7 +19,7 @@ arbitrary numerical scales they were not trained on.
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from i3.adaptation.types import AdaptationVector, StyleVector
 
@@ -65,7 +65,7 @@ class PromptBuilder:
     def build_system_prompt(
         self,
         adaptation_vector: AdaptationVector,
-        user_summary: Optional[dict[str, Any]] = None,
+        user_summary: dict[str, Any] | None = None,
     ) -> str:
         """Build a complete system prompt from the current adaptation vector.
 
@@ -222,7 +222,7 @@ class PromptBuilder:
 
     @staticmethod
     def _build_user_context(
-        user_summary: Optional[dict[str, Any]] = None,
+        user_summary: dict[str, Any] | None = None,
     ) -> str:
         """Build a user-context string from an aggregated profile summary.
 

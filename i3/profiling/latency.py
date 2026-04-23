@@ -8,7 +8,7 @@ import logging
 import statistics
 import time
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -145,7 +145,7 @@ class LatencyBenchmark:
         model: nn.Module,
         input_sample: torch.Tensor,
         n_iterations: int = 100,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Compare latency between FP32 and dynamically-quantized INT8.
 
         Args:

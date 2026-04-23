@@ -41,9 +41,9 @@ from __future__ import annotations
 import json
 import logging
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable
 
 from i3.multimodal.ppg_hrv import PPGFeatureVector
 
@@ -298,7 +298,7 @@ class HuaweiWatchHRVSource:
         for cb in callbacks_snapshot:
             try:
                 cb(payloads[-1].feature_vector)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 # A user callback must never break the ingest loop; log & continue.
                 logger.exception(
                     "HuaweiWatchHRVSource: subscriber callback raised %s",

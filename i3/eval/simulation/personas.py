@@ -56,7 +56,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from i3.adaptation.types import AdaptationVector, StyleVector
 
-
 # ---------------------------------------------------------------------------
 # Profile sub-models
 # ---------------------------------------------------------------------------

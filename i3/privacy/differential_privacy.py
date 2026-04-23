@@ -54,11 +54,11 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 try:
-    from opacus.accountants import RDPAccountant  # type: ignore[import-not-found]
+    from opacus.accountants import RDPAccountant
 
     _OPACUS_AVAILABLE = True
 except ImportError:  # pragma: no cover - environmental
-    RDPAccountant = None  # type: ignore[assignment]
+    RDPAccountant = None
     _OPACUS_AVAILABLE = False
 
 
@@ -144,7 +144,7 @@ class DPRouterTrainer:
 
     def __init__(
         self,
-        bandit: "ContextualThompsonBandit",
+        bandit: ContextualThompsonBandit,
         epsilon: float = 3.0,
         delta: float = 1e-5,
         max_grad_norm: float = 1.0,
@@ -192,7 +192,8 @@ class DPRouterTrainer:
                 return float(eps), self._target_delta
             except Exception:  # pragma: no cover - accountant quirks
                 return 0.0, self._target_delta
-        return self._accountant.get_privacy_spent(self._target_delta)
+        spent = self._accountant.get_privacy_spent(self._target_delta)
+        return float(spent[0]), float(spent[1])
 
     def budget_status(self) -> DPBudgetStatus:
         """Return a :class:`DPBudgetStatus` snapshot."""
@@ -311,9 +312,7 @@ class DPRouterTrainer:
     def _set_arm_weights(self, arm: int, updated: np.ndarray) -> None:
         """Write an arm's weight vector back to the bandit."""
         weights = getattr(self._bandit, "weights", None)
-        if isinstance(weights, list):
-            weights[arm] = updated
-        elif isinstance(weights, np.ndarray) and weights.ndim == 2:
+        if isinstance(weights, list) or (isinstance(weights, np.ndarray) and weights.ndim == 2):
             weights[arm] = updated
         else:
             raise AttributeError(

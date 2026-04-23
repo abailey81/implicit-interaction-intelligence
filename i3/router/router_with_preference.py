@@ -27,8 +27,9 @@ await it in the request path.
 from __future__ import annotations
 
 import logging
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
-from typing import Any, Awaitable, Callable, Optional, Sequence
+from typing import Any
 
 import numpy as np
 
@@ -138,9 +139,7 @@ class PreferenceAwareRouter:
         # Optional hook for a UI callback — the frontend can register an
         # async coroutine that actually shows the A/B prompt.  Default is
         # a no-op so the router remains fully usable on the server side.
-        self._preference_hook: Optional[
-            Callable[[PreferencePair], Awaitable[None]]
-        ] = None
+        self._preference_hook: Callable[[PreferencePair], Awaitable[None]] | None = None
 
     # ------------------------------------------------------------------
     # Routing delegation

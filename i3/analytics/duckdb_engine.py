@@ -25,7 +25,6 @@ from types import TracebackType
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
-    import duckdb
     import polars as pl
 
 logger = logging.getLogger(__name__)
@@ -208,7 +207,7 @@ class DuckDBAnalytics:
         where = ""
         params: list[Any] = []
         if user_id is not None:
-            where = f"WHERE s.user_id = ?"
+            where = "WHERE s.user_id = ?"
             params.append(user_id)
         sql = f"""
             WITH j AS (

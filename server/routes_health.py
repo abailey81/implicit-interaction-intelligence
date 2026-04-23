@@ -112,7 +112,8 @@ async def health(request: Request) -> dict[str, Any]:
 @router.get("/live")
 async def live(request: Request) -> dict[str, Any]:
     """Alias for /api/health."""
-    return await health(request)
+    result: dict[str, Any] = await health(request)
+    return result
 
 
 @router.get("/ready")

@@ -34,7 +34,6 @@ from pydantic import BaseModel, ConfigDict, Field
 from i3.adaptation.types import AdaptationVector
 from i3.eval.simulation.personas import HCIPersona, TypingProfile
 
-
 # ---------------------------------------------------------------------------
 # Canonical prompt library (persona-neutral)
 # ---------------------------------------------------------------------------
@@ -346,7 +345,7 @@ class UserSimulator:
         # seed) modulo prompt-count so two simulators with the same seed
         # see the same rotation.
         h = hashlib.sha256(
-            f"{self.persona.name}:{message_index}:{self.seed}".encode("utf-8")
+            f"{self.persona.name}:{message_index}:{self.seed}".encode()
         ).hexdigest()
         idx = int(h[:8], 16) % len(_BASE_PROMPTS)
         text = _BASE_PROMPTS[idx]

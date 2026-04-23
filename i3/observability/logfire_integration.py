@@ -27,7 +27,7 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -78,8 +78,8 @@ def configure_logfire(
     *,
     service_name: str = "i3",
     environment: str = "dev",
-    fastapi_app: Optional[Any] = None,
-    httpx_client: Optional[Any] = None,
+    fastapi_app: Any | None = None,
+    httpx_client: Any | None = None,
     instrument_pydantic: bool = True,
 ) -> LogfireStatus:
     """Initialise Pydantic Logfire.
@@ -124,7 +124,7 @@ def configure_logfire(
             token=token,
             send_to_logfire=True,
         )
-    except Exception as exc:  # noqa: BLE001 - defensive envelope
+    except Exception as exc:
         logger.warning("Logfire configure() failed: %s", exc)
         return LogfireStatus(
             enabled=False,
@@ -138,21 +138,21 @@ def configure_logfire(
         try:
             logfire.instrument_fastapi(fastapi_app)
             instrumented.append("fastapi")
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("Logfire FastAPI instrumentation skipped: %s", exc)
 
     if httpx_client is not None:
         try:
             logfire.instrument_httpx(httpx_client)
             instrumented.append("httpx")
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("Logfire httpx instrumentation skipped: %s", exc)
 
     if instrument_pydantic:
         try:
             logfire.instrument_pydantic()
             instrumented.append("pydantic")
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("Logfire Pydantic instrumentation skipped: %s", exc)
 
     logger.info(

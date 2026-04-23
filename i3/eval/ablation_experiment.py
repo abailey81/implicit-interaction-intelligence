@@ -797,7 +797,7 @@ __all__ = [
     "AblationExperiment",
     "AblationResult",
     "PairRecord",
-    "canonical_prompts",
     "canonical_archetypes",
+    "canonical_prompts",
     "verbalise_adaptation",
 ]

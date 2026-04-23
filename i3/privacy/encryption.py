@@ -27,12 +27,15 @@ Future work (intentionally not implemented):
       Today only the environment variable backend is supported.
 """
 
-import os
 import json
 import logging
-from typing import Optional
+import os
+from typing import TYPE_CHECKING
 
-from cryptography.fernet import Fernet, InvalidToken
+from cryptography.fernet import Fernet, MultiFernet
+
+if TYPE_CHECKING:
+    import torch
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +61,7 @@ class ModelEncryptor:
 
     def __init__(self, key_env_var: str = "I3_ENCRYPTION_KEY"):
         self._key_env = key_env_var
-        self._fernet: Optional[Fernet] = None
+        self._fernet: Fernet | None = None
         self._initialized = False
 
     def initialize(self) -> None:
@@ -120,7 +123,9 @@ class ModelEncryptor:
         self._ensure_initialized()
         if not isinstance(data, bytes):
             raise TypeError(f"encrypt() requires bytes, got {type(data).__name__}")
-        return self._fernet.encrypt(data)
+        assert self._fernet is not None
+        token: bytes = self._fernet.encrypt(data)
+        return token
 
     def decrypt(self, encrypted_data: bytes) -> bytes:
         """Decrypt Fernet-encrypted bytes data.
@@ -136,7 +141,9 @@ class ModelEncryptor:
                 was encrypted with a different key.
         """
         self._ensure_initialized()
-        return self._fernet.decrypt(encrypted_data)
+        assert self._fernet is not None
+        plaintext: bytes = self._fernet.decrypt(encrypted_data)
+        return plaintext
 
     def encrypt_embedding(self, embedding: "torch.Tensor") -> bytes:
         """Encrypt a torch tensor embedding for storage.
@@ -162,10 +169,10 @@ class ModelEncryptor:
         # mis-shaped from decrypt_embedding(dim=...).
         import numpy as np
         try:
-            import torch  # noqa: F401  (used for the isinstance check below)
+            import torch as _torch
         except ImportError:  # pragma: no cover - torch is a hard dep elsewhere
-            torch = None  # type: ignore[assignment]
-        if torch is not None and not isinstance(embedding, torch.Tensor):
+            _torch = None
+        if _torch is not None and not isinstance(embedding, _torch.Tensor):
             raise TypeError(
                 "encrypt_embedding() requires a torch.Tensor, got "
                 f"{type(embedding).__name__}"
@@ -199,8 +206,8 @@ class ModelEncryptor:
                 dimensionality).  The error message contains the expected and
                 actual element counts but no plaintext content.
         """
-        import torch
         import numpy as np
+        import torch as _torch
         raw_bytes = self.decrypt(encrypted)
 
         # SEC: explicit dim validation.  Without this, np.frombuffer().reshape()
@@ -228,7 +235,7 @@ class ModelEncryptor:
         # would yield a tensor whose .data buffer is read-only and any
         # in-place op would crash with an opaque RuntimeError.
         arr = np.frombuffer(raw_bytes, dtype=np.float32).reshape(dim)
-        return torch.from_numpy(arr.copy())
+        return _torch.from_numpy(arr.copy())
 
     def encrypt_json(self, data: dict) -> bytes:
         """Encrypt a JSON-serializable dict.
@@ -309,7 +316,8 @@ class ModelEncryptor:
             A URL-safe base64-encoded 32-byte key as a string.
             Suitable for setting as the I3_ENCRYPTION_KEY environment variable.
         """
-        return Fernet.generate_key().decode()
+        key: str = Fernet.generate_key().decode()
+        return key
 
     def rotate_to(self, new_key: str) -> "MultiFernet":
         """Create a :class:`MultiFernet` for zero-downtime key rotation.
@@ -359,7 +367,6 @@ class ModelEncryptor:
             ValueError: If ``new_key`` is not a valid Fernet key.  The
                 offending key value is NOT included in the error message.
         """
-        from cryptography.fernet import MultiFernet
         self._ensure_initialized()
         try:
             new_fernet = Fernet(

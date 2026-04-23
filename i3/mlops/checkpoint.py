@@ -33,9 +33,10 @@ import json
 import logging
 import os
 import platform
+from collections.abc import Mapping
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Mapping, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +94,7 @@ def _write_hash_sidecar(path: Path, digest: str) -> Path:
     return sidecar
 
 
-def _read_hash_sidecar(path: Path) -> Optional[str]:
+def _read_hash_sidecar(path: Path) -> str | None:
     """Return the digest recorded in ``<path>.sha256`` or ``None``.
 
     Args:
@@ -111,7 +112,7 @@ def _read_hash_sidecar(path: Path) -> Optional[str]:
         if not line:
             return None
         return line[0].lower()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.warning("Unreadable sidecar %s: %s", sidecar, exc)
         return None
 
@@ -140,7 +141,7 @@ def _verify_signature(path: Path, signature_path: Path) -> bool:
         return True  # No signature requested.
     try:
         data = signature_path.read_bytes()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise SignatureError(f"signature unreadable: {exc}") from exc
     if not data:
         raise SignatureError(f"signature file empty: {signature_path}")
@@ -160,7 +161,7 @@ def _verify_signature(path: Path, signature_path: Path) -> bool:
 def save_with_hash(
     model: Any,
     path: str | Path,
-    metadata: Optional[Mapping[str, Any]] = None,
+    metadata: Mapping[str, Any] | None = None,
 ) -> dict[str, str]:
     """Save a model state_dict together with SHA-256 and metadata sidecars.
 
@@ -205,7 +206,7 @@ def save_with_hash(
     }
     try:
         meta_payload["torch"] = str(torch.__version__)
-    except Exception:  # noqa: BLE001
+    except Exception:
         meta_payload["torch"] = "unknown"
     if metadata:
         # Caller-supplied values override defaults.
@@ -227,7 +228,7 @@ def save_with_hash(
 
 def load_verified(
     path: str | Path,
-    expected_hash: Optional[str] = None,
+    expected_hash: str | None = None,
     weights_only: bool = True,
     map_location: Any = "cpu",
     verify_signature: bool = True,
@@ -272,7 +273,7 @@ def load_verified(
 
     computed = compute_sha256(target)
 
-    reference: Optional[str] = None
+    reference: str | None = None
     source: str = "none"
     if expected_hash is not None:
         reference = expected_hash.lower()
@@ -318,7 +319,7 @@ def load_verified(
 # --------------------------------------------------------------------------- #
 
 
-def verify_file(path: str | Path, expected_hash: Optional[str] = None) -> str:
+def verify_file(path: str | Path, expected_hash: str | None = None) -> str:
     """Hash a file and compare against ``expected_hash`` or the sidecar.
 
     Args:

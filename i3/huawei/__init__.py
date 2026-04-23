@@ -20,7 +20,7 @@ See :doc:`docs/huawei/README.md` for the integration dossier.
 from __future__ import annotations
 
 __all__ = [
+    "executorch_hooks",
     "hmaf_adapter",
     "kirin_targets",
-    "executorch_hooks",
 ]

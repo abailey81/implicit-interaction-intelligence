@@ -34,10 +34,11 @@ import os
 import platform
 import subprocess
 import sys
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Iterator, Mapping, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -45,10 +46,10 @@ logger = logging.getLogger(__name__)
 # Soft imports
 # --------------------------------------------------------------------------- #
 
-_mlflow: Optional[ModuleType]
+_mlflow: ModuleType | None
 try:  # pragma: no cover - trivial import guard
     import mlflow as _mlflow  # type: ignore[import-not-found]
-except Exception:  # noqa: BLE001 - any failure disables tracking
+except Exception:
     _mlflow = None
 
 
@@ -76,7 +77,7 @@ def _git_commit_sha() -> str:
             timeout=5,
         )
         return out.stdout.strip() or "unknown"
-    except Exception:  # noqa: BLE001
+    except Exception:
         return "unknown"
 
 
@@ -86,7 +87,7 @@ def _torch_version() -> str:
         import torch  # type: ignore[import-not-found]
 
         return str(torch.__version__)
-    except Exception:  # noqa: BLE001
+    except Exception:
         return "unavailable"
 
 
@@ -103,7 +104,7 @@ def _config_hash(config: Mapping[str, Any] | None) -> str:
         return "none"
     try:
         payload = json.dumps(config, sort_keys=True, default=str).encode("utf-8")
-    except Exception:  # noqa: BLE001
+    except Exception:
         return "unhashable"
     return hashlib.sha256(payload).hexdigest()[:16]
 
@@ -138,9 +139,9 @@ class ExperimentTracker:
 
     def __init__(
         self,
-        tracking_uri: Optional[str] = None,
-        experiment_name: Optional[str] = None,
-        config: Optional[Mapping[str, Any]] = None,
+        tracking_uri: str | None = None,
+        experiment_name: str | None = None,
+        config: Mapping[str, Any] | None = None,
     ) -> None:
         self.tracking_uri: str = (
             tracking_uri
@@ -153,7 +154,7 @@ class ExperimentTracker:
             or _DEFAULT_EXPERIMENT_NAME
         )
         self._config_hash: str = _config_hash(config)
-        self._active_run_id: Optional[str] = None
+        self._active_run_id: str | None = None
 
         if _mlflow is None:
             logger.warning(
@@ -172,7 +173,7 @@ class ExperimentTracker:
                 self.tracking_uri,
                 self.experiment_name,
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning(
                 "ExperimentTracker failed to initialise MLflow (%s); "
                 "falling back to no-op mode.",
@@ -187,8 +188,8 @@ class ExperimentTracker:
     def start_run(
         self,
         run_name: str,
-        tags: Optional[Mapping[str, str]] = None,
-    ) -> Optional[str]:
+        tags: Mapping[str, str] | None = None,
+    ) -> str | None:
         """Begin a new MLflow run.
 
         Args:
@@ -212,7 +213,7 @@ class ExperimentTracker:
             run = _mlflow.start_run(run_name=run_name, tags=merged_tags)
             self._active_run_id = run.info.run_id
             return self._active_run_id
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("start_run failed: %s", exc)
             return None
 
@@ -226,7 +227,7 @@ class ExperimentTracker:
             return
         try:
             _mlflow.end_run(status=status)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("end_run failed: %s", exc)
         finally:
             self._active_run_id = None
@@ -235,8 +236,8 @@ class ExperimentTracker:
     def run(
         self,
         run_name: str,
-        tags: Optional[Mapping[str, str]] = None,
-    ) -> Iterator[Optional[str]]:
+        tags: Mapping[str, str] | None = None,
+    ) -> Iterator[str | None]:
         """Context manager wrapper around :meth:`start_run` / :meth:`end_run`.
 
         Usage::
@@ -272,13 +273,13 @@ class ExperimentTracker:
             return
         try:
             _mlflow.log_params({str(k): v for k, v in params.items()})
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("log_params failed: %s", exc)
 
     def log_metrics(
         self,
         metrics: Mapping[str, float],
-        step: Optional[int] = None,
+        step: int | None = None,
     ) -> None:
         """Log a batch of scalar metrics at a given step.
 
@@ -291,10 +292,10 @@ class ExperimentTracker:
         try:
             for name, value in metrics.items():
                 _mlflow.log_metric(str(name), float(value), step=step)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("log_metrics failed: %s", exc)
 
-    def log_artifact(self, path: str | Path, artifact_path: Optional[str] = None) -> None:
+    def log_artifact(self, path: str | Path, artifact_path: str | None = None) -> None:
         """Upload a local file or directory to the active run.
 
         Args:
@@ -305,7 +306,7 @@ class ExperimentTracker:
             return
         try:
             _mlflow.log_artifact(str(path), artifact_path=artifact_path)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("log_artifact failed: %s", exc)
 
     def log_model(self, model: Any, name: str) -> None:
@@ -321,7 +322,7 @@ class ExperimentTracker:
             # Prefer the torch flavour if available.
             try:
                 from mlflow import pytorch as mlflow_pytorch  # type: ignore
-            except Exception:  # noqa: BLE001
+            except Exception:
                 mlflow_pytorch = None
 
             if mlflow_pytorch is not None:
@@ -330,7 +331,7 @@ class ExperimentTracker:
                 logger.warning(
                     "mlflow.pytorch unavailable; skipping log_model(%s).", name
                 )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("log_model failed: %s", exc)
 
     def set_tag(self, key: str, value: str) -> None:
@@ -344,7 +345,7 @@ class ExperimentTracker:
             return
         try:
             _mlflow.set_tag(str(key), str(value))
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("set_tag failed: %s", exc)
 
     # ------------------------------------------------------------------ #
@@ -352,7 +353,7 @@ class ExperimentTracker:
     # ------------------------------------------------------------------ #
 
     @property
-    def active_run_id(self) -> Optional[str]:
+    def active_run_id(self) -> str | None:
         """Return the currently active run ID, if any."""
         return self._active_run_id
 

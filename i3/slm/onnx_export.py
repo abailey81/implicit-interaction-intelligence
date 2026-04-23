@@ -31,7 +31,7 @@ import logging
 import sys
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Optional
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -50,10 +50,10 @@ _DEFAULT_D_MODEL = 256
 # --------------------------------------------------------------------------- #
 
 
-def _soft_import(name: str) -> Optional[ModuleType]:
+def _soft_import(name: str) -> ModuleType | None:
     try:
         return __import__(name)
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None
 
 
@@ -191,7 +191,7 @@ def export_slm(
     )
     attention_mask = torch.ones(dummy_batch, dummy_seq_len, dtype=torch.long)
 
-    axes_map: Optional[dict[str, dict[int, str]]] = None
+    axes_map: dict[str, dict[int, str]] | None = None
     if dynamic_axes:
         axes_map = {
             "input_ids": {0: "batch", 1: "seq"},
@@ -216,7 +216,7 @@ def export_slm(
             do_constant_folding=True,
             dynamic_axes=axes_map,
         )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         _fatal(
             f"SLM ONNX export failed at opset={opset}: {exc}. "
             "If the failure references an unsupported op, try raising "
@@ -226,7 +226,7 @@ def export_slm(
     try:
         graph = onnx.load(output_path.as_posix())
         onnx.checker.check_model(graph)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         _fatal(f"onnx.checker rejected SLM graph: {exc}")
 
     logger.info(
@@ -272,7 +272,7 @@ def export_slm(
             logger.info("SLM parity OK (ONNXRuntime vs PyTorch, atol=1e-4)")
         except SystemExit:
             raise
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("SLM parity check errored (%s); continuing.", exc)
 
     return output_path

@@ -22,10 +22,8 @@ boundary.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 import numpy as np
-
 
 # ---------------------------------------------------------------------------
 # Pipeline input
@@ -107,7 +105,7 @@ class PipelineOutput:
     baseline_established: bool
 
     # Diary entry (optional, only on significant events)
-    diary_entry: Optional[dict] = None
+    diary_entry: dict | None = None
 
 
 # ---------------------------------------------------------------------------

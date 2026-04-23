@@ -118,7 +118,7 @@ def export_tcn_to_executorch(
     logger.info("Step 1/4: torch.export.export (TCN)")
     try:
         exported = torch.export.export(model, example_inputs)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise RuntimeError(
             f"torch.export.export failed ({type(exc).__name__}): {exc}"
         ) from exc
@@ -132,7 +132,7 @@ def export_tcn_to_executorch(
             exported = torch.export.export(q_model, example_inputs)
         except RuntimeError:
             raise
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise RuntimeError(
                 f"TCN quantization/re-export failed "
                 f"({type(exc).__name__}): {exc}"
@@ -150,7 +150,7 @@ def export_tcn_to_executorch(
         ) from exc
     try:
         edge_program = to_edge(exported)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise RuntimeError(
             f"to_edge failed ({type(exc).__name__}): {exc}"
         ) from exc
@@ -158,7 +158,7 @@ def export_tcn_to_executorch(
     logger.info("Step 4/4: to_executorch + write_to_file (TCN)")
     try:
         et_program = edge_program.to_executorch()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise RuntimeError(
             f"to_executorch failed ({type(exc).__name__}): {exc}"
         ) from exc
@@ -175,7 +175,7 @@ def export_tcn_to_executorch(
                     "nor .buffer; cannot persist TCN .pte."
                 )
             out_path.write_bytes(bytes(buffer))
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise RuntimeError(
             f"Writing TCN .pte failed ({type(exc).__name__}): {exc}"
         ) from exc

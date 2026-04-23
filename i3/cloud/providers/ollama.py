@@ -14,8 +14,8 @@ Useful for:
 from __future__ import annotations
 
 import logging
-import threading
 import os
+import threading
 import time
 from typing import Any
 
@@ -25,7 +25,6 @@ from i3.cloud.providers.base import (
     CompletionRequest,
     CompletionResult,
     PermanentError,
-    ProviderError,
     TokenUsage,
     TransientError,
 )

@@ -34,18 +34,18 @@ from i3.interpretability.attention_extractor import (
     ExtractedAttention,
 )
 from i3.interpretability.feature_attribution import (
-    FeatureAttributor,
-    FEATURE_NAMES,
     ADAPTATION_DIMS,
+    FEATURE_NAMES,
+    FeatureAttributor,
 )
-from i3.interpretability.token_heatmap import TokenHeatmap
 from i3.interpretability.shap_adapter import SHAPAdapter, shap_available
+from i3.interpretability.token_heatmap import TokenHeatmap
 
 __all__ = [
     "ADAPTATION_DIMS",
+    "FEATURE_NAMES",
     "CrossAttentionExtractor",
     "ExtractedAttention",
-    "FEATURE_NAMES",
     "FeatureAttributor",
     "SHAPAdapter",
     "TokenHeatmap",

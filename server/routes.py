@@ -300,7 +300,7 @@ async def demo_seed(request: Request) -> JSONResponse:
     if not _demo_mode_enabled():
         raise HTTPException(status_code=403, detail="Demo mode disabled")
     try:
-        from demo.seed_data import seed_demo_data  # noqa: PLC0415
+        from demo.seed_data import seed_demo_data
     except ImportError:
         logger.exception("demo seed module missing")
         raise HTTPException(status_code=503, detail="Demo data unavailable")

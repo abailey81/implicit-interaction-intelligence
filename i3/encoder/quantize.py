@@ -34,7 +34,9 @@ logger = logging.getLogger(__name__)
 
 try:  # pragma: no cover - environment-dependent import
     import torchao as _torchao_module  # type: ignore[import-not-found]
-    from torchao.quantization import quantize_ as _torchao_quantize  # type: ignore[import-not-found]
+    from torchao.quantization import (
+        quantize_ as _torchao_quantize,  # type: ignore[import-not-found]
+    )
 
     _TORCHAO_AVAILABLE: bool = True
 except ImportError:  # pragma: no cover
@@ -82,7 +84,9 @@ def quantize_tcn_int8_dynamic(model: nn.Module) -> nn.Module:
     """
     _require_torchao()
     try:
-        from torchao.quantization import Int8DynamicActivationInt8WeightConfig  # type: ignore[import-not-found]
+        from torchao.quantization import (
+            Int8DynamicActivationInt8WeightConfig,  # type: ignore[import-not-found]
+        )
     except ImportError as exc:  # pragma: no cover
         raise RuntimeError(
             "torchao is installed but the INT8 dynamic config is missing. "

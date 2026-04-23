@@ -33,12 +33,11 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
-
-from server.auth import require_user_identity_from_body
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from i3.adaptation.types import AdaptationVector
 from i3.privacy.sanitizer import PrivacySanitizer
+from server.auth import require_user_identity_from_body
 
 logger = logging.getLogger(__name__)
 
@@ -415,9 +414,9 @@ def include_translate_routes(app: FastAPI) -> None:
 
 
 __all__ = [
-    "LanguageCode",
     "MAX_BODY_BYTES",
     "MAX_TEXT_CHARS",
+    "LanguageCode",
     "TranslateRequest",
     "TranslateResponse",
     "include_translate_routes",

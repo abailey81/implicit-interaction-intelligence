@@ -24,10 +24,9 @@ References
 from __future__ import annotations
 
 import math
-from typing import Optional, Sequence
+from collections.abc import Sequence
 
 import torch
-
 from pydantic import BaseModel, ConfigDict, Field
 
 from i3.adaptation.types import AdaptationVector
@@ -77,7 +76,7 @@ class FeatureSemantics(BaseModel):
     mean_activation: float
     max_activation: float
     sparsity: float = Field(ge=0.0, le=1.0)
-    dimension_label: Optional[str] = None
+    dimension_label: str | None = None
     spearman: dict[str, float] = Field(default_factory=dict)
 
 
@@ -214,7 +213,7 @@ def compute_per_feature_semantics(
         )
         top3 = ranked[:3]
 
-        label: Optional[str] = None
+        label: str | None = None
         if ranked and abs(ranked[0][1]) >= monosemanticity_threshold:
             label = ranked[0][0]
 
@@ -352,7 +351,7 @@ def top_features_per_dimension(
 
 def decoder_cosine_similarity_matrix(
     dictionary: FeatureDictionary,
-    max_features: Optional[int] = None,
+    max_features: int | None = None,
 ) -> torch.Tensor:
     """Cosine-similarity matrix between all (or first N) decoder columns.
 

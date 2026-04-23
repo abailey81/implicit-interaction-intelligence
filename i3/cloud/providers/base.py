@@ -28,7 +28,6 @@ from typing import Any, Literal, Protocol, runtime_checkable
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
 Role = Literal["system", "user", "assistant"]
 
 

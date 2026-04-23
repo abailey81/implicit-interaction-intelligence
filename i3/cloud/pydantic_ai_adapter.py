@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any, Literal, Optional, Type, TypeVar
+from typing import Any, Literal, TypeVar
 
 from pydantic import BaseModel, Field
 
@@ -126,12 +126,12 @@ class PydanticAICloudClient:
         self,
         *,
         model_name: str = "claude-sonnet-4-5",
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         system_prompt: str = (
             "You are a warm, adaptive AI companion. Respond with the "
             "exact schema specified; do not include any other text."
         ),
-        result_type: Type[BaseModel] = AdaptiveResponse,
+        result_type: type[BaseModel] = AdaptiveResponse,
     ) -> None:
         if not _PYDANTIC_AI_AVAILABLE:
             raise ImportError(_INSTALL_HINT)
@@ -148,7 +148,7 @@ class PydanticAICloudClient:
 
         self.model_name = model_name
         self._system_prompt = system_prompt
-        self._result_type: Type[BaseModel] = result_type
+        self._result_type: type[BaseModel] = result_type
         self._model = AnthropicModel(
             model_name=model_name,
             api_key=resolved_key or None,

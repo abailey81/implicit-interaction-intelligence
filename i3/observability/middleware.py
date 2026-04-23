@@ -22,7 +22,7 @@ from __future__ import annotations
 import logging
 import time
 import uuid
-from typing import Any, Callable
+from typing import Any
 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 

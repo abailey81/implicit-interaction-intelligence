@@ -28,9 +28,10 @@ from __future__ import annotations
 import json
 import logging
 import os
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Optional, Sequence
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -144,7 +145,7 @@ class I3AdaptivePromptProgram:
         ImportError: If ``dspy-ai`` is not installed.
     """
 
-    def __init__(self, lm: Optional[Any] = None) -> None:
+    def __init__(self, lm: Any | None = None) -> None:
         _require_dspy()
         # Inherit from dspy.Module dynamically so the class is still
         # importable (for type checking, docstrings, etc.) when dspy is
@@ -219,7 +220,7 @@ class I3AdaptivePromptProgram:
         self._module.load(str(source))
 
 
-def _make_module(lm: Optional[Any]) -> Any:
+def _make_module(lm: Any | None) -> Any:
     """Construct the underlying :class:`dspy.Module` instance.
 
     Kept as a free function so it can be monkey-patched in tests.
@@ -228,7 +229,7 @@ def _make_module(lm: Optional[Any]) -> Any:
     assert dspy is not None
 
     class _Inner(dspy.Module):  # type: ignore[misc, name-defined]
-        def __init__(self, lm_inner: Optional[Any]) -> None:
+        def __init__(self, lm_inner: Any | None) -> None:
             super().__init__()
             if lm_inner is not None:
                 # Per-module LM override (dspy >=2.5)
@@ -258,7 +259,7 @@ def _make_module(lm: Optional[Any]) -> Any:
 # ---------------------------------------------------------------------------
 
 
-MetricFn = Callable[[Any, Any, Optional[Any]], float]
+MetricFn = Callable[[Any, Any, Any | None], float]
 
 
 def optimize_program(
@@ -266,11 +267,11 @@ def optimize_program(
     dev_set: Sequence[Any],
     metric: MetricFn,
     *,
-    program: Optional[I3AdaptivePromptProgram] = None,
+    program: I3AdaptivePromptProgram | None = None,
     teleprompter: str = "BootstrapFewShot",
     max_bootstrapped_demos: int = 4,
     max_labeled_demos: int = 8,
-    save_path: Optional[str | os.PathLike[str]] = None,
+    save_path: str | os.PathLike[str] | None = None,
 ) -> tuple[I3AdaptivePromptProgram, CompiledProgramInfo]:
     """Compile :class:`I3AdaptivePromptProgram` with a teleprompter.
 

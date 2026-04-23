@@ -37,8 +37,6 @@ Default configuration targets ~6-8 M parameters:
 
 from __future__ import annotations
 
-from typing import Optional
-
 import torch
 import torch.nn as nn
 
@@ -125,8 +123,8 @@ class AdaptiveSLM(nn.Module):
         super().__init__()
 
         # Delayed imports to avoid circular dependencies at module-load time.
-        from i3.slm.embeddings import TransformerEmbedding
         from i3.slm.cross_attention import ConditioningProjector
+        from i3.slm.embeddings import TransformerEmbedding
 
         self.d_model: int = d_model
         self.vocab_size: int = vocab_size
@@ -228,8 +226,8 @@ class AdaptiveSLM(nn.Module):
     def forward(
         self,
         input_ids: torch.Tensor,
-        adaptation_vector: Optional[torch.Tensor] = None,
-        user_state: Optional[torch.Tensor] = None,
+        adaptation_vector: torch.Tensor | None = None,
+        user_state: torch.Tensor | None = None,
         use_cache: bool = False,
     ) -> tuple[torch.Tensor, dict[str, dict[str, torch.Tensor]]]:
         """Run the full model: embed, condition, transform, project.

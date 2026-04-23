@@ -258,6 +258,6 @@ def effect_size_interpretation(d: float) -> str:
 __all__ = [
     "bootstrap_ci",
     "cohens_d",
-    "paired_sign_test",
     "effect_size_interpretation",
+    "paired_sign_test",
 ]

@@ -15,6 +15,26 @@ copyright: "© 2026 Tamer Atesyakar — MIT License"
 strict: false
 
 # ──────────────────────────────────────────────────────────────────────────
+# Validation — relax absolute/unrecognised-link failures because many docs
+# page intentionally cross-reference source files (``../../i3/...``) and
+# repository-root files (``../README.md``) that are not part of the mkdocs
+# navigation tree.  These are useful on GitHub where the whole repo is
+# browseable, and we leave them as plain text on the rendered site.
+# Anchor mismatches and truly missing nav entries stay at warn/warn so
+# ``mkdocs build --strict`` still fails on genuine link rot.
+# ──────────────────────────────────────────────────────────────────────────
+validation:
+  nav:
+    omitted_files: warn
+    not_found: warn
+    absolute_links: info
+  links:
+    not_found: info
+    absolute_links: info
+    unrecognized_links: info
+    anchors: warn
+
+# ──────────────────────────────────────────────────────────────────────────
 # Theme
 # ──────────────────────────────────────────────────────────────────────────
 theme:
@@ -229,11 +249,14 @@ nav:
       - Adaptive Compute Router: research/adaptive_compute_router.md
       - ImplicitAdaptBench: research/implicit_adapt_bench.md
       - Mechanistic Interpretability: research/mechanistic_interpretability.md
+      - Interpretability Quickstart: research/interpretability_quickstart.md
       - Sparse Autoencoders: research/sparse_autoencoders.md
       - Closed-Loop Evaluation: research/closed_loop_evaluation.md
+      - Closed-Loop Quickstart: research/closed_loop_quickstart.md
       - Uncertainty + Counterfactuals: research/uncertainty_and_counterfactuals.md
       - Multimodal Extension: research/multimodal_extension.md
       - PPG HRV Integration: research/ppg_hrv_integration.md
+      - PPG HRV Quickstart: research/ppg_hrv_quickstart.md
       - LLM-as-Judge: research/llm_as_judge.md
       - Active Preference Learning: research/active_preference_learning.md
       - Continual Learning EWC: research/continual_learning_ewc.md
@@ -276,6 +299,7 @@ nav:
   - Huawei:
       - huawei/README.md
       - HarmonyOS + HMAF Integration: huawei/harmony_hmaf_integration.md
+      - HarmonyOS 6 AI Glasses Alignment: huawei/harmonyos6_ai_glasses_alignment.md
       - Kirin Deployment: huawei/kirin_deployment.md
       - L1–L5 Framework: huawei/l1_l5_framework.md
       - Edinburgh Joint Lab: huawei/edinburgh_joint_lab.md

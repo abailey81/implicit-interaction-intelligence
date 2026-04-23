@@ -91,7 +91,7 @@ STOPWORDS: frozenset[str] = frozenset({
     "new", "old", "good", "great", "right", "long",
     "little", "big", "small",
     # Discourse markers
-    "oh", "ok", "okay", "yeah", "yes", "no", "hi", "hello",
+    "oh", "ok", "okay", "yeah", "yes", "hi", "hello",
     "hey", "thanks", "thank", "please", "sorry",
 })
 

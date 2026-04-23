@@ -28,8 +28,6 @@ Pre-LN is preferred over Post-LN because:
 
 from __future__ import annotations
 
-from typing import Optional
-
 import torch
 import torch.nn as nn
 
@@ -92,7 +90,7 @@ class AdaptiveTransformerBlock(nn.Module):
 
         # Import sibling modules -- kept inside __init__ to avoid circular
         # imports at module-load time.
-        from i3.slm.attention import MultiHeadSelfAttention, FeedForward
+        from i3.slm.attention import FeedForward, MultiHeadSelfAttention
         from i3.slm.cross_attention import MultiHeadCrossAttention
 
         # ----- sub-layers -------------------------------------------------------
@@ -114,7 +112,7 @@ class AdaptiveTransformerBlock(nn.Module):
         self,
         x: torch.Tensor,
         conditioning_tokens: torch.Tensor,
-        causal_mask: Optional[torch.Tensor] = None,
+        causal_mask: torch.Tensor | None = None,
         use_cache: bool = False,
     ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
         """Run one Transformer block.

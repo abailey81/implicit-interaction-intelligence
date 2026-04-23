@@ -214,9 +214,7 @@ def compute_biometric_bias(
     median_frr = float(np.median(frrs)) if frrs else 0.0
     flagged: list[str] = []
     for p in per_archetype:
-        if p.far - median_far > disparity_threshold:
-            flagged.append(p.archetype)
-        elif p.frr - median_frr > disparity_threshold:
+        if p.far - median_far > disparity_threshold or p.frr - median_frr > disparity_threshold:
             flagged.append(p.archetype)
 
     return BiometricBiasReport(

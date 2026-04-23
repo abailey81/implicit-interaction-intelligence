@@ -29,8 +29,9 @@ from __future__ import annotations
 
 import logging
 import random
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Iterable, Optional
+from typing import Any
 
 import torch
 
@@ -57,7 +58,7 @@ class ReplaySample:
     """
 
     input_tensor: torch.Tensor
-    target: Optional[torch.Tensor] = None
+    target: torch.Tensor | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def detach_clone(self) -> ReplaySample:
@@ -105,7 +106,7 @@ class ReservoirReplayBuffer:
         past_batch = buf.sample(32)
     """
 
-    def __init__(self, capacity: int = 512, *, seed: Optional[int] = None) -> None:
+    def __init__(self, capacity: int = 512, *, seed: int | None = None) -> None:
         if capacity < 1:
             raise ValueError(f"capacity must be >= 1, got {capacity}")
         self._capacity: int = int(capacity)
@@ -248,7 +249,7 @@ class ExperienceReplay:
     def integrate_into_training(
         self,
         task_loss_fn: Callable[[ReplaySample], torch.Tensor],
-        task_loss: Optional[torch.Tensor] = None,
+        task_loss: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Compute ``task_loss + α · replay_loss`` as a single scalar.
 

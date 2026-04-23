@@ -34,8 +34,9 @@ import asyncio
 import logging
 import time
 import uuid
+from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
-from typing import Any, Awaitable, Callable
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -409,7 +410,7 @@ class HMAFAgentRuntime:
         handler = self._handlers.get(intent.name, self._handle_unknown)
         try:
             response = await handler(intent)
-        except Exception as exc:  # noqa: BLE001 -- handler isolation
+        except Exception as exc:
             logger.exception("Intent handler raised for %s", intent.name)
             response = HMAFResponse(
                 intent_name=intent.name,
@@ -479,7 +480,7 @@ class HMAFAgentRuntime:
                 break
             try:
                 await self.plan_and_execute(intent)
-            except Exception:  # noqa: BLE001 -- never crash the loop
+            except Exception:
                 logger.exception("Runtime consumer loop caught exception")
             finally:
                 self._queue.task_done()

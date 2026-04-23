@@ -28,14 +28,14 @@ not require a monolithic tensor in RAM.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import TracebackType
-from typing import Any, Iterable, Iterator, Optional
+from typing import Any
 
 import torch
 import torch.nn as nn
-
 
 # ---------------------------------------------------------------------------
 # Dataclasses.
@@ -48,7 +48,7 @@ class _CacheEntry:
 
     layer_name: str
     module: nn.Module
-    handle: Optional[torch.utils.hooks.RemovableHandle] = None
+    handle: torch.utils.hooks.RemovableHandle | None = None
     captured: list[torch.Tensor] = field(default_factory=list)
 
 
@@ -142,7 +142,7 @@ class ActivationCache:
         self,
         model: nn.Module,
         data_iterator: Iterable[dict[str, Any]],
-        max_samples: Optional[int] = None,
+        max_samples: int | None = None,
     ) -> dict[str, int]:
         """Run ``model`` on each element of ``data_iterator`` and cache outputs.
 
@@ -211,7 +211,7 @@ class ActivationCache:
     def save(
         self,
         path: str | Path,
-        shard_size: Optional[int] = None,
+        shard_size: int | None = None,
     ) -> None:
         """Persist the captured activations.
 
@@ -258,7 +258,7 @@ class ActivationCache:
         (dst / "index.json").write_text(json.dumps(manifest, indent=2))
 
     @classmethod
-    def load(cls, path: str | Path) -> "ActivationCache":
+    def load(cls, path: str | Path) -> ActivationCache:
         """Load activations previously written by :meth:`save`.
 
         Args:
@@ -357,14 +357,14 @@ class ActivationCache:
     # Context-manager: auto-remove hooks if used as ``with`` block.
     # ------------------------------------------------------------------
 
-    def __enter__(self) -> "ActivationCache":
+    def __enter__(self) -> ActivationCache:
         return self
 
     def __exit__(
         self,
-        exc_type: Optional[type[BaseException]],
-        exc: Optional[BaseException],
-        tb: Optional[TracebackType],
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
     ) -> None:
         for entry in self._entries.values():
             if entry.handle is not None:
@@ -406,7 +406,7 @@ class ActivationCache:
         return True
 
 
-def _extract_primary_tensor(output: object) -> Optional[torch.Tensor]:
+def _extract_primary_tensor(output: object) -> torch.Tensor | None:
     """Return the first tensor in a possibly-tuple forward output.
 
     Args:

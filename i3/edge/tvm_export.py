@@ -264,6 +264,6 @@ def benchmark_tvm(
 
 __all__ = [
     "SUPPORTED_TARGETS",
-    "compile_tcn_to_tvm",
     "benchmark_tvm",
+    "compile_tcn_to_tvm",
 ]

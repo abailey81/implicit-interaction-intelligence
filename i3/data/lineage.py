@@ -55,9 +55,10 @@ class Lineage(BaseModel):
 
     def with_transform(self, name: str) -> "Lineage":
         """Return a new :class:`Lineage` with ``name`` appended."""
-        return self.model_copy(
+        copied: "Lineage" = self.model_copy(
             update={"applied_transforms": self.applied_transforms + (name,)}
         )
+        return copied
 
 
 class RecordSchema(BaseModel):

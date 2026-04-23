@@ -45,8 +45,9 @@ from __future__ import annotations
 import base64
 import json
 import logging
+from collections.abc import Callable
 from dataclasses import asdict, is_dataclass
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 logger = logging.getLogger(__name__)
 
@@ -66,13 +67,9 @@ except Exception:  # pragma: no cover — evaluated without mcp installed
 
 
 if TYPE_CHECKING:  # pragma: no cover
-    from i3.adaptation.types import AdaptationVector
     from i3.huawei.kirin_targets import DeviceProfile
-    from i3.interaction.types import InteractionFeatureVector
     from i3.pipeline.engine import Pipeline
     from i3.privacy.sanitizer import PrivacySanitizer
-    from i3.router.router import IntelligentRouter
-    from i3.router.types import RoutingContext, RoutingDecision
 
 
 # ---------------------------------------------------------------------------
@@ -270,7 +267,7 @@ class I3MCPServer:
 
         # Assemble the FastMCP app.  ``assert`` satisfies the type checker:
         # ``_require_mcp`` already raised when ``FastMCP is None``.
-        assert FastMCP is not None  # noqa: S101
+        assert FastMCP is not None
         self._mcp = FastMCP(name=self._name, version=self._version)
 
         self._register_tools()
@@ -379,7 +376,7 @@ class I3MCPServer:
         if callable(getter):
             try:
                 return getter(user_id)
-            except Exception:  # noqa: BLE001 — defensive
+            except Exception:
                 return None
         # Real pipeline stores models under ``user_models``; tests may use
         # the private ``_user_models``.  Accept both.
@@ -475,7 +472,7 @@ class I3MCPServer:
             if callable(getter):
                 try:
                     features = getter(user_id)
-                except Exception:  # noqa: BLE001
+                except Exception:
                     features = None
         if features is None:
             from i3.interaction.types import InteractionFeatureVector
@@ -541,7 +538,7 @@ class I3MCPServer:
                 payload = loop.run_until_complete(_collect())
         except RuntimeError:
             payload = asyncio.run(_collect())
-        except Exception as exc:  # noqa: BLE001 — defensive
+        except Exception as exc:
             return {"error": f"session_lookup_failed: {exc}", "user_id": user_id}
 
         return self._guard_payload(payload, label="session_metadata")
@@ -673,7 +670,7 @@ class I3MCPServer:
             from i3.interpretability import FEATURE_NAMES as _FEATS
 
             feat_names: list[str] = list(_FEATS)
-        except Exception:  # noqa: BLE001
+        except Exception:
             from i3.interaction.types import FEATURE_NAMES as _FEATS2
 
             feat_names = list(_FEATS2)
@@ -690,7 +687,7 @@ class I3MCPServer:
             if callable(getter):
                 try:
                     features = getter(user_id)
-                except Exception:  # noqa: BLE001
+                except Exception:
                     features = None
         if features is None:
             from i3.interaction.types import InteractionFeatureVector
@@ -805,7 +802,7 @@ class I3MCPServer:
                 entries = loop.run_until_complete(_collect())
             finally:
                 loop.close()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return json.dumps({"error": f"diary_query_failed: {exc}"})
 
         payload = self._guard_payload(
@@ -1047,4 +1044,4 @@ def _bind_prompt(mcp_app: Any, fn: Callable[..., Any], name: str) -> None:
     )
 
 
-__all__ = ["I3MCPServer", "MCP_SPEC_VERSION"]
+__all__ = ["MCP_SPEC_VERSION", "I3MCPServer"]

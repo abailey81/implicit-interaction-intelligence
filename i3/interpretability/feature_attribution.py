@@ -27,7 +27,7 @@ References
 
 from __future__ import annotations
 
-from typing import Callable, Optional
+from collections.abc import Callable
 
 import torch
 import torch.nn as nn
@@ -175,7 +175,7 @@ class FeatureAttributor:
     def attribute(
         self,
         feature_vector: torch.Tensor,
-        adaptation_vector: Optional[torch.Tensor] = None,
+        adaptation_vector: torch.Tensor | None = None,
     ) -> dict[str, dict[str, float]]:
         """Compute integrated-gradients attributions.
 
@@ -266,7 +266,7 @@ class FeatureAttributor:
 
         # Per-output-dim integrated gradients.
         result: dict[str, dict[str, float]] = {
-            name: {dim: 0.0 for dim in self.adaptation_dims}
+            name: dict.fromkeys(self.adaptation_dims, 0.0)
             for name in self.feature_names
         }
 
@@ -315,7 +315,7 @@ class LinearFeatureAdapter(nn.Module):
         super().__init__()
         self.linear = nn.Linear(feature_dim, adaptation_dim, bias=False)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:  # noqa: D401
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Apply the linear map."""
         return self.linear(x)
 

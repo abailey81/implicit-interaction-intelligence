@@ -22,7 +22,8 @@ from __future__ import annotations
 
 import logging
 import sqlite3
-from typing import Any, Iterable, Sequence
+from collections.abc import Iterable, Sequence
+from typing import Any
 
 from i3.redteam.attack_corpus import Attack
 from i3.redteam.attacker import AttackResult
@@ -277,7 +278,7 @@ def verify_pddl_soundness(
             continue
         try:
             planner.certify(plan, context=ctx)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             violations.append(f"{attack.id} (certify: {type(exc).__name__})")
 
     if violations:

@@ -27,8 +27,8 @@ import logging
 import struct
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable, Optional
 
 import numpy as np
 import torch
@@ -237,7 +237,7 @@ class DDMSyncClient:
         self,
         owner_device_id: int,
         encryptor: ModelEncryptor,
-        registry: Optional[DeviceRegistry] = None,
+        registry: DeviceRegistry | None = None,
     ) -> None:
         self.owner_device_id = owner_device_id
         self._encryptor = encryptor
@@ -258,9 +258,9 @@ class DDMSyncClient:
         adaptation: AdaptationVector,
         ttl_s: int = 300,
         *,
-        mean: Optional[np.ndarray] = None,
-        var: Optional[np.ndarray] = None,
-        embedding_sess: Optional[np.ndarray] = None,
+        mean: np.ndarray | None = None,
+        var: np.ndarray | None = None,
+        embedding_sess: np.ndarray | None = None,
     ) -> None:
         """Publish a user-state record to the mock databus.
 
@@ -323,7 +323,7 @@ class DDMSyncClient:
             except Exception as exc:  # pragma: no cover - demo path
                 logger.warning("Subscriber callback raised: %s", exc)
 
-    def pull(self, user_id: str) -> Optional[I3UserStateSync]:
+    def pull(self, user_id: str) -> I3UserStateSync | None:
         """Retrieve the latest published state for *user_id*, if any.
 
         Returns ``None`` when no record exists or the record has expired.

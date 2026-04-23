@@ -31,8 +31,8 @@ from __future__ import annotations
 import logging
 import math
 from collections import deque
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
-from typing import Callable, Iterable, Optional, Sequence
 
 import torch
 
@@ -82,10 +82,10 @@ class DriftDetectionResult:
 
     drift_detected: bool
     window_size: int
-    old_mean: Optional[float] = None
-    new_mean: Optional[float] = None
-    cut_point: Optional[int] = None
-    psi: Optional[float] = None
+    old_mean: float | None = None
+    new_mean: float | None = None
+    cut_point: int | None = None
+    psi: float | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -227,9 +227,7 @@ class ConceptDriftDetector:
         min_sub_window: int = _DEFAULT_MIN_SUB_WINDOW,
         max_window: int = _DEFAULT_MAX_WINDOW,
         cooldown: int = _DEFAULT_COOLDOWN,
-        on_drift_detected: Optional[
-            Callable[[DriftDetectionResult], None]
-        ] = None,
+        on_drift_detected: Callable[[DriftDetectionResult], None] | None = None,
     ) -> None:
         if not (0.0 < delta < 1.0):
             raise ValueError(f"delta must be in (0, 1), got {delta}")
@@ -249,9 +247,7 @@ class ConceptDriftDetector:
         self.min_sub_window: int = int(min_sub_window)
         self.max_window: int = int(max_window)
         self.cooldown: int = int(cooldown)
-        self.on_drift_detected: Optional[
-            Callable[[DriftDetectionResult], None]
-        ] = on_drift_detected
+        self.on_drift_detected: Callable[[DriftDetectionResult], None] | None = on_drift_detected
 
         self._window: deque[float] = deque(maxlen=self.max_window)
         self._baseline_samples: list[float] = []
@@ -326,7 +322,7 @@ class ConceptDriftDetector:
         self._window.clear()
         self._window.extend(new)
 
-        psi_val: Optional[float] = None
+        psi_val: float | None = None
         if self._baseline_samples:
             psi_val = population_stability_index(
                 self._baseline_samples, new
@@ -377,7 +373,7 @@ class ConceptDriftDetector:
     # PSI helpers
     # ------------------------------------------------------------------
 
-    def psi_against_baseline(self) -> Optional[float]:
+    def psi_against_baseline(self) -> float | None:
         """Return the PSI between the baseline and current window.
 
         Returns ``None`` if no baseline has been snapshotted or the
@@ -393,7 +389,7 @@ class ConceptDriftDetector:
     # Internals -- ADWIN cut search
     # ------------------------------------------------------------------
 
-    def _find_adwin_cut(self) -> Optional[int]:
+    def _find_adwin_cut(self) -> int | None:
         """Return the smallest split index at which ADWIN would cut.
 
         Bifet & Gavaldà 2007 argue: for every partition of the window
@@ -449,8 +445,8 @@ def _to_cpu_1d(values: Sequence[float] | torch.Tensor) -> torch.Tensor:
 
 
 __all__ = [
+    "PSI",
     "ConceptDriftDetector",
     "DriftDetectionResult",
-    "PSI",
     "population_stability_index",
 ]

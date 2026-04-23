@@ -50,9 +50,9 @@ from i3.pipeline.types import (
 )
 
 __all__ = [
+    "EngagementEstimator",
+    "EngagementSignal",
     "Pipeline",
     "PipelineInput",
     "PipelineOutput",
-    "EngagementEstimator",
-    "EngagementSignal",
 ]

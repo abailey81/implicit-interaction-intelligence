@@ -66,7 +66,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 import torch
 import torch.nn as nn
@@ -217,7 +217,7 @@ def export_slm_to_executorch(
     logger.info("Step 1/4: torch.export.export")
     try:
         exported = torch.export.export(wrapped, example_inputs)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise RuntimeError(
             f"torch.export.export failed ({type(exc).__name__}): {exc}"
         ) from exc
@@ -232,7 +232,7 @@ def export_slm_to_executorch(
             exported = torch.export.export(q_wrapped, example_inputs)
         except RuntimeError:
             raise
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise RuntimeError(
                 f"Quantization/re-export failed "
                 f"({type(exc).__name__}): {exc}"
@@ -250,7 +250,7 @@ def export_slm_to_executorch(
         ) from exc
     try:
         edge_program = to_edge(exported)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise RuntimeError(
             f"to_edge failed ({type(exc).__name__}): {exc}"
         ) from exc
@@ -258,7 +258,7 @@ def export_slm_to_executorch(
     logger.info("Step 4/4: to_executorch + write_to_file")
     try:
         et_program = edge_program.to_executorch()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise RuntimeError(
             f"to_executorch failed ({type(exc).__name__}): {exc}"
         ) from exc
@@ -275,7 +275,7 @@ def export_slm_to_executorch(
                     "nor .buffer; cannot persist .pte."
                 )
             out_path.write_bytes(bytes(buffer))
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise RuntimeError(
             f"Writing .pte failed ({type(exc).__name__}): {exc}"
         ) from exc

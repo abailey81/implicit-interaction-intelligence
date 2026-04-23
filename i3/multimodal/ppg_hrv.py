@@ -352,7 +352,7 @@ def _sample_entropy(series: np.ndarray, m: int = 2, r: float | None = None) -> f
             # Chebyshev distance
             dist = np.max(np.abs(templates - templates[i]), axis=1)
             # Exclude self-match at position i (Richman-Moorman convention).
-            count += int(np.sum((dist <= r)) - 1)
+            count += int(np.sum(dist <= r) - 1)
         return count
 
     b = _phi(m)

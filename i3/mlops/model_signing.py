@@ -48,7 +48,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 logger = logging.getLogger(__name__)
 
@@ -124,9 +124,9 @@ class ModelSigner:
         self,
         method: SigningMethod,
         *,
-        identity: Optional[str] = None,
-        private_key: Optional[Path] = None,
-        certificate: Optional[Path] = None,
+        identity: str | None = None,
+        private_key: Path | None = None,
+        certificate: Path | None = None,
     ) -> Any:
         """Construct a ``model_signing.sign.Config`` for *method*.
 
@@ -212,12 +212,12 @@ class ModelSigner:
     def sign(
         self,
         path: Path,
-        method: Optional[SigningMethod] = None,
+        method: SigningMethod | None = None,
         *,
-        out_path: Optional[Path] = None,
-        identity: Optional[str] = None,
-        private_key: Optional[Path] = None,
-        certificate: Optional[Path] = None,
+        out_path: Path | None = None,
+        identity: str | None = None,
+        private_key: Path | None = None,
+        certificate: Path | None = None,
     ) -> Path:
         """Sign *path* and write the OpenSSF manifest to *out_path*.
 
@@ -266,7 +266,7 @@ class ModelSigner:
                 sign_fn(str(path), str(actual_out))
         except ModuleNotFoundError:
             raise
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise RuntimeError(
                 f"Model signing failed ({type(exc).__name__}): {exc}"
             ) from exc
@@ -280,10 +280,10 @@ class ModelSigner:
         path: Path,
         signature_path: Path,
         *,
-        identity: Optional[str] = None,
+        identity: str | None = None,
         issuer: str = _DEFAULT_SIGSTORE_ISSUER,
-        method: Optional[SigningMethod] = None,
-        public_key: Optional[Path] = None,
+        method: SigningMethod | None = None,
+        public_key: Path | None = None,
     ) -> bool:
         """Verify *path* against *signature_path*.
 
@@ -382,7 +382,7 @@ class ModelSigner:
             return True
         except ModuleNotFoundError:
             raise
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning(
                 "Model verification failed (%s): %s",
                 type(exc).__name__,

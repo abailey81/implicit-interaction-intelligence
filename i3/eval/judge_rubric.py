@@ -38,7 +38,6 @@ from typing import Final
 
 from i3.adaptation.types import AdaptationVector
 
-
 # ---------------------------------------------------------------------------
 # Rubric constants
 # ---------------------------------------------------------------------------

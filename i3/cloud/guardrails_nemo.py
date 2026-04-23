@@ -30,9 +30,10 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -90,9 +91,9 @@ class GuardedResponse:
 
     text: str
     blocked: bool
-    block_reason: Optional[str]
+    block_reason: str | None
     rails_triggered: list[str]
-    raw: Optional[dict[str, Any]]
+    raw: dict[str, Any] | None
 
 
 # ---------------------------------------------------------------------------
@@ -121,7 +122,7 @@ class GuardrailedCloudClient:
         self,
         inner_client: Any,
         *,
-        rails_path: Optional[str | os.PathLike[str]] = None,
+        rails_path: str | os.PathLike[str] | None = None,
         fail_closed: bool = True,
     ) -> None:
         if not _NEMO_AVAILABLE:
@@ -129,7 +130,7 @@ class GuardrailedCloudClient:
         self._inner = inner_client
         self._fail_closed = bool(fail_closed)
         self._rails_dir = Path(rails_path) if rails_path else _DEFAULT_RAILS_PATH
-        self._rails: Optional[Any] = None
+        self._rails: Any | None = None
 
     # ------------------------------------------------------------------
     # Lifecycle helpers
@@ -156,7 +157,7 @@ class GuardrailedCloudClient:
     async def generate(
         self,
         prompt: str,
-        context: Optional[Mapping[str, Any]] = None,
+        context: Mapping[str, Any] | None = None,
     ) -> GuardedResponse:
         """Generate a response with input and output rails applied.
 
@@ -174,7 +175,7 @@ class GuardrailedCloudClient:
         # -------- Input rails --------
         try:
             input_verdict = await self._run_input_rails(prompt, ctx)
-        except Exception as exc:  # noqa: BLE001 - defensive envelope
+        except Exception as exc:
             logger.exception("Input rail evaluation failed: %s", exc)
             if self._fail_closed:
                 return GuardedResponse(
@@ -209,7 +210,7 @@ class GuardrailedCloudClient:
         # -------- Output rails --------
         try:
             output_verdict = await self._run_output_rails(inner_text, ctx)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.exception("Output rail evaluation failed: %s", exc)
             if self._fail_closed:
                 return GuardedResponse(

@@ -263,7 +263,9 @@ class TopicSensitivityDetector:
 
         return max_sensitivity
 
-    def detect_detailed(self, text: str) -> dict[str, float | list[str]]:
+    def detect_detailed(
+        self, text: str
+    ) -> dict[str, float | list[str] | dict[str, float]]:
         """Return sensitivity score with matched category details.
 
         Useful for debugging, logging, and explainability.

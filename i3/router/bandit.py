@@ -25,7 +25,7 @@ import logging
 import threading
 from collections import deque
 from pathlib import Path
-from typing import Any, Deque
+from typing import Any
 
 import numpy as np
 
@@ -112,7 +112,7 @@ class ContextualThompsonBandit:
         # PERF (H-4, 2026-04-23 audit): ``collections.deque`` with
         # ``maxlen`` bounds the per-arm history and makes overflow O(1)
         # rather than the previous ``list[-N:]`` slice churn.
-        self.history: list[Deque[tuple[np.ndarray, float]]] = [
+        self.history: list[deque[tuple[np.ndarray, float]]] = [
             deque(maxlen=_MAX_HISTORY_PER_ARM) for _ in range(n_arms)
         ]
 
@@ -600,7 +600,13 @@ class ContextualThompsonBandit:
         self.weight_means = loaded_means
         self.weight_covs = loaded_covs
         self.history = [
-            [(np.array(ctx, dtype=np.float64), reward) for ctx, reward in arm_hist]
+            deque(
+                (
+                    (np.array(ctx, dtype=np.float64), float(reward))
+                    for ctx, reward in arm_hist
+                ),
+                maxlen=_MAX_HISTORY_PER_ARM,
+            )
             for arm_hist in state["history"]
         ]
         logger.info(
@@ -622,7 +628,7 @@ class ContextualThompsonBandit:
             )
             self.alpha[arm] = 1.0
             self.beta_param[arm] = 1.0
-            self.history[arm] = []
+            self.history[arm] = deque(maxlen=_MAX_HISTORY_PER_ARM)
             self.total_pulls[arm] = 0
             self.total_rewards[arm] = 0.0
         logger.info("Bandit state reset to prior.")

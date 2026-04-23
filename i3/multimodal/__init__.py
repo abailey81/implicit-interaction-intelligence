@@ -30,11 +30,11 @@ from i3.multimodal.touch import TouchFeatureExtractor, TouchFeatureVector
 from i3.multimodal.voice import VoiceFeatureExtractor, VoiceFeatureVector
 
 __all__ = [
+    "MODALITY_INDEX",
     "AccelerometerFeatureExtractor",
     "AccelerometerFeatureVector",
     "GazeFeatureExtractor",
     "GazeFeatureVector",
-    "MODALITY_INDEX",
     "ModalityEmbedding",
     "ModalityFusion",
     "TouchFeatureExtractor",
