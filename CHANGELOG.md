@@ -5,6 +5,77 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.1.0 (2026-04-23)
+
+
+### Features
+
+* **analytics:** DuckDB + LanceDB + Polars + Ibis + Arrow — modern data stack ([bc73464](https://github.com/abailey81/implicit-interaction-intelligence/commit/bc73464a45b76b42ac4be1a85ab21b6bd32defdc))
+* **browser:** in-browser TCN inference via ONNX Runtime Web + WebGPU ([2682775](https://github.com/abailey81/implicit-interaction-intelligence/commit/26827756023fc09e11251225b3e2d8a3ac2e4930))
+* **cloud:** Batch G7 — universal LLM provider layer (11 providers, fallback chain, cost tracker) ([da20671](https://github.com/abailey81/implicit-interaction-intelligence/commit/da206718732034c7f9012bc4b20d7bbaf27a6ccd))
+* **compute:** speculative decoding (Celia parallel) + adaptive fast/slow router (PanGu 5.5 parallel) ([0a09eba](https://github.com/abailey81/implicit-interaction-intelligence/commit/0a09ebaf83f3c236bdb94126f74960b7e891bc69))
+* **continual:** Batch F-5 — Elastic Weight Consolidation + drift-triggered auto-consolidation ([869b752](https://github.com/abailey81/implicit-interaction-intelligence/commit/869b7521fe0207616b8ae69d1f441b0075a0c8e3))
+* **core:** behavioural perception, TCN encoder, user model, adaptation, router ([14859d2](https://github.com/abailey81/implicit-interaction-intelligence/commit/14859d27b2b895ec2bfb312c9de27c4d4d9d0487))
+* **core:** NOTES.md disclosure, NT-Xent loss module, valence lexicon ([04cb9cd](https://github.com/abailey81/implicit-interaction-intelligence/commit/04cb9cd5469d5189b8d60a43f9cab16d77168112))
+* **demo:** admin endpoints, pre-seed, 4-phase runner, soak test, preflight, GDPR export ([f350f7a](https://github.com/abailey81/implicit-interaction-intelligence/commit/f350f7aa211563956f79d926024577e8b1d463c4))
+* **deploy:** Kubernetes manifests, Helm chart, Terraform, Skaffold, ArgoCD ([2390581](https://github.com/abailey81/implicit-interaction-intelligence/commit/23905815d95309bcd71f5eb28a860d57e9748e07))
+* **devex:** Dagger + Tilt + Pyroscope + Backstage + Grafana Alloy + Codespaces ([b7f2584](https://github.com/abailey81/implicit-interaction-intelligence/commit/b7f25842207856a5ff3b0b39b396610f448ef3e2))
+* **distributed:** Lightning Fabric + Ray Serve + Triton + DeepSpeed + vLLM scaffolds ([c20aa45](https://github.com/abailey81/implicit-interaction-intelligence/commit/c20aa45b37aeb9fe0d2c956ecac2c5d47e2749c9))
+* **docker:** production-grade multi-stage container + devcontainer ([fb49c0a](https://github.com/abailey81/implicit-interaction-intelligence/commit/fb49c0a05f0a3fb298407cb88aea332a7bbb362e))
+* **edge:** MLX + llama.cpp GGUF + TVM + IREE + CoreML + TensorRT-LLM + OpenVINO + MediaPipe ([a079da4](https://github.com/abailey81/implicit-interaction-intelligence/commit/a079da491024f4fd78807e3f6ccd87bdf567ae7c))
+* **eval:** Batch G4 — provider-agnostic LLM-as-judge evaluation harness ([897360f](https://github.com/abailey81/implicit-interaction-intelligence/commit/897360f0b67ca1b8aab0f173b12e05e3334cb590))
+* **experiments:** Batch A — preregistered empirical ablation study ([20a61d3](https://github.com/abailey81/implicit-interaction-intelligence/commit/20a61d3038de29d67319ccdcdfa3bcebd7829d0b))
+* **experiments:** Batch B — mechanistic interpretability study ([7ac024c](https://github.com/abailey81/implicit-interaction-intelligence/commit/7ac024c8cc431eeea4009fae5e7d4748d23a34a9))
+* **experiments:** Batch C — ImplicitAdaptBench benchmark + baselines ([3a239cb](https://github.com/abailey81/implicit-interaction-intelligence/commit/3a239cbbe36ae2ed82ab0bc546d81ed87342d23a))
+* **experiments:** Batch G1 (completion) — closed-loop evaluator + CLI + docs + tests ([5a9c91f](https://github.com/abailey81/implicit-interaction-intelligence/commit/5a9c91f083472323dfde6ba2c461fd1748950f9b))
+* **experiments:** Batch G1 (partial) — HCI persona library + user simulator ([4e44245](https://github.com/abailey81/implicit-interaction-intelligence/commit/4e44245c9b590fcd879cab8f35912d13b3f164e3))
+* **frontend+notebooks:** attention heatmap, what-if, persona, WCAG audit + 7 teaching notebooks ([9459ac2](https://github.com/abailey81/implicit-interaction-intelligence/commit/9459ac22d8fff4cb66e4710d510ea1623a837e6d))
+* **future-work:** multi-modal, federated, cross-device, fairness, DP sketches ([5ebe7a0](https://github.com/abailey81/implicit-interaction-intelligence/commit/5ebe7a04e4191728f087446b9e8c640b99bcb1d6))
+* **huawei:** HMAF integration, Kirin deployment, L1-L5, Edinburgh, talking points ([27f0a4d](https://github.com/abailey81/implicit-interaction-intelligence/commit/27f0a4d71c9afa291f809b45a7688a3d89d8c3e4))
+* **interp:** Batch G2 — uncertainty quantification + counterfactual explanations ([e62f9dd](https://github.com/abailey81/implicit-interaction-intelligence/commit/e62f9dda0a8502e144107df0816c8376c6052265))
+* **interp:** Batch G3 — sparse autoencoders for cross-attention interpretability ([37a9620](https://github.com/abailey81/implicit-interaction-intelligence/commit/37a9620366f8a0fcfa12969e998ca5c770176807))
+* **llm-ecosystem:** DSPy + NeMo Guardrails + Pydantic AI + Instructor + Outlines + Logfire + OpenLLMetry ([bd1ec1f](https://github.com/abailey81/implicit-interaction-intelligence/commit/bd1ec1f3e47370e5f2ddbe70145188f18b55fe74))
+* **mcp:** Anthropic Model Context Protocol server + Claude Desktop integration ([bcfbf26](https://github.com/abailey81/implicit-interaction-intelligence/commit/bcfbf26e19178f461ef816abfe86f80da7cbd815))
+* **meta:** Batch G5 — MAML + Reptile for few-shot user adaptation ([92e5915](https://github.com/abailey81/implicit-interaction-intelligence/commit/92e591580cdea5da9897257211ef177841dd00b8))
+* **ml-advanced:** Langfuse + torchao INT4 + OpenSSF signing + ExecuTorch + guardrails + eval ([2848eac](https://github.com/abailey81/implicit-interaction-intelligence/commit/2848eac6a522dda1df507c4004956dd3c770f5b9))
+* **mlops:** MLflow tracking, ONNX export, benchmarks, Locust/k6, DVC pipeline ([e42f6e3](https://github.com/abailey81/implicit-interaction-intelligence/commit/e42f6e310098c97e065b444e9b8e15215f402b7d))
+* **multimodal:** Batch F-1 — voice prosody + facial affect + runnable fusion ([bcd71b5](https://github.com/abailey81/implicit-interaction-intelligence/commit/bcd71b59fc33c71a07a7ebe656c414e4015180ed))
+* **multimodal:** Batch F-2 — PPG/HRV wearable signals (Huawei Watch 5 parallel) ([64c1e86](https://github.com/abailey81/implicit-interaction-intelligence/commit/64c1e868ef1c2b82aa97d9c8d5ac08f517effed8))
+* **observability:** structlog + OpenTelemetry + Prometheus + optional Sentry ([026659a](https://github.com/abailey81/implicit-interaction-intelligence/commit/026659a839a4f623cfb0926b237d50dd3bbe5ea4))
+* **pipeline:** diary, privacy, edge profiling, and orchestration engine ([d63f817](https://github.com/abailey81/implicit-interaction-intelligence/commit/d63f817d1caacfee12c49cca053a740b6c5adbc9))
+* **policy:** Kyverno + OPA + Cedar + Falco + Tracee + Sigstore PC + Allstar ([a0ba6be](https://github.com/abailey81/implicit-interaction-intelligence/commit/a0ba6be0bacb15214edbe7f06fa1aca798e41f03))
+* **router:** Batch F-4 — active preference learning / online DPO (closes reward loop) ([03d28b8](https://github.com/abailey81/implicit-interaction-intelligence/commit/03d28b85b5458be7cf0fdec125f1689e68a967f5))
+* **safety+agentic+translate:** PDDL planner + runnable HMAF runtime + AI-Glasses translate endpoint ([2a3e251](https://github.com/abailey81/implicit-interaction-intelligence/commit/2a3e251f70441ffb70a3bd9f27a7c876d44dbe3f))
+* **security:** Batch G6 — red-team safety harness (55 adversarial attacks, 4 target surfaces) ([2df0c29](https://github.com/abailey81/implicit-interaction-intelligence/commit/2df0c29172262185b0e27ac9a8e2cb23b752e785))
+* **slides:** 15-slide interview deck, 52-item Q&A, speaker notes, rehearsal cues ([f8ed03c](https://github.com/abailey81/implicit-interaction-intelligence/commit/f8ed03cae5f2385f3c90adce87f45beef2af0b40))
+* **slm:** custom transformer with cross-attention conditioning + cloud integration ([eee8195](https://github.com/abailey81/implicit-interaction-intelligence/commit/eee81953aaab0ef8ab1bd637ea9cfe0fbcc8bdfd))
+* **stretch:** aux conditioning loss, interpretability, what-if, ablation, biometric ([660ac6b](https://github.com/abailey81/implicit-interaction-intelligence/commit/660ac6b34fbae9d17b8b34b62be75622a4809651))
+* **supply-chain:** SBOM, cosign, SLSA L3, Scorecard, Trivy, Semgrep, release-please ([9cd6e0f](https://github.com/abailey81/implicit-interaction-intelligence/commit/9cd6e0f003a821301d48cf1c3173586399ff4644))
+* **tests+data:** expand sentiment lexicon 5.6x and add 55 targeted tests ([7dc2592](https://github.com/abailey81/implicit-interaction-intelligence/commit/7dc25926854f4ae4f1fffcf77208548e29169b82))
+* **tests:** property, contract, fuzz, load, mutation, chaos, snapshot suites ([7d5b3ba](https://github.com/abailey81/implicit-interaction-intelligence/commit/7d5b3ba9cefb1b8c6924c4296927af55fd2ce602))
+* **training:** training scripts, synthetic data generation, and demo utilities ([d64bbc0](https://github.com/abailey81/implicit-interaction-intelligence/commit/d64bbc01a2d86493a7656fd8b1ab363db9a944bd))
+* **tts:** Batch F-TTS — adaptation-conditioned speech synthesis (AI Glasses / Celia / Hanhan) ([83c1bb0](https://github.com/abailey81/implicit-interaction-intelligence/commit/83c1bb06d95db6dcb1f7befc1e0b54d8a4bd26f9))
+* **ui:** Batch G9 — advanced cinematic command-center demo UI at /advanced ([d4ab940](https://github.com/abailey81/implicit-interaction-intelligence/commit/d4ab9400eaf9fb81bd0bdd783a08b1e8451894dd))
+* **verify:** Batch G8 — comprehensive verification harness (46 PASS/FAIL/SKIP checks) ([56a447f](https://github.com/abailey81/implicit-interaction-intelligence/commit/56a447f488bfccb3627c63812348dffbed757d24))
+* **web:** FastAPI backend, WebSocket handler, and dark-theme frontend ([9d000f5](https://github.com/abailey81/implicit-interaction-intelligence/commit/9d000f56342c841450a213da8662903ec111312c))
+
+
+### Bug Fixes
+
+* **audit:** address P0 findings from the four final-audit agents ([c0e2e2a](https://github.com/abailey81/implicit-interaction-intelligence/commit/c0e2e2a136b664b2265c041169569be08c04d9d4))
+* **security+robustness:** wave 7 — deep audit fixes (1 blocker, 11 high, 10 medium, 7 low) ([534b780](https://github.com/abailey81/implicit-interaction-intelligence/commit/534b7806cfc8c8f39cf4ea2726efd5ed33a7a76a))
+* **verify:** Batch G10 — 4 iterative verification passes, 14 FAIL → 0 FAIL, exit 0 strict ([108c256](https://github.com/abailey81/implicit-interaction-intelligence/commit/108c256948a14add53fbd22d4e1c7bc631214dc3))
+
+
+### Documentation
+
+* **academic:** research paper, patent disclosure, executive summary, conference poster ([df844ac](https://github.com/abailey81/implicit-interaction-intelligence/commit/df844ac421206e4703e28c69f130c88c831da073))
+* **alignment:** Huawei-anchored advancement plan + JD-grounded interview pivots ([461e4b0](https://github.com/abailey81/implicit-interaction-intelligence/commit/461e4b013b56ddc6ed7c5dc6e32ecea85b3cc9d4))
+* **plan:** ADVANCEMENT_PLAN v3 appendix — empirical-rigour + ecosystem-fit batches ([7bd9d8d](https://github.com/abailey81/implicit-interaction-intelligence/commit/7bd9d8d62ba7b27673f2a6250050e4733110bf26))
+* **reports:** edge profiling report, model cards, data card, accessibility statement ([9b3146c](https://github.com/abailey81/implicit-interaction-intelligence/commit/9b3146c9d870609395b240a3892da559c713aecd))
+* **site:** add trailing MkDocs pages (changelog include, contributing, security) ([e2c119e](https://github.com/abailey81/implicit-interaction-intelligence/commit/e2c119ef0c0fcf7ac9ee6fb29b77011f1b756caf))
+* **site:** MkDocs Material documentation site + 10 ADRs ([0662dee](https://github.com/abailey81/implicit-interaction-intelligence/commit/0662dee4b4f4d0901ba5ed4643f72ee08c106fd5))
+
 ## [Unreleased]
 
 _No unreleased changes; see [1.1.0] below._

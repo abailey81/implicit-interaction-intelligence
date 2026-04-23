@@ -17,7 +17,7 @@ build-backend = "poetry.core.masonry.api"
 # ─── Project Metadata ────────────────────────────────────────────────────
 [tool.poetry]
 name        = "implicit-interaction-intelligence"
-version     = "1.0.0"
+version     = "0.1.0"
 description = "Adaptive AI companion built from implicit interaction signals."
 readme      = "README.md"
 license     = "MIT"
