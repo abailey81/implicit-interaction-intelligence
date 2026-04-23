@@ -1,14 +1,14 @@
 # I3 Verification Report
 
-- Run at: `2026-04-23T14:20:03.821167+00:00`
-- Git SHA: `fbdcb8d897e6c24d9558762b6345ee3cc96eaf7d`
+- Run at: `2026-04-23T14:42:15.761591+00:00`
+- Git SHA: `058945bed8b556ca96e918822efcfb06ebe349dd`
 - Python: `3.12.10`
 - Platform: `Windows-11-10.0.22621-SP0`
-- Duration: `6.62s`
+- Duration: `7.16s`
 
 ## Executive Summary
 
-- Total: **44** | PASS: **27** | FAIL: **0** | SKIP: **17** | Pass-rate (excluding skips): **100.0%**
+- Total: **44** | PASS: **24** | FAIL: **0** | SKIP: **20** | Pass-rate (excluding skips): **100.0%**
 
 ### Per-category summary
 
@@ -19,51 +19,51 @@
 | `config_data` | 7 | 6 | 0 | 1 |
 | `infrastructure` | 5 | 3 | 0 | 2 |
 | `interview_readiness` | 6 | 6 | 0 | 0 |
-| `providers` | 5 | 4 | 0 | 1 |
-| `security` | 4 | 1 | 0 | 3 |
+| `providers` | 5 | 0 | 0 | 5 |
+| `security` | 4 | 2 | 0 | 2 |
 
 ## Full Results
 
 | Status | Severity | Check | Duration | Message |
 |---|---|---|---|---|
-| PASS | `blocker` | `code.ast_parse_all_python` (All .py files parse with ast) | 1719 ms | parsed 401 files cleanly |
-| SKIP | `blocker` | `code.top_level_imports` (Top-level packages import cleanly) | 1672 ms | 1 package(s) blocked by missing runtime deps |
-| PASS | `high` | `code.no_bare_except` (No bare except in library code) | 875 ms | no bare except handlers |
-| PASS | `medium` | `code.no_print_in_library` (No print() in i3/ library code) | 829 ms | no print() calls in i3/ |
-| PASS | `high` | `code.soft_import_pattern` (Optional SDK imports guarded by try/except ImportError) | 1000 ms | all optional-SDK imports guarded |
-| SKIP | `medium` | `code.ruff_clean` (ruff check (library code)) | 79 ms | ruff binary not on PATH |
-| SKIP | `low` | `code.mypy_clean` (mypy (best-effort)) | 125 ms | mypy binary not on PATH |
-| PASS | `info` | `code.from_future_annotations` (from __future__ import annotations in i3/ modules (informational)) | 812 ms | 170/182 modules missing; coverage 6.6% (informational -- never FAIL) |
-| PASS | `info` | `code.pep604_union_syntax` (PEP-604 union syntax (X | Y over Optional/Union)) | 234 ms | 111 legacy Optional/Union occurrence(s) (warning only) |
+| PASS | `blocker` | `code.ast_parse_all_python` (All .py files parse with ast) | 1515 ms | parsed 408 files cleanly |
+| SKIP | `blocker` | `code.top_level_imports` (Top-level packages import cleanly) | 1530 ms | 1 package(s) blocked by missing runtime deps |
+| PASS | `high` | `code.no_bare_except` (No bare except in library code) | 812 ms | no bare except handlers |
+| PASS | `medium` | `code.no_print_in_library` (No print() in i3/ library code) | 750 ms | no print() calls in i3/ |
+| PASS | `high` | `code.soft_import_pattern` (Optional SDK imports guarded by try/except ImportError) | 859 ms | all optional-SDK imports guarded |
+| SKIP | `medium` | `code.ruff_clean` (ruff check (library code)) | 62 ms | ruff binary not on PATH |
+| SKIP | `low` | `code.mypy_clean` (mypy (best-effort)) | 109 ms | mypy binary not on PATH |
+| PASS | `info` | `code.from_future_annotations` (from __future__ import annotations in i3/ modules (informational)) | 687 ms | 170/182 modules missing; coverage 6.6% (informational -- never FAIL) |
+| PASS | `info` | `code.pep604_union_syntax` (PEP-604 union syntax (X | Y over Optional/Union)) | 172 ms | 111 legacy Optional/Union occurrence(s) (warning only) |
 | PASS | `high` | `code.no_todo_personnel_references` (No invalidated personnel references in interviewer-facing docs) | 47 ms | no invalidated personnel references |
-| PASS | `high` | `config.yaml_parse_all` (All .yaml/.yml files parse) | 1327 ms | 88 plain-YAML file(s) parsed cleanly (23 templated files skipped) |
-| PASS | `high` | `config.json_parse_all` (All .json files parse) | 170 ms | 21 JSON file(s) parsed cleanly |
-| PASS | `high` | `config.toml_parse_all` (All .toml files parse) | 172 ms | 4 TOML file(s) parsed cleanly |
+| PASS | `high` | `config.yaml_parse_all` (All .yaml/.yml files parse) | 1266 ms | 88 plain-YAML file(s) parsed cleanly (23 templated files skipped) |
+| PASS | `high` | `config.json_parse_all` (All .json files parse) | 155 ms | 21 JSON file(s) parsed cleanly |
+| PASS | `high` | `config.toml_parse_all` (All .toml files parse) | 140 ms | 4 TOML file(s) parsed cleanly |
 | PASS | `medium` | `config.notebooks_valid_nbformat` (All .ipynb files are valid nbformat v4) | 140 ms | 7 notebook(s) valid |
-| PASS | `medium` | `config.env_example_keys_documented` (.env.example keys referenced in python source) | 422 ms | 28 env keys, all referenced (or SDK-chain) |
-| PASS | `blocker` | `config.no_hardcoded_secrets` (No hardcoded secret prefixes outside .env.example) | 1937 ms | no hardcoded secret prefixes found |
+| PASS | `medium` | `config.env_example_keys_documented` (.env.example keys referenced in python source) | 312 ms | 28 env keys, all referenced (or SDK-chain) |
+| PASS | `blocker` | `config.no_hardcoded_secrets` (No hardcoded secret prefixes outside .env.example) | 1452 ms | no hardcoded secret prefixes found |
 | PASS | `blocker` | `config.claude_model_id_locked` (configs/default.yaml cloud.model == claude-sonnet-4-5) | 0 ms | cloud.model == 'claude-sonnet-4-5' |
 | SKIP | `medium` | `config.mkdocs_build_strict` (mkdocs build --strict) | 15 ms | mkdocs binary not on PATH |
-| SKIP | `blocker` | `runtime.fastapi_app_creation` (create_app() returns a FastAPI instance) | 890 ms | fastapi or server.app not importable: [WinError 1114] Произошел сбой в программе инициализации библиотеки динамической компоновки (DLL). Error loading "D:\venv-i3\Lib\site-packages\torch\lib\c10.dll" or one of its dependencies. |
-| SKIP | `high` | `runtime.all_routes_registered` (OpenAPI schema registers every expected route) | 530 ms | server.app not importable: [WinError 1114] Произошел сбой в программе инициализации библиотеки динамической компоновки (DLL). Error loading "D:\venv-i3\Lib\site-packages\torch\lib\c10.dll" or one of its dependencies. |
-| SKIP | `blocker` | `runtime.health_live_endpoints` (GET /api/health and /api/live return 200) | 3202 ms | TestClient unavailable: module 'torch' has no attribute 'manual_seed' |
-| SKIP | `high` | `runtime.ready_endpoint_shape` (/api/ready JSON includes status + checks) | 3079 ms | OS-level dep load failed: [WinError 1114] Произошел сбой в программе инициализации библиотеки динамической компоновки (DLL). Error loading "D:\ven |
-| SKIP | `blocker` | `runtime.privacy_sanitizer_patterns` (PrivacySanitizer redacts 10 PII categories) | 484 ms | PrivacySanitizer import failed: [WinError 1114] Произошел сбой в программе инициализации библиотеки динамической компоновки (DLL). Error loading "D:\venv-i3\Lib\site-packages\torch\lib\c10.dll" or one of its dependencies. |
-| SKIP | `blocker` | `runtime.pddl_refuses_sensitive_cloud` (PDDL planner refuses cloud route on sensitive topics) | 812 ms | PDDL planner import failed: cannot import name 'AdaptationVector' from 'i3.adaptation.types' (D:\implicit-interaction-intelligence\i3\adaptation\types.py) |
-| SKIP | `high` | `runtime.tcn_forward_pass` (TCN forward pass returns [1, 64]) | 375 ms | torch or TCN not importable: [WinError 1114] Произошел сбой в программе инициализации библиотеки динамической компоновки (DLL). Error loading "D:\venv-i3\Lib\site-packages\torch\lib\c10.dll" or one of its dependencies. |
-| SKIP | `high` | `runtime.adaptation_vector_roundtrip` (AdaptationVector to_dict/from_dict roundtrip is bit-identical) | 437 ms | AdaptationVector not importable: [WinError 1114] Произошел сбой в программе инициализации библиотеки динамической компоновки (DLL). Error loading "D:\venv-i3\Lib\site-packages\torch\lib\c10.dll" or one of its dependencies. |
-| SKIP | `blocker` | `runtime.encryption_roundtrip` (ModelEncryptor encrypt/decrypt ndarray is bit-identical) | 469 ms | ModelEncryptor not importable: [WinError 1114] Произошел сбой в программе инициализации библиотеки динамической компоновки (DLL). Error loading "D:\venv-i3\Lib\site-packages\torch\lib\c10.dll" or one of its dependencies. |
-| SKIP | `high` | `runtime.bandit_thompson_sample_validity` (Thompson bandit returns a valid arm index) | 859 ms | bandit not importable: [WinError 1114] Произошел сбой в программе инициализации библиотеки динамической компоновки (DLL). Error loading "D:\venv-i3\Lib\site-packages\torch\lib\c10.dll" or one of its dependencies. |
-| SKIP | `blocker` | `providers.all_registered` (ProviderRegistry contains >= 11 first-class providers) | 905 ms | OS-level dep load failed: [WinError 1114] Произошел сбой в программе инициализации библиотеки динамической компоновки (DLL). Error loading "D:\ven |
-| PASS | `high` | `providers.construct_without_sdk` (Every provider class instantiates without its SDK) | 967 ms | all 11 adapter modules import cleanly |
-| PASS | `blocker` | `providers.multi_provider_fallback` (MultiProviderClient falls through to second provider on first failure) | 422 ms | fallback chain escalated to second provider as expected |
-| PASS | `medium` | `providers.cost_tracker_basic` (CostTracker.record then .report yields non-zero totals) | 422 ms | report.total_calls = 1 |
-| PASS | `medium` | `providers.prompt_translator_shapes` (prompt_translator produces provider-specific shapes) | 15 ms | 4 provider shapes produced cleanly |
+| SKIP | `blocker` | `runtime.fastapi_app_creation` (create_app() returns a FastAPI instance) | 562 ms | fastapi or server.app not importable: [WinError 1114] Произошел сбой в программе инициализации библиотеки динамической компоновки (DLL). Error loading "D:\venv-i3\Lib\site-packages\torch\lib\c10.dll" or one of its dependencies. |
+| SKIP | `high` | `runtime.all_routes_registered` (OpenAPI schema registers every expected route) | 453 ms | server.app not importable: [WinError 1114] Произошел сбой в программе инициализации библиотеки динамической компоновки (DLL). Error loading "D:\venv-i3\Lib\site-packages\torch\lib\c10.dll" or one of its dependencies. |
+| SKIP | `blocker` | `runtime.health_live_endpoints` (GET /api/health and /api/live return 200) | 2734 ms | TestClient unavailable: module 'torch' has no attribute 'manual_seed' |
+| SKIP | `high` | `runtime.ready_endpoint_shape` (/api/ready JSON includes status + checks) | 2671 ms | TestClient unavailable: [WinError 1114] Произошел сбой в программе инициализации библиотеки динамической компоновки (DLL). Error loading "D:\venv-i3\Lib\site-packages\torch\lib\c10.dll" or one of its dependencies. |
+| SKIP | `blocker` | `runtime.privacy_sanitizer_patterns` (PrivacySanitizer redacts 10 PII categories) | 375 ms | PrivacySanitizer import failed: [WinError 1114] Произошел сбой в программе инициализации библиотеки динамической компоновки (DLL). Error loading "D:\venv-i3\Lib\site-packages\torch\lib\c10.dll" or one of its dependencies. |
+| SKIP | `blocker` | `runtime.pddl_refuses_sensitive_cloud` (PDDL planner refuses cloud route on sensitive topics) | 359 ms | PDDL planner import failed: [WinError 1114] Произошел сбой в программе инициализации библиотеки динамической компоновки (DLL). Error loading "D:\venv-i3\Lib\site-packages\torch\lib\c10.dll" or one of its dependencies. |
+| SKIP | `high` | `runtime.tcn_forward_pass` (TCN forward pass returns [1, 64]) | 343 ms | torch or TCN not importable: [WinError 1114] Произошел сбой в программе инициализации библиотеки динамической компоновки (DLL). Error loading "D:\venv-i3\Lib\site-packages\torch\lib\c10.dll" or one of its dependencies. |
+| SKIP | `high` | `runtime.adaptation_vector_roundtrip` (AdaptationVector to_dict/from_dict roundtrip is bit-identical) | 718 ms | AdaptationVector not importable: [WinError 1114] Произошел сбой в программе инициализации библиотеки динамической компоновки (DLL). Error loading "D:\venv-i3\Lib\site-packages\torch\lib\c10.dll" or one of its dependencies. |
+| PASS | `blocker` | `runtime.encryption_roundtrip` (ModelEncryptor encrypt/decrypt ndarray is bit-identical) | 797 ms | roundtrip ok (64 bytes) |
+| SKIP | `high` | `runtime.bandit_thompson_sample_validity` (Thompson bandit returns a valid arm index) | 422 ms | bandit not importable: [WinError 1114] Произошел сбой в программе инициализации библиотеки динамической компоновки (DLL). Error loading "D:\venv-i3\Lib\site-packages\torch\lib\c10.dll" or one of its dependencies. |
+| SKIP | `blocker` | `providers.all_registered` (ProviderRegistry contains >= 11 first-class providers) | 390 ms | OS-level dep load failed: [WinError 1114] Произошел сбой в программе инициализации библиотеки динамической компоновки (DLL). Error loading "D:\ven |
+| SKIP | `high` | `providers.construct_without_sdk` (Every provider class instantiates without its SDK) | 1140 ms | OS-level dep load failed: [WinError 1114] Произошел сбой в программе инициализации библиотеки динамической компоновки (DLL). Error loading "D:\ven |
+| SKIP | `blocker` | `providers.multi_provider_fallback` (MultiProviderClient falls through to second provider on first failure) | 1156 ms | OS-level dep load failed: [WinError 1114] Произошел сбой в программе инициализации библиотеки динамической компоновки (DLL). Error loading "D:\ven |
+| SKIP | `medium` | `providers.cost_tracker_basic` (CostTracker.record then .report yields non-zero totals) | 1594 ms | OS-level dep load failed: [WinError 1114] Произошел сбой в программе инициализации библиотеки динамической компоновки (DLL). Error loading "D:\ven |
+| SKIP | `medium` | `providers.prompt_translator_shapes` (prompt_translator produces provider-specific shapes) | 1609 ms | OS-level dep load failed: [WinError 1114] Произошел сбой в программе инициализации библиотеки динамической компоновки (DLL). Error loading "D:\ven |
 | PASS | `high` | `infra.dockerfile_parses` (Every Dockerfile* has FROM and CMD/ENTRYPOINT) | 0 ms | 4 Dockerfile(s) valid |
-| PASS | `medium` | `infra.compose_schema` (docker-compose*.yml has services section) | 15 ms | 2 compose file(s) valid |
+| PASS | `medium` | `infra.compose_schema` (docker-compose*.yml has services section) | 0 ms | 2 compose file(s) valid |
 | SKIP | `low` | `infra.helm_lint` (helm lint deploy/helm/i3 (if helm available)) | 30 ms | helm binary not on PATH |
 | PASS | `medium` | `infra.kubernetes_manifests` (deploy/k8s/*.yaml have apiVersion/kind/metadata) | 15 ms | 10 k8s manifest(s) valid |
-| SKIP | `low` | `infra.cedar_policy_parses` (deploy/policy/cedar/*.cedar parses via cedarpy) | 0 ms | cedarpy not available |
+| SKIP | `low` | `infra.cedar_policy_parses` (deploy/policy/cedar/*.cedar parses via cedarpy) | 15 ms | cedarpy not available |
 | PASS | `high` | `interview.slide_count` (docs/slides/presentation.md has exactly 15 slides (frontmatter-aware)) | 0 ms | 16 '---' separator(s); expected 16 (Marp frontmatter=True) |
 | PASS | `high` | `interview.qa_pair_count` (docs/slides/qa_prep.md has exactly 52 Q&A pairs) | 0 ms | 52 '### ' Q&A heading(s), expected 52 |
 | PASS | `blocker` | `interview.closing_line_verbatim` (closing_lines.md contains the verbatim closing line) | 0 ms | verbatim closing line present |
@@ -80,21 +80,24 @@
 - `runtime.fastapi_app_creation` (create_app() returns a FastAPI instance): fastapi or server.app not importable: [WinError 1114] Произошел сбой в программе инициализации библиотеки динамической компоновки (DLL). Error loading "D:\venv-i3\Lib\site-packages\torch\lib\c10.dll" or one of its dependencies.
 - `runtime.all_routes_registered` (OpenAPI schema registers every expected route): server.app not importable: [WinError 1114] Произошел сбой в программе инициализации библиотеки динамической компоновки (DLL). Error loading "D:\venv-i3\Lib\site-packages\torch\lib\c10.dll" or one of its dependencies.
 - `runtime.health_live_endpoints` (GET /api/health and /api/live return 200): TestClient unavailable: module 'torch' has no attribute 'manual_seed'
-- `runtime.ready_endpoint_shape` (/api/ready JSON includes status + checks): OS-level dep load failed: [WinError 1114] Произошел сбой в программе инициализации библиотеки динамической компоновки (DLL). Error loading "D:\ven
+- `runtime.ready_endpoint_shape` (/api/ready JSON includes status + checks): TestClient unavailable: [WinError 1114] Произошел сбой в программе инициализации библиотеки динамической компоновки (DLL). Error loading "D:\venv-i3\Lib\site-packages\torch\lib\c10.dll" or one of its dependencies.
 - `runtime.privacy_sanitizer_patterns` (PrivacySanitizer redacts 10 PII categories): PrivacySanitizer import failed: [WinError 1114] Произошел сбой в программе инициализации библиотеки динамической компоновки (DLL). Error loading "D:\venv-i3\Lib\site-packages\torch\lib\c10.dll" or one of its dependencies.
-- `runtime.pddl_refuses_sensitive_cloud` (PDDL planner refuses cloud route on sensitive topics): PDDL planner import failed: cannot import name 'AdaptationVector' from 'i3.adaptation.types' (D:\implicit-interaction-intelligence\i3\adaptation\types.py)
+- `runtime.pddl_refuses_sensitive_cloud` (PDDL planner refuses cloud route on sensitive topics): PDDL planner import failed: [WinError 1114] Произошел сбой в программе инициализации библиотеки динамической компоновки (DLL). Error loading "D:\venv-i3\Lib\site-packages\torch\lib\c10.dll" or one of its dependencies.
 - `runtime.tcn_forward_pass` (TCN forward pass returns [1, 64]): torch or TCN not importable: [WinError 1114] Произошел сбой в программе инициализации библиотеки динамической компоновки (DLL). Error loading "D:\venv-i3\Lib\site-packages\torch\lib\c10.dll" or one of its dependencies.
 - `runtime.adaptation_vector_roundtrip` (AdaptationVector to_dict/from_dict roundtrip is bit-identical): AdaptationVector not importable: [WinError 1114] Произошел сбой в программе инициализации библиотеки динамической компоновки (DLL). Error loading "D:\venv-i3\Lib\site-packages\torch\lib\c10.dll" or one of its dependencies.
-- `runtime.encryption_roundtrip` (ModelEncryptor encrypt/decrypt ndarray is bit-identical): ModelEncryptor not importable: [WinError 1114] Произошел сбой в программе инициализации библиотеки динамической компоновки (DLL). Error loading "D:\venv-i3\Lib\site-packages\torch\lib\c10.dll" or one of its dependencies.
 - `runtime.bandit_thompson_sample_validity` (Thompson bandit returns a valid arm index): bandit not importable: [WinError 1114] Произошел сбой в программе инициализации библиотеки динамической компоновки (DLL). Error loading "D:\venv-i3\Lib\site-packages\torch\lib\c10.dll" or one of its dependencies.
 - `providers.all_registered` (ProviderRegistry contains >= 11 first-class providers): OS-level dep load failed: [WinError 1114] Произошел сбой в программе инициализации библиотеки динамической компоновки (DLL). Error loading "D:\ven
+- `providers.construct_without_sdk` (Every provider class instantiates without its SDK): OS-level dep load failed: [WinError 1114] Произошел сбой в программе инициализации библиотеки динамической компоновки (DLL). Error loading "D:\ven
+- `providers.multi_provider_fallback` (MultiProviderClient falls through to second provider on first failure): OS-level dep load failed: [WinError 1114] Произошел сбой в программе инициализации библиотеки динамической компоновки (DLL). Error loading "D:\ven
+- `providers.cost_tracker_basic` (CostTracker.record then .report yields non-zero totals): OS-level dep load failed: [WinError 1114] Произошел сбой в программе инициализации библиотеки динамической компоновки (DLL). Error loading "D:\ven
+- `providers.prompt_translator_shapes` (prompt_translator produces provider-specific shapes): OS-level dep load failed: [WinError 1114] Произошел сбой в программе инициализации библиотеки динамической компоновки (DLL). Error loading "D:\ven
 - `infra.helm_lint` (helm lint deploy/helm/i3 (if helm available)): helm binary not on PATH
 - `infra.cedar_policy_parses` (deploy/policy/cedar/*.cedar parses via cedarpy): cedarpy not available
 
 ## Environment
 
-- Git SHA: `fbdcb8d897e6c24d9558762b6345ee3cc96eaf7d`
+- Git SHA: `058945bed8b556ca96e918822efcfb06ebe349dd`
 - Python: `3.12.10`
 - Platform: `Windows-11-10.0.22621-SP0`
-- Run at: `2026-04-23T14:20:03.821167+00:00`
+- Run at: `2026-04-23T14:42:15.761591+00:00`
 

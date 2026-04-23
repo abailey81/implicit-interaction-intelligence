@@ -1,9 +1,9 @@
 {
   "total": 44,
-  "passed": 27,
+  "passed": 24,
   "failed": 0,
-  "skipped": 17,
-  "duration_s": 6.625,
+  "skipped": 20,
+  "duration_s": 7.155999999959022,
   "pass_rate": 1.0,
   "per_category_summary": {
     "code_integrity": {
@@ -20,9 +20,9 @@
     },
     "security": {
       "total": 4,
-      "passed": 1,
+      "passed": 2,
       "failed": 0,
-      "skipped": 3
+      "skipped": 2
     },
     "architecture_runtime": {
       "total": 7,
@@ -32,9 +32,9 @@
     },
     "providers": {
       "total": 5,
-      "passed": 4,
+      "passed": 0,
       "failed": 0,
-      "skipped": 1
+      "skipped": 5
     },
     "infrastructure": {
       "total": 5,
@@ -53,63 +53,63 @@
     {
       "check_id": "code.ast_parse_all_python",
       "status": "PASS",
-      "duration_ms": 1719,
-      "message": "parsed 401 files cleanly",
+      "duration_ms": 1515,
+      "message": "parsed 408 files cleanly",
       "evidence": null
     },
     {
       "check_id": "code.top_level_imports",
       "status": "SKIP",
-      "duration_ms": 1672,
+      "duration_ms": 1530,
       "message": "1 package(s) blocked by missing runtime deps",
       "evidence": "i3: OS dep load failed ([WinError 1114] \u041f\u0440\u043e\u0438\u0437\u043e\u0448\u0435\u043b \u0441\u0431\u043e\u0439 \u0432 \u043f\u0440\u043e\u0433\u0440\u0430\u043c\u043c\u0435 \u0438\u043d\u0438\u0446\u0438\u0430\u043b\u0438\u0437\u0430\u0446\u0438\u0438 \u0431\u0438\u0431\u043b\u0438\u043e\u0442\u0435\u043a\u0438 \u0434\u0438\u043d\u0430\u043c\u0438\u0447\u0435\u0441\u043a\u043e\u0439)"
     },
     {
       "check_id": "code.no_bare_except",
       "status": "PASS",
-      "duration_ms": 875,
+      "duration_ms": 812,
       "message": "no bare except handlers",
       "evidence": null
     },
     {
       "check_id": "code.no_print_in_library",
       "status": "PASS",
-      "duration_ms": 829,
+      "duration_ms": 750,
       "message": "no print() calls in i3/",
       "evidence": null
     },
     {
       "check_id": "code.soft_import_pattern",
       "status": "PASS",
-      "duration_ms": 1000,
+      "duration_ms": 859,
       "message": "all optional-SDK imports guarded",
       "evidence": null
     },
     {
       "check_id": "code.ruff_clean",
       "status": "SKIP",
-      "duration_ms": 79,
+      "duration_ms": 62,
       "message": "ruff binary not on PATH",
       "evidence": null
     },
     {
       "check_id": "code.mypy_clean",
       "status": "SKIP",
-      "duration_ms": 125,
+      "duration_ms": 109,
       "message": "mypy binary not on PATH",
       "evidence": null
     },
     {
       "check_id": "code.from_future_annotations",
       "status": "PASS",
-      "duration_ms": 812,
+      "duration_ms": 687,
       "message": "170/182 modules missing; coverage 6.6% (informational -- never FAIL)",
       "evidence": "i3\\config.py\ni3\\adaptation\\ablation.py\ni3\\adaptation\\controller.py\ni3\\adaptation\\dimensions.py\ni3\\adaptation\\types.py\ni3\\adaptation\\uncertainty.py\ni3\\analytics\\arrow_interop.py\ni3\\analytics\\duckdb_engine.py\ni3\\analytics\\ibis_queries.py\ni3\\analytics\\lance_vector.py\ni3\\analytics\\polars_features.py\ni3\\authz\\cedar_adapter.py\ni3\\biometric\\continuous_auth.py\ni3\\biometric\\keystroke_id.py\ni3\\cloud\\client.py\ni3\\cloud\\cost_tracker.py\ni3\\cloud\\dspy_adapter.py\ni3\\cloud\\guarded_client.py\ni3\\cloud\\guardrails.py\ni3\\cloud\\guardrails_nemo.py\ni3\\cloud\\instructor_adapter.py\ni3\\cloud\\multi_provider.py\ni3\\cloud\\outlines_constrained.py\ni3\\cloud\\postprocess.py\ni3\\cloud\\prompt_builder.py\ni3\\cloud\\prompt_translator.py\ni3\\cloud\\provider_registry.py\ni3\\cloud\\pydantic_ai_adapter.py\ni3\\continual\\drift_detector.py\ni3\\continual\\ewc.py\ni3\\continual\\ewc_user_model.py\ni3\\continual\\replay_buffer.py\ni3\\crossdevice\\ai_glasses_arm.py\ni3\\crossdevice\\hmos_ddm_sync.py\ni3\\diary\\logger.py\ni3\\diary\\store.py\ni3\\diary\\summarizer.py\ni3\\edge\\coreml_export.py\ni3\\edge\\executorch_export.py\ni3\\edge\\iree_export.py"
     },
     {
       "check_id": "code.pep604_union_syntax",
       "status": "PASS",
-      "duration_ms": 234,
+      "duration_ms": 172,
       "message": "111 legacy Optional/Union occurrence(s) (warning only)",
       "evidence": "i3\\adaptation\\uncertainty.py:392\ni3\\authz\\cedar_adapter.py:149\ni3\\authz\\cedar_adapter.py:152\ni3\\authz\\cedar_adapter.py:175\ni3\\authz\\cedar_adapter.py:186\ni3\\authz\\cedar_adapter.py:199\ni3\\authz\\cedar_adapter.py:211\ni3\\authz\\cedar_adapter.py:212\ni3\\authz\\cedar_adapter.py:247\ni3\\authz\\cedar_adapter.py:248\ni3\\biometric\\continuous_auth.py:168\ni3\\biometric\\continuous_auth.py:203\ni3\\biometric\\continuous_auth.py:273\ni3\\biometric\\keystroke_id.py:80\ni3\\biometric\\keystroke_id.py:112\ni3\\biometric\\keystroke_id.py:329\ni3\\cloud\\client.py:147\ni3\\cloud\\client.py:153\ni3\\cloud\\client.py:230\ni3\\cloud\\client.py:313"
     },
@@ -123,21 +123,21 @@
     {
       "check_id": "config.yaml_parse_all",
       "status": "PASS",
-      "duration_ms": 1327,
+      "duration_ms": 1266,
       "message": "88 plain-YAML file(s) parsed cleanly (23 templated files skipped)",
       "evidence": null
     },
     {
       "check_id": "config.json_parse_all",
       "status": "PASS",
-      "duration_ms": 170,
+      "duration_ms": 155,
       "message": "21 JSON file(s) parsed cleanly",
       "evidence": null
     },
     {
       "check_id": "config.toml_parse_all",
       "status": "PASS",
-      "duration_ms": 172,
+      "duration_ms": 140,
       "message": "4 TOML file(s) parsed cleanly",
       "evidence": null
     },
@@ -151,14 +151,14 @@
     {
       "check_id": "config.env_example_keys_documented",
       "status": "PASS",
-      "duration_ms": 422,
+      "duration_ms": 312,
       "message": "28 env keys, all referenced (or SDK-chain)",
       "evidence": null
     },
     {
       "check_id": "config.no_hardcoded_secrets",
       "status": "PASS",
-      "duration_ms": 1937,
+      "duration_ms": 1452,
       "message": "no hardcoded secret prefixes found",
       "evidence": null
     },
@@ -179,106 +179,106 @@
     {
       "check_id": "runtime.fastapi_app_creation",
       "status": "SKIP",
-      "duration_ms": 890,
+      "duration_ms": 562,
       "message": "fastapi or server.app not importable: [WinError 1114] \u041f\u0440\u043e\u0438\u0437\u043e\u0448\u0435\u043b \u0441\u0431\u043e\u0439 \u0432 \u043f\u0440\u043e\u0433\u0440\u0430\u043c\u043c\u0435 \u0438\u043d\u0438\u0446\u0438\u0430\u043b\u0438\u0437\u0430\u0446\u0438\u0438 \u0431\u0438\u0431\u043b\u0438\u043e\u0442\u0435\u043a\u0438 \u0434\u0438\u043d\u0430\u043c\u0438\u0447\u0435\u0441\u043a\u043e\u0439 \u043a\u043e\u043c\u043f\u043e\u043d\u043e\u0432\u043a\u0438 (DLL). Error loading \"D:\\venv-i3\\Lib\\site-packages\\torch\\lib\\c10.dll\" or one of its dependencies.",
       "evidence": null
     },
     {
       "check_id": "runtime.all_routes_registered",
       "status": "SKIP",
-      "duration_ms": 530,
+      "duration_ms": 453,
       "message": "server.app not importable: [WinError 1114] \u041f\u0440\u043e\u0438\u0437\u043e\u0448\u0435\u043b \u0441\u0431\u043e\u0439 \u0432 \u043f\u0440\u043e\u0433\u0440\u0430\u043c\u043c\u0435 \u0438\u043d\u0438\u0446\u0438\u0430\u043b\u0438\u0437\u0430\u0446\u0438\u0438 \u0431\u0438\u0431\u043b\u0438\u043e\u0442\u0435\u043a\u0438 \u0434\u0438\u043d\u0430\u043c\u0438\u0447\u0435\u0441\u043a\u043e\u0439 \u043a\u043e\u043c\u043f\u043e\u043d\u043e\u0432\u043a\u0438 (DLL). Error loading \"D:\\venv-i3\\Lib\\site-packages\\torch\\lib\\c10.dll\" or one of its dependencies.",
       "evidence": null
     },
     {
       "check_id": "runtime.health_live_endpoints",
       "status": "SKIP",
-      "duration_ms": 3202,
+      "duration_ms": 2734,
       "message": "TestClient unavailable: module 'torch' has no attribute 'manual_seed'",
       "evidence": null
     },
     {
       "check_id": "runtime.ready_endpoint_shape",
       "status": "SKIP",
-      "duration_ms": 3079,
-      "message": "OS-level dep load failed: [WinError 1114] \u041f\u0440\u043e\u0438\u0437\u043e\u0448\u0435\u043b \u0441\u0431\u043e\u0439 \u0432 \u043f\u0440\u043e\u0433\u0440\u0430\u043c\u043c\u0435 \u0438\u043d\u0438\u0446\u0438\u0430\u043b\u0438\u0437\u0430\u0446\u0438\u0438 \u0431\u0438\u0431\u043b\u0438\u043e\u0442\u0435\u043a\u0438 \u0434\u0438\u043d\u0430\u043c\u0438\u0447\u0435\u0441\u043a\u043e\u0439 \u043a\u043e\u043c\u043f\u043e\u043d\u043e\u0432\u043a\u0438 (DLL). Error loading \"D:\\ven",
+      "duration_ms": 2671,
+      "message": "TestClient unavailable: [WinError 1114] \u041f\u0440\u043e\u0438\u0437\u043e\u0448\u0435\u043b \u0441\u0431\u043e\u0439 \u0432 \u043f\u0440\u043e\u0433\u0440\u0430\u043c\u043c\u0435 \u0438\u043d\u0438\u0446\u0438\u0430\u043b\u0438\u0437\u0430\u0446\u0438\u0438 \u0431\u0438\u0431\u043b\u0438\u043e\u0442\u0435\u043a\u0438 \u0434\u0438\u043d\u0430\u043c\u0438\u0447\u0435\u0441\u043a\u043e\u0439 \u043a\u043e\u043c\u043f\u043e\u043d\u043e\u0432\u043a\u0438 (DLL). Error loading \"D:\\venv-i3\\Lib\\site-packages\\torch\\lib\\c10.dll\" or one of its dependencies.",
       "evidence": null
     },
     {
       "check_id": "runtime.privacy_sanitizer_patterns",
       "status": "SKIP",
-      "duration_ms": 484,
+      "duration_ms": 375,
       "message": "PrivacySanitizer import failed: [WinError 1114] \u041f\u0440\u043e\u0438\u0437\u043e\u0448\u0435\u043b \u0441\u0431\u043e\u0439 \u0432 \u043f\u0440\u043e\u0433\u0440\u0430\u043c\u043c\u0435 \u0438\u043d\u0438\u0446\u0438\u0430\u043b\u0438\u0437\u0430\u0446\u0438\u0438 \u0431\u0438\u0431\u043b\u0438\u043e\u0442\u0435\u043a\u0438 \u0434\u0438\u043d\u0430\u043c\u0438\u0447\u0435\u0441\u043a\u043e\u0439 \u043a\u043e\u043c\u043f\u043e\u043d\u043e\u0432\u043a\u0438 (DLL). Error loading \"D:\\venv-i3\\Lib\\site-packages\\torch\\lib\\c10.dll\" or one of its dependencies.",
       "evidence": null
     },
     {
       "check_id": "runtime.pddl_refuses_sensitive_cloud",
       "status": "SKIP",
-      "duration_ms": 812,
-      "message": "PDDL planner import failed: cannot import name 'AdaptationVector' from 'i3.adaptation.types' (D:\\implicit-interaction-intelligence\\i3\\adaptation\\types.py)",
+      "duration_ms": 359,
+      "message": "PDDL planner import failed: [WinError 1114] \u041f\u0440\u043e\u0438\u0437\u043e\u0448\u0435\u043b \u0441\u0431\u043e\u0439 \u0432 \u043f\u0440\u043e\u0433\u0440\u0430\u043c\u043c\u0435 \u0438\u043d\u0438\u0446\u0438\u0430\u043b\u0438\u0437\u0430\u0446\u0438\u0438 \u0431\u0438\u0431\u043b\u0438\u043e\u0442\u0435\u043a\u0438 \u0434\u0438\u043d\u0430\u043c\u0438\u0447\u0435\u0441\u043a\u043e\u0439 \u043a\u043e\u043c\u043f\u043e\u043d\u043e\u0432\u043a\u0438 (DLL). Error loading \"D:\\venv-i3\\Lib\\site-packages\\torch\\lib\\c10.dll\" or one of its dependencies.",
       "evidence": null
     },
     {
       "check_id": "runtime.tcn_forward_pass",
       "status": "SKIP",
-      "duration_ms": 375,
+      "duration_ms": 343,
       "message": "torch or TCN not importable: [WinError 1114] \u041f\u0440\u043e\u0438\u0437\u043e\u0448\u0435\u043b \u0441\u0431\u043e\u0439 \u0432 \u043f\u0440\u043e\u0433\u0440\u0430\u043c\u043c\u0435 \u0438\u043d\u0438\u0446\u0438\u0430\u043b\u0438\u0437\u0430\u0446\u0438\u0438 \u0431\u0438\u0431\u043b\u0438\u043e\u0442\u0435\u043a\u0438 \u0434\u0438\u043d\u0430\u043c\u0438\u0447\u0435\u0441\u043a\u043e\u0439 \u043a\u043e\u043c\u043f\u043e\u043d\u043e\u0432\u043a\u0438 (DLL). Error loading \"D:\\venv-i3\\Lib\\site-packages\\torch\\lib\\c10.dll\" or one of its dependencies.",
       "evidence": null
     },
     {
       "check_id": "runtime.adaptation_vector_roundtrip",
       "status": "SKIP",
-      "duration_ms": 437,
+      "duration_ms": 718,
       "message": "AdaptationVector not importable: [WinError 1114] \u041f\u0440\u043e\u0438\u0437\u043e\u0448\u0435\u043b \u0441\u0431\u043e\u0439 \u0432 \u043f\u0440\u043e\u0433\u0440\u0430\u043c\u043c\u0435 \u0438\u043d\u0438\u0446\u0438\u0430\u043b\u0438\u0437\u0430\u0446\u0438\u0438 \u0431\u0438\u0431\u043b\u0438\u043e\u0442\u0435\u043a\u0438 \u0434\u0438\u043d\u0430\u043c\u0438\u0447\u0435\u0441\u043a\u043e\u0439 \u043a\u043e\u043c\u043f\u043e\u043d\u043e\u0432\u043a\u0438 (DLL). Error loading \"D:\\venv-i3\\Lib\\site-packages\\torch\\lib\\c10.dll\" or one of its dependencies.",
       "evidence": null
     },
     {
       "check_id": "runtime.encryption_roundtrip",
-      "status": "SKIP",
-      "duration_ms": 469,
-      "message": "ModelEncryptor not importable: [WinError 1114] \u041f\u0440\u043e\u0438\u0437\u043e\u0448\u0435\u043b \u0441\u0431\u043e\u0439 \u0432 \u043f\u0440\u043e\u0433\u0440\u0430\u043c\u043c\u0435 \u0438\u043d\u0438\u0446\u0438\u0430\u043b\u0438\u0437\u0430\u0446\u0438\u0438 \u0431\u0438\u0431\u043b\u0438\u043e\u0442\u0435\u043a\u0438 \u0434\u0438\u043d\u0430\u043c\u0438\u0447\u0435\u0441\u043a\u043e\u0439 \u043a\u043e\u043c\u043f\u043e\u043d\u043e\u0432\u043a\u0438 (DLL). Error loading \"D:\\venv-i3\\Lib\\site-packages\\torch\\lib\\c10.dll\" or one of its dependencies.",
+      "status": "PASS",
+      "duration_ms": 797,
+      "message": "roundtrip ok (64 bytes)",
       "evidence": null
     },
     {
       "check_id": "runtime.bandit_thompson_sample_validity",
       "status": "SKIP",
-      "duration_ms": 859,
+      "duration_ms": 422,
       "message": "bandit not importable: [WinError 1114] \u041f\u0440\u043e\u0438\u0437\u043e\u0448\u0435\u043b \u0441\u0431\u043e\u0439 \u0432 \u043f\u0440\u043e\u0433\u0440\u0430\u043c\u043c\u0435 \u0438\u043d\u0438\u0446\u0438\u0430\u043b\u0438\u0437\u0430\u0446\u0438\u0438 \u0431\u0438\u0431\u043b\u0438\u043e\u0442\u0435\u043a\u0438 \u0434\u0438\u043d\u0430\u043c\u0438\u0447\u0435\u0441\u043a\u043e\u0439 \u043a\u043e\u043c\u043f\u043e\u043d\u043e\u0432\u043a\u0438 (DLL). Error loading \"D:\\venv-i3\\Lib\\site-packages\\torch\\lib\\c10.dll\" or one of its dependencies.",
       "evidence": null
     },
     {
       "check_id": "providers.all_registered",
       "status": "SKIP",
-      "duration_ms": 905,
+      "duration_ms": 390,
       "message": "OS-level dep load failed: [WinError 1114] \u041f\u0440\u043e\u0438\u0437\u043e\u0448\u0435\u043b \u0441\u0431\u043e\u0439 \u0432 \u043f\u0440\u043e\u0433\u0440\u0430\u043c\u043c\u0435 \u0438\u043d\u0438\u0446\u0438\u0430\u043b\u0438\u0437\u0430\u0446\u0438\u0438 \u0431\u0438\u0431\u043b\u0438\u043e\u0442\u0435\u043a\u0438 \u0434\u0438\u043d\u0430\u043c\u0438\u0447\u0435\u0441\u043a\u043e\u0439 \u043a\u043e\u043c\u043f\u043e\u043d\u043e\u0432\u043a\u0438 (DLL). Error loading \"D:\\ven",
       "evidence": null
     },
     {
       "check_id": "providers.construct_without_sdk",
-      "status": "PASS",
-      "duration_ms": 967,
-      "message": "all 11 adapter modules import cleanly",
+      "status": "SKIP",
+      "duration_ms": 1140,
+      "message": "OS-level dep load failed: [WinError 1114] \u041f\u0440\u043e\u0438\u0437\u043e\u0448\u0435\u043b \u0441\u0431\u043e\u0439 \u0432 \u043f\u0440\u043e\u0433\u0440\u0430\u043c\u043c\u0435 \u0438\u043d\u0438\u0446\u0438\u0430\u043b\u0438\u0437\u0430\u0446\u0438\u0438 \u0431\u0438\u0431\u043b\u0438\u043e\u0442\u0435\u043a\u0438 \u0434\u0438\u043d\u0430\u043c\u0438\u0447\u0435\u0441\u043a\u043e\u0439 \u043a\u043e\u043c\u043f\u043e\u043d\u043e\u0432\u043a\u0438 (DLL). Error loading \"D:\\ven",
       "evidence": null
     },
     {
       "check_id": "providers.multi_provider_fallback",
-      "status": "PASS",
-      "duration_ms": 422,
-      "message": "fallback chain escalated to second provider as expected",
+      "status": "SKIP",
+      "duration_ms": 1156,
+      "message": "OS-level dep load failed: [WinError 1114] \u041f\u0440\u043e\u0438\u0437\u043e\u0448\u0435\u043b \u0441\u0431\u043e\u0439 \u0432 \u043f\u0440\u043e\u0433\u0440\u0430\u043c\u043c\u0435 \u0438\u043d\u0438\u0446\u0438\u0430\u043b\u0438\u0437\u0430\u0446\u0438\u0438 \u0431\u0438\u0431\u043b\u0438\u043e\u0442\u0435\u043a\u0438 \u0434\u0438\u043d\u0430\u043c\u0438\u0447\u0435\u0441\u043a\u043e\u0439 \u043a\u043e\u043c\u043f\u043e\u043d\u043e\u0432\u043a\u0438 (DLL). Error loading \"D:\\ven",
       "evidence": null
     },
     {
       "check_id": "providers.cost_tracker_basic",
-      "status": "PASS",
-      "duration_ms": 422,
-      "message": "report.total_calls = 1",
+      "status": "SKIP",
+      "duration_ms": 1594,
+      "message": "OS-level dep load failed: [WinError 1114] \u041f\u0440\u043e\u0438\u0437\u043e\u0448\u0435\u043b \u0441\u0431\u043e\u0439 \u0432 \u043f\u0440\u043e\u0433\u0440\u0430\u043c\u043c\u0435 \u0438\u043d\u0438\u0446\u0438\u0430\u043b\u0438\u0437\u0430\u0446\u0438\u0438 \u0431\u0438\u0431\u043b\u0438\u043e\u0442\u0435\u043a\u0438 \u0434\u0438\u043d\u0430\u043c\u0438\u0447\u0435\u0441\u043a\u043e\u0439 \u043a\u043e\u043c\u043f\u043e\u043d\u043e\u0432\u043a\u0438 (DLL). Error loading \"D:\\ven",
       "evidence": null
     },
     {
       "check_id": "providers.prompt_translator_shapes",
-      "status": "PASS",
-      "duration_ms": 15,
-      "message": "4 provider shapes produced cleanly",
+      "status": "SKIP",
+      "duration_ms": 1609,
+      "message": "OS-level dep load failed: [WinError 1114] \u041f\u0440\u043e\u0438\u0437\u043e\u0448\u0435\u043b \u0441\u0431\u043e\u0439 \u0432 \u043f\u0440\u043e\u0433\u0440\u0430\u043c\u043c\u0435 \u0438\u043d\u0438\u0446\u0438\u0430\u043b\u0438\u0437\u0430\u0446\u0438\u0438 \u0431\u0438\u0431\u043b\u0438\u043e\u0442\u0435\u043a\u0438 \u0434\u0438\u043d\u0430\u043c\u0438\u0447\u0435\u0441\u043a\u043e\u0439 \u043a\u043e\u043c\u043f\u043e\u043d\u043e\u0432\u043a\u0438 (DLL). Error loading \"D:\\ven",
       "evidence": null
     },
     {
@@ -291,7 +291,7 @@
     {
       "check_id": "infra.compose_schema",
       "status": "PASS",
-      "duration_ms": 15,
+      "duration_ms": 0,
       "message": "2 compose file(s) valid",
       "evidence": null
     },
@@ -312,7 +312,7 @@
     {
       "check_id": "infra.cedar_policy_parses",
       "status": "SKIP",
-      "duration_ms": 0,
+      "duration_ms": 15,
       "message": "cedarpy not available",
       "evidence": null
     },
@@ -359,8 +359,8 @@
       "evidence": null
     }
   ],
-  "run_at": "2026-04-23T14:20:03.821167Z",
-  "git_sha": "fbdcb8d897e6c24d9558762b6345ee3cc96eaf7d",
+  "run_at": "2026-04-23T14:42:15.761591Z",
+  "git_sha": "058945bed8b556ca96e918822efcfb06ebe349dd",
   "python_version": "3.12.10",
   "platform": "Windows-11-10.0.22621-SP0"
 }
