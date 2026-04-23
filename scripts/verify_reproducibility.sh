@@ -64,8 +64,8 @@ fi
 # ------------------------------------------------------------------
 # 3. Docker double-build digest compare
 # ------------------------------------------------------------------
-if command -v docker >/dev/null 2>&1 && [ -f "$REPO_ROOT/Dockerfile.wolfi" ]; then
-    printf "%s[3/3]%s double-build Dockerfile.wolfi and compare digests\n" "$YELLOW" "$RESET"
+if command -v docker >/dev/null 2>&1 && [ -f "$REPO_ROOT/docker/Dockerfile.wolfi" ]; then
+    printf "%s[3/3]%s double-build docker/Dockerfile.wolfi and compare digests\n" "$YELLOW" "$RESET"
 
     tag_a="i3:repro-a-$$"
     tag_b="i3:repro-b-$$"
@@ -74,14 +74,14 @@ if command -v docker >/dev/null 2>&1 && [ -f "$REPO_ROOT/Dockerfile.wolfi" ]; th
     docker build \
         --no-cache \
         --pull \
-        -f Dockerfile.wolfi \
+        -f docker/Dockerfile.wolfi \
         -t "$tag_a" . >/tmp/repro-build-a.log 2>&1
 
     # Build B (no cache again — must match byte-for-byte)
     docker build \
         --no-cache \
         --pull \
-        -f Dockerfile.wolfi \
+        -f docker/Dockerfile.wolfi \
         -t "$tag_b" . >/tmp/repro-build-b.log 2>&1
 
     digest_a="$(docker image inspect "$tag_a" --format '{{.Id}}')"
@@ -98,7 +98,7 @@ if command -v docker >/dev/null 2>&1 && [ -f "$REPO_ROOT/Dockerfile.wolfi" ]; th
     # Tidy up
     docker image rm -f "$tag_a" "$tag_b" >/dev/null 2>&1 || true
 else
-    docker_detail="docker or Dockerfile.wolfi unavailable"
+    docker_detail="docker or docker/Dockerfile.wolfi unavailable"
 fi
 
 # ------------------------------------------------------------------

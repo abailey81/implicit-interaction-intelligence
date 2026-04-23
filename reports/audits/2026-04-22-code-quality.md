@@ -151,7 +151,7 @@ on it in production).
 `pytest-benchmark`), but worth a `# noqa: BLE001 — plugin missing`
 comment per audit axis 4.
 
-**CQ-L5 — `scripts/evaluate_conditioning.py` load path uses
+**CQ-L5 — `scripts/benchmarks/evaluate_conditioning.py` load path uses
 `torch.load(str(checkpoint), ..., weights_only=True)` directly.**
 Should route through `i3.mlops.checkpoint.load_verified` like
 `export_onnx.py` does, for hash-integrity consistency.
@@ -239,7 +239,7 @@ The following modules are **exemplary** and meet all audit axes:
 4. `i3/edge/executorch_export.py` step log messages say "Step 2/4"
    *inside* the quantization-skipped branch too, which can confuse
    log readers. Conditionally re-number.
-5. `scripts/export_onnx.py` uses `_load_state` return type `dict` —
+5. `scripts/export/onnx.py` uses `_load_state` return type `dict` —
    should be `dict[str, Any]` (PEP 585) or `Any`.
 6. `i3/mlops/tracking.py` `_PYTHON_VERSION = sys.version` sets a
    module-scope constant that is never read. Remove or annotate `__all__`.

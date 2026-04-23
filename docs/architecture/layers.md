@@ -6,7 +6,7 @@ deeper treatment where it exists.
 
 !!! tip "Canonical reference"
     The authoritative, maths-heavy deep dive is
-    [`docs/ARCHITECTURE.md`](https://github.com/abailey81/implicit-interaction-intelligence/blob/main/docs/ARCHITECTURE.md).
+    [`docs/architecture/full-reference.md`](https://github.com/abailey81/implicit-interaction-intelligence/blob/main/docs/architecture/full-reference.md).
     This page is a navigation aid.
 
 ## Layer 1 — Perception { #l1 }

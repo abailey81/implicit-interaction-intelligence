@@ -24,7 +24,7 @@ dedicated algorithm team.
 **I³ alignment.**
 - `i3/huawei/hmaf_adapter.py` already implements an HMAF-shaped agent
   interface (`register_capability` / `plan` / `execute` / `emit_telemetry`).
-- Batch D of the advancement plan upgrades this to an end-to-end runnable
+- the advancement plan upgrades this to an end-to-end runnable
   agentic runtime, so I³ can register as a capability inside HMAF without
   architectural re-work.
 - The `I3UserStateSync` 64-dim payload (documented in
@@ -178,7 +178,7 @@ Machine Interaction (Internship) places the role inside this centre.
 - **Technical-reviewer reading this document first:** Sections 4
   (speculative decoding), 5 (fast/slow), 6 (PDDL safety), and 7
   (MindSpore Lite) are the four where the technical trajectories meet.
-  Batch D of `ADVANCEMENT_PLAN.md` ships runnable code against Sections
+  Batch D of `the advancement plan` ships runnable code against Sections
   4, 5, 6, and the agentic runtime in Section 1.
 - **For the interviewer who wants one link:**
   [`docs/huawei/harmony_hmaf_integration.md`](harmony_hmaf_integration.md)

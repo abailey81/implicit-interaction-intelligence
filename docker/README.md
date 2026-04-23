@@ -12,7 +12,7 @@ The image itself is defined by:
 
 - **`Dockerfile`** — multi-stage production build (Python 3.11-slim, non-root
   `i3:10001`, tini, CPU-only torch, no pip/poetry/curl in runtime).
-- **`Dockerfile.dev`** — single-stage dev image with hot-reload + full Poetry
+- **`docker/Dockerfile.dev`** — single-stage dev image with hot-reload + full Poetry
   toolchain, used via `docker-compose.override.yml`.
 
 ---

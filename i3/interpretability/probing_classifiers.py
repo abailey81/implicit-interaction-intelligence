@@ -16,7 +16,7 @@ random mixing of self-attention and the non-linear MLP layers?** On a
 trained model the same code reports the usual Alain-Bengio decoding
 curve; on a random-init model it reports the architectural *capacity*
 for the information to flow through. The report produced by
-``scripts/run_interpretability_study.py`` flags this in the "Threats to
+``scripts/experiments/interpretability_study.py`` flags this in the "Threats to
 Validity" section.
 
 References

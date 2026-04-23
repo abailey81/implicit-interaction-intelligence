@@ -201,3 +201,6 @@ docker-compose.override.yml
 .cache/
 tmp/
 temp/
+
+# ─── Internal / local-only scratch notes (kept out of the public repo) ───
+.internal/

@@ -1,7 +1,7 @@
 # I³ Completeness Audit Report
 
 Audit date: 2026-04-22. Auditor: read-only pass over the repository against
-`THE_COMPLETE_BRIEF.md` and `BRIEF_ANALYSIS.md`.
+`the original specification` and `the brief analysis`.
 
 ---
 
@@ -39,10 +39,10 @@ sprint.
 
 | Requirement | Location |
 |---|---|
-| `NOTES.md` at repo root (deviation disclosure) | `NOTES.md` |
+| `engineering notes` at repo root (deviation disclosure) | `engineering notes` |
 | Extracted NT-Xent loss module | `i3/encoder/loss.py` |
 | Sentiment module + lexicon asset | `i3/interaction/sentiment.py`, `i3/interaction/data/sentiment_lexicon.json` |
-| Edge profiling report | `docs/edge_profiling_report.md` |
+| Edge profiling report | `docs/edge/profiling-report.md` |
 | 15-slide deck (Markdown) | `docs/slides/presentation.md` (16 H1 headings = cover + 15 slides) |
 | Speaker notes | `docs/slides/speaker_notes.md` (479 lines) |
 | Rehearsal timings | `docs/slides/rehearsal_timings.md` |
@@ -68,21 +68,21 @@ sprint.
 | 4-panel dashboard (chat, embedding viz, gauges, routing/engagement) | `web/index.html`, `web/js/{chat,dashboard,embedding_viz,app,websocket}.js` |
 | Design palette exactly `#1a1a2e / #16213e / #0f3460 / #e94560` | `web/css/style.css:6-11`, `docs/slides/marp-theme.css` |
 | Papers cited in docstrings + docs (Chen 2020, Bai 2018, Xiong 2020, Vaswani, Russo 2018, Chapelle 2011, Rabiner HMM) | `i3/encoder/loss.py`, `i3/slm/{attention,transformer,embeddings}.py`, `docs/research/*.md`, `docs/slides/qa_prep.md` |
-| HCI references Epp 2011 / Vizer 2009 / Zimmermann 2014 | cited in `NOTES.md`, `docs/responsible_ai/model_card_tcn.md`, `docs/responsible_ai/data_card.md`, `docs/slides/*` |
-| Dockerfile + Dockerfile.dev + compose files | repo root |
+| HCI references Epp 2011 / Vizer 2009 / Zimmermann 2014 | cited in `engineering notes`, `docs/responsible_ai/model_card_tcn.md`, `docs/responsible_ai/data_card.md`, `docs/slides/*` |
+| Dockerfile + docker/Dockerfile.dev + compose files | repo root |
 | K8s / Helm / Terraform / ArgoCD / Skaffold | `deploy/{k8s,helm,terraform,argocd}`, `deploy/skaffold.yaml` |
 | MkDocs site (mkdocs.yml + docs tree) | `mkdocs.yml`, `docs/` |
 | 10 ADRs | `docs/adr/0001..0010-*.md` + `index.md` + `template.md` |
 | Model cards + data card + accessibility statement | `docs/responsible_ai/{model_card_tcn,model_card_slm,data_card,accessibility_statement}.md` |
 | Huawei integration docs (7 files) | `docs/huawei/{README,smart_hanhan,kirin_deployment,harmony_hmaf_integration,l1_l5_framework,edinburgh_joint_lab,interview_talking_points}.md` |
 | Huawei integration code | `i3/huawei/{hmaf_adapter,kirin_targets,executorch_hooks}.py`, `i3/edge/{tcn_,}executorch_export.py` |
-| Supply chain (SLSA, cosign, Trivy, Semgrep, renovate, release-please, commitlint, lefthook, sigstore) | `SLSA.md`, `SUPPLY_CHAIN.md`, `renovate.json`, `commitlint.config.js`, `lefthook.yml`, `.sigstore.yaml`, `.trivyignore`, `.semgrepignore`, `.release-please-config.json`, `.release-please-manifest.json`, `.github/` workflows |
+| Supply chain (SLSA, cosign, Trivy, Semgrep, renovate, release-please, commitlint, lefthook, sigstore) | `docs/security/slsa.md`, `docs/security/supply-chain.md`, `renovate.json`, `commitlint.config.js`, `lefthook.yml`, `.sigstore.yaml`, `.trivyignore`, `.semgrepignore`, `.release-please-config.json`, `.release-please-manifest.json`, `.github/` workflows |
 | Benchmarks (pytest-benchmark + Locust + k6 + SLOs) | `benchmarks/{test_*latency,locustfile.py,slos.yaml,k6/load.js}` |
 | Advanced test suites | `tests/{property,contract,fuzz,load,mutation,chaos,snapshot,benchmarks}` |
 | Observability stack | `i3/observability/{logging,tracing,metrics,middleware,instrumentation,context,sentry,langfuse_client}.py`, `deploy/observability/` |
 | MLOps (MLflow + ONNX + signing + DVC + edge profile) | `i3/mlops/{tracking,checkpoint,registry,export,model_signing}.py`, `i3/encoder/onnx_export.py`, `i3/slm/onnx_export.py`, `dvc.yaml`, `scripts/{export_onnx,verify_onnx,sign_model,profile_edge,export_executorch}.py` |
 | Advanced ML (INT4 torchao, guardrails, evaluation suite, ExecuTorch edge path) | `i3/slm/quantize_torchao.py`, `i3/cloud/{guardrails,guarded_client}.py`, `i3/eval/{perplexity,conditioning_sensitivity,responsiveness_golden}.py`, `i3/edge/` |
-| `src/` → `i3/` rename documented | `NOTES.md §1` |
+| `src/` → `i3/` rename documented | `engineering notes §1` |
 
 ---
 
@@ -93,7 +93,7 @@ sprint.
   (gated on `I3_DEMO_MODE`), plus `GET /profiling/report`.
 - **Missing:** brief §15 names `POST /admin/reset` and `POST /admin/profiling`.
   Functionality is present under different paths; either rename to match the
-  brief verbatim or note the deviation in `NOTES.md`.
+  brief verbatim or note the deviation in `engineering notes`.
 
 ### 3.2 "What This Prototype Is Not" honesty slide
 - **There:** slide 13 of `docs/slides/presentation.md` line 220 titled
@@ -104,7 +104,7 @@ sprint.
 ### 3.3 Anthropic model ID
 - **There:** cloud block in `configs/default.yaml` with
   `model: "claude-sonnet-4-20250514"`.
-- **Missing:** brief prescribes `claude-sonnet-4-5`. `NOTES.md §6` actually
+- **Missing:** brief prescribes `claude-sonnet-4-5`. `engineering notes §6` actually
   *claims* the ID is locked to `claude-sonnet-4-5`, so NOTES is inaccurate
   relative to `configs/default.yaml`. Either swap the config string or
   update NOTES to reflect the real choice.
@@ -167,7 +167,7 @@ sprint.
 
 The repo goes well beyond brief-minimum. Highlights:
 
-- **Container strategy** — multi-stage `Dockerfile`, `Dockerfile.dev`,
+- **Container strategy** — multi-stage `Dockerfile`, `docker/Dockerfile.dev`,
   `docker-compose.yml` + `.prod.yml` + override example, `.devcontainer/`.
 - **Kubernetes-native deploy** — full `deploy/k8s/` manifest set (deployment,
   service, ingress, HPA, PDB, NetworkPolicy, ServiceMonitor, Kustomize
@@ -177,7 +177,7 @@ The repo goes well beyond brief-minimum. Highlights:
   tracing, Prometheus metrics, Sentry, Langfuse; `deploy/observability/` stack.
 - **Supply-chain** — SLSA L3 documentation, cosign / sigstore config,
   Trivy/Semgrep ignore lists, renovate, release-please, commitlint, lefthook,
-  `SLSA.md`, `SUPPLY_CHAIN.md`.
+  `docs/security/slsa.md`, `docs/security/supply-chain.md`.
 - **MLOps** — MLflow tracking, DVC pipeline (`dvc.yaml`), ONNX export for
   encoder + SLM, ExecuTorch edge export path, OpenSSF model signing.
 - **Advanced ML** — torchao INT4 quantisation
@@ -222,14 +222,14 @@ Ordered by (reward / effort). Check each off before April 28 submission.
    Playwright wrapper) so the artefact is reproducible.
 7. **Add a 30-minute soak test** at `tests/load/test_websocket_soak.py`,
    gated on `RUN_SOAK_TEST=1`. Run it once, paste the result into
-   `docs/edge_profiling_report.md`.
+   `docs/edge/profiling-report.md`.
 8. **Patch checkpoint metadata** — add `git_sha`, `architecture_hash`,
    `wall_clock_s`, `hardware` fields in `i3/mlops/checkpoint.py` before
    step 2/3 runs so the saved artefacts carry provenance.
 9. **Rehearse under budget** — the brief explicitly protects rehearsal time
    as the last thing to cut. Two full run-throughs with the pre-flight
-   checklist in `docs/DEMO_SCRIPT.md`.
-10. **Reconcile `NOTES.md §6` against `configs/default.yaml`** — after
+   checklist in `docs/slides/demo-script.md`.
+10. **Reconcile `engineering notes §6` against `configs/default.yaml`** — after
     step 4(a) these finally agree; otherwise the file contradicts itself
     and a careful reader (Matthew) will notice.
 

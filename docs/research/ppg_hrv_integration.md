@@ -1,6 +1,5 @@
 # PPG / HRV as a TCN Modality in Implicit Interaction Intelligence
 
-**Status:** Batch F-2, Tier 2 of `ADVANCEMENT_PLAN.md` v3.
 **Scope:** Photoplethysmography-derived heart-rate variability as the
 fifth first-class input modality of the I³ Temporal Convolutional Network
 encoder, alongside keystroke dynamics, voice prosody, facial affect /
@@ -158,7 +157,7 @@ I³:
 1. The TCN encoder, via the Batch F-1 multimodal fusion head.
 2. The Xiaoyi personal-assistant's health summary surface; Xiaoyi's
    daily brief can mention HRV trends if the user has opted in, with
-   the interpretation line produced by `scripts/run_hrv_demo.py`.
+   the interpretation line produced by `scripts/demos/hrv.py`.
 
 ## 6. Threats to Validity
 

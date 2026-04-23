@@ -3,7 +3,7 @@
 **Author:** Tamer Atesyakar
 **Date:** 2026-04-22
 **Status:** Method + data frozen; empirical results placeholder until
-`scripts/run_ablation_study.py` is executed.
+`scripts/experiments/ablation_study.py` is executed.
 
 ---
 
@@ -32,7 +32,7 @@ The core design hypothesis of I³ is that a small language model (SLM)
 can be made genuinely adaptive by structurally wiring a user-state
 representation into its attention mechanism, rather than by describing
 the user in a system prompt. Section 8 of
-`docs/ARCHITECTURE.md` lays out the argument in full: prompt-based
+`docs/architecture/full-reference.md` lays out the argument in full: prompt-based
 personalisation suffers from attention dilution, consumes context, and
 is especially weak on tiny models that cannot follow subtle system
 prompts. Cross-attention to a projected conditioning tensor avoids all
@@ -66,7 +66,7 @@ ordered mean KL divergences.
 3. A statistical-helpers module `i3/eval/ablation_statistics.py`
    providing `bootstrap_ci`, `cohens_d`, `paired_sign_test`, and
    `effect_size_interpretation`, each 100 %-typed and unit-tested.
-4. A CLI driver `scripts/run_ablation_study.py` that emits both
+4. A CLI driver `scripts/experiments/ablation_study.py` that emits both
    machine-readable JSON and a human-readable Markdown report stamped
    with the run-time git SHA.
 
@@ -150,15 +150,15 @@ code SHA in each report. **We have not deviated from the pre-registration.**
 ## 3. Results
 
 > Results below are placeholders. They will be populated by
-> `scripts/run_ablation_study.py`.
+> `scripts/experiments/ablation_study.py`.
 
 ### 3.1 Condition summary
 
 | Condition    | KL mean (nats)                                          | 95 % CI                                                  | Style fidelity                                          | Latency P50 (ms)                                        | P95 (ms) | P99 (ms) |
 |:-------------|:--------------------------------------------------------|:---------------------------------------------------------|:--------------------------------------------------------|:--------------------------------------------------------|:---------|:---------|
-| `none`       | [to be filled by scripts/run_ablation_study.py]          | [to be filled by scripts/run_ablation_study.py]          | [to be filled by scripts/run_ablation_study.py]          | [to be filled]                                          | [tbd]    | [tbd]    |
-| `prompt`     | [to be filled by scripts/run_ablation_study.py]          | [to be filled by scripts/run_ablation_study.py]          | [to be filled by scripts/run_ablation_study.py]          | [to be filled]                                          | [tbd]    | [tbd]    |
-| `cross_attn` | [to be filled by scripts/run_ablation_study.py]          | [to be filled by scripts/run_ablation_study.py]          | [to be filled by scripts/run_ablation_study.py]          | [to be filled]                                          | [tbd]    | [tbd]    |
+| `none`       | [to be filled by scripts/experiments/ablation_study.py]          | [to be filled by scripts/experiments/ablation_study.py]          | [to be filled by scripts/experiments/ablation_study.py]          | [to be filled]                                          | [tbd]    | [tbd]    |
+| `prompt`     | [to be filled by scripts/experiments/ablation_study.py]          | [to be filled by scripts/experiments/ablation_study.py]          | [to be filled by scripts/experiments/ablation_study.py]          | [to be filled]                                          | [tbd]    | [tbd]    |
+| `cross_attn` | [to be filled by scripts/experiments/ablation_study.py]          | [to be filled by scripts/experiments/ablation_study.py]          | [to be filled by scripts/experiments/ablation_study.py]          | [to be filled]                                          | [tbd]    | [tbd]    |
 
 ### 3.2 Pairwise comparisons
 

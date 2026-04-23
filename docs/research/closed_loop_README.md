@@ -21,7 +21,7 @@ energetic user, low vision) it:
 ## Run it
 
 ```bash
-python scripts/run_closed_loop_eval.py \
+python scripts/experiments/closed_loop_eval.py \
   --config configs/default.yaml \
   --n-sessions 5 \
   --n-messages 15 \
@@ -58,7 +58,7 @@ Useful flags:
 | `i3/eval/simulation/personas.py` | The 8 canonical `HCIPersona` instances. Do not modify without bumping the library version. |
 | `i3/eval/simulation/user_simulator.py` | Deterministic keystroke + text generation. |
 | `i3/eval/simulation/closed_loop.py` | `ClosedLoopEvaluator` + `ClosedLoopResult`. |
-| `scripts/run_closed_loop_eval.py` | CLI runner (JSON + Markdown output). |
+| `scripts/experiments/closed_loop_eval.py` | CLI runner (JSON + Markdown output). |
 | `docs/research/closed_loop_evaluation.md` | Full paper-style writeup. |
 | `tests/test_simulation_personas.py` | Persona + simulator unit tests. |
 | `tests/test_closed_loop_evaluator.py` | Evaluator tests with a mocked pipeline. |

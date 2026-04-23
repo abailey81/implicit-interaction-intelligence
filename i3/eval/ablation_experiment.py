@@ -16,7 +16,7 @@ The experiment is runnable on a **random-init** model: we are measuring the
 *architectural* effect of the conditioning path, not the quality of the
 generated text. A checkpoint may be supplied via ``AblationExperiment``'s
 ``checkpoint_path`` argument (or the ``I3_CHECKPOINT_PATH`` environment
-variable when invoked from ``scripts/run_ablation_study.py``), but this is
+variable when invoked from ``scripts/experiments/ablation_study.py``), but this is
 not required.
 
 Usage:

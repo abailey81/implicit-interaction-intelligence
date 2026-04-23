@@ -62,7 +62,7 @@ def canonical_components(n_layers: int) -> list[str]:
         projector plus every ``{cross,self,ffn}_attn_layer_{i}`` for
         ``i`` in ``range(n_layers)``. The order is stable and matches
         the order used in the report produced by
-        ``scripts/run_interpretability_study.py``.
+        ``scripts/experiments/interpretability_study.py``.
     """
     names: list[str] = ["conditioning_projector"]
     for i in range(n_layers):

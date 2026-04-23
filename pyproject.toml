@@ -25,7 +25,7 @@ authors     = ["Tamer Atesyakar <tamer.atesyakar@bk.ru>"]
 maintainers = ["Tamer Atesyakar <tamer.atesyakar@bk.ru>"]
 homepage    = "https://github.com/abailey81/implicit-interaction-intelligence"
 repository  = "https://github.com/abailey81/implicit-interaction-intelligence"
-documentation = "https://github.com/abailey81/implicit-interaction-intelligence/blob/main/docs/ARCHITECTURE.md"
+documentation = "https://github.com/abailey81/implicit-interaction-intelligence/blob/main/docs/architecture/full-reference.md"
 keywords = [
     "human-machine-interaction",
     "user-modelling",

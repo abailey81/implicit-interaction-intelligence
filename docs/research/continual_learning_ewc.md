@@ -1,6 +1,6 @@
 # Continual Learning for I³: Elastic Weight Consolidation
 
-> Research note for Batch F-5 of `ADVANCEMENT_PLAN.md` v3 (Tier 2). This
+
 > document motivates why the existing three-timescale EMA is not, by
 > itself, enough to avoid catastrophic forgetting in the shared TCN
 > encoder, and specifies the EWC-based architecture that closes the gap.
@@ -138,7 +138,7 @@ time; a deployment that does not, does not.
 
 ## 3. Results (placeholder)
 
-`scripts/run_ewc_demo.py` generates a three-persona curriculum
+`scripts/demos/ewc.py` generates a three-persona curriculum
 (FRESH_USER → FATIGUED_DEVELOPER → MOTOR_IMPAIRED_USER), trains the
 TCN encoder twice — once with λ = 0 and once with the configured λ —
 and reports the retention of FRESH_USER performance after each

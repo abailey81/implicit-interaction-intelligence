@@ -3,7 +3,7 @@
 This package bundles a curated attack corpus, a parallel runner, four
 concrete target surfaces wired to the production subsystems, and a
 small library of invariant checkers.  All symbols that higher layers
-(``scripts/run_redteam.py``, tests, CI) are allowed to import are
+(``scripts/security/run_redteam.py``, tests, CI) are allowed to import are
 re-exported here.
 """
 

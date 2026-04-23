@@ -1,7 +1,7 @@
 """Scenario runner that drives the 4-phase live demo against a running I3 server.
 
 The script walks through the exact messages scripted in
-``docs/DEMO_SCRIPT.md`` with four different keystroke cadences, one per
+``docs/slides/demo-script.md`` with four different keystroke cadences, one per
 phase:
 
 * **Phase 1 — Cold Start**: ~60 WPM, neutral.

@@ -20,7 +20,7 @@ References
 - Morris, M. R. & Hopkins, C. G. (2014). *The Ablation Protocol for
   Usability Experiments*.  CHI Workshops.  (Definition of dimension-
   wise ablation used here.)
-- ``docs/ARCHITECTURE.md`` §8.5 -- Conditioning Sensitivity Test.  The
+- ``docs/architecture/full-reference.md`` §8.5 -- Conditioning Sensitivity Test.  The
   ablation mode is the counterfactual that powers the test.
 """
 

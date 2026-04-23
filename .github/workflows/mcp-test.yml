@@ -5,21 +5,21 @@ on:
     branches: [main, develop]
     paths:
       - "i3/mcp/**"
-      - "scripts/run_mcp_server.py"
-      - "scripts/mcp_client_smoke.py"
+      - "scripts/demos/mcp_server.py"
+      - "scripts/demos/mcp_client_smoke.py"
       - "tests/test_mcp_server.py"
       - "configs/mcp_server_config.json"
-      - "Dockerfile.mcp"
+      - "docker/Dockerfile.mcp"
       - ".github/workflows/mcp-test.yml"
   pull_request:
     branches: [main]
     paths:
       - "i3/mcp/**"
-      - "scripts/run_mcp_server.py"
-      - "scripts/mcp_client_smoke.py"
+      - "scripts/demos/mcp_server.py"
+      - "scripts/demos/mcp_client_smoke.py"
       - "tests/test_mcp_server.py"
       - "configs/mcp_server_config.json"
-      - "Dockerfile.mcp"
+      - "docker/Dockerfile.mcp"
       - ".github/workflows/mcp-test.yml"
   workflow_dispatch:
 

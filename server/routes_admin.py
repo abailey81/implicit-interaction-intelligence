@@ -18,8 +18,8 @@ Security model
 * Embeddings exported via :func:`admin_export` are base64-encoded so a
   human operator can ship the file as a single JSON document.
 
-See ``docs/operations/`` for the runbook and ``THE_COMPLETE_BRIEF.md``
-for the rationale (GDPR right-to-export / right-to-erase parity).
+See ``docs/operations/`` for the runbook. The rationale for the export /
+erase parity is GDPR right-to-export / right-to-erase.
 """
 
 from __future__ import annotations

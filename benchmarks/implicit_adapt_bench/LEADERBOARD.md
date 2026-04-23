@@ -6,7 +6,7 @@ default weights listed in the README. All three reference baselines are
 reserved placeholder rows; fill them in by running
 
 ```bash
-python scripts/run_implicit_adapt_bench.py --run-baselines
+python scripts/experiments/implicit_adapt_bench.py --run-baselines
 ```
 
 and copying the per-metric numbers from
@@ -52,7 +52,7 @@ Populated only after an IRB-lite preference-collection run. See
    compute, failure modes).
 5. Open a pull request titled
    `ImplicitAdaptBench submission: <method_name>`. CI runs
-   `scripts/run_implicit_adapt_bench.py --score` and comments the
+   `scripts/experiments/implicit_adapt_bench.py --score` and comments the
    per-metric breakdown. The maintainer reviews, merges, and appends the
    row to this leaderboard.
 

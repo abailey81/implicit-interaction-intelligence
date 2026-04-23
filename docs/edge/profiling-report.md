@@ -27,7 +27,7 @@ decode-32 → postprocess → diary). Extrapolated to a Kirin 9000 NPU
 (2.0 INT8 TOPS Da Vinci Big) under a 2.0× TOPS-ratio scaling and a
 corrective 1.5× INT8-kernel-efficiency factor, **P50 sits in the 50–80 ms
 band** for the same end-to-end path, which is inside the ≤100 ms
-companion-latency target set in `BRIEF_ANALYSIS.md` §6.
+companion-latency target set in `the brief analysis` §6.
 
 The extrapolation is load-bearing and every assumption under it is
 stated in §3. The short version: the *memory* claim is measured; the
@@ -165,7 +165,7 @@ weight-tied to the output projection).
 | **Total**                            |**~6.39 M**|   **24.37** |  **6.12** |    **100.0**|
 
 The headline numbers are consistent with
-`docs/ARCHITECTURE.md` §10.1 and the README's 6.3 M / 25 MB / 7 MB
+`docs/architecture/full-reference.md` §10.1 and the README's 6.3 M / 25 MB / 7 MB
 summary. The INT8 total measured from a real `state_dict` serialisation
 (including INT8 zero-point + scale buffers per quantised module) is
 **6.9 MB**, which is the number used in §5's feasibility matrix.
@@ -236,7 +236,7 @@ Four targets, with INT8 model size of **7.0 MB** (TCN 0.06 + SLM 6.9):
 
 The Kirin 820 row uses 1.4 TOPS as its INT8 envelope; 820 is not in the
 profiler's default list but is called out explicitly in the brief and in
-`docs/ARCHITECTURE.md` §10 as a mid-tier target.
+`docs/architecture/full-reference.md` §10 as a mid-tier target.
 
 The Smart Hanhan verdict is the most important of the four. The memory
 headroom is ample (22 % of a 32 MB budget), but 0.1 INT8 TOPS is ~20× less
@@ -306,7 +306,7 @@ change and is listed in §9's reproduction notes.
 Smart Hanhan ships with an 1 800 mAh battery at a nominal 3.8 V, so the
 energy envelope is ~6 840 mWh = ~24 600 J. Published Huawei figures for
 the XiaoYi-class NPU on the device put the active NPU TDP at
-approximately **1 W** (this is the number used in `BRIEF_ANALYSIS.md`
+approximately **1 W** (this is the number used in `the brief analysis`
 and is a rough envelope — Huawei has not, to my knowledge, published a
 per-mW/inference figure for the Kirin A2 / Smart Hanhan NPU).
 

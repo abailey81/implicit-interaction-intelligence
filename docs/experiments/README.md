@@ -20,17 +20,17 @@ random-init (or optionally checkpoint-loaded) `AdaptiveSLM`. See
 
 ```bash
 # Default: random-init model, seed 42, all 50 prompts, reports/ output.
-python scripts/run_ablation_study.py --verbose
+python scripts/experiments/ablation_study.py --verbose
 
 # Choose custom paths.
-python scripts/run_ablation_study.py \
+python scripts/experiments/ablation_study.py \
   --seed 42 --n-prompts 50 \
   --out reports/ablation.json \
   --out-md reports/ablation.md
 
 # Optional: load a trained checkpoint via environment variable.
 I3_CHECKPOINT_PATH=checkpoints/slm/slm.pt \
-  python scripts/run_ablation_study.py --verbose
+  python scripts/experiments/ablation_study.py --verbose
 ```
 
 The CLI emits:
@@ -45,7 +45,7 @@ The CLI emits:
 
 - Experiment class: [`i3/eval/ablation_experiment.py`](../../i3/eval/ablation_experiment.py)
 - Statistical helpers: [`i3/eval/ablation_statistics.py`](../../i3/eval/ablation_statistics.py)
-- CLI driver: [`scripts/run_ablation_study.py`](../../scripts/run_ablation_study.py)
+- CLI driver: [`scripts/experiments/ablation_study.py`](../../scripts/experiments/ablation_study.py)
 - Unit tests: [`tests/test_ablation_statistics.py`](../../tests/test_ablation_statistics.py)
 
 ### Reproducibility checklist

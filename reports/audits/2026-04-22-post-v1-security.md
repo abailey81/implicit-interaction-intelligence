@@ -14,7 +14,7 @@ MLOps, guardrails, deployment manifests, and workflow wiring).
 
 The audit covers **only** the work added on top of the v1.0 upload — specifically:
 
-- `Dockerfile`, `Dockerfile.dev`, `docker-compose*.yml`, `docker/entrypoint.sh`,
+- `Dockerfile`, `docker/Dockerfile.dev`, `docker-compose*.yml`, `docker/entrypoint.sh`,
   `docker/healthcheck.sh`, `.dockerignore`, `docker-compose.override.yml.example`
 - `deploy/k8s/**`, `deploy/helm/i3/**`, `deploy/observability/**`
 - New GitHub Actions workflows (all under `.github/workflows/` **except** the
@@ -25,7 +25,7 @@ The audit covers **only** the work added on top of the v1.0 upload — specifica
 - `i3/mlops/checkpoint.py`, `i3/mlops/model_signing.py`, `i3/mlops/registry.py`
 - `i3/encoder/loss.py`, `i3/interaction/sentiment.py` (+ JSON asset)
 - `server/routes_health.py`, single observability hook in `server/app.py`
-- `.env.example`, `pyproject.toml` (new dependency groups), `NOTES.md`
+- `.env.example`, `pyproject.toml` (new dependency groups), `engineering notes`
 
 **Methodology:** line-by-line read of each new/modified file, cross-referenced
 against the explicit threat checklist in the audit brief. Dependency floors
@@ -98,7 +98,7 @@ findings beyond those listed above).
   HEALTHCHECK (no curl in runtime), OCI labels pinned, base image pinned via
   `PYTHON_IMAGE` build-arg (line 25), tests/caches stripped from site-packages
   (lines 109-114).
-- `Dockerfile.dev` — same non-root identity (10001/10001) for uid parity on
+- `docker/Dockerfile.dev` — same non-root identity (10001/10001) for uid parity on
   bind mounts, build toolchain confined to dev.
 - `docker-compose.prod.yml` — `read_only: true` (line 24), explicit `tmpfs`
   for `/tmp` and `/app/data/tmp` (lines 25-27), `cap_drop: [ALL]` (line 28),
@@ -224,7 +224,7 @@ findings beyond those listed above).
 **Deps / secrets / docs:**
 - `.env.example` — every value is a placeholder (`sk-ant-your-key-here`,
   empty `I3_ENCRYPTION_KEY=`, localhost-only CORS). No real secrets.
-- `NOTES.md` — engineering disclosure only; no credentials, internal URLs,
+- `engineering notes` — engineering disclosure only; no credentials, internal URLs,
   or Huawei-confidential material.
 - `server/app.py:218-219` single-edit insertion — non-destructive, correctly
   placed.
@@ -307,7 +307,7 @@ floor.**
 
 ## Appendix — files inspected
 
-Infrastructure: `Dockerfile`, `Dockerfile.dev`, `.dockerignore`,
+Infrastructure: `Dockerfile`, `docker/Dockerfile.dev`, `.dockerignore`,
 `docker-compose.yml`, `docker-compose.prod.yml`,
 `docker-compose.override.yml.example`, `docker/entrypoint.sh`,
 `docker/healthcheck.sh`.
@@ -329,4 +329,4 @@ instrumentation,langfuse_client}.py`, `i3/cloud/{guardrails,guarded_client}.py`,
 `i3/interaction/sentiment.py`, `i3/interaction/data/sentiment_lexicon.json`,
 `server/routes_health.py`, `server/app.py` (lines 218-219 only).
 
-Config / docs: `.env.example`, `pyproject.toml`, `NOTES.md`, `CHANGELOG.md`.
+Config / docs: `.env.example`, `pyproject.toml`, `engineering notes`, `CHANGELOG.md`.

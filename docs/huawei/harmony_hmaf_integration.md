@@ -346,7 +346,7 @@ construction*.
 
 | HMAF Pillar 4 requirement | I³ mechanism |
 |:---|:---|
-| **No exfiltration of raw user content** | Raw text is never persisted; request-local only. All durable fields are scalars / embeddings. See `docs/ARCHITECTURE.md §9.1`. |
+| **No exfiltration of raw user content** | Raw text is never persisted; request-local only. All durable fields are scalars / embeddings. See `docs/architecture/full-reference.md §9.1`. |
 | **PII-safe cross-device traffic** | 10 regex patterns strip email / phone / IBAN / SSN / credit cards / URLs / DoB / street addresses / passports / IP addresses before any cross-boundary call. See `i3/privacy/sanitizer.py`. |
 | **Encryption at rest** | Every SQLite column in the user-model and diary tables is Fernet-wrapped. Dual-key read path supports rotation without downtime. |
 | **Deterministic override for sensitive topics** | A sensitivity classifier vetoes the Thompson sampler's choice: queries touching health, mental-health, finance, or credentials are *unconditionally* routed local, regardless of what the bandit would have chosen. |

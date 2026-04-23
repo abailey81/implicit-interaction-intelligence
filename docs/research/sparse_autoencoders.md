@@ -183,8 +183,8 @@ basis basis advocated by Templeton et al. (2024).
 Produced by running
 
 ```
-python scripts/train_sae.py --seed 42
-python scripts/analyse_sae.py --seed 42
+python scripts/training/train_sae.py --seed 42
+python scripts/experiments/analyse_sae.py --seed 42
 ```
 
 `reports/sae_training_<ts>.md` tabulates the per-layer MSE, sparsity,

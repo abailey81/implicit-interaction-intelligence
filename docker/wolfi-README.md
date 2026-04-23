@@ -1,7 +1,7 @@
 # Wolfi distroless container — Implicit Interaction Intelligence (I³)
 
 This directory documents the **Chainguard Wolfi** variant of the I³ production
-container, built from `Dockerfile.wolfi` at the repository root. It is an
+container, built from `docker/Dockerfile.wolfi` at the repository root. It is an
 opt-in, zero-known-CVE alternative to the default Debian-slim image.
 
 ## Why Wolfi?
@@ -45,7 +45,7 @@ problems: glibc-compatible, zero CVEs, and a clean SBOM.
 From the repository root:
 
 ```bash
-docker build -f Dockerfile.wolfi -t i3:wolfi .
+docker build -f docker/Dockerfile.wolfi -t i3:wolfi .
 ```
 
 For a multi-arch build that works on both `x86_64` and `arm64`:
@@ -53,7 +53,7 @@ For a multi-arch build that works on both `x86_64` and `arm64`:
 ```bash
 docker buildx build \
     --platform linux/amd64,linux/arm64 \
-    -f Dockerfile.wolfi \
+    -f docker/Dockerfile.wolfi \
     -t ghcr.io/i3/i3:wolfi-$(git rev-parse --short HEAD) \
     --push .
 ```

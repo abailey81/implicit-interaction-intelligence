@@ -38,15 +38,14 @@ That model then conditions response generation at every level — from the
 routing decision (local SLM vs. cloud LLM) down to the token-by-token
 cross-attention inside a custom transformer.
 
-I³ was built to demonstrate the three tiers of AI capability required for the
-Huawei HMI Lab role: a **custom ML encoder** (a TCN built from scratch), a
-**custom small language model** (a ~6.3M-parameter transformer with no
-HuggingFace dependency), and **intelligent routing to foundational models**
-(a Bayesian bandit decides when cloud capacity is worth the privacy and
-latency trade-off). Every non-trivial component — the encoder, the transformer,
-the cross-attention conditioning, the Thompson sampling bandit, the sentiment
-lexicon, even the cosine warmup scheduler — is implemented from first
-principles.
+The project demonstrates three tiers of AI capability working together: a
+**custom ML encoder** (a TCN built from scratch), a **custom small language
+model** (a ~6.3 M-parameter transformer with no HuggingFace dependency), and
+**intelligent routing to foundational models** (a Bayesian bandit that decides
+when cloud capacity is worth the privacy and latency trade-off). Every
+non-trivial component — the encoder, the transformer, the cross-attention
+conditioning, the Thompson sampling bandit, the sentiment lexicon, even the
+cosine warmup scheduler — is implemented from first principles.
 
 ## Architecture
 
@@ -269,133 +268,50 @@ Edge deployment feasibility measurement:
 
 ## Project Structure
 
+The full tree with one-line descriptions is in
+[`PROJECT_STRUCTURE.md`](PROJECT_STRUCTURE.md). The high-level map:
+
 ```
 implicit-interaction-intelligence/
-│
-├── i3/                                    # Main Python package
-│   ├── config.py                         # Pydantic v2 config (17 nested models)
-│   │
-│   ├── interaction/                      # Layer 1 — Behavioural signal extraction
-│   │   ├── types.py                      #   InteractionFeatureVector (32 features)
-│   │   ├── monitor.py                    #   Real-time keystroke monitor
-│   │   ├── features.py                   #   Feature extraction + baseline tracking
-│   │   └── linguistic.py                 #   Flesch-Kincaid, formality, ~365-word lexicon
-│   │
-│   ├── encoder/                          # Layer 2 — User state encoding (custom TCN)
-│   │   ├── blocks.py                     #   CausalConv1d, ResidualBlock
-│   │   ├── tcn.py                        #   TemporalConvNet (dilations [1,2,4,8])
-│   │   ├── train.py                      #   NT-Xent contrastive loss
-│   │   └── inference.py                  #   Real-time inference wrapper
-│   │
-│   ├── user_model/                       # Layer 3 — Three-timescale user model
-│   │   ├── types.py                      #   UserProfile, SessionState, DeviationMetrics
-│   │   ├── model.py                      #   Instant / Session / Long-term EMA
-│   │   ├── deviation.py                  #   Welford's online algorithm
-│   │   └── store.py                      #   Async SQLite (aiosqlite)
-│   │
-│   ├── adaptation/                       # Layer 4 — Multi-dimensional adaptation
-│   │   ├── types.py                      #   AdaptationVector, StyleVector
-│   │   ├── dimensions.py                 #   CognitiveLoad, StyleMirror, Tone, A11y
-│   │   └── controller.py                 #   Orchestrates the four adapters
-│   │
-│   ├── router/                           # Layer 5 — Contextual Thompson sampling
-│   │   ├── types.py                      #   RoutingContext (12-dim), RoutingDecision
-│   │   ├── bandit.py                     #   Bayesian logistic regression + Laplace
-│   │   ├── complexity.py                 #   Query complexity estimator
-│   │   ├── sensitivity.py                #   Topic sensitivity detector (regex)
-│   │   └── router.py                     #   IntelligentRouter (privacy override)
-│   │
-│   ├── slm/                              # Layer 6a — Custom SLM (no HuggingFace)
-│   │   ├── tokenizer.py                  #   Word-level with special tokens
-│   │   ├── embeddings.py                 #   Token + sinusoidal positional
-│   │   ├── attention.py                  #   MultiHeadSelfAttention + KV cache
-│   │   ├── cross_attention.py            #   Cross-attention + ConditioningProjector
-│   │   ├── transformer.py                #   Pre-LN AdaptiveTransformerBlock
-│   │   ├── model.py                      #   AdaptiveSLM (~6.3M params)
-│   │   ├── generate.py                   #   Top-k / top-p / repetition penalty
-│   │   ├── quantize.py                   #   INT8 dynamic quantization
-│   │   └── train.py                      #   Cosine warmup + cross-entropy
-│   │
-│   ├── cloud/                            # Layer 6b — Cloud LLM integration
-│   │   ├── client.py                     #   Async Anthropic client (httpx)
-│   │   ├── prompt_builder.py             #   System prompts from AdaptationVector
-│   │   └── postprocess.py                #   Response enforcement
-│   │
-│   ├── diary/                            # Layer 7 — Privacy-safe interaction diary
-│   │   ├── store.py                      #   Async SQLite for diary entries
-│   │   ├── logger.py                     #   TF-IDF topic extraction (~175 stopwords)
-│   │   └── summarizer.py                 #   Cloud + template session summaries
-│   │
-│   ├── privacy/                          # Cross-cutting — Privacy by architecture
-│   │   ├── sanitizer.py                  #   10 PII regex patterns + auditor
-│   │   └── encryption.py                 #   Fernet symmetric encryption
-│   │
-│   ├── profiling/                        # Cross-cutting — Edge feasibility
-│   │   ├── memory.py                     #   tracemalloc + INT8 size measurement
-│   │   ├── latency.py                    #   P50/P95/P99 percentile benchmarks
-│   │   └── report.py                     #   Markdown reports + device feasibility
-│   │
-│   └── pipeline/                         # Orchestration
-│       ├── types.py                      #   PipelineInput, PipelineOutput
-│       └── engine.py                     #   Full 9-step async pipeline
-│
-├── configs/
-│   ├── default.yaml                      # Full production config
-│   └── demo.yaml                         # Demo overrides
-│
-├── server/                               # FastAPI + WebSocket backend
-│   ├── app.py                            #   Application factory, lifespan
-│   ├── websocket.py                      #   /ws/{user_id} real-time handler
-│   └── routes.py                         #   REST endpoints
-│
-├── web/                                  # Single-page application frontend
-│   ├── index.html                        #   Dark-theme SPA
-│   ├── css/style.css                     #   Dark charcoal + warm amber accents
-│   └── js/
-│       ├── app.js                        #   I3App + KeystrokeMonitor
-│       ├── websocket.js                  #   Exponential backoff reconnect
-│       ├── chat.js                       #   Chat with route/latency badges
-│       ├── dashboard.js                  #   Animated gauge bars
-│       └── embedding_viz.js              #   Canvas 2D state visualization
-│
-├── training/                             # CLI training scripts
-│   ├── generate_synthetic.py             #   8 user states, Markov transitions
-│   ├── prepare_dialogue.py               #   DailyDialog + EmpatheticDialogues
-│   ├── train_encoder.py                  #   TCN training CLI
-│   ├── train_slm.py                      #   SLM training CLI
-│   └── evaluate.py                       #   Perplexity, conditioning sensitivity
-│
-├── demo/                                 # Demo utilities
-│   ├── seed_data.py                      #   Pre-seed profiles and diary
-│   ├── scenarios.py                      #   5 scripted interaction arcs
-│   └── profiles.py                       #   Pre-built user profiles
-│
-├── tests/                                # pytest suite (80+ tests)
-│   ├── conftest.py                       #   Shared fixtures
-│   ├── test_tcn.py                       #   12 tests
-│   ├── test_slm.py                       #   15 tests
-│   ├── test_bandit.py                    #   18 tests
-│   ├── test_user_model.py                #   17 tests
-│   └── test_pipeline.py                  #   18 tests
-│
-├── scripts/                              # Automation
-│   ├── setup.sh                          #   One-shot setup
-│   ├── run_demo.sh                       #   Launch demo server
-│   └── generate_encryption_key.py        #   Fernet key generator
-│
-├── docs/                                 # Technical documentation
-│   ├── ARCHITECTURE.md                   #   System design deep-dive
-│   └── DEMO_SCRIPT.md                    #   4-phase interview demo script
-│
-├── data/                                 # Datasets (gitignored)
-├── checkpoints/                          # Model weights (gitignored)
-│
-├── .env.example
-├── .gitignore
-├── LICENSE
-├── Makefile
-├── README.md
-└── pyproject.toml
+├── i3/                   # Main Python package (36 subpackages — see PROJECT_STRUCTURE.md)
+│   ├── interaction/      # Layer 1 — behavioural signal extraction (32-dim FV)
+│   ├── encoder/          # Layer 2 — custom TCN (dilations [1,2,4,8] + NT-Xent)
+│   ├── user_model/       # Layer 3 — three-timescale EMAs + SQLite store
+│   ├── adaptation/       # Layer 4 — 8-dim AdaptationVector + controller
+│   ├── router/           # Layer 5 — Thompson sampling bandit + preference learning
+│   ├── slm/              # Layer 6a — ~6.3 M-param custom transformer (from scratch)
+│   ├── cloud/            # Layer 6b — 11 provider adapters + guardrails + MultiProvider
+│   ├── diary/            # Layer 7 — privacy-safe async SQLite diary
+│   ├── privacy/          # Cross-cutting — sanitiser + Fernet + DP-SGD
+│   ├── safety/           # Cross-cutting — PDDL planner + certificates
+│   ├── interpretability/ # Counterfactuals + SAE + activation patching
+│   ├── redteam/          # 55-attack adversarial corpus + runner
+│   ├── mlops/            # Experiment tracker + registry + model signing
+│   ├── observability/    # OTel + structlog + Prometheus + Sentry + Langfuse
+│   └── pipeline/         # Orchestration — the async Pipeline
+├── server/               # FastAPI app — routes, middleware, WebSocket, auth
+├── web/                  # Demo UI (plain CSS/JS, zero build step)
+├── training/             # Training entry points (Fabric, Accelerate, DeepSpeed)
+├── demo/                 # Pre-seeded state + scenarios + profiles
+├── tests/                # 80+ test modules (unit, property, contract, fuzz, …)
+├── scripts/              # Operator tooling — see scripts/README.md
+├── configs/              # YAML configuration
+├── docs/                 # MkDocs Material source tree
+├── deploy/               # Kubernetes, Helm, Terraform, policy-as-code
+├── docker/               # Dockerfile variants + entrypoint + healthcheck
+├── notebooks/            # Teaching notebooks
+├── benchmarks/           # pytest-benchmark + ImplicitAdaptBench
+├── reports/              # Audit + verification + red-team output
+├── dagger/               # Dagger Python SDK CI pipeline
+├── backstage/            # Spotify Backstage service catalog
+├── Makefile              # Primary task runner
+├── Dockerfile            # Production image
+├── pyproject.toml        # Poetry + tool configuration
+├── mkdocs.yml            # Documentation site configuration
+├── CHANGELOG.md          # Keep-a-Changelog history
+├── CONTRIBUTING.md       # Contributor guide
+├── SECURITY.md           # Threat model + disclosure process
+└── LICENSE               # MIT
 ```
 
 ---
@@ -425,7 +341,7 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
 cp .env.example .env                      # then edit with your API key
-python scripts/generate_encryption_key.py  # generates a Fernet key
+python scripts/security/generate_encryption_key.py  # generates a Fernet key
 ```
 
 ### Training
@@ -657,11 +573,11 @@ poetry run mkdocs serve         # http://127.0.0.1:8000
 
 Key documents:
 
-- [**ARCHITECTURE.md**](docs/ARCHITECTURE.md) — deep-dive system design,
+- [**ARCHITECTURE.md**](docs/architecture/full-reference.md) — deep-dive system design,
   math, data flows, and design rationale.
-- [**DEMO_SCRIPT.md**](docs/DEMO_SCRIPT.md) — the 4-phase interview demo
+- [**DEMO_SCRIPT.md**](docs/slides/demo-script.md) — the 4-phase interview demo
   script with exact dialogue and timing.
-- [**edge_profiling_report.md**](docs/edge_profiling_report.md) — Kirin
+- [**edge_profiling_report.md**](docs/edge/profiling-report.md) — Kirin
   9000 / 9010 / A2 / Smart Hanhan feasibility matrix + MindSpore Lite
   conversion path + power-budget analysis.
 - [**docs/huawei/**](docs/huawei/) — HarmonyOS 6 / HMAF integration,
@@ -672,11 +588,9 @@ Key documents:
   and TCN), data card, accessibility statement.
 - [**docs/slides/**](docs/slides/) — 15-slide Marp deck + speaker notes
   + 52 Q&A prep + rehearsal cue sheet.
-- [**SLSA.md**](SLSA.md), [**SUPPLY_CHAIN.md**](SUPPLY_CHAIN.md) —
+- [**docs/security/slsa.md**](docs/security/slsa.md), [**docs/security/supply-chain.md**](docs/security/supply-chain.md) —
   Build Level 3 posture, SBOM distribution, image signing, vulnerability
   SLAs.
-- [**NOTES.md**](NOTES.md) — engineering disclosure document
-  (deviations from spec, what is NOT in the prototype).
 - [pyproject.toml](pyproject.toml) — dependencies + tooling config.
 - [configs/default.yaml](configs/default.yaml) — all hyperparameters
   with inline comments.
@@ -702,7 +616,7 @@ with zero extra dependencies.
 | Documentation      | MkDocs Material site with 10 ADRs, model cards, data card, glossary, runbook, accessibility statement |
 | Huawei integration | HMAF adapter, Kirin target profiles, ExecuTorch hooks, MindSpore Lite conversion guide             |
 | Supply-chain auto  | Renovate (grouped), release-please, commitlint, lefthook git hooks                                  |
-| Interview ready    | 15-slide Marp deck, speaker notes, 52 Q&A pairs, NOTES.md engineering disclosure, brief analysis    |
+| Deliverables       | 15-slide Marp deck, speaker notes, 52 Q&A pairs, research paper, patent disclosure, A0 poster       |
 
 ## Next-gen 2026 Technology Stack
 
@@ -712,7 +626,7 @@ service boots without them:
 | Family              | Capability                                                                                                         |
 |:--------------------|:-------------------------------------------------------------------------------------------------------------------|
 | Python toolchain    | uv + uv.lock alongside Poetry; `ty` / mypy / Ruff; Nix flake; Devbox; mise + asdf; justfile                        |
-| Hardened containers | Chainguard Wolfi distroless variant (`Dockerfile.wolfi`) — zero H/C CVEs on base image                             |
+| Hardened containers | Chainguard Wolfi distroless variant (`docker/Dockerfile.wolfi`) — zero H/C CVEs on base image                             |
 | MCP server          | Anthropic Model Context Protocol — 7 tools + 5 resources + 2 prompts for Claude Desktop / Code                      |
 | Browser inference   | ONNX Runtime Web + WebGPU — TCN runs on the user's GPU; keystroke packets never leave the device                   |
 | LLM ecosystem       | DSPy compile-time prompt optimisation, NeMo Guardrails, Pydantic AI, Instructor, Outlines, Logfire, OpenLLMetry    |
@@ -725,35 +639,33 @@ service boots without them:
 | Brief stretch       | Attention-conditioning aux losses, integrated-gradients interpretability, what-if API, ablation mode, biometric ID |
 | Interview package   | 7 Jupyter notebooks, research paper (7 126 words), attorney-ready patent disclosure, exec summary, A0 poster       |
 
-Audit trail: every batch of the above is accompanied by committed
-reports at the repo root — `SECURITY_AUDIT_REPORT.md`,
-`CODE_QUALITY_AUDIT_REPORT.md`, `COMPLETENESS_AUDIT_REPORT.md`,
-`DOCUMENTATION_AUDIT_REPORT.md`.
+Audit trail: every wave of these additions is accompanied by dated
+reports under [`reports/audits/`](reports/audits/), covering security,
+code quality, completeness, and documentation. The index is
+[`reports/audits/2026-04-23-index.md`](reports/audits/2026-04-23-index.md).
 
-See [CHANGELOG.md](CHANGELOG.md) `[Unreleased]` for the full list of
+See [`CHANGELOG.md`](CHANGELOG.md) `[Unreleased]` for the full list of
 additions over the v1.0.0 baseline.
 
 ---
 
 ## License
 
-MIT License — see [LICENSE](LICENSE) for details.
+MIT License — see [`LICENSE`](LICENSE) for details.
 
 ## Acknowledgements
 
-Built for the **Huawei HMI Lab internship** technical presentation.
-
 Draws inspiration from:
 
-- Eric Xu's **L1–L5 device intelligence framework**
-- **Edinburgh Joint Lab** research on personalisation from sparse signals
+- Eric Xu's **L1–L5 device intelligence framework**.
+- **Edinburgh Joint Lab** research on personalisation from sparse signals.
 - **HarmonyOS Multi-Agent Framework (HMAF)** and its philosophy of
-  on-device-first AI
+  on-device-first AI.
 
 ---
 
 <div align="center">
 
-*Built with care by Tamer Atesyakar — UCL MSc Digital Finance & Banking*
+*Built by Tamer Atesyakar — UCL MSc Digital Finance & Banking*
 
 </div>

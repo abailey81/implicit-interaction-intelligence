@@ -88,7 +88,7 @@ re-verifies every step:
 The certificate is YAML-round-trippable (`certificate_to_yaml` /
 `certificate_from_yaml`), making it a natural audit artefact for
 `Auditor` runs and for SRE post-mortems. The CLI demo
-(`scripts/run_safety_planner_demo.py`) emits this YAML on stdout for
+(`scripts/demos/safety_planner.py`) emits this YAML on stdout for
 any grounded context.
 
 ### 2.4 Why this matters to the interviewer
@@ -168,7 +168,7 @@ on every emitted event across the runtime lifecycle.
 
 ### 3.5 The CLI demo
 
-`scripts/run_hmaf_runtime_demo.py` boots the runtime, feeds the five
+`scripts/demos/hmaf_runtime.py` boots the runtime, feeds the five
 canned intents, prints each structured response as JSON, and stops the
 runtime cleanly. It requires no network, no checkpoint, no secrets --
 only Python 3.10+ and the I³ source tree. This is the
@@ -301,10 +301,10 @@ tests pin each one:
 
 ## 6. Interview-ready demo script
 
-1. `python scripts/run_safety_planner_demo.py --sensitive --network
+1. `python scripts/demos/safety_planner.py --sensitive --network
    --auth --keyed --pii` -- the reviewer sees a redacted + routed-local
    plan with a YAML certificate.
-2. `python scripts/run_hmaf_runtime_demo.py` -- five structured
+2. `python scripts/demos/hmaf_runtime.py` -- five structured
    responses from five canned HMAF intents, plus telemetry on stdout.
 3. `uvicorn server.app:app` in one terminal, `curl -X POST
    http://127.0.0.1:8000/api/translate -H 'Content-Type:

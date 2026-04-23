@@ -1,7 +1,7 @@
 # Closed-Loop Persona-Simulation Evaluation for Implicit Interaction Intelligence
 
 *Paper-style specification and methodology. Version 0.1.0. Companion to
-`i3/eval/simulation/`, `scripts/run_closed_loop_eval.py`, and
+`i3/eval/simulation/`, `scripts/experiments/closed_loop_eval.py`, and
 `docs/research/implicit_adapt_bench.md`.*
 
 ## Abstract
@@ -228,23 +228,23 @@ and downstream notebook tooling can read it without bespoke adapters.
 
 ## 4. Results
 
-> *[to be populated by `scripts/run_closed_loop_eval.py`]*
+> *[to be populated by `scripts/experiments/closed_loop_eval.py`]*
 
 ### 4.1 Per-persona recovery rates
 
-> *[to be populated by `scripts/run_closed_loop_eval.py`]*
+> *[to be populated by `scripts/experiments/closed_loop_eval.py`]*
 
 ### 4.2 Per-persona adaptation error trajectories
 
-> *[to be populated by `scripts/run_closed_loop_eval.py`]*
+> *[to be populated by `scripts/experiments/closed_loop_eval.py`]*
 
 ### 4.3 Persona confusion matrix
 
-> *[to be populated by `scripts/run_closed_loop_eval.py`]*
+> *[to be populated by `scripts/experiments/closed_loop_eval.py`]*
 
 ### 4.4 Router-bias sanity check
 
-> *[to be populated by `scripts/run_closed_loop_eval.py`]*
+> *[to be populated by `scripts/experiments/closed_loop_eval.py`]*
 
 ## 5. Discussion
 

@@ -24,7 +24,7 @@ numbers.
 | Authors                | Tamer Atesyakar                                                  |
 | Licence                | MIT (code and weights)                                           |
 | Architecture           | Pre-LN transformer (Xiong et al. 2020), 4 blocks, `d_model=256`, `n_heads=4`, FFN ratio 4, tied I/O weights, sinusoidal positional encoding (Vaswani et al. 2017), multi-head self-attention + dedicated cross-attention to 4 conditioning tokens. |
-| Parameter count        | ~6.3 M trainable (see `docs/edge_profiling_report.md` §4)        |
+| Parameter count        | ~6.3 M trainable (see `docs/edge/profiling-report.md` §4)        |
 | Tokenizer              | Custom word-level, 8 192-entry vocabulary, 4 special tokens (`<pad>`, `<bos>`, `<eos>`, `<unk>`) |
 | Training framework     | Raw PyTorch 2.x. **No HuggingFace Transformers.**                |
 | Quantisation           | INT8 dynamic (`torch.quantization.quantize_dynamic`, Linear only)|

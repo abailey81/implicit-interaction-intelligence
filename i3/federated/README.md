@@ -35,7 +35,7 @@ understood.
 poetry install --with future-work
 
 # Start a 3-client simulation on the local machine.
-python scripts/run_federated_demo.py --num-clients 3 --num-rounds 5
+python scripts/demos/federated.py --num-clients 3 --num-rounds 5
 ```
 
 If `flwr` is missing, the script prints a clear install hint and exits with

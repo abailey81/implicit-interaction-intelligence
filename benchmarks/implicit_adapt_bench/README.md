@@ -164,7 +164,7 @@ measures *responsiveness*, not quality.
 Run them with:
 
 ```bash
-python scripts/run_implicit_adapt_bench.py --run-baselines
+python scripts/experiments/implicit_adapt_bench.py --run-baselines
 ```
 
 ---
@@ -186,14 +186,14 @@ per line. Submit by opening a pull request that adds:
 2. ``submissions/<method_name>/<timestamp>.card.md`` — a short model
    card (training data, compute, intended use, known failure modes).
 
-The CI pipeline runs ``scripts/run_implicit_adapt_bench.py --score``
+The CI pipeline runs ``scripts/experiments/implicit_adapt_bench.py --score``
 against the agreed split and posts the per-metric breakdown as a PR
 comment.
 
 ### Local scoring
 
 ```bash
-python scripts/run_implicit_adapt_bench.py \
+python scripts/experiments/implicit_adapt_bench.py \
     --score submissions/my_method/20260422T090000Z.jsonl \
     --records-path benchmarks/implicit_adapt_bench/data/dev.jsonl
 ```

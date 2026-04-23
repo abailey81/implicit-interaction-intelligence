@@ -7,7 +7,7 @@
 - **Pre-registration convention:** Nosek, B. A., Ebersole, C. R., DeHaven, A. C.,
   & Mellor, D. T. (2018). *The preregistration revolution.* PNAS 115(11).
 
-This document is registered **before** running `scripts/run_ablation_study.py`.
+This document is registered **before** running `scripts/experiments/ablation_study.py`.
 No analysis has been performed on the outputs at the time of writing; the
 analysis plan below is therefore fully confirmatory.
 
@@ -21,7 +21,7 @@ analysis plan below is therefore fully confirmatory.
 > divergence of the next-token distribution under a random-init I³ SLM?
 
 The empirical claim embedded in
-`docs/ARCHITECTURE.md` §8 ("the Novel Cross-Attention Conditioning") is that
+`docs/architecture/full-reference.md` §8 ("the Novel Cross-Attention Conditioning") is that
 cross-attention can **steer** generation where prompt-based conditioning
 cannot. The claim has not previously been tested numerically in this
 repository; Batch A closes that gap.
@@ -166,7 +166,7 @@ kind. All 1200 runs contribute to all reported statistics.
 
 ## 9. Analysis Code Hash
 
-The Markdown report produced by `scripts/run_ablation_study.py` includes
+The Markdown report produced by `scripts/experiments/ablation_study.py` includes
 the git SHA of the repository HEAD at the time the script was run, via
 `git rev-parse HEAD`. The SHA is embedded in the report directly under
 the title so that the reader can verify this pre-registration describes

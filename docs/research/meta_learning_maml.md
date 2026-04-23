@@ -160,7 +160,7 @@ reach the 0.3 threshold in 2 support messages on the
 non-meta-trained baseline never reaches the threshold in the 8-message
 evaluation window.
 
-The `scripts/run_few_shot_demo.py` script produces
+The `scripts/demos/few_shot.py` script produces
 `reports/few_shot_eval_<ts>.md` containing a retention curve across
 {1, 2, 3, 5}-shot for every persona, for both the meta-trained encoder
 and the baseline.

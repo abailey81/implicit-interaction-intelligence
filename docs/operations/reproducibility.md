@@ -144,7 +144,7 @@ devbox run bootstrap     # one-shot uv bootstrap
 
 ## 5. Wolfi distroless — zero-CVE hermetic runtime
 
-`Dockerfile.wolfi` builds a production image atop Chainguard's Wolfi
+`docker/Dockerfile.wolfi` builds a production image atop Chainguard's Wolfi
 undistribution. Wolfi's build pipeline is itself SLSA L3 and re-emits every
 package from source on every upstream tag. The runtime layer has **no
 shell** and **no package manager**: we copy only the venv, the application
@@ -159,7 +159,7 @@ Why this matters for reproducibility:
   Sigstore. Consumers can verify provenance with `cosign verify-attestation`
   before pulling.
 - Build-time reproducibility: two invocations of `docker build -f
-  Dockerfile.wolfi .` on clean caches with the same lockfile produce images
+  docker/Dockerfile.wolfi .` on clean caches with the same lockfile produce images
   with the **same SHA256 digest**. The script at
   `scripts/verify_reproducibility.sh` asserts this automatically.
 
@@ -169,7 +169,7 @@ See `docker/wolfi-README.md` for the full CVE comparison and build recipes.
 
 ## 6. SLSA L3 provenance — attested build pipeline
 
-The repository already ships `SLSA.md` and `SUPPLY_CHAIN.md` documenting our
+The repository already ships `docs/security/slsa.md` and `docs/security/supply-chain.md` documenting our
 build pipeline. Briefly:
 
 - Every CI build runs inside GitHub's OIDC-attested ephemeral runners.
@@ -195,7 +195,7 @@ cd implicit-interaction-intelligence
 nix flake update                                    # 1. pin the OS layer
 nix develop                                         # 2. enter the hermetic shell
 uv sync --all-extras --all-groups --frozen          # 3. pin Python layer
-docker build -f Dockerfile.wolfi -t i3:wolfi .      # 4. build the hermetic runtime
+docker build -f docker/Dockerfile.wolfi -t i3:wolfi .      # 4. build the hermetic runtime
 sh scripts/verify_reproducibility.sh                # 5. prove it's reproducible
 ```
 

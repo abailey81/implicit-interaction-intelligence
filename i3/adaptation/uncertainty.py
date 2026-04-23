@@ -600,7 +600,7 @@ def _derive_controller_inputs(
     :class:`~i3.user_model.types.DeviationMetrics`, not tensors. For
     MC-Dropout uncertainty we need a *stable* conversion that threads
     the encoder's stochasticity through the pipeline. The convention
-    used here — and mirrored in ``scripts/run_uncertainty_demo.py`` —
+    used here — and mirrored in ``scripts/demos/uncertainty.py`` —
     is to take the last row of ``feature_window`` as the "current
     message" features, and to derive deviation z-scores from the
     magnitude of the encoder embedding (a proxy for the distance of

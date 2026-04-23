@@ -5,7 +5,7 @@ cross-cutting concerns, and the contracts between them.
 
 !!! tip "Deep dive available"
     The canonical, maths-heavy reference is
-    [`docs/ARCHITECTURE.md`](https://github.com/abailey81/implicit-interaction-intelligence/blob/main/docs/ARCHITECTURE.md).
+    [`docs/architecture/full-reference.md`](https://github.com/abailey81/implicit-interaction-intelligence/blob/main/docs/architecture/full-reference.md).
     This page links to it heavily and complements it with Mermaid diagrams
     and the Material navigation.
 

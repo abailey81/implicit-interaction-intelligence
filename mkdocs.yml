@@ -206,6 +206,7 @@ nav:
       - getting-started/training.md
   - Architecture:
       - Overview: architecture/overview.md
+      - Full Reference: architecture/full-reference.md
       - Layers: architecture/layers.md
       - Cross-Attention Conditioning: architecture/cross-attention-conditioning.md
       - Router: architecture/router.md
@@ -240,8 +241,6 @@ nav:
       - Experiments Overview: experiments/README.md
       - Preregistration: experiments/preregistration.md
       - Ablation Report: experiments/ablation_report.md
-      - Model Card: model_card.md
-      - Data Card: data_card.md
   - Integration:
       - Model Context Protocol: integration/mcp.md
   - Cloud:
@@ -262,7 +261,7 @@ nav:
       - Analytics: operations/analytics.md
       - Advanced Demo UI: operations/advanced_ui.md
       - Verification Harness: operations/verification_harness.md
-      - Edge Profiling Report: edge_profiling_report.md
+      - Edge Profiling Report: edge/profiling-report.md
       - MLOps: mlops/README.md
   - Provider Layer:
       - cloud/provider_universality.md
@@ -289,10 +288,11 @@ nav:
       - Rehearsal Timings: slides/rehearsal_timings.md
       - Q&A Prep: slides/qa_prep.md
       - Closing Lines: slides/closing_lines.md
+      - Demo Script: slides/demo-script.md
   - Paper:
       - paper/README.md
       - Research Paper: paper/I3_research_paper.md
-      - Executive Summary: executive_summary.md
+      - Executive Summary: paper/executive-summary.md
       - Conference Poster: poster/conference_poster.md
       - Patent Disclosure: patent/provisional_disclosure.md
   - ADRs:
@@ -311,6 +311,8 @@ nav:
   - Security:
       - security/index.md
       - Policy as Code: security/policy_as_code.md
+      - SLSA Build Level 3: security/slsa.md
+      - Supply Chain: security/supply-chain.md
   - Contributing: contributing/index.md
   - Reference:
       - Glossary: glossary.md

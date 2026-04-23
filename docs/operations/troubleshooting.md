@@ -37,7 +37,7 @@ python -m i3.privacy.encryption --rotate
 
 # Option 2 — you do not have the old key
 rm data/profiles.sqlite                  # data loss; rebuild from next session
-python scripts/generate_encryption_key.py
+python scripts/security/generate_encryption_key.py
 ```
 
 ### `RuntimeError: Fernet key must be 32 url-safe base64-encoded bytes`
@@ -45,7 +45,7 @@ python scripts/generate_encryption_key.py
 `I3_ENCRYPTION_KEY` is missing, empty, or malformed. Regenerate:
 
 ```bash
-python scripts/generate_encryption_key.py
+python scripts/security/generate_encryption_key.py
 ```
 
 ### `ValidationError: Config is frozen`

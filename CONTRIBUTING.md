@@ -66,7 +66,7 @@ trade-off needs to be explicit.
 ### 3. Edge-First Performance
 
 I³ targets consumer Huawei devices (Kirin 9000-class SoCs). Every PR should
-consider latency, memory, and battery. Use `scripts/profile_edge.py` to
+consider latency, memory, and battery. Use `scripts/benchmarks/profile_edge.py` to
 benchmark changes to inference paths.
 
 ### 4. Reproducibility
@@ -508,8 +508,8 @@ See [SECURITY.md](SECURITY.md) for our full security policy.
 ## Documentation
 
 - **README.md** — overview, quickstart, key features
-- **docs/ARCHITECTURE.md** — system design, data flow, component interactions
-- **docs/DEMO_SCRIPT.md** — interactive demo walkthrough
+- **docs/architecture/full-reference.md** — system design, data flow, component interactions
+- **docs/slides/demo-script.md** — interactive demo walkthrough
 - **SECURITY.md** — security model, threat analysis, reporting
 - **Docstrings** — every public API
 

@@ -7,7 +7,7 @@ nested list of attention weights over the 4 conditioning tokens, keyed by
 
 The conditioning tokens in the I^3 architecture have the following
 semantic interpretation by position, as documented in
-``docs/ARCHITECTURE.md`` §8:
+``docs/architecture/full-reference.md`` §8:
 
     Token 0 -- adaptation-driven (cognitive load, formality axes)
     Token 1 -- adaptation-driven (verbosity, directness axes)

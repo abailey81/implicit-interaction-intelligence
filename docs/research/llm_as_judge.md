@@ -3,7 +3,7 @@
 > Research note accompanying the Batch G4 implementation under
 > `i3/eval/llm_judge.py`, `i3/eval/judge_rubric.py`,
 > `i3/eval/judge_calibration.py`, `i3/eval/judge_ensemble.py`, and
-> `scripts/run_llm_judge.py`.
+> `scripts/experiments/llm_judge.py`.
 >
 > **Scope.** Why I³ needs an LLM-as-judge on top of its existing
 > ablation + benchmark metrics, how the harness is constructed on top
@@ -158,7 +158,7 @@ ambiguous and results should be reported with a wider CI.
 
 ### 3.1 Ablation study (Batch A)
 
-`scripts/run_llm_judge.py --ablation-results reports/ablation_study_*.json`
+`scripts/experiments/llm_judge.py --ablation-results reports/ablation_study_*.json`
 samples up to `--n-pairs` pair items from the ablation output, pair-
 judges `cross_attn` vs `prompt` for each `(prompt, archetype)` cell,
 and emits `reports/llm_judge_<ts>.{json,md}`. The primary headline
@@ -170,7 +170,7 @@ responsiveness yields preferred text).
 
 ### 3.2 ImplicitAdaptBench (Batch C)
 
-`scripts/run_llm_judge.py --benchmark-results
+`scripts/experiments/llm_judge.py --benchmark-results
 reports/implicit_adapt_bench_*.json` pair-judges the benchmark
 baselines (e.g. `baseline_cross_attention` vs `baseline_prompt`) on
 every record. The pair-judgement output is merged into the benchmark

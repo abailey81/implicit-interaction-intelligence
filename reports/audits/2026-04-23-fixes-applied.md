@@ -156,7 +156,7 @@ trace the rationale.
 - `scripts/verify_all.py --strict`: 27 PASS / 0 FAIL / 19 SKIP.
   All SKIPs are environment-gated (torch DLL on Windows, missing
   binaries like `ruff`, `mypy`, `helm`, `cedarpy`, `mkdocs`).
-- `scripts/run_redteam_notorch.py --targets sanitizer,pddl,guardrails`:
+- `scripts/security/run_redteam_notorch.py --targets sanitizer,pddl,guardrails`:
   3 / 4 invariants PASS. The rate_limit invariant FAILs only because
   the FastAPI target surface is not exercised (torch DLL env issue).
 - Bespoke smoke test matrix — all PASS:

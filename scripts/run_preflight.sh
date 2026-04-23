@@ -3,7 +3,7 @@
 # I3 pre-flight checklist runner
 # -----------------------------------------------------------------------------
 # Programmatic version of the 5-minute pre-flight list documented in
-# docs/DEMO_SCRIPT.md. Run this 15 minutes before the interview to catch
+# docs/slides/demo-script.md. Run this 15 minutes before the interview to catch
 # every obvious failure mode in one place.
 #
 # Exits non-zero on any failure so the script can be wired into CI or a

@@ -16,7 +16,7 @@ pathway:
 
 The study orchestrator and paper-style write-up live at:
 
-- `scripts/run_interpretability_study.py` — CLI that runs all three
+- `scripts/experiments/interpretability_study.py` — CLI that runs all three
   analyses on a single random-init `AdaptiveSLM` and emits a Markdown
   report plus a JSON sibling.
 - `docs/research/mechanistic_interpretability.md` — abstract,
@@ -31,7 +31,7 @@ The study orchestrator and paper-style write-up live at:
 
 ```bash
 # From the repo root, with the i3 package importable:
-python scripts/run_interpretability_study.py \
+python scripts/experiments/interpretability_study.py \
     --seed 42 --n-prompts 20 \
     --out reports/interpretability_study.md
 ```
@@ -77,7 +77,7 @@ from i3.interpretability.attention_circuits import (
 To run them against a trained checkpoint, load the state dict into an
 `AdaptiveSLM` before passing the model into each function; no other
 code changes are required. The study orchestrator
-(`scripts/run_interpretability_study.py`) pins the commit SHA via
+(`scripts/experiments/interpretability_study.py`) pins the commit SHA via
 `git rev-parse HEAD` so every run is reproducible.
 
 ## New dependencies

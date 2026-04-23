@@ -122,7 +122,7 @@ load('ext://restart_process', 'docker_build_with_restart')
 docker_build_with_restart(
     'ghcr.io/hmi-lab/i3',
     context='.',
-    dockerfile='Dockerfile.dev',
+    dockerfile='docker/Dockerfile.dev',
     entrypoint=['python', '-m', 'i3.server'],
     live_update=[
         sync('./i3', '/app/i3'),

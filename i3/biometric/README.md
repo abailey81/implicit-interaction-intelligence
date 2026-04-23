@@ -3,8 +3,8 @@
 This package layers user-identification and anomaly-detection capabilities
 on top of the 64-dim behavioural embeddings produced by
 `i3.encoder.tcn.TemporalConvNet`. It is a **stretch goal** from the
-THE_COMPLETE_BRIEF.md §9 list ("Keystroke-biometric user identification
-for multi-user devices"); see also `BRIEF_ANALYSIS.md` §9 for rationale.
+the original specification §9 list ("Keystroke-biometric user identification
+for multi-user devices"); see also `the brief analysis` §9 for rationale.
 
 ## Contents
 

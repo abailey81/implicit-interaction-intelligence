@@ -31,7 +31,7 @@ the approach is surfaced rather than buried.
   UK Data Protection Act). The prototype does not operate on real user
   data in production; the architectural properties (no raw text
   persisted, PII sanitisation before cloud calls, Fernet encryption at
-  rest) are documented in `SECURITY.md` and `docs/ARCHITECTURE.md` §9
+  rest) are documented in `SECURITY.md` and `docs/architecture/full-reference.md` §9
   and are the raw material for such a checklist, not a substitute for
   one.
 - A fairness / bias audit with subgroup metrics. I have not collected

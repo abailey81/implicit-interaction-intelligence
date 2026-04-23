@@ -87,7 +87,7 @@ persisted.
 - **Session length.** The encoder's receptive field is ~61 timesteps;
   very short sessions (< 5 messages) produce embeddings that sit close
   to the untrained mean. The user model's "baseline established" flag
-  (§5 of `docs/ARCHITECTURE.md`) gates downstream decisions until 5
+  (§5 of `docs/architecture/full-reference.md`) gates downstream decisions until 5
   messages have been observed.
 - **Typing modality.** Physical keyboard, on-screen keyboard, swipe, and
   voice-to-text all produce different inter-key-interval distributions.

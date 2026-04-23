@@ -6,7 +6,7 @@ conditioning tokens``) to *shape* the output distribution.  In practice, a
 sufficiently expressive Transformer can learn to ignore the conditioning and
 rely entirely on the self-attention branch, silently defeating the whole
 point of the I^3 architecture (see
-``docs/ARCHITECTURE.md`` §8.5 -- Conditioning Sensitivity Test).
+``docs/architecture/full-reference.md`` §8.5 -- Conditioning Sensitivity Test).
 
 This module provides three drop-in ``nn.Module`` losses that are combined
 with the language-modelling loss during training to *actively encourage* the
@@ -22,7 +22,7 @@ model to use its conditioning:
   two with default weights.
 
 These losses are based on the auxiliary-loss recommendation in
-THE_COMPLETE_BRIEF.md §18.2 Day 7, which calls out
+the original specification §18.2 Day 7, which calls out
 ``ConditioningConsistencyLoss`` specifically as a stretch goal to ensure
 the conditioning path trains well.
 
@@ -136,7 +136,7 @@ class ConditioningConsistencyLoss(nn.Module):
     divergence.
 
     This follows the auxiliary-loss recommendation in
-    THE_COMPLETE_BRIEF.md §18.2 Day 7 ("add a consistency loss that pushes
+    the original specification §18.2 Day 7 ("add a consistency loss that pushes
     up KL between responses generated under different adaptation vectors").
 
     Parameters
@@ -467,7 +467,7 @@ class AdaptationConditioningLoss(nn.Module):
 
     Combines :class:`ConditioningConsistencyLoss` and
     :class:`StyleFidelityLoss` with default weights matching the
-    recommendation in THE_COMPLETE_BRIEF.md §18.2 Day 7:
+    recommendation in the original specification §18.2 Day 7:
 
         ``alpha_consistency = 0.1`` -- dominant auxiliary signal.
         ``alpha_fidelity = 0.05``   -- style surrogate, weaker because the

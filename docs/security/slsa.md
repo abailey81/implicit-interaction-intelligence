@@ -177,7 +177,7 @@ SLSA Level 3 **does not** protect against:
   3. File an advisory on
      [`github.com/abailey81/i3/security/advisories`](https://github.com/abailey81/i3/security/advisories)
      referencing the affected digests.
-- See `SUPPLY_CHAIN.md` for the full vulnerability response workflow.
+- See `docs/security/supply-chain.md` for the full vulnerability response workflow.
 
 ---
 

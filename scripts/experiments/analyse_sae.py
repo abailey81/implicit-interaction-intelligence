@@ -1,6 +1,6 @@
 """CLI to analyse trained SAEs and produce the SAE analysis report.
 
-Given the per-layer SAE checkpoints written by ``scripts/train_sae.py``,
+Given the per-layer SAE checkpoints written by ``scripts/training/train_sae.py``,
 this tool:
 
 1. Re-loads each SAE from ``checkpoints/sae/layer_{i}.pt``.

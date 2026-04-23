@@ -15,7 +15,7 @@ literature, and then checks four runtime invariants against the
 observed outcomes.  The harness is wired to four concrete target
 surfaces (the FastAPI HTTP app, the PII sanitiser, the PDDL planner,
 and the cloud guardrails) so that each attack traverses the same code
-path a real attacker would hit.  A single CLI (`scripts/run_redteam.py`)
+path a real attacker would hit.  A single CLI (`scripts/security/run_redteam.py`)
 runs the harness locally and in CI, producing both a machine-readable
 JSON report and a Markdown summary that is inlined into the GitHub
 Actions step summary.

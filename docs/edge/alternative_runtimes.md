@@ -569,7 +569,7 @@ installed.
 
 Orchestration:
 
-- `scripts/export_all_runtimes.py` — iterates every exporter and
+- `scripts/export/all_runtimes.py` — iterates every exporter and
   writes artefacts under `exports/{runtime}/`.
 - `benchmarks/test_edge_runtime_matrix.py` — pytest benchmark suite
   that writes `reports/edge_runtime_matrix_<date>.csv`.

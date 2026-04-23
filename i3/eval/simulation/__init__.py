@@ -1,7 +1,7 @@
 """Simulation-based closed-loop evaluation harness.
 
 This package implements the simulation harness described in
-``ADVANCEMENT_PLAN.md`` (Tier 1, Batch G1). It provides:
+``the advancement plan`` (Tier 1, Batch G1). It provides:
 
 * An :class:`HCIPersona` library of eight canonical synthetic users drawn
   from published HCI literature (Epp et al. 2011; Vizer 2009; Zimmermann

@@ -59,7 +59,7 @@ accompanied by:
 
 - a **CycloneDX SBOM** (`sbom.yml` workflow),
 - a **cosign keyless signature** from the GitHub Actions OIDC token,
-- a **SLSA Level 3 provenance attestation** (`SLSA.md` documents the
+- a **SLSA Level 3 provenance attestation** (`docs/security/slsa.md` documents the
   journey),
 - an **OpenSSF model-signing v1.0** envelope for PyTorch weights.
 
@@ -255,7 +255,7 @@ See also AWS's 2023 announcement:
 ## 5. Updated threat model
 
 The threats below were identified during the A17 supply-chain audit
-(see `SECURITY_AUDIT_REPORT.md`) and the new policy layer. Each maps to
+(see `reports/audits/2026-04-22-post-v1-security.md`) and the new policy layer. Each maps to
 an owning control.
 
 | ID | Threat | Layer | Control |
@@ -345,7 +345,7 @@ update the NIST matrix in this document, merge.
   <https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final>
 - **CIS Kubernetes Benchmark v1.9** —
   <https://www.cisecurity.org/benchmark/kubernetes>
-- Companion docs: `SECURITY.md`, `SLSA.md`, `SUPPLY_CHAIN.md`.
+- Companion docs: `SECURITY.md`, `docs/security/slsa.md`, `docs/security/supply-chain.md`.
 
 ---
 

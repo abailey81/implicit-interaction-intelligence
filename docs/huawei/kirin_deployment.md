@@ -301,7 +301,7 @@ flowchart LR
     J --> K[HarmonyOS install]
 ```
 
-The build is reproducible (SLSA level 3, per `SLSA.md`) and signed with
+The build is reproducible (SLSA level 3, per `docs/security/slsa.md`) and signed with
 OpenSSF Model Signing v1.0 at the final step. HarmonyOS's package manager
 verifies the signature before the agent is allowed to register.
 

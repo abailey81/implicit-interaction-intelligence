@@ -15,11 +15,11 @@ the public docs stay focused on architecture and APIs.
 | ONNX export dispatch   | `i3/mlops/export.py`                  |
 | TCN ONNX exporter      | `i3/encoder/onnx_export.py`           |
 | SLM ONNX exporter      | `i3/slm/onnx_export.py`               |
-| CLI: ONNX export       | `scripts/export_onnx.py`              |
+| CLI: ONNX export       | `scripts/export/onnx.py`              |
 | CLI: ONNX verify       | `scripts/verify_onnx.py`              |
-| CLI: inference bench   | `scripts/benchmark_inference.py`      |
-| CLI: edge profile      | `scripts/profile_edge.py`             |
-| CLI: tracked training  | `scripts/train_with_tracking.py`      |
+| CLI: inference bench   | `scripts/benchmarks/inference.py`      |
+| CLI: edge profile      | `scripts/benchmarks/profile_edge.py`             |
+| CLI: tracked training  | `scripts/training/train_with_tracking.py`      |
 | pytest benchmarks      | `benchmarks/`                         |
 | Load tests             | `benchmarks/locustfile.py`, `benchmarks/k6/load.js` |
 | SLOs                   | `benchmarks/slos.yaml`                |
@@ -64,7 +64,7 @@ The tracker automatically attaches these tags on every run:
 3. `git checkout <sha>` to restore the exact source tree.
 4. `dvc repro` (or `dvc pull && dvc repro`) to rebuild the data and
    models from the tracked pipeline.
-5. Re-run with `scripts/train_with_tracking.py`, passing any
+5. Re-run with `scripts/training/train_with_tracking.py`, passing any
    hyperparameters that were originally supplied on the CLI.
 
 The combination of git SHA + DVC lock + config hash gives us
@@ -116,7 +116,7 @@ in production deployments.
 ## ONNX export
 
 ```bash
-python scripts/export_onnx.py \
+python scripts/export/onnx.py \
     --encoder checkpoints/encoder/best.pt \
     --slm     checkpoints/slm/best.pt \
     --out     exports/ \

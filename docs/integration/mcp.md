@@ -250,17 +250,17 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
-See `scripts/mcp_client_smoke.py` for the exact smoke-test we run in CI.
+See `scripts/demos/mcp_client_smoke.py` for the exact smoke-test we run in CI.
 
 ### 5.4 Docker (stdio inside container)
 
-The `Dockerfile.mcp` at the repo root builds a tiny image that runs
+The `docker/Dockerfile.mcp` at the repo root builds a tiny image that runs
 only the MCP server over stdio. Because stdio-based MCP clients
 spawn the server as a child process, the container is expected to run
 one connection and exit — don't deploy it behind a reverse proxy.
 
 ```bash
-docker build -f Dockerfile.mcp -t i3-mcp:latest .
+docker build -f docker/Dockerfile.mcp -t i3-mcp:latest .
 
 # Connect from a host-side MCP client that can exec into a container:
 mcp-client exec docker run -i --rm i3-mcp:latest

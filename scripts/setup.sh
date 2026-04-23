@@ -113,7 +113,7 @@ else
   FERNET_KEY=$(python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())' 2>/dev/null || echo "")
   if [ -z "$FERNET_KEY" ]; then
     warn "Could not generate Fernet key (cryptography not installed yet?)"
-    warn "Run 'python scripts/generate_encryption_key.py --update-env' later"
+    warn "Run 'python scripts/security/generate_encryption_key.py --update-env' later"
   else
     printf "  ${DIM}Generated key:${RESET} ${CYAN}%s${RESET}\n" "$FERNET_KEY"
     printf "  ${YELLOW}?${RESET} Add this key to .env? [Y/n] "

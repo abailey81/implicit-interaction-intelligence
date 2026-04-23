@@ -189,7 +189,7 @@ Add to `crontab` (or a Kubernetes CronJob):
 ```cron
 # Run at 02:05 each night — after the diary has been pruned at 02:00.
 5 2 * * *  cd /opt/i3 && \
-    poetry run python scripts/run_analytics_dashboard.py \
+    poetry run python scripts/demos/analytics_dashboard.py \
         --diary /var/lib/i3/diary.db \
         --out-dir /var/lib/i3/reports
 ```
@@ -218,7 +218,7 @@ Analysts who need row-level data (with `no-raw-text` guarantee
 preserved) can pull a snapshot:
 
 ```bash
-poetry run python scripts/export_diary_to_parquet.py \
+poetry run python scripts/export/diary_to_parquet.py \
     --diary /var/lib/i3/diary.db \
     --out-dir /var/lib/i3/reports
 ```
@@ -233,7 +233,7 @@ The cold-start personalisation loop can ask "which 10 existing users
 look most like this new user?" via:
 
 ```bash
-poetry run python scripts/find_similar_users.py \
+poetry run python scripts/experiments/find_similar_users.py \
     --lance-uri /var/lib/i3/lance_user_embeddings \
     --user-id u_new_42 \
     --k 10
@@ -267,7 +267,7 @@ Lance store from the existing `UserProfileStore` SQLite DB.
 
 All five libraries are Apache 2.0-licensed and routinely audited,
 which aligns with the I³ supply-chain posture documented in
-`SUPPLY_CHAIN.md`.
+`docs/security/supply-chain.md`.
 
 ---
 

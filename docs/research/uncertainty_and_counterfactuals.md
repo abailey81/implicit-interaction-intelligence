@@ -210,7 +210,7 @@ window. The expected table structure is:
 | Out-of-distribution | 0.22 | 62 % | 0.09 |
 
 The numerical placeholders are the *expected* values based on the
-random-init demo (`scripts/run_uncertainty_demo.py`). The live
+random-init demo (`scripts/demos/uncertainty.py`). The live
 checkpoint is expected to produce σ roughly 40 % below these values.
 
 ## 5. Threats to validity

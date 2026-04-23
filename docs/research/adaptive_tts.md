@@ -245,7 +245,7 @@ passes every test, still serves the Web Speech API directive path,
 and adds zero install latency for the common case. This matches the
 supply-chain posture of the rest of the project's optional groups
 (observability, mlops, analytics) and the explicit non-goal in
-`ADVANCEMENT_PLAN.md` §4 to avoid adding more required dependencies.
+`the advancement plan` §4 to avoid adding more required dependencies.
 
 The route surface is three endpoints — `POST /api/tts`,
 `GET /api/tts/backends`, `GET /api/tts/preview?archetype=<N>` —
@@ -253,7 +253,7 @@ protected by the same middleware stack that already rate-limits and
 size-bounds the other routes. The body cap is 8 KiB, the text cap is
 2 000 characters, and PII sanitisation happens before any backend
 touches the input. The CLI demo
-`scripts/run_tts_demo.py` renders all eight archetype vectors into
+`scripts/demos/tts.py` renders all eight archetype vectors into
 `reports/tts_demo/`, producing one WAV per archetype plus a
 parameter-comparison table, so a reviewer can hear the difference
 between the neutral baseline and the accessibility-elevated case

@@ -205,7 +205,7 @@ limitations in its accessibility behaviour:
 - **Keystroke-only signal.** Users who do not type with a keyboard
   are invisible to the current pipeline. Voice-control, eye-tracking,
   switch-access, and other modalities are outside scope. A
-  multi-modal extension is future work (`docs/ARCHITECTURE.md` §12).
+  multi-modal extension is future work (`docs/architecture/full-reference.md` §12).
 - **Synthetic training data.** The TCN encoder is trained on
   synthetic data that approximates keystroke-dynamics archetypes
   from published studies. Those studies have small, demographically

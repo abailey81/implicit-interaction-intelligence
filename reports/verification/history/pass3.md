@@ -69,9 +69,9 @@
 | PASS | `blocker` | `interview.closing_line_verbatim` (closing_lines.md contains the verbatim closing line) | 0 ms | verbatim closing line present |
 | PASS | `high` | `interview.honesty_slide_title_case` (presentation.md contains the 'What This Prototype Is Not' slide) | 0 ms | honesty slide title present |
 | PASS | `medium` | `interview.adr_count` (docs/adr has >= 10 numbered ADRs) | 16 ms | 10 numbered ADR(s) (>=10 required) |
-| PASS | `high` | `interview.brief_analysis_header` (BRIEF_ANALYSIS.md first 30 lines contain 'Corrections notice') | 0 ms | Corrections notice present in first 30 lines |
+| PASS | `high` | `interview.brief_analysis_header` (the brief analysis first 30 lines contain 'Corrections notice') | 0 ms | Corrections notice present in first 30 lines |
 | PASS | `low` | `interview.changelog_unreleased_nonempty` (CHANGELOG.md [Unreleased] section > 500 chars) | 0 ms | [Unreleased] body is 19671 chars (>500 required) |
-| PASS | `low` | `interview.notes_md_sections` (NOTES.md has >= 10 '##' section headers) | 0 ms | 10 '## ' section header(s) (>=10 required) |
+| PASS | `low` | `interview.notes_md_sections` (engineering notes has >= 10 '##' section headers) | 0 ms | 10 '## ' section header(s) (>=10 required) |
 
 ## Skipped
 

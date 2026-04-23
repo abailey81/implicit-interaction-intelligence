@@ -1,14 +1,14 @@
 # Stretch-goal capabilities — mathematical formulation and citations
 
 This note records the mathematical underpinnings of the stretch-goal
-capabilities from THE_COMPLETE_BRIEF.md §9 that are implemented in the
+capabilities from the original specification §9 that are implemented in the
 `i3.slm.aux_losses`, `i3.interpretability`, `i3.biometric`, and
 `i3.adaptation.ablation` modules, plus the `server.routes_whatif`
 interpretability endpoints. Each section ends with the relevant citations.
 
 ## 1. Auxiliary conditioning losses
 
-The SLM's cross-attention conditioning (see `docs/ARCHITECTURE.md` §8)
+The SLM's cross-attention conditioning (see `docs/architecture/full-reference.md` §8)
 learns the `f: (AdaptationVector, UserStateEmbedding) -> conditioning_tokens`
 mapping end-to-end against next-token cross-entropy. Nothing in that
 objective forces the conditioning tokens to actually *shape* the output
@@ -57,7 +57,7 @@ L_total = L_CE + α_consistency · L_consistency + α_fidelity · L_fidelity
 ```
 
 with default weights `α_consistency = 0.1`, `α_fidelity = 0.05` per
-THE_COMPLETE_BRIEF.md §18.2 Day 7.
+the original specification §18.2 Day 7.
 
 **Citations**
 - Kullback, S. & Leibler, R. A. (1951). *On Information and Sufficiency*.
@@ -192,5 +192,5 @@ the same clamp semantics as the live path) and passed directly to
 rate-limit / size-limit / security-headers middleware stack.
 
 This implements the "what-if mode" stretch goal from
-THE_COMPLETE_BRIEF.md §9 and the interpretability-panel requirement
-from BRIEF_ANALYSIS.md §9.
+the original specification §9 and the interpretability-panel requirement
+from the brief analysis §9.

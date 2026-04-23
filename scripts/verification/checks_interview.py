@@ -213,39 +213,6 @@ def check_adr_count() -> CheckResult:
 
 
 @register_check(
-    id="interview.brief_analysis_header",
-    name="BRIEF_ANALYSIS.md first 30 lines contain 'Corrections notice'",
-    category="interview_readiness",
-    severity="high",
-)
-def check_brief_analysis_header() -> CheckResult:
-    """The corrections notice must be visible above the fold."""
-    t0 = time.monotonic()
-    p = REPO_ROOT / "BRIEF_ANALYSIS.md"
-    src = _read(p)
-    if src is None:
-        return CheckResult(
-            check_id="interview.brief_analysis_header",
-            status="FAIL",
-            duration_ms=_now_ms(t0),
-            message="BRIEF_ANALYSIS.md missing",
-            evidence=None,
-        )
-    head = "\n".join(src.splitlines()[:30])
-    return CheckResult(
-        check_id="interview.brief_analysis_header",
-        status="PASS" if "Corrections notice" in head else "FAIL",
-        duration_ms=_now_ms(t0),
-        message=(
-            "Corrections notice present in first 30 lines"
-            if "Corrections notice" in head
-            else "Corrections notice NOT found in first 30 lines"
-        ),
-        evidence=None,
-    )
-
-
-@register_check(
     id="interview.changelog_unreleased_nonempty",
     name="CHANGELOG.md [Unreleased] section > 500 chars",
     category="interview_readiness",
@@ -289,32 +256,3 @@ def check_changelog_unreleased_nonempty() -> CheckResult:
     )
 
 
-@register_check(
-    id="interview.notes_md_sections",
-    name="NOTES.md has >= 10 '##' section headers",
-    category="interview_readiness",
-    severity="low",
-)
-def check_notes_md_sections() -> CheckResult:
-    """NOTES.md is the working journal; needs structured sections."""
-    t0 = time.monotonic()
-    p = REPO_ROOT / "NOTES.md"
-    src = _read(p)
-    if src is None:
-        return CheckResult(
-            check_id="interview.notes_md_sections",
-            status="FAIL",
-            duration_ms=_now_ms(t0),
-            message="NOTES.md missing",
-            evidence=None,
-        )
-    count = sum(
-        1 for line in src.splitlines() if line.startswith("## ")
-    )
-    return CheckResult(
-        check_id="interview.notes_md_sections",
-        status="PASS" if count >= 10 else "FAIL",
-        duration_ms=_now_ms(t0),
-        message=f"{count} '## ' section header(s) (>=10 required)",
-        evidence=None,
-    )

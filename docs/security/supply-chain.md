@@ -4,7 +4,7 @@ This document describes how Implicit Interaction Intelligence (I3) secures its
 software supply chain — from source, through build, to consumer verification —
 and how we respond when a vulnerability is reported.
 
-For the SLSA-specific justification and verification steps, see `SLSA.md`.
+For the SLSA-specific justification and verification steps, see `docs/security/slsa.md`.
 For private vulnerability reporting, see `SECURITY.md`.
 
 ---
@@ -168,7 +168,7 @@ Security tab with deduplication.
 
 ### 5.4 Consumer guidance
 
-- Always verify the digest + signature before deploying (see §3.2, `SLSA.md`).
+- Always verify the digest + signature before deploying (see §3.2, `docs/security/slsa.md`).
 - Subscribe to
   [`abailey81/i3` security advisories](https://github.com/abailey81/i3/security/advisories).
 - Pin images by digest, not tag, in production.

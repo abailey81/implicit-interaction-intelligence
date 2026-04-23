@@ -273,7 +273,7 @@ Or: `UserProfile` decryption raises `InvalidToken`.
 
 1. Generate the new key:
    ```bash
-   python scripts/generate_encryption_key.py > new.key
+   python scripts/security/generate_encryption_key.py > new.key
    ```
 2. Assemble a `MultiFernet` key chain: `new_key,old_key` (new first).
 3. Deploy with `I3_ENCRYPTION_KEY=<new>,<old>`.

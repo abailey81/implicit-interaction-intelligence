@@ -1,6 +1,6 @@
 """Run red-team harness against sanitizer/PDDL/guardrails without torch.
 
-The main ``scripts/run_redteam.py`` eagerly imports ``i3``, which imports
+The main ``scripts/security/run_redteam.py`` eagerly imports ``i3``, which imports
 ``i3.interaction.types`` (which imports torch).  On Windows boxes where
 torch fails to load ``c10.dll`` (missing VC++ redistributable), we cannot
 exercise even the non-torch target surfaces.
@@ -34,4 +34,4 @@ sys.modules.setdefault("torch", _torch_stub)
 # Now run the real CLI.
 import runpy
 sys.argv = ["run_redteam"] + sys.argv[1:]
-runpy.run_module("scripts.run_redteam", run_name="__main__")
+runpy.run_module("scripts.security.run_redteam", run_name="__main__")

@@ -7,7 +7,7 @@ their parameter deltas, and aggregate by client-sample-weighted mean.
 The real Flower server is soft-imported; when ``flwr`` is unavailable we
 expose a pure-numpy :func:`weighted_fedavg` function that is fully
 testable in isolation — the simulation harness in
-``scripts/run_federated_demo.py`` exercises it.
+``scripts/demos/federated.py`` exercises it.
 """
 
 from __future__ import annotations

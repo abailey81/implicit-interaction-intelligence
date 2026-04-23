@@ -2,11 +2,11 @@
 
 The script consumes either
 
-1. an ablation-study JSON dump produced by ``scripts/run_ablation_study.py``
+1. an ablation-study JSON dump produced by ``scripts/experiments/ablation_study.py``
    (Batch A) — in which case it judges the top-N pairs per
    ``(condition, archetype)`` cell; or
 2. a benchmark-results JSON dump produced by
-   ``scripts/run_implicit_adapt_bench.py`` (Batch C) — in which case it
+   ``scripts/experiments/implicit_adapt_bench.py`` (Batch C) — in which case it
    pair-judges the submissions;
 
 and emits two artefacts:

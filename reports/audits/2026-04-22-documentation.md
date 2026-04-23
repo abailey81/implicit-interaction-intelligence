@@ -21,10 +21,10 @@ Legend — **P** = present, **B** = brief-mandated, **I** = interview-critical.
 | `CONTRIBUTING.md` | yes | no | no | 542 lines | Readable, structured, onboarding-grade. | None blocking. |
 | `CODE_OF_CONDUCT.md` | yes | no | no | 51 lines | Contributor-Covenant 2.1 reference. | — |
 | `SECURITY.md` | yes | yes | no | 414 lines | Threat-model + mitigations. | — |
-| `SLSA.md` | yes | yes | no | 190 lines | L3 posture, verification with `cosign` + `slsa-verifier`. | — |
-| `SUPPLY_CHAIN.md` | yes | yes | no | 261 lines | SBOM, vuln SLA, scanner matrix. | — |
-| `NOTES.md` | yes | yes | yes | 79 lines | Explicit "engineering disclosure" tone — names every deviation from spec. | — |
-| `BRIEF_ANALYSIS.md` | yes | yes | yes | 255 lines | Structured digest of `THE_COMPLETE_BRIEF.md`. | — |
+| `docs/security/slsa.md` | yes | yes | no | 190 lines | L3 posture, verification with `cosign` + `slsa-verifier`. | — |
+| `docs/security/supply-chain.md` | yes | yes | no | 261 lines | SBOM, vuln SLA, scanner matrix. | — |
+| `engineering notes` | yes | yes | yes | 79 lines | Explicit "engineering disclosure" tone — names every deviation from spec. | — |
+| `the brief analysis` | yes | yes | yes | 255 lines | Structured digest of `the original specification`. | — |
 | `LICENSE` | yes | yes | no | 21 lines | MIT. | — |
 | `.env.example`, `.editorconfig`, `.gitignore` | yes | yes | no | — | All present and non-empty. | — |
 
@@ -92,7 +92,7 @@ All seven files present (`README.md`, `presentation.md`, `speaker_notes.md`, `re
 
 ## 2. Voice & Tone Findings
 
-Sampled across `README.md`, `docs/slides/presentation.md`, `docs/edge_profiling_report.md`, `docs/huawei/interview_talking_points.md`, and five ADRs.
+Sampled across `README.md`, `docs/slides/presentation.md`, `docs/edge/profiling-report.md`, `docs/huawei/interview_talking_points.md`, and five ADRs.
 
 **Banned marketing language** ("revolutionary", "cutting-edge", "state-of-the-art"): **no substantive usage**. Only hits are in the two places that *forbid* them:
 
@@ -107,7 +107,7 @@ Sampled across `README.md`, `docs/slides/presentation.md`, `docs/edge_profiling_
 **Emojis.**
 
 - `docs/adr/*` ADR-template and individual ADRs use ✅/❌/⚠️ extensively (96 total occurrences across 11 files). These are unambiguously emojis per the Unicode sets the brief targets. If the "no emojis" rule is interpreted strictly, every ADR needs a `yes`/`no`/`caveat` swap. If the rule targets decorative/colour emojis in user-facing prose, ADRs may be borderline acceptable but still inconsistent with the brief's letter.
-- `README.md` L551–L552 and `docs/ARCHITECTURE.md` L702–L704 use `U+2713 ✓` / `U+2717 ✗` glyphs as table cell markers. These are symbol characters rather than colour emojis (no variation selector, no Twemoji rendering), but a strict reading still catches them.
+- `README.md` L551–L552 and `docs/architecture/full-reference.md` L702–L704 use `U+2713 ✓` / `U+2717 ✗` glyphs as table cell markers. These are symbol characters rather than colour emojis (no variation selector, no Twemoji rendering), but a strict reading still catches them.
 - `docs/slides/presentation.md`: **zero emojis**. Clean.
 
 **Opens with experience nouns/verbs, not technology.** Deck slide 1 opens *"The person who already knows you're tired"* (`docs/slides/presentation.md:31`) and slide 2 with *"Your phone does not notice"* (L46). Speaker notes L19 open with a human hello rather than a stack list. Compliant.
@@ -120,14 +120,14 @@ Sampled across `README.md`, `docs/slides/presentation.md`, `docs/edge_profiling_
 
 | Paper | Present? | File(s) | Inline citation example |
 |---|---|---|---|
-| Bai, Kolter, Koltun 2018 (TCN) | yes | `docs/slides/presentation.md:114`, `docs/edge_profiling_report.md:203, L490`, `docs/responsible_ai/model_card_tcn.md:23, L297`, `docs/adr/0002-tcn-over-lstm-transformer.md`, `docs/research/contrastive_loss.md`, `docs/slides/{speaker_notes,rehearsal_timings,qa_prep}.md` | *"that's the Bai/Kolter/Koltun receptive-field formula"* (`qa_prep.md:23`) |
+| Bai, Kolter, Koltun 2018 (TCN) | yes | `docs/slides/presentation.md:114`, `docs/edge/profiling-report.md:203, L490`, `docs/responsible_ai/model_card_tcn.md:23, L297`, `docs/adr/0002-tcn-over-lstm-transformer.md`, `docs/research/contrastive_loss.md`, `docs/slides/{speaker_notes,rehearsal_timings,qa_prep}.md` | *"that's the Bai/Kolter/Koltun receptive-field formula"* (`qa_prep.md:23`) |
 | Chen et al. 2020 (SimCLR / NT-Xent) | yes | 16 files including `docs/slides/presentation.md:114`, `docs/research/contrastive_loss.md`, `docs/architecture/layers.md`, `CHANGELOG.md:L70` | *"NT-Xent (Chen et al. 2020 — SimCLR)"* (presentation footer, slide 6) |
-| Xiong et al. 2020 (Pre-LN) | yes | `docs/slides/presentation.md:151`, `docs/slides/qa_prep.md:134`, `docs/edge_profiling_report.md:203, L490`, `docs/ARCHITECTURE.md:727` | *"Vaswani 2017 (attention). Xiong et al. 2020 (Pre-LN transformer)"* (`presentation.md:151`) |
-| Vaswani et al. 2017 | yes | `docs/slides/presentation.md:151`, `docs/responsible_ai/model_card_slm.md:301`, `docs/research/cross_attention.md`, `docs/adr/0001-custom-slm-over-huggingface.md`, `docs/edge_profiling_report.md` | same as above |
+| Xiong et al. 2020 (Pre-LN) | yes | `docs/slides/presentation.md:151`, `docs/slides/qa_prep.md:134`, `docs/edge/profiling-report.md:203, L490`, `docs/architecture/full-reference.md:727` | *"Vaswani 2017 (attention). Xiong et al. 2020 (Pre-LN transformer)"* (`presentation.md:151`) |
+| Vaswani et al. 2017 | yes | `docs/slides/presentation.md:151`, `docs/responsible_ai/model_card_slm.md:301`, `docs/research/cross_attention.md`, `docs/adr/0001-custom-slm-over-huggingface.md`, `docs/edge/profiling-report.md` | same as above |
 | Russo et al. 2018 / Chapelle & Li 2011 (Thompson sampling) | yes | `docs/slides/presentation.md:181`, `docs/slides/qa_prep.md:25`, `docs/research/bandit_theory.md`, `docs/adr/0003-thompson-sampling-over-ucb.md` | *"Russo et al. 2018 — Thompson sampling tutorial. Chapelle & Li 2011 — empirical evaluation"* (slide 10 footer) |
 | Epp 2011 / Vizer 2009 / Zimmermann 2014 (HCI keystroke dynamics) | yes | `docs/responsible_ai/accessibility_statement.md:44`, `docs/responsible_ai/data_card.md`, `docs/responsible_ai/model_card_{tcn,slm}.md`, `docs/slides/closing_lines.md:39`, `docs/slides/qa_prep.md`, `docs/slides/speaker_notes.md` | *"synthetic archetypes from HCI literature (Epp 2011, Vizer 2009, Zimmermann 2014)"* (`closing_lines.md:39`) |
-| Gebru et al. 2021 (Datasheets) in `data_card` | yes | `docs/responsible_ai/data_card.md:3, L347` (and `docs/data_card.md`) | *"Follows the 'Datasheets for Datasets' structure of Gebru et al. 2021"* (L3) |
-| Mitchell et al. 2019 (Model Cards) in model cards | yes | `docs/responsible_ai/model_card_slm.md:3, L301`, `model_card_tcn.md`, `docs/model_card.md` | *"Template follows Mitchell et al. 2019 ('Model Cards for Model Reporting'...)"* (L3) |
+| Gebru et al. 2021 (Datasheets) in `data_card` | yes | `docs/responsible_ai/data_card.md:3, L347` (and `docs/responsible_ai/data_card.md`) | *"Follows the 'Datasheets for Datasets' structure of Gebru et al. 2021"* (L3) |
+| Mitchell et al. 2019 (Model Cards) in model cards | yes | `docs/responsible_ai/model_card_slm.md:3, L301`, `model_card_tcn.md`, `docs/responsible_ai/model_card_slm.md` | *"Template follows Mitchell et al. 2019 ('Model Cards for Model Reporting'...)"* (L3) |
 
 **Huawei public-source citations.** Smart Hanhan, AI Glasses, HarmonyOS 6 + HMAF, Edinburgh Joint Lab + Nissim, Eric Xu, Kirin, MindSpore Lite: all cited, most with a public URL.
 
@@ -218,7 +218,7 @@ All six brief items (60-s pitch, per-layer one-liners, panel questions, red-flag
   - `docs/slides/*` (7 files) — deck + notes not linked.
   - `docs/responsible_ai/*` (5 files) — model cards are linked only at top-level `model_card.md`/`data_card.md`, not the SLM/TCN specifics or accessibility statement.
   - `docs/mlops/README.md`.
-  - `docs/edge_profiling_report.md`.
+  - `docs/edge/profiling-report.md`.
   - `docs/getting-started/` is listed but without a parent "Quickstart" subtitle for each file.
 
   These omissions are the single largest documentation gap. With `strict: true`, a build would still pass (no broken links), but the site will not surface 20+ interview-relevant pages. A reviewer visiting the published docs will not find the Huawei integration pages or the slide deck.
@@ -231,7 +231,7 @@ All six brief items (60-s pitch, per-layer one-liners, panel questions, red-flag
 
 ### P0 — must-fix before the interview
 
-1. **MkDocs `nav:` expansion.** Add `docs/huawei/*`, `docs/slides/*`, `docs/responsible_ai/*`, `docs/mlops/README.md`, `docs/edge_profiling_report.md`. Without this, the published site hides the strongest interview material. ~20 minutes.
+1. **MkDocs `nav:` expansion.** Add `docs/huawei/*`, `docs/slides/*`, `docs/responsible_ai/*`, `docs/mlops/README.md`, `docs/edge/profiling-report.md`. Without this, the published site hides the strongest interview material. ~20 minutes.
 2. **Canonicalise honesty-slide title.** Change `docs/slides/presentation.md:220` from `# What this prototype is *not*` to `# What This Prototype Is *Not*` to match the brief and `closing_lines.md`. ~30 seconds.
 
 ### P1 — high value, low effort
