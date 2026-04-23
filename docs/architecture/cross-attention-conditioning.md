@@ -157,6 +157,38 @@ Typical deltas on the validation split:
 | `prefix` | +7.9 %  | prefix helps, but less than per-layer |
 | `full`   |   0 %   | baseline |
 
+## Related work { #related-work }
+
+The cross-attention conditioning design sits in a well-established
+family of techniques for threading user state into an LLM.
+
+- **USER-LLM** (Google Research, 2024) — the closest direct analogue.
+  User embeddings are cross-attended with intermediate text
+  representations inside the LLM.  I³ follows the same shape but
+  derives the user embedding from a bespoke TCN over interaction
+  features rather than from a pretrained interaction-history
+  encoder.
+  [research.google blog](https://research.google/blog/user-llm-efficient-llm-contextualization-with-user-embeddings/).
+- **DEP — Difference-aware Embedding-based Personalisation** (EMNLP
+  2025).  Models inter-user differences in latent space rather than
+  in prompts.  I³'s three-timescale user model
+  ([`i3/user_model/`](../../i3/user_model/)) achieves a similar
+  latent-space factorisation via the instant / session / long-term
+  EMA decomposition.
+  [ACL anthology](https://aclanthology.org/2025.emnlp-main.536/).
+- **LLM Modules** (arXiv:2502.08213).  Enhanced cross-attention as
+  a knowledge-transfer mechanism from large models to small ones —
+  directly relevant when I³'s custom SLM is substituted for a
+  larger open model (e.g. Phi-4-mini, Gemma 4 E2B).
+  [arXiv](https://arxiv.org/abs/2502.08213).
+- **Survey.** *A survey of personalised LLMs: progress and future
+  directions* (arXiv:2502.11528) is the current canonical
+  overview.  [arXiv](https://arxiv.org/html/2502.11528v2).
+
+See [`docs/research/2026_landscape.md`](../research/2026_landscape.md)
+§3 for a fuller context on how I³ relates to the 2026 state of the
+art in personalised LLMs.
+
 ## Further reading { #further }
 
 - [Research: Cross-attention](../research/cross_attention.md) —

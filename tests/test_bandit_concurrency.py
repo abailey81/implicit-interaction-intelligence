@@ -147,3 +147,49 @@ def test_update_clips_out_of_range_reward():
     # Both are clipped to [0, 1] before hitting the Beta posterior.
     assert bandit.alpha[0] <= 2.0 + 1e-9
     assert bandit.beta_param[1] <= 2.0 + 1e-9
+
+
+# ---------------------------------------------------------------------------
+# Cost-aware reward (BaRP 2025, arXiv:2510.07429)
+# ---------------------------------------------------------------------------
+
+
+def test_cost_penalty_reduces_posterior_alpha():
+    """Penalising a route moves the Beta posterior toward the failure side."""
+    penalised = ContextualThompsonBandit(n_arms=2, context_dim=4)
+    unpenalised = ContextualThompsonBandit(n_arms=2, context_dim=4)
+    ctx = np.zeros(4)
+    for _ in range(50):
+        penalised.update(0, ctx, reward=0.8, cost_penalty=0.3)
+        unpenalised.update(0, ctx, reward=0.8, cost_penalty=0.0)
+    # With penalty, alpha grows slower and beta grows faster.
+    assert penalised.alpha[0] < unpenalised.alpha[0]
+    assert penalised.beta_param[0] > unpenalised.beta_param[0]
+
+
+def test_cost_penalty_rejects_negative():
+    bandit = ContextualThompsonBandit(n_arms=2, context_dim=4)
+    with pytest.raises(ValueError):
+        bandit.update(0, np.zeros(4), reward=0.5, cost_penalty=-0.1)
+
+
+def test_cost_penalty_of_zero_preserves_behaviour():
+    """cost_penalty=0.0 must be a no-op."""
+    a = ContextualThompsonBandit(n_arms=2, context_dim=4)
+    b = ContextualThompsonBandit(n_arms=2, context_dim=4)
+    ctx = np.random.default_rng(7).standard_normal(4)
+    for _ in range(20):
+        a.update(0, ctx, reward=0.6)                     # default
+        b.update(0, ctx, reward=0.6, cost_penalty=0.0)   # explicit zero
+    assert a.alpha == b.alpha
+    assert a.beta_param == b.beta_param
+
+
+def test_cost_penalty_clips_to_zero():
+    """A penalty larger than the reward clips to 0, not negative."""
+    bandit = ContextualThompsonBandit(n_arms=2, context_dim=4)
+    bandit.update(0, np.zeros(4), reward=0.3, cost_penalty=0.9)
+    # Effective reward is max(0, 0.3 - 0.9) = 0.0 → alpha stays at 1.0,
+    # beta grows by 1.0.
+    assert abs(bandit.alpha[0] - 1.0) < 1e-9
+    assert abs(bandit.beta_param[0] - 2.0) < 1e-9

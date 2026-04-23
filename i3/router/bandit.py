@@ -240,7 +240,14 @@ class ContextualThompsonBandit:
     # Posterior update
     # ------------------------------------------------------------------
 
-    def update(self, arm: int, context: np.ndarray, reward: float) -> None:
+    def update(
+        self,
+        arm: int,
+        context: np.ndarray,
+        reward: float,
+        *,
+        cost_penalty: float = 0.0,
+    ) -> None:
         """Update the posterior for ``arm`` after observing ``reward``.
 
         Args:
@@ -248,13 +255,28 @@ class ContextualThompsonBandit:
             context: The context vector that was used for the decision.
             reward: Observed reward signal, typically in [0, 1].
                 Values > 0.5 are treated as successes for the Beta posterior.
+            cost_penalty: Optional non-negative penalty subtracted from
+                ``reward`` before the posterior update.  Use this to bias
+                the router toward cheaper arms: e.g. pass the estimated
+                cost-per-1K-tokens on the cloud arm, normalised so the
+                penalty sits in the same [0, 1] band as the reward.  A
+                zero penalty preserves the original behaviour.  The
+                approach matches the preference-tunable routing idea
+                in BaRP (arXiv:2510.07429) — we apply the preference
+                at update time rather than at sample time, which keeps
+                the posterior a pure utility estimate.
 
         Raises:
-            ValueError: If ``arm`` is out of range or ``context`` has the
-                wrong shape.
+            ValueError: If ``arm`` is out of range, ``context`` has the
+                wrong shape, or ``cost_penalty`` is negative.
         """
         if not (0 <= arm < self.n_arms):
             raise ValueError(f"arm must be in [0, {self.n_arms}), got {arm}")
+        if cost_penalty < 0.0 or not np.isfinite(cost_penalty):
+            raise ValueError(
+                f"cost_penalty must be a non-negative finite float, "
+                f"got {cost_penalty!r}"
+            )
         context = np.asarray(context, dtype=np.float64).ravel()
         if context.shape[0] != self.context_dim:
             raise ValueError(
@@ -281,6 +303,11 @@ class ContextualThompsonBandit:
                 "Reward %.4f for arm %d outside [0,1]; clipping.", reward_f, arm
             )
             reward_f = float(np.clip(reward_f, 0.0, 1.0))
+
+        # Apply cost-aware penalty.  We clip after subtraction so the
+        # Beta-posterior update still sees a value in [0, 1].
+        if cost_penalty > 0.0:
+            reward_f = float(np.clip(reward_f - cost_penalty, 0.0, 1.0))
 
         # SEC (H-5): serialise the entire Beta + history + Laplace
         # update so concurrent callers cannot observe half-applied state.

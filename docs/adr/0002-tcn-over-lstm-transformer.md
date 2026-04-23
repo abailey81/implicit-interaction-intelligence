@@ -77,6 +77,31 @@ Layer 2 encodes a sequence of 32-dim interaction feature vectors into a
 - No No strong inductive bias for locality, which the keystroke feature
   sequence has.
 
+## 2025 follow-on literature
+
+The 2018 Bai paper remains the canonical comparison, and the 2025
+literature has not overturned it — TCNs are still competitive with
+Transformers on bounded-receptive-field tasks and cheaper on very
+long sequences.  What *has* shifted is the preference for
+**hybrid TCN + attention** architectures: the TCN captures local +
+long-term temporal patterns at O(n), and a single attention block
+on top enhances global context.
+
+- **Network-traffic prediction (PLOS ONE 2025).** A TCN + Transformer
+  hybrid outperforms either alone on long sequences.
+  [DOI: 10.1371/journal.pone.0320368](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0320368).
+- **TransTCN** (OpenReview 2024) — attention-gated TCN blocks.
+  [OpenReview](https://openreview.net/forum?id=AAHL45-O7tV).
+- **Battery SoC estimation** (Xbattery 2025) — TCN wins on latency,
+  Transformer on accuracy, hybrid sits on the Pareto front.
+  [Xbattery blog](https://xbattery.energy/blog/exploring-temporal-convolutional-and-self-attention-transformer-networks-for-soc-estimation).
+
+If I³ ever extends the encoder to capture cross-session narrative (a
+receptive field well beyond the current 60 steps) a **single
+attention block on the TCN output** is the cheapest upgrade path.
+Tracked as a follow-on in
+[`docs/research/2026_landscape.md`](../research/2026_landscape.md) §5.
+
 ## References { #refs }
 
 - [Research: Contrastive loss](../research/contrastive_loss.md)

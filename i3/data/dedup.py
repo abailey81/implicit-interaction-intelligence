@@ -25,18 +25,25 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Iterable, Iterator
 
-#: Shingle size for min-hash.  k=5 balances false-positive rate
-#: against sensitivity to paraphrase; empirically matches the
-#: canonical values used in near-duplicate Web crawling literature
-#: (Broder 1997, Manku et al. 2007).
+#: Shingle size for min-hash.  k=5 is the canonical value used in
+#: both the near-duplicate Web-crawling literature
+#: (Broder 1997, Manku et al. 2007) and Hugging Face's FineWeb /
+#: Datatrove pipeline (Penedo et al., arXiv:2406.17557) —
+#: see also the reference `minhash_deduplication.py` example in
+#: https://github.com/huggingface/datatrove.
 _DEFAULT_SHINGLE_SIZE: int = 5
 
-#: Number of min-hash permutations.  More permutations → tighter
-#: Jaccard estimate; 128 is the canonical sweet spot.
+#: Number of min-hash permutations.  128 is the canonical sweet spot
+#: for production pipelines; FineWeb uses 112 (14 bands × 8 rows).
+#: We pick 128 because 128 = 16 × 8 divides cleanly into the band
+#: / row decomposition.
 _DEFAULT_NUM_PERMUTATIONS: int = 128
 
-#: Bands × rows per band = num_permutations.  (bands=16, rows=8) lets
-#: the LSH signature catch ~0.6-similarity pairs with ~0.95 probability.
+#: Bands × rows per band = num_permutations.  (bands=16, rows=8) makes
+#: the LSH collision probability P(collision | similarity=s) =
+#: 1 - (1 - s⁸)¹⁶, which gives ≥ 0.81 recall at s=0.75 and ≥ 0.97
+#: recall at s=0.85.  FineWeb's (14, 8) is tuned for the same
+#: threshold band; this module's defaults are chosen for parity.
 _DEFAULT_BANDS: int = 16
 
 _TOKEN_RE: re.Pattern[str] = re.compile(r"\w+", re.UNICODE)

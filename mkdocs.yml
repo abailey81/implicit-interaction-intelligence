@@ -217,6 +217,7 @@ nav:
       - WebSocket: api/websocket.md
       - Python SDK: api/python.md
   - Research:
+      - 2026 Landscape Survey: research/2026_landscape.md
       - Cross-Attention: research/cross_attention.md
       - Contrastive Loss: research/contrastive_loss.md
       - Bandit Theory: research/bandit_theory.md
@@ -271,6 +272,7 @@ nav:
       - Model Card (TCN): responsible_ai/model_card_tcn.md
       - Data Card: responsible_ai/data_card.md
       - Accessibility Statement: responsible_ai/accessibility_statement.md
+      - EU AI Act Scope: responsible_ai/eu_ai_act_scope.md
   - Huawei:
       - huawei/README.md
       - HarmonyOS + HMAF Integration: huawei/harmony_hmaf_integration.md
