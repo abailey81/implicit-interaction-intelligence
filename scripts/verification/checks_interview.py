@@ -213,45 +213,45 @@ def check_adr_count() -> CheckResult:
 
 
 @register_check(
-    id="interview.changelog_unreleased_nonempty",
-    name="CHANGELOG.md [Unreleased] section > 500 chars",
+    id="interview.changelog_latest_release_nonempty",
+    name="CHANGELOG.md latest release section > 500 chars",
     category="interview_readiness",
     severity="low",
 )
-def check_changelog_unreleased_nonempty() -> CheckResult:
-    """Validates an Unreleased section with real content exists."""
+def check_changelog_latest_release_nonempty() -> CheckResult:
+    """The most-recent released section must contain real content."""
     t0 = time.monotonic()
     p = REPO_ROOT / "CHANGELOG.md"
     src = _read(p)
     if src is None:
         return CheckResult(
-            check_id="interview.changelog_unreleased_nonempty",
+            check_id="interview.changelog_latest_release_nonempty",
             status="FAIL",
             duration_ms=_now_ms(t0),
             message="CHANGELOG.md missing",
             evidence=None,
         )
-    # Capture content between '## [Unreleased]' and the next '## [' heading.
+    # Capture content of the first dated ``## [x.y.z] — YYYY-MM-DD`` section.
     match = re.search(
-        r"##\s*\[Unreleased\](.*?)(?=^##\s*\[|\Z)",
+        r"##\s*\[[^\]]+\]\s*[—\-]\s*\d{4}-\d{2}-\d{2}(.*?)(?=^##\s*\[|\Z)",
         src,
         re.DOTALL | re.MULTILINE,
     )
     if not match:
         return CheckResult(
-            check_id="interview.changelog_unreleased_nonempty",
+            check_id="interview.changelog_latest_release_nonempty",
             status="FAIL",
             duration_ms=_now_ms(t0),
-            message="[Unreleased] section not found",
+            message="no dated release section found",
             evidence=None,
         )
     body = match.group(1).strip()
     ok = len(body) > 500
     return CheckResult(
-        check_id="interview.changelog_unreleased_nonempty",
+        check_id="interview.changelog_latest_release_nonempty",
         status="PASS" if ok else "FAIL",
         duration_ms=_now_ms(t0),
-        message=f"[Unreleased] body is {len(body)} chars (>500 required)",
+        message=f"latest release section is {len(body)} chars (>500 required)",
         evidence=None,
     )
 

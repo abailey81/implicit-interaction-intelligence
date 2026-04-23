@@ -255,9 +255,7 @@ nav:
       - Kubernetes: operations/kubernetes.md
       - Runbook: operations/runbook.md
       - Troubleshooting: operations/troubleshooting.md
-      - Developer Experience: operations/developer_experience.md
       - Reproducibility: operations/reproducibility.md
-      - uv Migration: operations/uv_migration.md
       - Analytics: operations/analytics.md
       - Advanced Demo UI: operations/advanced_ui.md
       - Verification Harness: operations/verification_harness.md

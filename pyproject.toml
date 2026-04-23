@@ -191,7 +191,7 @@ vllm = ["vllm"]
 bandit           = { version = "^1.7", extras = ["toml"] }
 "pip-audit"      = "^2.7"
 safety           = "^3.0"
-detect-secrets   = "^1.5"              # Used by lefthook pre-commit hook
+detect-secrets   = "^1.5"              # Used by pre-commit hook
 
 # ─── Policy-as-Code Dependencies ─────────────────────────────────────────
 # Soft-imported by i3/authz/cedar_adapter.py. Adds the Cedar policy engine

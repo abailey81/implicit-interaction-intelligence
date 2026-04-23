@@ -1,0 +1,31 @@
+cff-version: 1.2.0
+title: "Implicit Interaction Intelligence (I³)"
+message: >-
+  If you use this software in your research, please cite it using the
+  metadata below.
+type: software
+authors:
+  - family-names: Atesyakar
+    given-names: Tamer
+    affiliation: University College London
+repository-code: "https://github.com/abailey81/implicit-interaction-intelligence"
+url: "https://abailey81.github.io/implicit-interaction-intelligence/"
+abstract: >-
+  An adaptive AI companion that learns from how users interact —
+  keystroke dynamics, linguistic complexity, temporal patterns — and
+  conditions every downstream decision (routing, generation, TTS) on
+  that evolving signal. The system comprises a custom TCN encoder, a
+  ~6.3M-parameter transformer with cross-attention conditioning, a
+  contextual Thompson-sampling bandit, and a privacy-preserving diary.
+keywords:
+  - adaptive-ai
+  - human-computer-interaction
+  - privacy-preserving-ml
+  - temporal-convolutional-networks
+  - small-language-models
+  - contextual-bandits
+  - cross-attention-conditioning
+  - edge-ai
+license: MIT
+version: 1.1.0
+date-released: 2026-04-23

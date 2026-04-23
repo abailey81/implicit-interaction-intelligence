@@ -1,671 +1,989 @@
-<div align="center">
-
 # Implicit Interaction Intelligence (I³)
 
-### Adaptive AI companion systems that learn from *how* you interact
+An adaptive AI companion that learns from *how* a user interacts — keystroke
+dynamics, linguistic complexity, temporal patterns — and conditions every
+downstream decision (routing, generation, TTS) on that evolving signal.
 
-[![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![PyTorch](https://img.shields.io/badge/pytorch-2.0+-orange.svg)](https://pytorch.org/)
-[![FastAPI](https://img.shields.io/badge/fastapi-0.100+-009688.svg)](https://fastapi.tiangolo.com/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-80+-success.svg)](tests/)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+The system is a full async pipeline, built from first principles in PyTorch:
+a custom TCN encoder, a ~6.3 M-parameter transformer with cross-attention
+conditioning, a contextual Thompson-sampling bandit that decides when to
+route to a foundation model, and a privacy-preserving diary that persists
+only embeddings and aggregate metrics — never raw text.
 
-*An AI companion that builds a rich, evolving model of each user from implicit
-behavioural signals — keystroke dynamics, linguistic complexity, temporal
-patterns — and continuously adapts its responses across cognitive load,
-communication style, emotional tone, and accessibility needs.*
-
-</div>
+- **Docs site:** <https://abailey81.github.io/implicit-interaction-intelligence/>
+- **License:** MIT — see [`LICENSE`](LICENSE)
+- **Supported:** Python 3.10 / 3.11 / 3.12, PyTorch 2.0 +, Linux + macOS + Windows
 
 ---
 
-## The Idea
+## Table of contents
 
-Current conversational AI systems respond to **what** you say. They parse your
-tokens, compute their attention, and return a response. But humans — especially
-the people who know us well — notice something richer: they notice **how** we
-say things. A close friend knows when you're tired from the pace of your reply,
-when you're stressed from the rhythm of your typing, when you're struggling
-from the effort you're putting into a single sentence. They don't need to ask.
-They adapt.
+1. [Why this project exists](#why-this-project-exists)
+2. [Architecture](#architecture)
+3. [Novel contribution — cross-attention conditioning](#novel-contribution--cross-attention-conditioning)
+4. [Repository layout](#repository-layout)
+5. [Prerequisites](#prerequisites)
+6. [Installation](#installation)
+7. [Configuration](#configuration)
+8. [Training the models](#training-the-models)
+9. [Running the server](#running-the-server)
+10. [Using the API](#using-the-api)
+11. [The demo UI](#the-demo-ui)
+12. [Docker and Docker Compose](#docker-and-docker-compose)
+13. [Kubernetes and Helm](#kubernetes-and-helm)
+14. [Testing and verification](#testing-and-verification)
+15. [Observability](#observability)
+16. [Edge deployment](#edge-deployment)
+17. [Privacy and security](#privacy-and-security)
+18. [Command reference (`make`)](#command-reference-make)
+19. [Contributing](#contributing)
+20. [Further reading](#further-reading)
 
-**Implicit Interaction Intelligence (I³)** is an attempt to build that
-capability into an AI companion. It observes keystroke dynamics, typing
-patterns, and linguistic complexity to build a continuous, evolving model of
-each user's cognitive state, communication style, and accessibility needs.
-That model then conditions response generation at every level — from the
-routing decision (local SLM vs. cloud LLM) down to the token-by-token
-cross-attention inside a custom transformer.
+---
 
-The project demonstrates three tiers of AI capability working together: a
-**custom ML encoder** (a TCN built from scratch), a **custom small language
-model** (a ~6.3 M-parameter transformer with no HuggingFace dependency), and
-**intelligent routing to foundational models** (a Bayesian bandit that decides
-when cloud capacity is worth the privacy and latency trade-off). Every
-non-trivial component — the encoder, the transformer, the cross-attention
-conditioning, the Thompson sampling bandit, the sentiment lexicon, even the
-cosine warmup scheduler — is implemented from first principles.
+## Why this project exists
+
+Conversational AI systems today respond to *what* a user types. They parse
+tokens, run attention, and return a response. But humans — especially
+close friends and collaborators — notice something richer: they notice
+*how* we say things. A friend knows when you are tired from the cadence
+of your replies, when you are stressed from the rhythm of your typing,
+when you are struggling from the effort you are putting into a single
+sentence.
+
+I³ is an attempt to build that capability into a companion. It observes
+keystroke dynamics, typing patterns, and linguistic complexity to build
+an evolving model of each user's cognitive state, communication style,
+and accessibility needs. The model then conditions response generation
+at every level — from the routing decision (local SLM vs. cloud LLM)
+down to the token-by-token cross-attention inside a custom transformer.
+
+Three tiers of AI capability are exercised end to end:
+
+1. **A custom ML encoder** — a TCN with dilated causal convolutions,
+   trained with NT-Xent contrastive loss from scratch.
+2. **A custom small language model** — a ~6.3 M-parameter transformer
+   with no HuggingFace dependency, featuring cross-attention
+   conditioning tokens derived from the user-state embedding.
+3. **Intelligent routing to foundational models** — a Bayesian
+   logistic-regression bandit with Laplace-approximated posterior
+   and Thompson sampling, with a privacy override that forces
+   local-SLM routing on sensitive topics.
+
+Every non-trivial component is implemented directly: the encoder, the
+transformer, the cross-attention conditioning, the Thompson sampling
+bandit, the sentiment lexicon, the cosine warmup scheduler, the Fernet
+key-rotation wrapper, the PDDL safety planner, and so on.
+
+---
 
 ## Architecture
 
 ```
-╭──────────────────────────────────────────────────────────────────────────╮
-│                                                                          │
-│    USER KEYSTROKE                                                        │
-│         │                                                                │
-│         ▼                                                                │
-│    ┌─────────────────────┐                                               │
-│    │  Layer 1            │   32-dim InteractionFeatureVector             │
-│    │  Perception         │   (keystroke dynamics, linguistic, session)   │
-│    │  i3/interaction/    │                                               │
-│    └──────────┬──────────┘                                               │
-│               │                                                          │
-│               ▼                                                          │
-│    ┌─────────────────────┐                                               │
-│    │  Layer 2            │   64-dim user state embedding                 │
-│    │  TCN Encoder        │   (dilations [1,2,4,8], NT-Xent contrastive)  │
-│    │  i3/encoder/        │                                               │
-│    └──────────┬──────────┘                                               │
-│               │                                                          │
-│               ▼                                                          │
-│    ┌─────────────────────┐                                               │
-│    │  Layer 3            │   Instant / Session / Long-term EMAs          │
-│    │  User Model         │   (Welford's online algorithm)                │
-│    │  i3/user_model/     │                                               │
-│    └──────────┬──────────┘                                               │
-│               │                                                          │
-│               ▼                                                          │
-│    ┌─────────────────────┐                                               │
-│    │  Layer 4            │   8-dim AdaptationVector                      │
-│    │  Adaptation         │   (cognitive load, style, tone, a11y)         │
-│    │  i3/adaptation/     │                                               │
-│    └──────────┬──────────┘                                               │
-│               │                                                          │
-│               ▼                                                          │
-│    ┌─────────────────────┐                                               │
-│    │  Layer 5            │   Contextual Thompson sampling                │
-│    │  Router             │   (Bayesian logistic regression + Laplace)    │
-│    │  i3/router/         │                                               │
-│    └──────────┬──────────┘                                               │
-│               │                                                          │
-│               ├────────────────────────┐                                 │
-│               ▼                        ▼                                 │
-│    ┌─────────────────────┐   ┌─────────────────────┐                     │
-│    │  Layer 6a           │   │  Layer 6b           │                     │
-│    │  Adaptive SLM       │   │  Cloud LLM          │                     │
-│    │  ~6.3M params       │   │  Claude API         │                     │
-│    │  i3/slm/            │   │  i3/cloud/          │                     │
-│    └──────────┬──────────┘   └──────────┬──────────┘                     │
-│               │                         │                                │
-│               └────────────┬────────────┘                                │
-│                            │                                             │
-│                            ▼                                             │
-│                 ┌─────────────────────┐                                  │
-│                 │  Layer 7            │   Embeddings + topics only       │
-│                 │  Interaction Diary  │   (raw text never stored)        │
-│                 │  i3/diary/          │                                  │
-│                 └──────────┬──────────┘                                  │
-│                            │                                             │
-│                            ▼                                             │
-│                     ADAPTED RESPONSE                                     │
-│                                                                          │
-│    ╷                                                  ╷                  │
-│    ├─ Cross-cutting: i3/privacy/  (PII, Fernet, audit) ┤                 │
-│    └─ Cross-cutting: i3/profiling/ (latency, memory)   ┘                 │
-│                                                                          │
-╰──────────────────────────────────────────────────────────────────────────╯
+USER KEYSTROKE
+      │
+      ▼
+┌─────────────────────┐
+│  Perception         │  32-dim InteractionFeatureVector
+│  i3/interaction/    │  (keystroke dynamics, linguistic, session)
+└──────────┬──────────┘
+           ▼
+┌─────────────────────┐
+│  TCN Encoder        │  64-dim user-state embedding
+│  i3/encoder/        │  (dilations [1,2,4,8], NT-Xent contrastive)
+└──────────┬──────────┘
+           ▼
+┌─────────────────────┐
+│  User Model         │  Instant / Session / Long-term EMAs
+│  i3/user_model/     │  (Welford's online algorithm)
+└──────────┬──────────┘
+           ▼
+┌─────────────────────┐
+│  Adaptation         │  8-dim AdaptationVector
+│  i3/adaptation/     │  (cognitive load, style, tone, accessibility)
+└──────────┬──────────┘
+           ▼
+┌─────────────────────┐
+│  Router             │  Contextual Thompson sampling
+│  i3/router/         │  (Bayesian logistic regression + Laplace)
+└──────────┬──────────┘
+           │
+    ┌──────┴──────┐
+    ▼             ▼
+┌────────┐   ┌────────┐
+│  SLM   │   │ Cloud  │   Local ~6.3 M-param SLM, or any of
+│ i3/slm/│   │i3/cloud│   11 first-class provider adapters
+└────┬───┘   └────┬───┘   (Anthropic, OpenAI, Google, Azure, Bedrock,
+     └─────┬─────┘         Mistral, Cohere, Ollama, OpenRouter,
+           ▼               LiteLLM, Huawei PanGu)
+┌─────────────────────┐
+│  Diary              │  Embeddings + topics only — raw text never stored
+│  i3/diary/          │
+└─────────────────────┘
+
+Cross-cutting: i3/privacy/  ·  i3/safety/  ·  i3/profiling/  ·  i3/observability/
 ```
 
-The system is structured as **seven sequential layers** plus **two
-cross-cutting concerns** (privacy, profiling), all orchestrated by a central
-async pipeline in `i3/pipeline/engine.py`.
+Orchestration lives in [`i3/pipeline/engine.py`](i3/pipeline/engine.py).
+The full design rationale, math, and data flow is in
+[`docs/architecture/full-reference.md`](docs/architecture/full-reference.md).
 
-### Layer 1 — Perception (`i3/interaction/`)
+### Layer-by-layer
 
-Captures **how** the user interacts, not just what they say. Extracts a
-32-dimensional `InteractionFeatureVector` per message covering four feature
-groups of eight features each: keystroke dynamics (inter-key intervals,
-burst/pause ratios, correction rate), message content (length, average word
-length, vocabulary diversity), linguistic complexity (Flesch-Kincaid grade,
-formality, sentiment valence), and session dynamics (within-session deviation
-from the user's personal baseline).
-
-The linguistic module contains a **~365-word valence lexicon** with negation
-handling, a **syllable counter** for Flesch-Kincaid grade-level estimation,
-and a formality classifier — all implemented from scratch with zero external
-NLP dependencies.
-
-### Layer 2 — Encoding (`i3/encoder/`)
-
-A **Temporal Convolutional Network** built from scratch in PyTorch. Four
-dilated causal convolution blocks with dilations `[1, 2, 4, 8]` and kernel
-size 3 produce a receptive field of ~61 timesteps — enough to see a full
-conversational window. Each block is a residual `CausalConv1d → LayerNorm →
-GELU → Dropout → CausalConv1d → LayerNorm` pair with a 1×1 skip projection.
-
-The network is trained with **NT-Xent contrastive loss** (the same objective
-used in SimCLR) on synthetic interaction data generated from eight user
-states with Markov transitions. The output is a compact 64-dimensional
-embedding used both as routing context and as conditioning for the SLM.
-
-### Layer 3 — User Modelling (`i3/user_model/`)
-
-A persistent three-timescale representation:
-
-```
-  t=0 ──────────── t=∞
-   │                │
-   ├── instant ─────┤   current encoder output (stateless)
-   │                │
-   ├── session ─────┤   EMA within session,   α = 0.3
-   │                │
-   ├── long-term ───┤   EMA across sessions,  α = 0.1
-```
-
-Uses **Welford's online algorithm** for numerically stable incremental
-feature-statistic updates (mean and variance without re-reading history),
-with deviation metrics computed as z-scores against the long-term profile.
-Persistent profiles are stored asynchronously in SQLite via `aiosqlite`,
-Fernet-encrypted at rest.
-
-### Layer 4 — Adaptation (`i3/adaptation/`)
-
-Maps user state to an 8-dimensional `AdaptationVector` via four independent
-adapters orchestrated by an `AdaptationController`:
-
-| Dimension         | Adapter                    | Output                               |
-|-------------------|----------------------------|--------------------------------------|
-| `cognitive_load`  | `CognitiveLoadAdapter`     | Scalar ∈ [0, 1] — target complexity  |
-| `style_mirror`    | `StyleMirrorAdapter`       | 4-dim `StyleVector`                  |
-| `emotional_tone`  | `EmotionalToneAdapter`     | Scalar ∈ [0, 1] — warmth level       |
-| `accessibility`   | `AccessibilityAdapter`     | Scalar ∈ [0, 1] — simplification     |
-
-The `StyleVector` has four dimensions: `formality`, `verbosity`,
-`emotionality`, `directness` — each mirrored from the user's long-term
-baseline. The `AccessibilityAdapter` detects motor or cognitive difficulty
-from typing metrics (elevated correction rate, slow inter-key intervals,
-short bursts) and elevates simplification level.
-
-### Layer 5 — Routing (`i3/router/`)
-
-A **Contextual Thompson Sampling** multi-armed bandit built from scratch:
-
-- Two arms — local SLM and cloud LLM
-- 12-dimensional context vector: query complexity, topic sensitivity flags,
-  user-state summary, session progress, device pressure
-- **Bayesian logistic regression** posteriors per arm (weights `w ~ N(μ, Σ)`)
-- **Laplace approximation** refitted every 10 updates via Newton-Raphson MAP
-- Beta-Bernoulli cold-start fallback for the first few interactions
-- **Privacy override** — sensitive topics (health, mental health, financial
-  credentials, security credentials) are force-routed to the local SLM
-  regardless of posterior sample
-
-Thompson sampling is used rather than UCB because it naturally handles the
-non-stationary reward landscape (user preferences drift over time) and
-integrates cleanly with the Bayesian posterior.
-
-### Layer 6a — Local SLM (`i3/slm/`)
-
-A **~6.3M-parameter transformer** built from scratch in PyTorch. **No
-HuggingFace. No pre-trained weights. No `transformers` import anywhere.**
-Every component implemented from first principles:
-
-- Word-level tokenizer with 8 192-entry vocabulary and special tokens
-- Token embeddings + **sinusoidal positional encoding**
-- **Multi-head self-attention** with KV caching for fast autoregressive decode
-- **Novel cross-attention conditioning** (the architectural centrepiece —
-  see below)
-- Pre-LN `AdaptiveTransformerBlock` × 4 (`d_model=256`, `n_heads=4`)
-- **Weight-tied** output projection for parameter efficiency
-- Top-k / top-p / repetition-penalty sampling
-- **INT8 dynamic quantization** for edge deployment
-- Cosine-warmup learning-rate scheduler written from scratch
-
-### Layer 6b — Cloud LLM (`i3/cloud/`)
-
-Async Anthropic Claude client built directly on `httpx`. The `prompt_builder`
-constructs dynamic system prompts from the `AdaptationVector`, translating the
-adaptation parameters into explicit style instructions (formality level, target
-verbosity, warmth, simplification depth). All requests are PII-sanitized before
-transmission, retries use exponential backoff, and token usage is tracked
-per-user for cost accounting.
-
-### Layer 7 — Diary (`i3/diary/`)
-
-Privacy-safe interaction diary. **Raw user text is never stored.** Per
-exchange, the diary persists only:
-
-- The 64-dim user-state embedding at the time of the exchange
-- Scalar metrics (cognitive load, latency, route taken, reward)
-- **TF-IDF topic keywords** (extracted on the fly with a ~175-word stopword
-  list — no NLTK, no sklearn)
-- The `AdaptationVector` applied to the response
-
-Session summaries are generated from **aggregated metadata** using either a
-template or a cloud call — but the cloud summariser only ever receives
-metadata, never raw text.
-
-### Cross-Cutting: Privacy (`i3/privacy/`)
-
-- **10 compiled PII regex patterns** — email, phone, SSN, credit card,
-  IBAN, street address, IP address, URL, DOB, passport
-- **Fernet symmetric encryption** for user models at rest
-- **Privacy auditor** that scans the database for potential raw-text leaks
-  (hash-based detection of message fragments)
-
-### Cross-Cutting: Profiling (`i3/profiling/`)
-
-Edge deployment feasibility measurement:
-
-- Parameter counting, FP32 vs INT8 on-disk size comparison
-- Latency benchmarks (P50 / P95 / P99 percentiles) with warmup iterations
-- Memory footprint via Python's `tracemalloc`
-- Device feasibility matrix against Kirin 9000 (phone), Kirin A2 (wearable),
-  and Smart Hanhan (IoT)
+- **Perception (`i3/interaction/`).** Extracts a 32-dim
+  `InteractionFeatureVector` per message: keystroke dynamics
+  (inter-key intervals, burst / pause ratios, correction rate),
+  message content (length, word length, vocabulary diversity),
+  linguistic complexity (Flesch–Kincaid grade, formality, sentiment
+  valence), and session dynamics (deviation from the user's baseline).
+- **Encoding (`i3/encoder/`).** A TCN of stacked dilated causal
+  convolutions (dilations `[1, 2, 4, 8]`) compresses the feature
+  sequence into a 64-dim user-state embedding. Trained with NT-Xent
+  contrastive loss; exportable to ONNX with parity `atol = 1e-4`.
+- **User modelling (`i3/user_model/`).** Three-timescale EMAs
+  (instant / session / long-term) track the user's style across
+  sessions. Baseline statistics are maintained with Welford's
+  online algorithm. Persistence is async SQLite via `aiosqlite`;
+  embeddings are Fernet-encrypted at rest.
+- **Adaptation (`i3/adaptation/`).** Four adapters compute
+  cognitive-load, style-mirror, emotional-tone, and accessibility
+  dimensions, yielding an 8-dim `AdaptationVector`. The controller
+  handles ablation (disabling individual dimensions at runtime).
+- **Routing (`i3/router/`).** A contextual Thompson-sampling bandit
+  decides between the local SLM and the cloud LLM. Each arm's
+  posterior is a Bayesian logistic regression with Laplace
+  approximation (Newton-Raphson MAP + Hessian for the covariance).
+  A privacy override forces local routing for sensitive topics.
+- **Local SLM (`i3/slm/`).** A ~6.3 M-parameter Pre-LN transformer
+  with token + sinusoidal positional embeddings, multi-head
+  self-attention with KV cache for incremental decode, and a
+  dedicated cross-attention layer per block that attends to four
+  conditioning tokens derived from the user-state embedding.
+- **Cloud (`i3/cloud/`).** 11 first-class provider adapters behind a
+  unified `MultiProviderClient` with sequential / parallel /
+  best-of-N strategies, prompt translation across provider message
+  formats, and a cost tracker with 2026 pricing.
+- **Diary (`i3/diary/`).** Privacy-safe interaction history: only
+  embeddings, scalar metrics, and TF-IDF topic keywords. Raw text is
+  never stored.
 
 ---
 
-## Project Structure
+## Novel contribution — cross-attention conditioning
 
-The full tree with one-line descriptions is in
-[`PROJECT_STRUCTURE.md`](PROJECT_STRUCTURE.md). The high-level map:
+Most systems personalise LLM responses via prompt engineering —
+stuffing the system prompt with a user description and hoping the
+model pays attention. This is brittle, ignored at long context
+lengths, and wastes tokens.
+
+I³ conditions generation architecturally, at every layer, at every
+token position. A `ConditioningProjector` maps
 
 ```
-implicit-interaction-intelligence/
-├── i3/                   # Main Python package (36 subpackages — see PROJECT_STRUCTURE.md)
-│   ├── interaction/      # Layer 1 — behavioural signal extraction (32-dim FV)
-│   ├── encoder/          # Layer 2 — custom TCN (dilations [1,2,4,8] + NT-Xent)
-│   ├── user_model/       # Layer 3 — three-timescale EMAs + SQLite store
-│   ├── adaptation/       # Layer 4 — 8-dim AdaptationVector + controller
-│   ├── router/           # Layer 5 — Thompson sampling bandit + preference learning
-│   ├── slm/              # Layer 6a — ~6.3 M-param custom transformer (from scratch)
-│   ├── cloud/            # Layer 6b — 11 provider adapters + guardrails + MultiProvider
-│   ├── diary/            # Layer 7 — privacy-safe async SQLite diary
-│   ├── privacy/          # Cross-cutting — sanitiser + Fernet + DP-SGD
-│   ├── safety/           # Cross-cutting — PDDL planner + certificates
-│   ├── interpretability/ # Counterfactuals + SAE + activation patching
-│   ├── redteam/          # 55-attack adversarial corpus + runner
-│   ├── mlops/            # Experiment tracker + registry + model signing
-│   ├── observability/    # OTel + structlog + Prometheus + Sentry + Langfuse
-│   └── pipeline/         # Orchestration — the async Pipeline
-├── server/               # FastAPI app — routes, middleware, WebSocket, auth
-├── web/                  # Demo UI (plain CSS/JS, zero build step)
-├── training/             # Training entry points (Fabric, Accelerate, DeepSpeed)
-├── demo/                 # Pre-seeded state + scenarios + profiles
-├── tests/                # 80+ test modules (unit, property, contract, fuzz, …)
-├── scripts/              # Operator tooling — see scripts/README.md
-├── configs/              # YAML configuration
-├── docs/                 # MkDocs Material source tree
-├── deploy/               # Kubernetes, Helm, Terraform, policy-as-code
-├── docker/               # Dockerfile variants + entrypoint + healthcheck
-├── notebooks/            # Teaching notebooks
-├── benchmarks/           # pytest-benchmark + ImplicitAdaptBench
-├── reports/              # Audit + verification + red-team output
-├── dagger/               # Dagger Python SDK CI pipeline
-├── backstage/            # Spotify Backstage service catalog
-├── Makefile              # Primary task runner
-├── Dockerfile            # Production image
-├── pyproject.toml        # Poetry + tool configuration
-├── mkdocs.yml            # Documentation site configuration
-├── CHANGELOG.md          # Keep-a-Changelog history
-├── CONTRIBUTING.md       # Contributor guide
-├── SECURITY.md           # Threat model + disclosure process
-└── LICENSE               # MIT
+concat(AdaptationVector[8], UserStateEmbedding[64])
 ```
 
----
-
-## Quick Start
-
-### Prerequisites
-
-- **Python 3.10** or higher
-- **PyTorch 2.0+** (CPU is fine for the demo)
-- **`make`** (optional but recommended)
-- **An Anthropic API key** (only required if you want to exercise the cloud
-  routing path — the local SLM works without one)
-
-### Installation
-
-```bash
-# Clone and enter the project
-git clone <repo-url>
-cd implicit-interaction-intelligence
-
-# Option A — one-shot setup script
-./scripts/setup.sh
-
-# Option B — manual setup
-python -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-cp .env.example .env                      # then edit with your API key
-python scripts/security/generate_encryption_key.py  # generates a Fernet key
-```
-
-### Training
-
-```bash
-# Generate 10,000 synthetic interaction sessions
-make generate-data
-
-# Train the TCN encoder          (~30 min on laptop CPU)
-make train-encoder
-
-# Train the SLM                  (~2 hours on laptop CPU)
-make train-slm
-
-# Evaluate perplexity and conditioning sensitivity
-make evaluate
-
-# Or run the full training pipeline in one shot
-make train-all
-```
-
-### Running the Demo
-
-```bash
-# Seed profiles, start the FastAPI server, open your browser
-make demo
-
-# Then open http://localhost:8000
-```
-
----
-
-## Usage Example
-
-```python
-import asyncio
-from i3.config import load_config
-from i3.pipeline.engine import PipelineEngine
-from i3.pipeline.types import PipelineInput
-
-async def main():
-    config = load_config("configs/default.yaml")
-    engine = await PipelineEngine.create(config)
-
-    # Submit an interaction event (raw text + keystroke timing)
-    output = await engine.process(PipelineInput(
-        user_id="alice",
-        message="Can you explain how TCNs work?",
-        keystroke_intervals_ms=[120, 145, 98, 210, 88, ...],
-        timestamp=1712534400.0,
-    ))
-
-    print(output.response)          # the adapted response
-    print(output.route)              # "local" or "cloud"
-    print(output.adaptation)         # 8-dim AdaptationVector
-    print(output.latency_ms)         # wall-clock latency
-
-asyncio.run(main())
-```
-
----
-
-## The Novel Contribution: Cross-Attention Conditioning
-
-Most systems that personalise LLM responses do so via **prompt engineering** —
-stuff a description of the user into the system prompt and hope the model
-pays attention to it. This is brittle, ignored at long context lengths, and
-wastes prompt tokens.
-
-I³ takes a different approach: **the user state conditions generation
-architecturally, at every layer, at every token position.**
-
-A `ConditioningProjector` maps the concatenation of the `AdaptationVector`
-(8-dim) and the `UserStateEmbedding` (64-dim) into **4 conditioning tokens**
-of dimension 256. These conditioning tokens are passed to every transformer
-block as the key-value pairs for a **dedicated cross-attention layer** that
-sits between self-attention and feed-forward:
+into four conditioning tokens of dim 256. Every transformer block
+contains a dedicated cross-attention layer that attends to them:
 
 ```python
 class AdaptiveTransformerBlock(nn.Module):
     def forward(self, x, conditioning_tokens, causal_mask=None):
-        # Pre-LN Self-Attention
+        # 1. Self-attention over the token sequence
         x = x + self.dropout(self.self_attn(self.ln1(x), mask=causal_mask))
 
-        # Pre-LN Cross-Attention to user conditioning  ← the novel part
+        # 2. Cross-attention to the user-state conditioning tokens.
+        #    This is the novel part — user state is woven into
+        #    generation at every block, not stitched onto the prompt.
         x = x + self.dropout(self.cross_attn(
             query=self.ln2(x),
             key=conditioning_tokens,
             value=conditioning_tokens,
         ))
 
-        # Pre-LN Feed-Forward
+        # 3. Feed-forward
         x = x + self.dropout(self.ff(self.ln3(x)))
         return x
 ```
 
-The result: at every token position, during every forward pass, every
-transformer block gets to **attend to the user's current state**. Adaptation
-is not a prompt prefix — it is structurally woven into generation.
-
-This mechanism is the architectural centrepiece of the project and is what
-justifies building an SLM from scratch: you cannot retrofit cross-attention
-conditioning into a pre-trained HuggingFace model without re-training from a
-random init.
+This mechanism is why the project ships an SLM built from scratch:
+cross-attention conditioning cannot be retrofitted onto a pre-trained
+HuggingFace transformer without re-initialising weights.
 
 ---
 
-## Edge Feasibility
+## Repository layout
 
-The entire system is designed for on-device deployment. After INT8
-quantization:
-
-| Model          | Parameters | FP32 Size | INT8 Size | P50 Latency |
-|:---------------|-----------:|----------:|----------:|------------:|
-| TCN Encoder    |      ~50K  |   ~200 KB |    ~60 KB |       ~3 ms |
-| Adaptive SLM   |     ~6.3M  |    ~25 MB |     ~7 MB |     ~150 ms |
-| **Total**      |  **~6.4M** | **~25 MB**| **~7 MB** | **~153 ms** |
-
-Device feasibility (50%-of-available-memory rule):
-
-| Target Device        | Memory | TOPS | Fits? | Notes                      |
-|:---------------------|-------:|-----:|:-----:|:---------------------------|
-| Kirin 9000 (phone)   | 512 MB | 2.0  |   ✓   | Comfortable headroom       |
-| Kirin A2 (wearable)  | 128 MB | 0.5  |   ✓   | Tight but feasible         |
-| Smart Hanhan (IoT)   |  64 MB | 0.1  |   ~   | Encoder-only recommended   |
-
-The profiling package (`i3/profiling/`) produces these numbers automatically
-and writes a Markdown device feasibility report.
-
----
-
-## Privacy by Architecture
-
-I³ is **privacy-preserving by construction**, not by policy.
-
-- **Raw text is never persisted to disk.** The interaction diary stores only
-  64-dim embeddings, scalar metrics, and TF-IDF topic keywords.
-- **Fernet-encrypted user profiles at rest**, with key management via
-  environment variables and support for key rotation.
-- **10 PII regex patterns** sanitize all text before any cloud transmission
-  (email, phone, SSN, credit card, IBAN, address, IP, URL, DOB, passport).
-- **Router privacy override** — sensitive topics (health, mental health,
-  finance, credentials, security) are force-routed to the local SLM
-  regardless of what the Thompson sample recommends.
-- **Session summaries generated from metadata only** — no raw text is ever
-  sent to the cloud LLM for summarisation.
-- **Database auditor** scans the diary SQLite file for potential raw-text
-  leaks using hash-based detection of message fragments.
-
----
-
-## Testing
-
-```bash
-make test         # Full test suite (80+ tests, ~30 s)
-make test-cov     # With coverage report
-make test-fast    # Skip slow integration tests
+```
+i3/                 Core Python package (36 subpackages)
+  interaction/      Feature extraction + baseline tracking
+  encoder/          TCN encoder + NT-Xent loss + ONNX export
+  user_model/       Three-timescale EMAs + async SQLite store
+  adaptation/       AdaptationVector + controller + ablation
+  router/           Thompson-sampling bandit + preference learning
+  slm/              Custom transformer (no HuggingFace)
+  cloud/            11 provider adapters + guardrails + MultiProvider
+  diary/            Privacy-preserving async SQLite diary
+  privacy/          PII sanitiser + Fernet encryption + DP-SGD
+  safety/           PDDL planner + safety certificates
+  interpretability/ Counterfactuals, SAEs, activation patching, probes
+  redteam/          55-attack adversarial corpus + runner
+  mlops/            Experiment tracker + model signing
+  observability/    OpenTelemetry + structlog + Prometheus + Sentry
+  biometric/        Keystroke-biometric user ID + continuous auth
+  continual/        Elastic Weight Consolidation + drift detection
+  meta_learning/    MAML + Reptile + task generator
+  multimodal/       Voice, vision, PPG/HRV, touch, fusion
+  federated/        Flower client + FedAvg server
+  crossdevice/      HarmonyOS Distributed Data Management sync
+  fairness/         Per-archetype bias + bootstrap CI + FAR/FRR
+  edge/             ONNX + ExecuTorch + 8 alternative runtimes
+  eval/             Perplexity + conditioning KL + closed-loop + ablation
+  serving/          Ray Serve + Triton + vLLM
+  tts/              Adaptation-conditioned TTS
+  huawei/           HMAF runtime + Kirin profiles + Watch integration
+  authz/            Cedar policy adapter
+  analytics/        DuckDB + LanceDB + Polars + Ibis
+  mcp/              Anthropic Model Context Protocol server
+  profiling/        Edge-feasibility profiler
+  pipeline/         The async Pipeline — orchestrates everything
+server/             FastAPI app — routes, middleware, WebSocket, auth
+web/                Demo UI (vanilla CSS/JS, no build step)
+training/           Training entry points (Fabric, Accelerate, DeepSpeed)
+demo/               Pre-seeded state + scenarios + profiles
+tests/              80+ test modules (unit, property, contract, fuzz, …)
+scripts/            Operator tooling — see scripts/README.md
+  benchmarks/       Latency and edge-profiling micro-benchmarks
+  demos/            Standalone feature demos
+  experiments/      Research runs (ablation, DPO, LLM-judge, …)
+  export/           Model + data export (ONNX, ExecuTorch, GDPR)
+  security/         Red-team, model signing, key generation
+  training/         Training entry points
+  verification/     46 registered checks invoked by verify_all.py
+configs/            YAML configuration
+docs/               MkDocs Material source tree
+deploy/             Kubernetes, Helm, Terraform, policy-as-code
+docker/             Dockerfile variants + entrypoint + healthcheck
+reports/            Audit + verification + red-team output
+  audits/           Dated narrative reports
+  redteam/          55-attack harness output
+  verification/     46-check harness output (+ history/)
+benchmarks/         pytest-benchmark + ImplicitAdaptBench harness
+notebooks/          Teaching notebooks
 ```
 
-Test coverage includes:
+Top-level files of note:
+[`Makefile`](Makefile) · [`Dockerfile`](Dockerfile) ·
+[`docker-compose.yml`](docker-compose.yml) ·
+[`pyproject.toml`](pyproject.toml) · [`mkdocs.yml`](mkdocs.yml) ·
+[`.env.example`](.env.example) ·
+[`.env.providers.example`](.env.providers.example) ·
+[`CHANGELOG.md`](CHANGELOG.md) · [`SECURITY.md`](SECURITY.md) ·
+[`CONTRIBUTING.md`](CONTRIBUTING.md) ·
+[`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) ·
+[`CITATION.cff`](CITATION.cff).
 
-| Test module          | Tests | Coverage                                      |
-|:---------------------|------:|:----------------------------------------------|
-| `test_tcn.py`        |    12 | Dilation math, receptive field, gradient flow |
-| `test_slm.py`        |    15 | Forward pass, KV cache, generation, quant     |
-| `test_bandit.py`     |    18 | Posterior updates, Laplace, privacy override  |
-| `test_user_model.py` |    17 | EMA decay, Welford, encryption round-trips    |
-| `test_pipeline.py`   |    18 | End-to-end async, error paths, latency        |
+---
+
+## Prerequisites
+
+| Requirement | Minimum | Recommended |
+|---|---|---|
+| Python | 3.10 | 3.11 |
+| PyTorch | 2.0 | 2.3 (CPU is fine) |
+| Poetry | 1.8 | latest |
+| Disk space | ~2 GB for checkpoints + deps | 5 GB |
+| RAM | 4 GB for inference, 8 GB for training | 16 GB |
+| OS | Linux, macOS, Windows (WSL2 recommended) | |
+
+Optional (features degrade gracefully if absent):
+
+- **Docker 24+** — for the containerised stack.
+- **`make`** — the primary task runner.
+- **Node.js 20+** — only for the MCP server and some CI workflows.
+- **`helm`, `kubectl`** — to deploy the Kubernetes manifests.
+- **`cosign`, `syft`, `trivy`** — for supply-chain verification.
+
+---
+
+## Installation
+
+### With Poetry (recommended)
+
+```bash
+git clone https://github.com/abailey81/implicit-interaction-intelligence.git
+cd implicit-interaction-intelligence
+
+# Install core dependencies
+poetry install
+
+# Or with optional groups
+poetry install --with dev,docs,observability,providers
+```
+
+Optional dependency groups (see [`pyproject.toml`](pyproject.toml)):
+`dev`, `docs`, `security`, `observability`, `mlops`, `ml-advanced`,
+`analytics`, `distributed`, `llm-ecosystem`, `providers`,
+`edge-runtimes`, `multimodal`, `future-work`, `policy`, `mcp`, `tts`.
+
+### With pip
+
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+```
+
+### Verifying the install
+
+```bash
+poetry run python -c "import i3; print(i3.__version__)"
+poetry run make verify           # 46-check verification harness (strict)
+poetry run make test             # pytest suite
+```
 
 ---
 
 ## Configuration
 
-All hyperparameters, paths, and behavioural settings live in
-`configs/default.yaml`. The config system uses **Pydantic v2 models** with
-immutable `frozen=True` settings and field validators. Overlay configs
-(e.g. `configs/demo.yaml`) can be merged on top of the default for fast
-experimentation without mutating the production config.
+### YAML configuration
 
----
+Everything configurable lives in [`configs/default.yaml`](configs/default.yaml).
+The schema is declared with Pydantic v2 in [`i3/config.py`](i3/config.py) —
+every section is frozen (`frozen=True`) and the root model enforces
+`extra="forbid"` so a typoed section fails loudly at load time.
 
-## What I Built From Scratch
+```yaml
+# configs/default.yaml — excerpt
+project:
+  name: I3
+  version: 1.1.0
+  seed: 42
 
-*No HuggingFace. No LangChain. No pre-trained weights. No off-the-shelf
-bandits. No sklearn. No NLTK.*
+cloud:
+  model: claude-sonnet-4-5       # pinned, not a placeholder
+  max_tokens: 1024
+  timeout: 10.0
+  fallback_on_error: true
 
-| Component                      | Implementation                                                               |
-|:-------------------------------|:-----------------------------------------------------------------------------|
-| TCN Encoder                    | Causal Conv1d, dilated residual blocks, NT-Xent contrastive loss             |
-| SLM                            | Token + sinusoidal embeddings, multi-head self-/cross-attention, Pre-LN      |
-| Cross-attention conditioning   | `ConditioningProjector` + per-layer cross-attention (novel)                  |
-| KV cache                       | Per-layer tensor cache for O(1) incremental decode                           |
-| Thompson sampling bandit       | Bayesian logistic regression + Laplace approximation + Newton-Raphson MAP    |
-| Tokenizer                      | Word-level with punctuation separation and special tokens                    |
-| Sentiment analysis             | ~365-word valence lexicon with negation handling                             |
-| Linguistic features            | Flesch-Kincaid grade, syllable counter, formality classifier                 |
-| TF-IDF topic extraction        | ~175-word stopword list, document-frequency weighting                        |
-| Cosine warmup scheduler        | Linear warmup + cosine decay (no `torch.optim.lr_scheduler`)                 |
-| Welford online statistics      | Incremental mean/variance for streaming feature updates                      |
-| Privacy auditor                | Hash-based raw-text leak detection across SQLite                             |
-| Edge profiler                  | Parameter counting, INT8 size, P50/P95/P99 latency                           |
+router:
+  arms: [local_slm, cloud_llm]
+  context_dim: 12
+  prior_alpha: 1.0               # Beta prior (cold-start)
+  prior_precision: 1.0           # Gaussian prior on logistic weights
+  exploration_bonus: 0.1
+  privacy_override: true
 
----
-
-## Technical Stack
-
-| Layer               | Technology                                         |
-|:--------------------|:---------------------------------------------------|
-| Deep learning       | PyTorch 2.0                                        |
-| Web server          | FastAPI + WebSockets                               |
-| Frontend            | Vanilla HTML/CSS/JS (no build step)                |
-| Persistence         | SQLite (`aiosqlite` for async)                     |
-| Cloud LLM           | Anthropic Claude API (direct `httpx` client)       |
-| Encryption          | `cryptography` (Fernet)                            |
-| Configuration       | Pydantic v2 + YAML                                 |
-| Testing             | pytest + pytest-asyncio                            |
-| Lint / format       | ruff + black + mypy                                |
-
----
-
-## Documentation
-
-The project ships a full MkDocs Material site. Serve it locally:
-
-```bash
-poetry install --with docs
-poetry run mkdocs serve         # http://127.0.0.1:8000
+privacy:
+  strip_pii: true
+  encrypt_embeddings: true
+  encryption_key_env: I3_ENCRYPTION_KEY
 ```
 
-Key documents:
+Overlay configs (e.g. `configs/demo.yaml`) can be merged on top for
+fast experimentation.
 
-- [**ARCHITECTURE.md**](docs/architecture/full-reference.md) — deep-dive system design,
-  math, data flows, and design rationale.
-- [**DEMO_SCRIPT.md**](docs/slides/demo-script.md) — the 4-phase interview demo
-  script with exact dialogue and timing.
-- [**edge_profiling_report.md**](docs/edge/profiling-report.md) — Kirin
-  9000 / 9010 / A2 / Smart Hanhan feasibility matrix + MindSpore Lite
-  conversion path + power-budget analysis.
-- [**docs/huawei/**](docs/huawei/) — HarmonyOS 6 / HMAF integration,
-  Kirin deployment, L1–L5 framework, Edinburgh Joint Lab positioning,
-  Smart Hanhan deployment, interview talking points.
-- [**docs/adr/**](docs/adr/) — 10 Architecture Decision Records (MADR 4.0).
-- [**docs/responsible_ai/**](docs/responsible_ai/) — model cards (SLM
-  and TCN), data card, accessibility statement.
-- [**docs/slides/**](docs/slides/) — 15-slide Marp deck + speaker notes
-  + 52 Q&A prep + rehearsal cue sheet.
-- [**docs/security/slsa.md**](docs/security/slsa.md), [**docs/security/supply-chain.md**](docs/security/supply-chain.md) —
-  Build Level 3 posture, SBOM distribution, image signing, vulnerability
-  SLAs.
-- [pyproject.toml](pyproject.toml) — dependencies + tooling config.
-- [configs/default.yaml](configs/default.yaml) — all hyperparameters
-  with inline comments.
+### Environment variables
 
-## Production Features (beyond the demo)
+Copy [`.env.example`](.env.example) to `.env` and populate the values
+you need. Every variable is documented inline. Highlights:
 
-This repository is configured as a production-grade Python ML service,
-not just a notebook. Everything below is opt-in; the core pipeline boots
-with zero extra dependencies.
+| Variable | Purpose |
+|---|---|
+| `ANTHROPIC_API_KEY` | Cloud route for the default Anthropic adapter. |
+| `I3_ENCRYPTION_KEY` | Fernet key for user-state-embedding encryption at rest. Generate with `scripts/security/generate_encryption_key.py`. |
+| `I3_ADMIN_TOKEN` | Bearer token for the `/admin/*` endpoints. |
+| `I3_REQUIRE_USER_AUTH` | Set to `1` to gate per-user routes. |
+| `I3_USER_TOKENS` | JSON map `{"user_id": "token"}` for caller-identity auth. |
+| `I3_DEMO_MODE` | Enable the destructive demo endpoints. |
+| `I3_DISABLE_ADMIN` | Hard-disable the admin router. |
+| `I3_DISABLE_OPENAPI` | Hard-disable `/api/docs` + `/api/redoc`. |
+| `I3_CORS_ORIGINS` | Comma-separated CORS allow-list. |
+| `I3_MAX_TRACKED_USERS` | LRU cap on per-user state (default 10 000). |
+| `I3_WORKERS` | Uvicorn worker count. Setting `> 1` requires `I3_ALLOW_LOCAL_LIMITER=1`. |
 
-| Area               | Capability                                                                                          |
-|:-------------------|:----------------------------------------------------------------------------------------------------|
-| Containers         | Multi-stage Dockerfile (non-root, tini PID 1), Compose + hardened prod profile, VSCode devcontainer |
-| Kubernetes         | Full `deploy/k8s/` manifests + Helm chart + Kustomize dev/staging/prod overlays + Terraform module  |
-| Observability      | OpenTelemetry traces, Prometheus metrics, structlog JSON logs, Sentry (opt-in), Grafana dashboard    |
-| LLM observability  | Langfuse tracer with Anthropic Sonnet 4.5 token + cost attribution                                  |
-| MLOps              | MLflow tracking, DVC pipeline, SHA-256 checkpoint sidecars, OpenSSF Model Signing v1.0 (sigstore)   |
-| Edge               | ONNX export + parity verification, torchao INT4/INT8, ExecuTorch `.pte` hooks                       |
-| Supply chain       | CycloneDX SBOM, Syft + Trivy image scans, cosign keyless sign, SLSA L3 provenance, OSSF Scorecard   |
-| CI/CD              | 13 workflows (CI, security, sbom, scorecard, semgrep, trivy, docker, release, docs, benchmark, …)   |
-| Testing            | Property (Hypothesis), contract (schemathesis), fuzz (atheris), load, mutation (mutmut), chaos, snapshot (syrupy) |
-| Benchmarks         | pytest-benchmark suites + Locust WS/REST scenarios + k6 script + SLO targets                        |
-| Documentation      | MkDocs Material site with 10 ADRs, model cards, data card, glossary, runbook, accessibility statement |
-| Huawei integration | HMAF adapter, Kirin target profiles, ExecuTorch hooks, MindSpore Lite conversion guide             |
-| Supply-chain auto  | Renovate (grouped), release-please, commitlint, lefthook git hooks                                  |
-| Deliverables       | 15-slide Marp deck, speaker notes, 52 Q&A pairs, research paper, patent disclosure, A0 poster       |
-
-## Next-gen 2026 Technology Stack
-
-Additional opt-in capability families, each soft-imported so the core
-service boots without them:
-
-| Family              | Capability                                                                                                         |
-|:--------------------|:-------------------------------------------------------------------------------------------------------------------|
-| Python toolchain    | uv + uv.lock alongside Poetry; `ty` / mypy / Ruff; Nix flake; Devbox; mise + asdf; justfile                        |
-| Hardened containers | Chainguard Wolfi distroless variant (`docker/Dockerfile.wolfi`) — zero H/C CVEs on base image                             |
-| MCP server          | Anthropic Model Context Protocol — 7 tools + 5 resources + 2 prompts for Claude Desktop / Code                      |
-| Browser inference   | ONNX Runtime Web + WebGPU — TCN runs on the user's GPU; keystroke packets never leave the device                   |
-| LLM ecosystem       | DSPy compile-time prompt optimisation, NeMo Guardrails, Pydantic AI, Instructor, Outlines, Logfire, OpenLLMetry    |
-| Modern data stack   | DuckDB analytics over SQLite, LanceDB IVF-PQ vector search, Polars streaming features, Ibis portable queries       |
-| Distributed         | Lightning Fabric (DDP + FSDP + `torch.compile`), Accelerate, DeepSpeed ZeRO-3, Ray Serve, NVIDIA Triton, vLLM      |
-| Edge runtimes       | Apple MLX, llama.cpp GGUF, Apache TVM, IREE, Core ML, TensorRT-LLM, OpenVINO, MediaPipe (plus existing ExecuTorch) |
-| Dev experience      | Dagger programmable CI, Tilt local k8s hot-reload, Grafana Pyroscope continuous profiling, Backstage, Alloy        |
-| Policy as code      | Kyverno + OPA + Sigstore Policy Controller (cluster), Cedar 4.x (app authz), Falco + Tracee (runtime), Allstar     |
-| Future-work code    | Multi-modal port (voice + touch + gaze + accelerometer), Flower federated learning, HarmonyOS DDM sync mock        |
-| Brief stretch       | Attention-conditioning aux losses, integrated-gradients interpretability, what-if API, ablation mode, biometric ID |
-| Interview package   | 7 Jupyter notebooks, research paper (7 126 words), attorney-ready patent disclosure, exec summary, A0 poster       |
-
-Audit trail: every wave of these additions is accompanied by dated
-reports under [`reports/audits/`](reports/audits/), covering security,
-code quality, completeness, and documentation. The index is
-[`reports/audits/2026-04-23-index.md`](reports/audits/2026-04-23-index.md).
-
-See [`CHANGELOG.md`](CHANGELOG.md) `[Unreleased]` for the full list of
-additions over the v1.0.0 baseline.
+Per-provider API keys (Google, Azure, Bedrock, Mistral, Cohere,
+OpenRouter, LiteLLM, Huawei PanGu, etc.) live in
+[`.env.providers.example`](.env.providers.example).
 
 ---
+
+## Training the models
+
+Two models need training before the pipeline can produce non-trivial
+output: the TCN encoder and the SLM. Both can be trained on a laptop
+CPU in under an hour on the default configuration.
+
+### 1. Generate synthetic interaction data
+
+```bash
+poetry run python training/generate_synthetic.py \
+    --archetypes 8 \
+    --sessions-per-archetype 400 \
+    --output data/interaction_dataset.jsonl
+```
+
+Eight user archetypes follow the Epp 2011 / Vizer 2009 / Zimmermann
+2014 literature (fresh user, fatigued developer, motor-impaired user,
+second-language speaker, high-load user, dyslexic user, energetic
+user, low-vision user). Transitions between typing states use a
+lightweight Markov model.
+
+### 2. Prepare the dialogue corpus for SLM training
+
+```bash
+poetry run python training/prepare_dialogue.py \
+    --daily-dialog data/daily_dialog/ \
+    --empathetic   data/empathetic_dialogues/ \
+    --output       data/slm_corpus.jsonl
+```
+
+The default corpora are DailyDialog and EmpatheticDialogues (public,
+consented research corpora). A privacy-safe data card is emitted at
+[`docs/responsible_ai/data_card.md`](docs/responsible_ai/data_card.md).
+
+### 3. Train the TCN encoder
+
+```bash
+poetry run python training/train_encoder.py \
+    --config configs/default.yaml \
+    --epochs 10 \
+    --output checkpoints/encoder/tcn_v1.pt
+```
+
+NT-Xent contrastive loss (Chen et al. 2020). Produces a 64-dim
+user-state embedding.
+
+### 4. Train the adaptive SLM
+
+```bash
+poetry run python training/train_slm.py \
+    --config configs/default.yaml \
+    --epochs 5 \
+    --conditioning-encoder checkpoints/encoder/tcn_v1.pt \
+    --output checkpoints/slm/slm_v1.pt
+```
+
+Cross-entropy with the cross-attention conditioning tokens derived
+from the trained encoder. Cosine warmup (linear warmup + cosine
+decay, implemented from scratch).
+
+### 5. Evaluate
+
+```bash
+poetry run python training/evaluate.py \
+    --config configs/default.yaml \
+    --slm checkpoints/slm/slm_v1.pt \
+    --encoder checkpoints/encoder/tcn_v1.pt \
+    --out reports/evaluation.json
+```
+
+Metrics: sliding-window perplexity, cross-attention
+conditioning-sensitivity KL divergence, and responsiveness on a
+12-example tone-class golden set.
+
+### Distributed training (optional)
+
+```bash
+# Lightning Fabric — DDP + FSDP + torch.compile max-autotune
+poetry run python training/train_slm_fabric.py --config configs/default.yaml
+
+# Accelerate
+poetry run accelerate launch training/train_with_accelerate.py
+
+# DeepSpeed ZeRO-3
+poetry run deepspeed training/train_with_deepspeed.py \
+    --deepspeed_config configs/distributed/ds_config_zero3.json
+```
+
+---
+
+## Running the server
+
+### Development
+
+```bash
+poetry run uvicorn server.app:app --reload
+# Serves at http://127.0.0.1:8000
+```
+
+Or the Makefile shortcut:
+
+```bash
+make run
+```
+
+### Production
+
+```bash
+poetry run uvicorn server.app:app \
+    --host 0.0.0.0 --port 8000 \
+    --workers 1 \
+    --log-config configs/logging.yaml
+```
+
+> **Note on workers.** The in-memory rate limiter is per-process.
+> Running `--workers > 1` multiplies the effective per-IP rate unless
+> a shared store is configured. The app refuses to start with
+> `I3_WORKERS > 1` unless `I3_ALLOW_LOCAL_LIMITER=1` acknowledges
+> this trade-off.
+
+### Endpoints
+
+- **REST** — mounted under `/api/*`, documented at `/api/docs`.
+- **WebSocket** — `/ws/{user_id}` streams keystroke events and
+  receives adaptation updates.
+- **Admin** — `/admin/*` (requires `I3_ADMIN_TOKEN`; disable in
+  production with `I3_DISABLE_ADMIN=1`).
+- **Health** — `/api/health`, `/api/live`, `/api/ready`.
+- **Metrics** — `/api/metrics` (gated by `I3_METRICS_ENABLED`).
+- **Demo UI** — `/` (basic) and `/advanced` (cinematic command centre).
+
+---
+
+## Using the API
+
+### REST — message processing
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/translate \
+    -H 'Content-Type: application/json' \
+    -H 'X-I3-User-Id: alice' \
+    -d '{
+        "user_id": "alice",
+        "text": "Explain how TCNs work.",
+        "target_lang": "en",
+        "keystroke_intervals_ms": [120, 145, 98, 210, 88]
+    }'
+```
+
+### REST — adaptation explanation
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/explain/adaptation \
+    -H 'Content-Type: application/json' \
+    -H 'X-I3-User-Id: alice' \
+    -d '{
+        "user_id": "alice",
+        "message": "I am tired and need a break",
+        "mc_dropout_samples": 30
+    }'
+```
+
+Returns per-dimension confidence, counterfactuals, and a natural-language
+explanation of the adaptation choice.
+
+### WebSocket
+
+```javascript
+const ws = new WebSocket("ws://127.0.0.1:8000/ws/alice");
+
+ws.onmessage = (event) => {
+    const frame = JSON.parse(event.data);
+    // frame.type: "state_update" | "response" | "error"
+    console.log(frame);
+};
+
+// Stream keystroke events at ~20 Hz
+ws.send(JSON.stringify({
+    type: "keystroke",
+    timestamp: Date.now() / 1000,
+    key_type: "char",
+    inter_key_interval_ms: 145,
+}));
+
+// Submit a message
+ws.send(JSON.stringify({
+    type: "message",
+    text: "Can you explain how TCNs work?",
+}));
+```
+
+### Python SDK
+
+```python
+import asyncio
+from i3.config import load_config
+from i3.pipeline.engine import Pipeline
+from i3.pipeline.types import PipelineInput
+
+async def main() -> None:
+    config = load_config("configs/default.yaml")
+    pipeline = Pipeline(config)
+    await pipeline.initialize()
+    try:
+        output = await pipeline.process_message(PipelineInput(
+            user_id="alice",
+            message="Can you explain how TCNs work?",
+            keystroke_intervals_ms=[120, 145, 98, 210, 88],
+            timestamp=1712534400.0,
+        ))
+        print(output.response_text)
+        print(output.route_chosen)        # "local_slm" or "cloud_llm"
+        print(output.adaptation)          # 8-dim AdaptationVector
+        print(output.latency_ms)
+    finally:
+        await pipeline.shutdown()
+
+asyncio.run(main())
+```
+
+The full API reference is at
+[`docs/api/`](docs/api/) (REST, WebSocket, Python SDK).
+
+---
+
+## The demo UI
+
+Two user interfaces ship with the project.
+
+- **Basic UI** at `/` — a single-page app in vanilla HTML/CSS/JS with
+  a chat area, route/latency badges, and animated adaptation gauges.
+- **Advanced UI** at `/advanced` — a cinematic command-centre layout:
+  a seven-panel CSS-Grid with a Three.js 3-D embedding cloud, Chart.js
+  metric graphs, SVG radial adaptation gauges with uncertainty bands,
+  a 4 × 4 cross-attention heatmap, an `Alt + T` guided tour that
+  walks the four demo phases autonomously, and a runtime WCAG 2.2 AA
+  contrast audit.
+
+To run:
+
+```bash
+make run
+# Open http://127.0.0.1:8000/
+# Or:   http://127.0.0.1:8000/advanced
+```
+
+Keystroke capture is browser-local — nothing is transmitted to the
+server beyond the inter-key-interval list and the submitted message
+text.
+
+---
+
+## Docker and Docker Compose
+
+### Building
+
+```bash
+# Production image (multi-stage, non-root, tini PID 1)
+make docker-build
+# or
+docker build -t i3:latest -f Dockerfile .
+
+# Development image (hot reload)
+docker build -t i3:dev -f docker/Dockerfile.dev .
+
+# Chainguard Wolfi distroless variant (zero H/C CVEs on base)
+docker build -t i3:wolfi -f docker/Dockerfile.wolfi .
+
+# Minimal MCP server image
+docker build -t i3:mcp -f docker/Dockerfile.mcp .
+```
+
+### Running with Compose
+
+```bash
+# Development stack
+docker compose up
+
+# Production stack — read-only root FS, cap_drop ALL, no-new-privileges,
+# nginx TLS sidecar, tmpfs for mutable paths
+docker compose -f docker-compose.prod.yml up -d
+```
+
+### Pulling signed images
+
+Release images are signed with cosign (keyless OIDC) and carry an
+SLSA L3 provenance attestation. To verify:
+
+```bash
+cosign verify ghcr.io/abailey81/i3:v1.1.0 \
+    --certificate-identity-regexp='https://github\.com/abailey81/.*' \
+    --certificate-oidc-issuer=https://token.actions.githubusercontent.com
+
+slsa-verifier verify-artifact \
+    --provenance-path i3.intoto.jsonl \
+    --source-uri github.com/abailey81/implicit-interaction-intelligence \
+    --source-tag v1.1.0 \
+    i3.tar
+```
+
+See [`docs/security/slsa.md`](docs/security/slsa.md).
+
+---
+
+## Kubernetes and Helm
+
+```bash
+# Raw manifests via Kustomize overlays
+kubectl apply -k deploy/k8s/overlays/dev
+kubectl apply -k deploy/k8s/overlays/prod
+
+# Helm
+helm install i3 deploy/helm/i3 -f deploy/helm/i3/values-prod.yaml
+
+# Observability stack (OTel + Prometheus + Tempo + Grafana)
+docker compose -f deploy/observability/docker-compose.yml up -d
+```
+
+Manifests enforce RuntimeDefault seccomp, read-only root FS,
+`capabilities: drop: [ALL]`, `automountServiceAccountToken: false`,
+a `NetworkPolicy` with default-deny + narrow allow, and a
+`ServiceMonitor` for Prometheus Operator. HPA v2 targets 70 % CPU and
+a custom `http_requests_per_second` metric. Runbook at
+[`docs/operations/runbook.md`](docs/operations/runbook.md).
+
+An AWS EKS Terraform reference module is available under
+[`deploy/terraform/`](deploy/terraform/).
+
+---
+
+## Testing and verification
+
+The project has three independent verification layers.
+
+### Layer 1 — pytest
+
+```bash
+make test              # Full pytest suite (80+ modules)
+make test-cov          # With coverage report
+make test-fast         # Skip slow integration tests
+pytest tests/property/ # Hypothesis property-based tests
+pytest tests/contract/ # schemathesis OpenAPI contract tests
+pytest tests/fuzz/     # Atheris fuzz targets
+pytest tests/load/     # Locust soak scenarios
+pytest tests/mutation/ # mutmut
+pytest tests/chaos/    # Chaos-engineering scenarios
+```
+
+### Layer 2 — the 46-check verification harness
+
+```bash
+make verify            # Strict mode: fail on blocker or high severity
+make verify-quick      # Skip slow runtime checks
+```
+
+Seven categories: code integrity, configuration, runtime, providers,
+infrastructure, interview-readiness, security. Output under
+[`reports/verification/latest.{json,md}`](reports/verification/).
+
+### Layer 3 — the 55-attack red-team harness
+
+```bash
+make redteam
+# or the torch-DLL-safe Windows wrapper
+python scripts/security/run_redteam_notorch.py --targets sanitizer,pddl,guardrails
+```
+
+Four runtime invariants are evaluated: privacy, rate-limit,
+sensitive-topic, PDDL soundness. Results at
+[`reports/redteam/latest.{json,md}`](reports/redteam/).
+
+### Benchmarks
+
+```bash
+pytest benchmarks/ --benchmark-only
+# Or use the ImplicitAdaptBench harness:
+python scripts/experiments/implicit_adapt_bench.py
+```
+
+---
+
+## Observability
+
+The observability stack is soft-imported — every module is a no-op
+when its dependency is absent, so the core pipeline boots unchanged
+in stripped environments.
+
+| Signal | Tool | Entry point |
+|---|---|---|
+| Traces | OpenTelemetry (OTLP gRPC, batched) | `i3/observability/tracing.py` |
+| Metrics | Prometheus (`/api/metrics`) | `i3/observability/metrics.py` |
+| Logs | structlog JSON with PII redaction | `i3/observability/logging.py` |
+| Errors | Sentry (PII-scrubbing `before_send`) | `i3/observability/sentry_integration.py` |
+| LLM tracing | Langfuse with token + cost attribution | `i3/observability/langfuse_client.py` |
+| Profiling | Grafana Pyroscope (opt-in) | `i3/observability/pyroscope_integration.py` |
+
+To bring up the local stack:
+
+```bash
+docker compose -f deploy/observability/docker-compose.yml up -d
+# Grafana at http://localhost:3000 (ten-panel I³ overview dashboard
+# is provisioned automatically)
+```
+
+---
+
+## Edge deployment
+
+After INT8 dynamic quantisation:
+
+| Model          | Parameters | FP32    | INT8   | P50 latency |
+|:---------------|-----------:|--------:|-------:|------------:|
+| TCN encoder    |     ~50 K  | ~200 KB | ~60 KB |      ~3 ms  |
+| Adaptive SLM   |    ~6.3 M  |  ~25 MB |  ~7 MB |    ~150 ms  |
+
+Device feasibility at the 50-%-of-available-memory threshold:
+
+| Device                 | Memory | TOPS | Fits | Notes                    |
+|:-----------------------|-------:|-----:|:----:|:-------------------------|
+| Kirin 9000 (phone)     | 512 MB |  2.0 |  ✓   | Comfortable headroom     |
+| Kirin A2 (wearable)    | 128 MB |  0.5 |  ✓   | Tight but feasible       |
+| Smart Hanhan (IoT)     |  64 MB |  0.1 |  ~   | Encoder-only recommended |
+
+**Export paths**
+
+```bash
+# ONNX with parity verification (atol=1e-4)
+python scripts/export/onnx.py --output web/models/
+
+# ExecuTorch
+python scripts/export/executorch.py --output checkpoints/slm_v1.pte
+
+# Every alternative runtime in one go
+python scripts/export/all_runtimes.py
+```
+
+Alternative runtimes supported: Apple MLX, llama.cpp GGUF, Apache
+TVM, IREE, Core ML, TensorRT-LLM, OpenVINO, MediaPipe. See
+[`docs/edge/alternative_runtimes.md`](docs/edge/alternative_runtimes.md)
+for the 8-runtime decision matrix.
+
+**In-browser inference**
+
+The demo UI can run the encoder entirely in the browser via ONNX
+Runtime Web + WebGPU — keystroke packets never leave the device.
+Toggle in the advanced UI settings panel.
+
+---
+
+## Privacy and security
+
+Privacy-preserving by construction, not by policy.
+
+- **Raw text is never persisted.** The interaction diary stores only
+  64-dim embeddings, scalar metrics, and TF-IDF topic keywords.
+- **Fernet-encrypted user-state embeddings at rest**
+  ([`i3/privacy/encryption.py`](i3/privacy/encryption.py)); supports
+  `MultiFernet` key rotation.
+- **Ten PII regex patterns** sanitise every outbound cloud payload
+  (email, phone, SSN, credit card, IBAN, address, IP, URL, DOB,
+  passport) — [`i3/privacy/sanitizer.py`](i3/privacy/sanitizer.py).
+- **Privacy override** — sensitive topics (health, finance,
+  credentials, security) force local-SLM routing regardless of the
+  Thompson sample.
+- **PDDL-grounded safety planner** emits a machine-checkable
+  `SafetyCertificate` for every cloud-routed request —
+  [`i3/safety/pddl_planner.py`](i3/safety/pddl_planner.py).
+- **Differential privacy** — Opacus DP-SGD wrapper for the router
+  posterior is available under
+  [`i3/privacy/differential_privacy.py`](i3/privacy/differential_privacy.py).
+- **Caller-identity auth** — `server/auth.py` provides opt-in
+  per-user authentication via `I3_REQUIRE_USER_AUTH=1` + either an
+  `X-I3-User-Id` header match or a JSON token map in
+  `I3_USER_TOKENS`; uses `secrets.compare_digest` throughout.
+
+Threat model, disclosure process, and hardening guide:
+[`SECURITY.md`](SECURITY.md). SLSA Level 3 build provenance:
+[`docs/security/slsa.md`](docs/security/slsa.md). Supply-chain
+posture: [`docs/security/supply-chain.md`](docs/security/supply-chain.md).
+Policy-as-code (Kyverno, OPA, Cedar, Falco, Tracee):
+[`docs/security/policy_as_code.md`](docs/security/policy_as_code.md).
+
+---
+
+## Command reference (`make`)
+
+```
+Installation + setup
+  make install            Install core dependencies
+  make install-dev        Install with dev extras
+  make install-all        Install every optional group
+  make clean              Remove caches and build artefacts
+
+Running the server
+  make run                Start the dev server (reload)
+  make run-prod           Start the prod server
+
+Training
+  make train-encoder      Train the TCN encoder
+  make train-slm          Train the adaptive SLM
+  make evaluate           Run the evaluation script
+
+Testing
+  make test               Full pytest suite
+  make test-cov           With coverage report
+  make test-fast          Skip slow tests
+  make verify             46-check verification harness (--strict)
+  make verify-quick       Skip slow runtime checks
+  make redteam            55-attack adversarial harness
+  make benchmarks         pytest-benchmark
+
+Linting and types
+  make lint               Ruff + black check
+  make format             Ruff + black format
+  make type               mypy
+
+Docker
+  make docker-build       Build the production image
+  make docker-build-dev   Build the dev image
+  make docker-up          docker compose up
+  make docker-up-prod     docker compose up -f prod.yml
+
+Documentation
+  make docs               Build the MkDocs site
+  make docs-serve         Serve at http://127.0.0.1:8000
+  make docs-deploy        Deploy to gh-pages
+
+Observability
+  make obs-up             Start the local OTel/Prom/Tempo/Grafana stack
+  make obs-down           Tear it down
+
+Export and edge
+  make export-onnx        ONNX export + parity check
+  make verify-onnx        Verify ONNX artefacts
+  make profile-edge       Run the edge-feasibility profiler
+  make sign-model         Sign a checkpoint with Sigstore
+  make eval-conditioning  Cross-attention KL sensitivity
+```
+
+Full target listing: `make help`.
+
+---
+
+## Contributing
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the branching model,
+commit-message convention, code-review expectations, and the local
+test loop. Security-sensitive reports should follow the process in
+[`SECURITY.md`](SECURITY.md). The code of conduct is the Contributor
+Covenant ([`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md)).
+
+---
+
+## Further reading
+
+- **Architecture full reference** —
+  [`docs/architecture/full-reference.md`](docs/architecture/full-reference.md)
+- **Cross-attention conditioning** —
+  [`docs/architecture/cross-attention-conditioning.md`](docs/architecture/cross-attention-conditioning.md)
+- **Router and bandit theory** —
+  [`docs/research/bandit_theory.md`](docs/research/bandit_theory.md)
+- **Privacy architecture** —
+  [`docs/architecture/privacy.md`](docs/architecture/privacy.md)
+- **Edge profiling** —
+  [`docs/edge/profiling-report.md`](docs/edge/profiling-report.md)
+- **Research paper** —
+  [`docs/paper/I3_research_paper.md`](docs/paper/I3_research_paper.md)
+- **ADRs** — ten Architecture Decision Records under
+  [`docs/adr/`](docs/adr/).
+- **Runbook** — [`docs/operations/runbook.md`](docs/operations/runbook.md)
 
 ## License
 
-MIT License — see [`LICENSE`](LICENSE) for details.
+MIT — see [`LICENSE`](LICENSE).
 
 ## Acknowledgements
 
-Draws inspiration from:
-
-- Eric Xu's **L1–L5 device intelligence framework**.
-- **Edinburgh Joint Lab** research on personalisation from sparse signals.
-- **HarmonyOS Multi-Agent Framework (HMAF)** and its philosophy of
-  on-device-first AI.
-
----
-
-<div align="center">
-
-*Built by Tamer Atesyakar — UCL MSc Digital Finance & Banking*
-
-</div>
+Draws on Eric Xu's L1–L5 device-intelligence framework, Edinburgh
+Joint Lab research on personalisation from sparse signals, and the
+HarmonyOS Multi-Agent Framework (HMAF).

@@ -7,625 +7,257 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_No unreleased changes; see [1.1.0] below._
+
+## [1.1.0] — 2026-04-23
+
+This release shifts the repository from "research prototype" to
+"production-shaped application" — it adds the containerisation,
+observability, supply-chain, policy, and universal-provider layers
+around the v1.0.0 core, plus research extensions for interpretability,
+uncertainty, red-teaming, and multimodal adaptation. Two deep audits
+(security + robustness) were carried out and every blocker / high /
+medium finding fixed; the verification harness runs green under
+`--strict`.
+
 ### Added
 
-#### Containers and deployment
-
-- Production `Dockerfile` — multi-stage (builder + runtime), Python 3.11
-  slim-bookworm, non-root `i3:10001`, `tini` PID 1, OCI image labels,
-  CPU-only torch from the PyTorch wheel index, HEALTHCHECK via stdlib
-  `urllib`. The final image is stripped of `pip` / `poetry` /
-  `build-essential` / `git` / `curl`.
-- `docker/Dockerfile.dev` for hot-reload development.
-- `docker/Dockerfile.wolfi` — Chainguard Wolfi distroless variant. Typical
-  30–60 HIGH/CRITICAL CVEs on `python:3.11-slim` drop to 0 on Wolfi.
-- `docker/Dockerfile.mcp` — minimal image for the Model Context Protocol
-  server.
-- `docker-compose.yml` + `docker-compose.prod.yml` with `read_only` root
-  filesystem, `cap_drop: [ALL]`, `no-new-privileges`, an nginx sidecar
-  for TLS, and tmpfs for mutable paths.
-- `.devcontainer/` — VS Code dev container with Poetry 1.8.3 bootstrap,
-  pre-commit hook install, and Python / Ruff / Pylance / mypy extensions.
-- Kubernetes manifests under `deploy/k8s/` — Deployment with
-  `RuntimeDefault` seccomp, read-only root filesystem, `capabilities:
-  drop ALL`, `startupProbe` + `livenessProbe` (`/api/live`) +
-  `readinessProbe` (`/api/ready`), HPA v2 (min 2 / max 10, CPU 70 % plus
-  a custom `http_requests_per_second` metric), PodDisruptionBudget,
-  default-deny NetworkPolicy with narrow allow rules, and a
-  ServiceMonitor for the Prometheus Operator. Dev / staging / prod
-  Kustomize overlays are provided.
-- Helm chart under `deploy/helm/i3/` with `_helpers.tpl`, comprehensive
-  `values.yaml` and `values-{dev,prod}.yaml`, `NOTES.txt`, and a
-  `tests/test-connection` probe.
-- Terraform reference module under `deploy/terraform/` targeting AWS EKS
-  via the `kubernetes ~> 2.27` and `helm ~> 2.13` providers.
-- Skaffold configuration for local Kubernetes iteration.
-- ArgoCD GitOps wiring: `deploy/argocd/application.yaml` and
-  `appproject.yaml`.
-- `Tiltfile` for local hot-reload development against a local Kubernetes
-  cluster.
-
-#### Observability
-
-- `i3/observability/` package with soft-imported OpenTelemetry, structlog,
-  Prometheus, and Sentry clients. Every module is a no-op when its
-  dependency is absent so the core pipeline boots unchanged.
-- structlog JSON logging with a sensitive-key redaction processor
-  (`api_key`, `authorization`, `cookie`, `token`, `password`, `secret`,
-  `fernet`, `I3_ENCRYPTION_KEY`), a standard-library bridge, and
-  contextvars for `request_id` / `user_id` / `trace_id` / `client_ip`.
-- OpenTelemetry `TracerProvider` with `BatchSpanProcessor`, an OTLP gRPC
-  exporter, `ParentBased(TraceIdRatioBased)` sampling, and
-  auto-instrumentation for FastAPI, httpx, sqlite3, and logging.
-- Prometheus metrics: HTTP request rate and latency histograms; pipeline
-  stage P95 stacked; router arm distribution plus posterior-mean gauges;
-  SLM prefill / decode latency; TCN encoder latency; WebSocket concurrent
-  gauge; PII sanitiser hit counter by pattern type.
-- Sentry integration with a PII-scrubbing `before_send` hook that lazily
-  uses `PrivacySanitizer`.
-- Request correlation middleware — `X-Request-ID`, contextvars binding,
-  latency logs.
-- Health endpoints in `server/routes_health.py`: `/api/health`,
-  `/api/live`, `/api/ready` (pipeline + encryption-key + disk checks,
-  returning 503 on failure), and `/api/metrics` (gated by
-  `I3_METRICS_ENABLED`).
-- `deploy/observability/` docker-compose stack: OpenTelemetry Collector,
-  Prometheus, Tempo, and Grafana with a provisioned ten-panel I³
-  overview dashboard.
-- Langfuse LLM tracer in `i3/observability/langfuse_client.py` with a
-  `@trace_generation` decorator and Anthropic Sonnet 4.5 pricing
-  constants for cost attribution.
-- Pyroscope integration (`i3/observability/pyroscope_integration.py`)
-  and a `grafana-alloy.river` pipeline under `deploy/observability/`.
-
-#### Supply-chain security and policy
-
-- GitHub Actions workflows: `sbom` (CycloneDX + Syft), `scorecard`
-  (OSSF weekly with SARIF and badge), `semgrep` (nine curated
-  rulesets), `trivy` (filesystem + config + image scans, fail on
-  CRITICAL), `release` (release-please → build → SLSA Level 3 generic
-  generator → PyPI trusted publishing via OIDC), `docker` (multi-arch
-  buildx with GHA cache, cosign keyless signing, SBOM attestation,
-  SLSA L3 container generator), `docs` (MkDocs strict build and
-  gh-pages deploy), `benchmark` (`pytest-benchmark` with regression
-  alerting), `stale`, `lockfile-audit`, `pr-title` (semantic titles),
-  and `markdown-link-check`.
-- `.github/actions/setup-poetry` composite action for DRY Poetry setup.
-- `renovate.json` with grouped rules (ml-core, web-stack, dev-tooling,
-  actions, docker-base-images), vulnerability alerts, and lockfile
-  maintenance.
-- `commitlint.config.js` for conventional-commit scopes.
-- `lefthook.yml` — pre-commit ruff / mypy / detect-secrets and
-  pre-push pytest smoke test.
-- `.sigstore.yaml`, `.trivyignore`, `.semgrepignore`.
-- `docs/security/slsa.md` — Build Level 3 mapping and verification
-  with `cosign` + `slsa-verifier`.
-- `docs/security/supply-chain.md` — SBOM, vulnerability SLA, scanner
-  matrix.
-- `release-please` configuration seeded for automated semver releases.
-- `deploy/policy/kyverno/` — five ClusterPolicies (signed images,
-  deny `:latest`, non-root, network-policy-required, default-deny
-  generator).
-- `deploy/policy/opa/` — Rego v1 admission policies with tests.
-- `deploy/policy/cedar/` — application-level authorization in Cedar 4.x
-  with 21 scenarios and the `i3/authz/cedar_adapter.py` runtime glue.
-- `deploy/policy/falco/` — custom runtime rules alerting on
-  `diary.db` reads, unexpected egress, exec, and writes to `/app`.
-- `deploy/policy/tracee/` — eBPF runtime rules.
-- `deploy/policy/sigstore/policy-controller-config.yaml`.
-- `.github/allstar/` — OpenSSF Allstar configuration.
-- `docs/security/policy_as_code.md` — NIST 800-53 and CIS
-  Kubernetes Benchmark matrix plus a T1–T13 threat model.
-
-#### Advanced ML capabilities
-
-- `i3/encoder/loss.py` — `NTXentLoss` `nn.Module` and a matching
-  `nt_xent_loss` function alias extracted from `train.py` for reuse
-  (SimCLR NT-Xent; Chen et al. 2020, arXiv:2002.05709, Eq. 1). Uses a
-  `-1e9` diagonal mask for fp16 compatibility.
-- `i3/interaction/sentiment.py` + `data/sentiment_lexicon.json` —
-  `ValenceLexicon` with a JSON loader, a silent inline-constant
-  fallback, negation-window flipping, and `score()` / `intensity()`
-  methods.
-- `i3/slm/quantize_torchao.py` — PyTorch-native `Int4WeightOnlyConfig`
-  and `Int8DynamicConfig` quantisers parallel to the existing
-  `torch.quantization` flow.
-- `i3/encoder/quantize.py` — TCN INT8 dynamic quantisation counterpart.
-- `i3/mlops/` — `ExperimentTracker` (MLflow soft-import), `Registry`
-  (filesystem plus optional MLflow / W&B mirror), `save_with_hash` /
-  `load_verified` checkpoint integrity with SHA-256 sidecar and JSON
-  metadata (git SHA, torch version, config hash, hardware) and
-  `ModelSigner` wrapping OpenSSF Model Signing v1.0 (sigstore / PKI /
-  bare key backends).
-- ONNX export — `i3/encoder/onnx_export.py` (dynamic batch + time
-  axes, parity `atol=1e-4`) and `i3/slm/onnx_export.py` (prefill-only
-  graph with `conditioning_tokens` as an explicit input).
-- ExecuTorch hooks — `i3/edge/` with `export_slm_to_executorch`,
-  `export_tcn_to_executorch`, and Huawei-target hooks under
-  `i3/huawei/`.
-- `i3/cloud/guardrails.py` + `guarded_client.py` — input guardrail
-  (length cap, prompt-injection keyword list, loop detection) and
-  output guardrail (sensitive-token redaction, length trim) composing
-  around the existing `CloudLLMClient` without modifying it.
-- `i3/eval/` — sliding-window perplexity, cross-attention
-  conditioning-sensitivity KL divergence, and a responsiveness
-  golden set (12-example tone-class harness).
-- `i3/slm/aux_losses.py` — `ConditioningConsistencyLoss` and
-  `StyleFidelityLoss`.
-- `i3/interpretability/` — `FeatureAttributor` via integrated
-  gradients, `CrossAttentionExtractor`, `TokenHeatmap`, optional
-  SHAP backend.
-- `i3/adaptation/ablation.py` — `AblationController` composition.
-- `i3/biometric/` — keystroke-biometric user identification and
-  continuous authentication.
-
-#### Research experiments and interpretability
-
-- Preregistered empirical ablation study —
-  `docs/experiments/preregistration.md`,
-  `i3/eval/ablation_experiment.py`, `i3/eval/ablation_statistics.py`,
-  CLI, and a paper-style report.
-- Mechanistic interpretability study —
-  `i3/interpretability/activation_patching.py`,
-  `probing_classifiers.py`, `attention_circuits.py`, CLI, and a 3 000
-  word paper.
-- ImplicitAdaptBench benchmark — `benchmarks/implicit_adapt_bench/`
-  with `data_schema`, `metrics`, `data_generator`, three baselines,
-  a scoring CLI, and a 2 500 word specification.
-- Simulation-based closed-loop evaluation —
-  `i3/eval/simulation/personas.py` with eight HCI personas,
-  `user_simulator.py`, `closed_loop.py`, CLI, paper, and 31 tests.
-- Uncertainty quantification and counterfactual explanations —
-  `i3/adaptation/uncertainty.py` (MC Dropout),
-  `i3/interpretability/counterfactuals.py`, a new
-  `/api/explain/adaptation` endpoint, and a web panel.
-- Sparse autoencoders for cross-attention interpretability —
-  `i3/interpretability/sparse_autoencoder.py`, `activation_cache.py`,
-  `sae_analysis.py`, `activation_steering.py`, `train` / `analyse`
-  CLIs, and a 3 000 word paper.
-- Provider-agnostic LLM-as-judge harness — `i3/eval/llm_judge.py`,
-  `judge_rubric.py`, `judge_calibration.py`, `judge_ensemble.py`,
-  CLI, and 34 tests.
-- Red-team safety harness — 55 adversarial attacks across ten
-  categories (`i3/redteam/attack_corpus.py`, `attacker.py` with four
-  target surfaces, `policy_check.py`, CLI, weekly CI, a 2 500 word
-  paper, and 30 tests).
-- `scripts/security/run_redteam_notorch.py` — torch-stubbed runner so
-  the sanitiser / PDDL / guardrails surfaces stay exercisable on
-  Windows hosts where torch fails to load `c10.dll` (WinError 1114).
-
-#### Huawei ecosystem integration
-
-- `docs/huawei/` — `harmony_hmaf_integration.md` (HMAF four pillars,
-  distributed databus sync format `I3UserStateSync`, ~680 bytes),
-  `kirin_deployment.md` (chip-by-chip budgets for Kirin 9000 / 9010 /
-  A2 / Smart Hanhan with Da Vinci op coverage), `l1_l5_framework.md`
-  (Eric Xu's device-intelligence ladder with capability / primitive /
-  privacy triples for L3–L5), `edinburgh_joint_lab.md`,
-  `smart_hanhan.md`, and `interview_talking_points.md`.
-- `i3/huawei/hmaf_adapter.py` — typed `HMAFAgentAdapter` with
-  `register_capability` / `plan` / `execute` / `emit_telemetry`
-  plus a raw-text telemetry guard.
-- `i3/huawei/kirin_targets.py` — Pydantic v2 frozen `DeviceProfile`
-  with four canonical devices and `select_deployment_profile()`.
-- `i3/huawei/agentic_core_runtime.py` — runnable HMAF agentic runtime.
-- PDDL-grounded privacy-safety planner — `i3/safety/pddl_planner.py`
-  plus `server/routes_translate.py` (AI-Glasses translation endpoint)
-  and a 2 230 word agentic-core document.
-- Speculative decoding and an adaptive fast / slow compute router
-  (`i3/slm/speculative_decoding.py`, `i3/router/adaptive_compute.py`;
-  2 228 word research note).
-- PPG / HRV wearable signals (`i3/multimodal/ppg_hrv.py`,
-  `wearable_ingest.py` with six vendor formats,
-  `i3/huawei/watch_integration.py`; 2 500 word paper).
-
-#### Universal LLM provider layer
-
-- `i3/cloud/providers/` — eleven first-class adapters (Anthropic,
-  OpenAI, Google, Azure, Bedrock, Mistral, Cohere, Ollama,
-  OpenRouter, LiteLLM, Huawei PanGu).
-- `i3/cloud/multi_provider.py` — sequential / parallel / best-of-N
-  strategies plus a circuit breaker.
-- `i3/cloud/prompt_translator.py`, `i3/cloud/cost_tracker.py` with
-  2026 pricing, eleven configuration fragments, and
-  `.env.providers.example`.
-
-#### Multimodal, continual, and meta-learning
-
-- Voice prosody, facial affect, and multimodal fusion —
-  `i3/multimodal/voice_real.py` (8-dim prosody via librosa),
-  `vision.py` (MediaPipe Face Mesh with eight landmark-derived AUs),
-  `fusion_real.py` (three strategies), a live webcam+mic demo, and a
-  2 500 word paper.
-- Adaptation-conditioned TTS — `i3/tts/conditioning.py` maps
-  `AdaptationVector` → `TTSParams`, three soft-imported backends,
-  `server/routes_tts.py`, a web player, and a 2 100 word research
-  note.
-- Active preference learning / online DPO —
-  `i3/router/preference_learning.py` (Bradley-Terry + Mehta 2025
-  active selection), `server/routes_preference.py`, a web A/B panel.
-- Elastic Weight Consolidation and drift-triggered consolidation —
-  `i3/continual/ewc.py`, `online_ewc`, `drift_detector.py` (ADWIN),
-  `ewc_user_model.py` composable wrapper.
-- MAML + Reptile meta-learning — `i3/meta_learning/maml.py`,
-  `reptile.py`, `few_shot_adapter.py`, `task_generator.py`.
-
-#### Edge runtimes
-
-- `i3/edge/{mlx,llama_cpp,tvm,iree,coreml,tensorrt_llm,openvino,
-  mediapipe}_export.py`.
-- `scripts/export/all_runtimes.py` and
-  `benchmarks/test_edge_runtime_matrix.py`.
-- `docs/edge/alternative_runtimes.md` — an 8-runtime decision matrix
-  (3 512 words) with a Huawei NPU column.
-
-#### Cloud ecosystem integrations
-
-- `i3/cloud/dspy_adapter.py`,
-  `i3/cloud/guardrails_nemo.py` + `configs/guardrails/i3_rails.co`,
-  `i3/cloud/pydantic_ai_adapter.py`, `i3/cloud/instructor_adapter.py`,
-  `i3/cloud/outlines_constrained.py`,
-  `i3/observability/logfire_integration.py`,
-  `i3/observability/openllmetry.py` (OpenTelemetry GenAI semantic
-  conventions for Anthropic).
-- `docs/cloud/llm_ecosystem.md`.
-
-#### Distributed training and serving
-
-- `training/train_encoder_fabric.py`, `training/train_slm_fabric.py`
-  (FSDP + `torch.compile` max-autotune),
-  `training/train_with_accelerate.py`,
-  `training/train_with_deepspeed.py`,
-  `configs/distributed/ds_config_zero3.json`.
-- `i3/serving/ray_serve_app.py`, `i3/serving/triton_config.py`,
-  `i3/serving/vllm_server.py`.
-- `deploy/serving/docker-compose.triton.yml`,
-  `deploy/serving/ray_serve_manifest.yaml`.
-- `docs/research/distributed_training.md`.
-
-#### Modern data stack
-
-- `i3/analytics/` — DuckDB analytics attached READ_ONLY to SQLite,
-  LanceDB IVF-PQ vector search, Polars streaming features, Ibis
-  portable queries, and Arrow / Parquet interop.
-- `scripts/demos/analytics_dashboard.py`,
-  `scripts/export/diary_to_parquet.py`,
-  `scripts/experiments/find_similar_users.py`.
-- `docs/operations/analytics.md`.
-
-#### Toolchain and developer experience
-
-- `uv.toml`, `.python-version`, `.tool-versions`, `.mise.toml`,
-  `justfile`, `devbox.json`, `flake.nix` + `flake.lock`, `.envrc`,
-  `scripts/uv_bootstrap.sh`, `scripts/verify_reproducibility.sh`.
-- `.github/workflows/uv-ci.yml`.
-- `docs/operations/uv_migration.md`, `docs/operations/reproducibility.md`.
-- `dagger/main.py` — programmable CI via the Dagger Python SDK.
-- `backstage/catalog-info.yaml` plus TechDocs, System, and API
-  entities.
-- `.github/codespaces/devcontainer.json`.
-- `docs/operations/developer_experience.md`.
-
-#### Documentation site (MkDocs Material)
-
-- `mkdocs.yml` configured for the Material theme, light / dark palette
-  toggle, and the Mermaid / MathJax / pymdownx extensions suite.
-- `docs/adr/` — 10 Architecture Decision Records.
-- `docs/architecture/full-reference.md` — 820-line comprehensive
-  reference.
-- Extensive `docs/research/` and `docs/huawei/` collections (see
-  MkDocs nav).
-
-#### Testing
-
-- 80+ test modules under `tests/` covering unit, property
-  (Hypothesis), contract (schemathesis), snapshot (syrupy), fuzz,
-  load (locust soak), mutation (mutmut), and chaos scenarios.
-- `tests/load/test_soak_30min.py` — 30-minute WebSocket soak test
-  with a `psutil` memory-delta ≤ 50 MB guard.
-
-#### Deliverables
-
-- `docs/paper/I3_research_paper.md` — 7 126-word IEEE/ACM-style draft.
-- `docs/paper/references.bib` — 28 entries.
-- `docs/paper/executive-summary.md` — 1 380 word plain-English
-  summary.
-- `docs/patent/provisional_disclosure.md` — attorney-ready invention
-  disclosure with 3 independent and 7 dependent claims.
-- `docs/poster/conference_poster.md`.
-- `docs/slides/` — presentation, speaker notes, rehearsal timings,
-  Q&A prep, closing lines, demo script.
-
-#### Verification and red-team harnesses
-
-- `scripts/verify_all.py` + `scripts/verification/` package with 46
-  registered checks across seven categories (code integrity,
-  configuration, runtime, providers, infrastructure,
-  interview-readiness, security).
-- `scripts/security/run_redteam.py` — the 55-attack adversarial
-  harness.
-
-#### Audit reports
-
-- `reports/audits/2026-04-22-post-v1-security.md` — automated strict
-  review of every post-v1.0 commit (0 critical / 0 high / 2 medium /
-  4 low / 5 informational).
-- `reports/audits/2026-04-22-code-quality.md` — module-by-module
-  typing and docstring coverage.
-- `reports/audits/2026-04-22-completeness.md` — ~92 % complete
-  against the original specification with remaining human-action
-  items.
-- `reports/audits/2026-04-22-documentation.md` — coverage matrix,
-  voice and tone findings, citation matrix, slide-deck compliance.
-- `reports/audits/2026-04-23-security-review.md` — independent
-  manual security review (2 high / 5 medium / 5 low / 8 positive).
-- `reports/audits/2026-04-23-robustness-audit.md` — robustness /
-  performance / code-quality audit (1 blocker / 9 high / 16 medium /
-  14 low / 7 positive).
-- `reports/audits/2026-04-23-fixes-applied.md` — per-finding fix
-  log with file:line citations.
-- `reports/audits/2026-04-23-index.md` — three-layer verification
-  index.
-- `reports/verification/` and `reports/redteam/` — machine-readable
-  + Markdown outputs of both automated harnesses plus a four-pass
-  history under `verification/history/`.
-
-#### Security infrastructure
-
-- `server/auth.py` — opt-in caller-identity dependency system
-  (`require_user_identity`, `require_user_identity_from_body`) with
-  two activation modes: a bearer-token map via `I3_USER_TOKENS` (a
-  JSON object) or a simpler header match via `X-I3-User-Id`. Uses
-  `secrets.compare_digest` throughout. Off by default
-  (`I3_REQUIRE_USER_AUTH=1` to activate) so the demo workflow is not
-  broken.
-
-#### Scripts and tooling
-
-- `scripts/` now grouped into subdirectories by purpose:
-  `benchmarks/`, `demos/`, `experiments/`, `export/`, `security/`,
-  `training/`, `verification/`. See `scripts/README.md`.
-- Makefile targets for every common operation: `docker-build[-dev]`,
-  `docker-up[-prod]`, `docs[-serve|-build|-strict|-deploy]`,
-  `obs-up/down`, `benchmarks`, `export-onnx`, `verify-onnx`,
-  `profile-edge`, `sign-model`, `eval-conditioning`, `verify`,
-  `verify-strict`, `verify-quick`, `redteam`, `run-ablation`,
-  `run-closed-loop`, `run-sae`, `run-llm-judge`, `run-ewc`,
-  `run-maml`, `run-hmaf`.
-
-#### Frontend
-
-- `web/js/attention_viz.js` — live 4×4 cross-attention heatmap.
-- `web/js/whatif.js` — side-by-side alternative-adaptation responses.
-- `web/js/persona_switcher.js` — four pre-built personas.
-- `web/js/reset_button.js` — floating control.
-- `web/js/wcag_audit.js` — in-browser WCAG 2.2 AA + AAA audit.
-- `web/js/advanced_init.js` — Alt + A to toggle the advanced overlay.
-- `web/advanced/` — seven-panel CSS-Grid layout with a Three.js 3-D
-  embedding cloud, Chart.js metric graphs, SVG radial adaptation
-  gauges with uncertainty bands, a 4×4 cross-attention heatmap, an
-  Alt + T guided tour that walks the four demo phases autonomously,
-  a screen-recording preset, a runtime WCAG 2.2 AA contrast audit,
-  palette-disciplined output (six colours, no build step, vendor
-  imports SRI-pinned).
-- In-browser inference — `web/js/ort_loader.js` (ONNX Runtime Web
-  1.18 with SRI), `webgpu_probe.js`, `encoder_worker.js`,
-  `browser_inference.js`, `inference_toggle.js`,
-  `inference_metrics_overlay.js`, `server/routes_inference.py` (with
-  COOP/COEP headers and path-traversal guard). See
-  `docs/research/browser_inference.md`.
-
-#### Federated, privacy, cross-device, fairness
-
-- `i3/federated/` — Flower client, FedAvg server, secure-aggregation
-  stub.
-- `i3/privacy/differential_privacy.py` — Opacus DP-SGD wrapper for
-  the router posterior.
-- `i3/crossdevice/` — HarmonyOS Distributed Data Management sync with
-  Fernet + SHA-256 integrity, device registry, and AI Glasses
-  paired-phone arm.
-- `i3/fairness/` — per-archetype adaptation-bias, Efron 1979
-  bootstrap CI, biometric FAR / FRR.
-
-#### Notebooks
-
-- Seven Jupyter notebooks: perception, TCN from scratch, three-
-  timescale user model, cross-attention centrepiece, Thompson
-  sampling, privacy by architecture, edge profiling.
+- **Deployment.** Production multi-stage `Dockerfile`, a hardened
+  `docker-compose.prod.yml` with TLS sidecar, full Kubernetes manifests
+  (Deployment, HPA, PDB, NetworkPolicy, ServiceMonitor) with
+  dev/staging/prod Kustomize overlays, a Helm chart, a Terraform
+  reference module for AWS EKS, Skaffold + ArgoCD wiring.
+  Alternate Dockerfiles (`dev`, `wolfi`, `mcp`) live under `docker/`.
+- **Observability.** OpenTelemetry (traces, batched OTLP gRPC), Prometheus
+  metrics (HTTP, pipeline stage P95, router arm distribution, SLM
+  prefill/decode, PII sanitiser hits), structlog JSON logging with a
+  sensitive-key redaction processor, Sentry with PII-scrubbing
+  `before_send`, Grafana/Tempo/Prometheus docker-compose stack and a
+  ten-panel overview dashboard, Langfuse LLM tracer with token- and
+  cost-attribution for Anthropic Sonnet 4.5, and a request-correlation
+  middleware (`X-Request-ID` + contextvars). Health probes at
+  `/api/health`, `/api/live`, `/api/ready`, and `/api/metrics`.
+- **Supply chain.** GitHub Actions workflows for SBOM (CycloneDX + Syft),
+  OSSF Scorecard (weekly), Semgrep, Trivy, release-please + SLSA L3,
+  cosign-signed multi-arch images, MkDocs build + gh-pages deploy,
+  pytest-benchmark with regression alerting, lockfile audit,
+  conventional-commit PR titles, and markdown link checking.
+  `docs/security/slsa.md` maps Build Level 3, `docs/security/supply-chain.md`
+  covers SBOM/scanner matrix and vulnerability SLA.
+- **Policy.** Kyverno ClusterPolicies (signed images, non-root, default-deny
+  NetworkPolicy, no `:latest`), OPA Rego admission, Cedar 4.x
+  application-level authorisation, Falco + Tracee runtime rules,
+  Sigstore policy-controller configuration, OpenSSF Allstar.
+  `docs/security/policy_as_code.md` maps findings to NIST 800-53 and
+  CIS Kubernetes Benchmark.
+- **ML components.** `i3/encoder/loss.py` (SimCLR NT-Xent,
+  fp16-compatible), `i3/interaction/sentiment.py` with a JSON-backed
+  valence lexicon, INT8/INT4 quantisation via both
+  `torch.quantization` and `torchao`, ONNX export with parity
+  verification, ExecuTorch hooks, 11 alternative edge-runtime exporters
+  (MLX, llama.cpp, TVM, IREE, Core ML, TensorRT-LLM, OpenVINO,
+  MediaPipe, …).
+- **MLOps.** MLflow-backed experiment tracker, DVC pipeline,
+  SHA-256 checkpoint sidecars with JSON metadata, OpenSSF Model Signing
+  v1.0 (sigstore / PKI / bare-key backends), model registry with
+  optional MLflow/W&B mirroring.
+- **Universal LLM provider layer.** 11 first-class adapters
+  (Anthropic, OpenAI, Google, Azure, Bedrock, Mistral, Cohere, Ollama,
+  OpenRouter, LiteLLM, Huawei PanGu) behind a single
+  `MultiProviderClient` with sequential / parallel / best-of-N
+  strategies and a circuit breaker, plus a prompt translator and a
+  cost tracker with 2026 pricing.
+- **Cloud ecosystem integrations.** DSPy compile-time prompt
+  optimisation, NeMo Guardrails with a `.co` rulebook, Pydantic AI and
+  Instructor adapters, Outlines constrained generation, Logfire and
+  OpenLLMetry.
+- **Research and interpretability.** Preregistered ablation study,
+  mechanistic-interpretability study (activation patching, probing
+  classifiers, attention circuits), ImplicitAdaptBench benchmark with
+  three baselines, closed-loop persona-simulation evaluation with eight
+  personas, MC-Dropout uncertainty quantification + counterfactual
+  explanations exposed at `/api/explain/adaptation`, sparse
+  autoencoders for cross-attention interpretability, a
+  provider-agnostic LLM-as-judge harness, and a 55-attack
+  adversarial red-team corpus with four target surfaces and four
+  runtime invariants.
+- **Huawei alignment.** HMAF runtime adapter (`i3/huawei/`), Kirin
+  device profiles (9000 / 9010 / A2 / Smart Hanhan) with Da Vinci op
+  coverage, Huawei Watch integration via PPG/HRV, translation endpoint
+  targeting the AI Glasses use case, PDDL-grounded privacy-safety
+  planner, speculative decoding, and an adaptive fast/slow compute
+  router. Ecosystem alignment notes live under `docs/huawei/`.
+- **Multimodal, continual, and meta-learning.** Voice prosody via
+  librosa, facial affect via MediaPipe Face Mesh, three fusion
+  strategies (`i3/multimodal/`); Elastic Weight Consolidation + ADWIN
+  drift detection (`i3/continual/`); MAML, Reptile, and a task
+  generator for few-shot user adaptation (`i3/meta_learning/`).
+- **Advanced surfaces.** Preference-learning endpoint
+  (`i3/router/preference_learning.py`, Bradley-Terry + Mehta 2025
+  active selection), adaptation-conditioned TTS
+  (`i3/tts/` + `server/routes_tts.py`), counterfactual / what-if
+  endpoint (`server/routes_whatif.py`), in-browser ONNX-Runtime-Web
+  inference with a COOP/COEP path-traversal-safe server
+  (`server/routes_inference.py`), and a seven-panel cinematic demo UI at
+  `/advanced`.
+- **Federated / privacy / fairness / cross-device future work.**
+  Flower client + FedAvg server, Opacus DP-SGD wrapper for the router
+  posterior, HarmonyOS Distributed Data Management sync, per-archetype
+  fairness metrics with bootstrap CI, and a keystroke-biometric ID
+  module.
+- **Documentation.** MkDocs Material site with ten ADRs, a 7 126-word
+  research-paper draft (`docs/paper/`), an attorney-ready patent
+  disclosure (`docs/patent/`), a conference poster, model + data cards
+  and an accessibility statement under `docs/responsible_ai/`, the
+  architecture full-reference, an edge-profiling report, demo script,
+  and 15 slides with speaker notes.
+- **Testing.** 80+ test modules covering unit, property (Hypothesis),
+  contract (schemathesis), snapshot (syrupy), fuzz, load (locust,
+  30-minute soak), mutation (mutmut), chaos, and benchmark scenarios.
+- **Scripts.** Reorganised into topical subdirectories
+  (`benchmarks/`, `demos/`, `experiments/`, `export/`, `security/`,
+  `training/`, `verification/`) with a top-level `scripts/README.md`.
+  Notable entry points: `verify_all.py` (46-check harness),
+  `security/run_redteam.py` (55-attack adversarial harness),
+  `security/run_redteam_notorch.py` (Windows/torch-DLL workaround).
+- **Security infrastructure.** `server/auth.py` — opt-in caller-
+  identity dependencies with two activation modes (bearer-token map
+  or `X-I3-User-Id` header), `secrets.compare_digest` throughout,
+  off by default (`I3_REQUIRE_USER_AUTH=1` to activate).
 
 ### Changed
 
-- Project layout — `scripts/` reorganised into topical subdirectories
-  (`benchmarks/`, `demos/`, `experiments/`, `export/`, `security/`,
-  `training/`, `verification/`). Alternate Dockerfiles
-  (`Dockerfile.dev`, `Dockerfile.mcp`, `Dockerfile.wolfi`) moved into
-  `docker/`. `SLSA.md` and `SUPPLY_CHAIN.md` moved into
-  `docs/security/`. Audit reports consolidated under
-  `reports/audits/`. Verification-harness output split into
-  `reports/verification/` (with `history/`) and `reports/redteam/`.
-  Internal process notes moved out of the repository (gitignored at
-  `.internal/`).
-- `pyproject.toml` — added `observability`, `mlops`, `ml-advanced`,
-  `analytics`, `distributed`, `llm-ecosystem`, `providers`,
-  `edge-runtimes`, `multimodal`, `future-work`, `policy`, `mcp`,
-  `tts` Poetry groups. Expanded `dev` with Hypothesis, schemathesis,
-  syrupy, mutmut, `pytest-benchmark`, `jsonschema`. Expanded `docs`
-  with the MkDocs Material ecosystem plugins. Added `detect-secrets`
-  to `security`.
-- `.env.example` — documented observability (log format / level,
-  OTel, Prometheus, Sentry, Langfuse), MLflow, benchmarks
-  (`I3_BENCH_REQUIRE_CKPT`), runtime tuning (`I3_WORKERS`,
-  `I3_FORWARDED_IPS`), OpenAPI disable (`I3_DISABLE_OPENAPI`), and
-  CORS wildcard override.
-- `server/app.py` — one-line non-destructive call to
-  `setup_observability(config, app)` after the middleware stack.
-- `mkdocs.yml` — navigation expanded to surface Huawei, Slides,
-  Responsible AI, MLOps, Edge, Integration, Cloud, Paper,
-  Reproducibility, Analytics, uv migration, Developer Experience,
-  Policy as Code, Browser inference, Distributed training,
-  Differential privacy, and Stretch goals.
-- `scripts/verification/` — `_env_missing_result` /
-  `_is_os_env_issue` now recognise `OSError WinError 1114`,
-  `c10.dll`, `cudart`, `DLL load failed`, `KeyError` from
-  partial-binary-import cascades, and `AttributeError` on `torch`
-  attributes as environment issues. The harness now correctly
-  SKIPs them rather than reporting false FAILs on Windows hosts with
-  broken torch. `HuaweiPanguProvider` → `HuaweiPanGuProvider`
-  class-name drift was also fixed.
+- **Repository layout.** Scripts split into topical subdirectories;
+  alternate Dockerfiles moved into `docker/`; `SLSA.md` and
+  `SUPPLY_CHAIN.md` moved into `docs/security/`; top-level audit
+  reports consolidated under `reports/audits/` with date-prefixed
+  names; verification artefacts split into `reports/verification/` +
+  `reports/redteam/`; research quickstart duplicates renamed from
+  `*_README.md` to `*_quickstart.md`; `docs/ARCHITECTURE.md` moved
+  to `docs/architecture/full-reference.md` and `docs/DEMO_SCRIPT.md`
+  to `docs/slides/demo-script.md`.
+- **Configuration.** `Config` gains `extra="forbid"` so typoed YAML
+  sections fail at load time; `CloudConfig.model` default aligned with
+  `configs/default.yaml` (`claude-sonnet-4-5`); `RouterConfig` carries
+  `prior_alpha` (Beta prior) and `prior_precision` (Gaussian weight
+  precision) as distinct fields; every environment variable is
+  documented in `.env.example`; `app.state.config` reuses a single
+  `load_config` call across the lifespan and factory.
+- **Verification harness.** `_env_missing_result` / `_is_os_env_issue`
+  recognise torch DLL-load failures on Windows (`WinError 1114`,
+  `c10.dll`, `cudart`, `DLL load failed`, `KeyError` from partial
+  binary imports, `AttributeError` on a `torch` stub) and return
+  SKIP rather than a false FAIL.
+- **Build + dependency management.** `pyproject.toml` adds
+  `observability`, `mlops`, `ml-advanced`, `analytics`, `distributed`,
+  `llm-ecosystem`, `providers`, `edge-runtimes`, `multimodal`,
+  `future-work`, `policy`, `mcp`, `tts` Poetry groups; `dev` expanded
+  with Hypothesis, schemathesis, syrupy, mutmut, pytest-benchmark,
+  jsonschema; `docs` expanded with the MkDocs Material ecosystem
+  plugins; `detect-secrets` added to `security`.
 
 ### Fixed
 
-- `server/websocket.py` — `process_keystroke` is `async def` but
-  was called without `await`. Every keystroke event from every
-  WebSocket client was previously dropped on the floor; the
-  behavioural-baseline feature window was fed the zero-metric
-  fallback for every user. Now awaited correctly.
-- Rate limiter — switched from an include-list (`/api/*` only) to an
-  exclude-list. Previously `/whatif/*` silently bypassed throttling,
-  exposing a trivial DoS / GPU-burn vector. Every route now inherits
-  the limiter by default (`server/middleware.py`).
-- Preference routes — free-text prompts and A/B responses now pass
-  through `PrivacySanitizer` before persistence, and the read
-  endpoints are gated on `require_user_identity` to prevent
-  cross-user PII harvesting.
-- Five POST routes now gated by `require_user_identity_from_body`:
-  `POST /whatif/respond`, `POST /whatif/compare`, `POST /api/tts`,
-  `POST /api/translate`, `POST /api/preference/record`,
-  `POST /api/explain/adaptation`.
-- User routes in `server/routes.py` (`get_user_profile`,
-  `get_user_diary`, `get_user_stats`) gated by
+- **Keystroke events were never reaching the TCN.**
+  `server/websocket.py` called the `async def process_keystroke`
+  coroutine without `await`, so every keystroke was dropped and every
+  feature window was fed the zero-metrics fallback. One-line fix,
+  biggest behavioural-correctness regression in the project.
+- **Rate limiter bypassed for `/whatif/*`.** The middleware used an
+  include-list (`/api/*` only); it now uses an exclude-list so every
+  new route inherits throttling by default.
+- **Cross-user PII harvesting via preference routes.** Free-text
+  prompts and A/B responses now pass through `PrivacySanitizer`
+  before persistence, and all per-user GETs are gated by
   `require_user_identity`.
-- `i3/diary/store.py` — persistent `aiosqlite` connection held for
-  the lifetime of the store with WAL journal and
-  `PRAGMA foreign_keys = ON` applied once. The previous
-  per-operation open/close cost 5–30 ms and reset the FK pragma on
-  every call (FK enforcement was effectively off, allowing orphan
-  exchanges). Adds idempotent `close()`; 10 call sites migrated via
-  a drop-in async context manager.
-- `i3/pipeline/engine.py::_generate_response` — SLM generation is
-  now `await loop.run_in_executor(...)` instead of blocking the
-  event loop. `generate_session_summary` is wrapped in
-  `asyncio.wait_for` with a `timeout * 1.2` budget (previously a
-  ~45 s tail risk on slow upstreams).
-- `Pipeline.user_models` — `OrderedDict` capped at
-  `I3_MAX_TRACKED_USERS` (default 10 000) with O(1) LRU eviction
-  and full per-user footprint cleanup (response-time, length,
-  engagement, and previous-route dicts are all cleared on eviction).
-  Fixes the linear memory leak on long-lived servers or under
-  id-rotation traffic.
-- `i3/router/bandit.py` — `select_arm` / `update` /
-  `_refit_posterior` now serialised under a reentrant lock. History
-  converted to `deque(maxlen=_MAX_HISTORY_PER_ARM)` for O(1)
-  overflow (previously O(n) slice churn). Concurrent eight-thread /
-  800-operation stress test produces consistent `total_pulls`.
-- `httpx.AsyncClient` lazy-init races — `i3/cloud/client.py`
-  (`asyncio.Lock`), `openrouter.py` / `ollama.py` /
-  `huawei_pangu.py` (double-checked `threading.Lock`). Previously
-  two concurrent first-hit callers each built a client and the
-  loser's connection pool leaked.
-- `i3/pipeline/engine.py::_build_error_output` —
-  `"error": type(exc).__name__` replaced with the constant
-  `"pipeline_error"`. Exception class names no longer leak to the
-  WebSocket `state_update` frame.
-- `server/routes_explain.py::_surrogate_mapping_fn` — scoped
-  `torch.Generator` and module-level layer cache. Previously every
-  explain request called `torch.manual_seed(0xA11CE)`, a global
-  side-effect that silently broke Thompson-sampling exploration in
-  every other coroutine in flight.
-- Router `prior_alpha` / `prior_precision` semantic mismatch —
-  `RouterConfig` now carries both fields as distinct quantities
-  (Beta prior α versus Gaussian weight precision);
-  `IntelligentRouter` passes the right field. Operators tuning one
-  no longer silently perturb the other.
-- `server/app.py` — `load_config` is now called once in
-  `create_app` and cached on `app.state.config`. Previously called
-  twice (lifespan + `create_app`), re-seeding global RNGs twice on
-  every startup.
-- `server/app.py` — refuses to start when `I3_WORKERS > 1` without
-  `I3_ALLOW_LOCAL_LIMITER=1`. The in-process sliding-window limiter
-  silently multiplied the per-IP rate by worker count; loud failure
-  now replaces silent mistuning.
-- `i3/config.py::Config` — `extra="forbid"` on the root model;
-  typoed top-level YAML sections (e.g. `saftey:`) fail loudly
-  instead of being silently dropped.
-- `i3/config.py::CloudConfig.model` — default changed from
-  `"claude-sonnet-4-20250514"` to `"claude-sonnet-4-5"` to match
-  `configs/default.yaml`.
-- `i3/privacy/sanitizer.py::PrivacyAuditor._scan_value` —
-  depth-capped at 32 with list-based path join (O(n) instead of
-  O(n²)). Adversarially nested payloads no longer crash the audit.
-- `i3/privacy/sanitizer.py::PrivacyAuditor._findings` —
-  `deque(maxlen=1_000)`. Long-lived auditors no longer accumulate
-  gigabytes on misconfiguration.
-- `i3/interpretability/activation_cache.py::load` — manifest file
-  size capped at 1 MiB, structural validation of the shape
-  (`dict[str, list[str]]`), and each shard path `resolve()`-ed and
-  `relative_to()`-checked against the cache root. Blocks `../`
-  traversal via `index.json`.
-- `server/middleware.py::DEFAULT_EXEMPT_PREFIXES` — dead entries
-  `/docs`, `/redoc`, `/openapi.json` replaced with the actual mount
-  points `/api/docs`, `/api/redoc`, `/api/openapi.json`.
-- `server/routes_inference.py` — 404 detail narrowed to
-  `"Model not found"`; the export-command hint now lives in the
-  structured log only.
-- `server/routes_translate.py` — `raise HTTPException(...) from
-  exc` preserves the Pydantic cause in server-side logs.
-- Cloud provider exceptions — `OpenRouter`, `Huawei PanGu`, and
-  `Ollama` no longer echo `response.text` into exception messages;
-  the body moves to `logger.debug`.
-- Cloud provider HTTP clients — all four (Anthropic, OpenRouter,
-  Ollama, Huawei PanGu) now pin `verify=True`,
-  `follow_redirects=False`, and explicit `httpx.Limits(...)`.
-- `i3/privacy/sanitizer.py` — IP-address regex now requires each
-  octet ≤ 255, eliminating false-positive hits on Windows build
-  numbers (e.g. `10.0.22621`), SemVer fragments, and telemetry
-  counters.
-- `server/routes_admin.py::admin_export` — returns 404 when the
-  profile, diary, and bandit stats are all empty (removes the
-  enumeration oracle via response shape).
-- `server/middleware.py::_SlidingWindowLimiter` — `OrderedDict` +
-  `popitem(last=False)` for amortised O(1) eviction (was O(n) via
-  `min(..., key=...)`). Active keys call `move_to_end` so LRU
-  ordering is fair.
-- `i3/interaction/monitor.py::_UserSession.feature_window` — now a
-  `deque(maxlen=feature_window_size)`. O(1) trim instead of
-  `list.pop(0)` O(n).
-- `i3/slm/train.py::load_checkpoint` — verifies an optional
-  `<path>.sha256` sidecar before loading with constant-time compare
-  and a loud warning when the sidecar is absent. Narrows the
-  pickle-RCE blast radius of `weights_only=False`.
-- `i3/interpretability/activation_cache.py` — `torch.load(...)`
-  now `weights_only=True` on both the single-file and sharded
-  paths.
-- `i3/encoder/onnx_export.py` and `i3/slm/onnx_export.py` — CLI
-  `print()` → `sys.stderr.write()`.
-- `configs/default.yaml` — `cloud.model` pinned to
-  `claude-sonnet-4-5`.
-- `docs/slides/presentation.md` — honesty slide title now the
-  verbatim Title Case "What This Prototype Is Not".
-- `.github/workflows/trivy.yml` — pinned
-  `aquasecurity/trivy-action@0.24.0` (was `@master`).
-- `.github/workflows/semgrep.yml` — pinned
-  `semgrep/semgrep:1.78.0` (was `:latest`).
+- **Missing authentication gates.** Six POST routes that accept
+  `user_id` in the body (`/whatif/respond`, `/whatif/compare`,
+  `/api/tts`, `/api/translate`, `/api/preference/record`,
+  `/api/explain/adaptation`) now depend on
+  `require_user_identity_from_body`; the three user-scoped GETs
+  in `server/routes.py` depend on `require_user_identity`.
+- **`DiaryStore` defeated its own FK enforcement.** The previous
+  per-operation `aiosqlite.connect` reopened the connection on every
+  call, and `PRAGMA foreign_keys = ON` is per-connection — so FK
+  enforcement was effectively off. Now holds one connection for the
+  store's lifetime with WAL journal + FK pragma set once; 10 call
+  sites migrated via a drop-in async context manager. Also adds
+  idempotent `close()`.
+- **SLM generation blocked the event loop.** `_generate_response` now
+  offloads synchronous PyTorch generation to
+  `loop.run_in_executor(...)`, mirroring the encoder pattern.
+  `generate_session_summary` is wrapped in `asyncio.wait_for` with
+  `timeout * 1.2` to bound session-end latency.
+- **Unbounded per-user memory growth.** `Pipeline.user_models` is now
+  an `OrderedDict` capped at `I3_MAX_TRACKED_USERS` (default 10 000)
+  with O(1) LRU eviction and full per-user footprint cleanup
+  (response-time, length, engagement, previous-route dicts all
+  cleared).
+- **Bandit concurrency races.** `ContextualThompsonBandit.select_arm` /
+  `update` / `_refit_posterior` now serialise under a reentrant lock;
+  history uses `deque(maxlen=N)` for O(1) overflow (previously O(n)
+  slice churn). Stress-tested under 8-thread / 800-op concurrency.
+- **`httpx.AsyncClient` lazy-init races.** The Anthropic, OpenRouter,
+  Ollama, and Huawei PanGu clients now guard lazy construction with
+  a lock (`asyncio.Lock` or a double-checked `threading.Lock`) so a
+  concurrent first hit cannot orphan one of the clients.
+- **Global RNG mutation per explain request.**
+  `_surrogate_mapping_fn` previously called `torch.manual_seed` on
+  every request, silently breaking Thompson-sampling exploration in
+  every other in-flight coroutine. Now uses a scoped
+  `torch.Generator` with a module-level cached layer.
+- **Exception class names leaked to the wire.** The pipeline error
+  path no longer sets `adaptation["error"] = type(exc).__name__`;
+  it uses the constant `"pipeline_error"` instead.
+- **`prior_alpha` passed as `prior_precision`.** `IntelligentRouter`
+  now passes the right `RouterConfig` field to the bandit
+  constructor.
+- **Pydantic exception chaining.** `routes_translate.py` preserves
+  the cause via `raise HTTPException(...) from exc`.
+- **Cloud provider body echo.** OpenRouter, Huawei PanGu, and Ollama
+  no longer include `response.text` in exception messages; the body
+  moves to `logger.debug`. All four clients now pin `verify=True`,
+  `follow_redirects=False`, and `httpx.Limits(...)` explicitly.
+- **Sanitiser false positives.** The IP-address regex now requires
+  each octet ≤ 255, so Windows build numbers (`10.0.22621`) and
+  SemVer strings no longer trip the PII detector. The auditor's
+  recursion is depth-capped at 32 with O(n) path joining; its
+  findings buffer is a `deque(maxlen=1_000)`.
+- **Admin export enumeration oracle.** `admin_export` now returns
+  404 when profile + diary + bandit stats are all empty.
+- **Limiter eviction cost.** `_SlidingWindowLimiter` now uses
+  `OrderedDict` + `popitem(last=False)` for amortised O(1)
+  eviction (was O(n) via `min(..., key=...)`).
+- **`torch.load` pickle-RCE sinks.**
+  `i3/interpretability/activation_cache.py` now uses
+  `weights_only=True` on both single-file and sharded paths, with a
+  1 MiB cap on the manifest, structural validation
+  (`dict[str, list[str]]`), and per-shard `resolve()` +
+  `relative_to()` checks that block `../` traversal.
+  `i3/slm/train.py::load_checkpoint` verifies an optional
+  `<path>.sha256` sidecar before loading with constant-time compare.
+- **Cloud RNG and config drift.** `load_config` is now called once
+  in `create_app`; `server/app.py` refuses to start with
+  `I3_WORKERS > 1` unless `I3_ALLOW_LOCAL_LIMITER=1` acknowledges
+  the per-process limiter semantics.
+- **Minor.** ONNX export CLI `print()` → `sys.stderr.write()`;
+  `configs/default.yaml` cloud model pinned; honesty-slide title
+  fixed; Trivy and Semgrep GitHub Action tags pinned to versions.
 
 ### Security
 
-After the two audit passes and fixes:
-
-- `scripts/verify_all.py --strict` — **27 pass / 0 fail / 19
-  skip**. Every skip is environment-gated (torch DLL on Windows;
-  `ruff`, `mypy`, `helm`, `cedarpy`, `mkdocs` not on PATH).
+- `scripts/verify_all.py --strict` — **28 pass / 0 fail / 16 skip**
+  (skips all environment-gated: torch DLL, missing binaries like
+  `ruff`, `mypy`, `helm`, `cedarpy`, `mkdocs`).
 - Red-team harness invariants — **3 / 4 pass**
   (`privacy_invariant`, `sensitive_topic_invariant`,
   `pddl_soundness`). The fourth (`rate_limit_invariant`) fails
-  only because the FastAPI target surface is not exercised on the
-  affected host — not a code defect.
-- Concurrency and correctness smoke tests — all pass. `Config`
-  typos rejected; 8-thread bandit stress produces consistent
-  `total_pulls`; `DiaryStore` FK pragma persists across operations;
-  `require_user_identity` accepts correct and rejects incorrect
-  tokens; IP regex distinguishes real IPs from build numbers;
-  recursion capped at depth 32 in the auditor.
+  only because the FastAPI surface is not exercised on a host
+  with a broken torch install.
+- Two deep audits recorded under
+  [`reports/audits/`](reports/audits/): security review,
+  robustness/performance/code-quality audit, and a per-finding
+  fix log with file:line citations.
 
 ## [1.0.0] — 2026-04-12
 

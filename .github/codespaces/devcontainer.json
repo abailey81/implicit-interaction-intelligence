@@ -3,7 +3,7 @@
   "name": "I^3 Codespaces",
   "_comment": "Codespaces-specific overlay. Mirrors ../../.devcontainer/devcontainer.json and injects GitHub Codespaces secrets.",
   "build": {
-    "dockerfile": "../../Dockerfile.dev",
+    "dockerfile": "../../docker/Dockerfile.dev",
     "context": "../.."
   },
   "features": {
@@ -11,18 +11,13 @@
     "ghcr.io/devcontainers/features/docker-in-docker:2": { "version": "latest" },
     "ghcr.io/devcontainers/features/github-cli:1": {},
     "ghcr.io/devcontainers/features/node:1": { "version": "lts" },
-    "ghcr.io/devcontainers-contrib/features/kind:1": {},
-    "ghcr.io/devcontainers-contrib/features/act:1": {},
-    "ghcr.io/devcontainers-contrib/features/tilt:1": {}
+    "ghcr.io/devcontainers-contrib/features/kind:1": {}
   },
-  "forwardPorts": [8000, 8001, 5678, 10350, 4040, 12345],
+  "forwardPorts": [8000, 8001, 5678],
   "portsAttributes": {
     "8000": { "label": "I^3 HTTP", "onAutoForward": "notify" },
     "8001": { "label": "MkDocs", "onAutoForward": "silent" },
-    "5678": { "label": "debugpy", "onAutoForward": "silent" },
-    "10350": { "label": "Tilt UI", "onAutoForward": "openBrowser" },
-    "4040": { "label": "Pyroscope", "onAutoForward": "silent" },
-    "12345": { "label": "Alloy UI", "onAutoForward": "silent" }
+    "5678": { "label": "debugpy", "onAutoForward": "silent" }
   },
   "secrets": {
     "ANTHROPIC_API_KEY": {
@@ -33,8 +28,8 @@
       "description": "Fernet key used by ModelEncryptor for at-rest encryption.",
       "documentationUrl": "https://docs.github.com/en/codespaces/managing-your-codespaces/managing-secrets-for-your-codespaces"
     },
-    "PYROSCOPE_SERVER_URL": {
-      "description": "Optional. Base URL of a Pyroscope server; defaults to local docker compose."
+    "I3_ADMIN_TOKEN": {
+      "description": "Bearer token for the /admin/* endpoints."
     }
   },
   "remoteEnv": {
@@ -43,7 +38,7 @@
     "PIP_DISABLE_PIP_VERSION_CHECK": "1"
   },
   "postCreateCommand": "pip install -e .[dev] && pre-commit install",
-  "postStartCommand": "echo 'Codespace ready -- try: tilt up, dagger call lint --source=. stdout'",
+  "postStartCommand": "echo 'Codespace ready -- run: make run'",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -52,9 +47,7 @@
         "charliermarsh.ruff",
         "tamasfe.even-better-toml",
         "redhat.vscode-yaml",
-        "github.vscode-github-actions",
-        "tilt-dev.tiltfile",
-        "dagger.dagger-vscode"
+        "github.vscode-github-actions"
       ],
       "settings": {
         "python.defaultInterpreterPath": "/usr/local/bin/python",
