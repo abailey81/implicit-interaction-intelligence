@@ -17,7 +17,7 @@ runtime landscape, not a single vendor stack.
 
 ## Related
 
-- [`../edge_profiling_report.md`](../edge_profiling_report.md) — raw
+- [`../edge_profiling_report.md`](profiling-report.md) — raw
   profiling numbers for the ExecuTorch baseline.
 - [`../huawei/kirin_deployment.md`](../huawei/kirin_deployment.md) —
   Huawei Kirin / HarmonyOS-specific deployment notes, including the

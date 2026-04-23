@@ -110,6 +110,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   field so `__post_init__` can assign it.
 - `DailyDialogSource.iter_records` closes its emotion-label file
   handle (previously leaked on some platforms).
+- Ten broken internal Markdown links repaired across `docs/adr/`,
+  `docs/architecture/`, `docs/edge/`, `docs/getting-started/`, and
+  `docs/huawei/` — all now resolve to the current tree (auditable
+  via the link-scan at `scripts/verification/checks_*`).
+- `tests/conftest.py` now probes for real torch via
+  `import torch.nn` (not just `import torch`), and registers the
+  torch-dependent test modules in `collect_ignore_glob` when the
+  binary install is broken — eliminating collection errors on
+  Windows hosts with a missing VC++ runtime.
+
+### Research + applied findings
+
+- **`docs/research/2026_landscape.md`** — an 11-axis survey of the
+  2025–2026 literature and regulatory landscape this project draws
+  on: keystroke dynamics, SOTA small language models (Phi-4,
+  Gemma 3 / 4, Qwen 3), personalised LLM conditioning (USER-LLM,
+  DEP, LLM-Modules), bandit routing (BaRP), TCN vs Transformer,
+  EU AI Act enforcement, edge NPUs, HuggingFace Datatrove /
+  FineWeb, privacy-preserving ML, cognitive load + HRV,
+  tokenisation advances. Every claim primary-sourced.
+- **`docs/responsible_ai/eu_ai_act_scope.md`** — compliance
+  declaration mapping the project's posture against AI Act
+  Articles 5(1)(f), 5(1)(g), 5(1)(h), Annex III §1/§4/§5, and
+  Article 50 transparency obligations.
+- **`ContextualThompsonBandit.update()`** now accepts a
+  `cost_penalty` keyword argument. Subtracts a per-route cost from
+  the reward before the Beta-posterior update — matches the
+  preference-tunable routing design in BaRP
+  (arXiv:2510.07429). Applied at update time, not sample time, so
+  the posterior remains a pure utility estimate. +4 tests.
+- **`i3/data/dedup.py`** — shingle / permutation / band defaults
+  are now explicitly sourced to FineWeb (arXiv:2406.17557) and
+  Datatrove, with the LSH collision-probability math inline.
+- **`docs/architecture/cross-attention-conditioning.md`** —
+  design explicitly placed in the family of USER-LLM,
+  DEP (EMNLP 2025), and the canonical 2025 personalised-LLM
+  survey (arXiv:2502.11528).
+- **`docs/adr/0002-tcn-over-lstm-transformer.md`** — adds the
+  2025 TCN + attention hybrid literature (PLOS ONE 2025 network
+  traffic, TransTCN, Xbattery SoC 2025) as the tracked
+  encoder-evolution direction.
 
 
 

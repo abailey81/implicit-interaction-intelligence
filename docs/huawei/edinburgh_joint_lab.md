@@ -312,7 +312,7 @@ collaboration, or a PhD:
   `ConditioningProjector`).
 - **Conditioning-sensitivity test:** the evaluation script in
   [`training/evaluate.py`](../../training/evaluate.py) (or equivalent).
-- **Synthetic personas:** [`training/synthetic_data.py`](../../training/synthetic_data.py).
+- **Synthetic personas:** [`training/synthetic_data.py`](../../training/generate_synthetic.py).
 - **Adaptation pipeline:** [`i3/adaptation/`](../../i3/adaptation/).
 
 ---

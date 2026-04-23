@@ -207,5 +207,5 @@ poetry run i3-train-slm \
   full derivation of NT-Xent and our view-construction choices.
 - [Research: Cross-attention](../research/cross_attention.md) — why
   per-layer cross-attention beats prompt prefixing.
-- [Model Card](../model_card.md) — training data, metrics, and ethical
+- [Model Card](../responsible_ai/model_card_slm.md) — training data, metrics, and ethical
   considerations for the shipped SLM.

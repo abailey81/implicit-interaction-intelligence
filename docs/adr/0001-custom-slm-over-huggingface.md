@@ -85,5 +85,5 @@ without re-training from a random initialisation.
 
 - [Research: Cross-attention conditioning](../research/cross_attention.md)
 - [Architecture: SLM (Layer 6a)](../architecture/layers.md#l6a)
-- [Model Card](../model_card.md)
+- [Model Card](../responsible_ai/model_card_slm.md)
 - Vaswani, A. *et al.* "Attention is all you need." NeurIPS 2017.

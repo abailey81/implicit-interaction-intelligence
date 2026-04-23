@@ -1,7 +1,7 @@
 # I³ Architecture Deep-Dive
 
 > A comprehensive design document for the Implicit Interaction Intelligence
-> (I³) system. This document is intended to accompany the [README](../README.md)
+> (I³) system. This document is intended to accompany the [README](../../README.md)
 > and go one level deeper: mathematical formulations, data flow internals,
 > design rationale, and trade-offs.
 
@@ -819,6 +819,6 @@ prototype is proven.
 
 ---
 
-*— End of architecture document. See [README.md](../README.md) for a
-higher-level overview and [DEMO_SCRIPT.md](DEMO_SCRIPT.md) for the live
+*— End of architecture document. See [README.md](../../README.md) for a
+higher-level overview and [DEMO_SCRIPT.md](../slides/demo-script.md) for the live
 demo walk-through.*

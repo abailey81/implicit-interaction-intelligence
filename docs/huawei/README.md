@@ -97,5 +97,5 @@ wired up by a Huawei partner team.
 
 ---
 
-*Last updated 2026-04-22. See [ARCHITECTURE.md](../ARCHITECTURE.md) for the
+*Last updated 2026-04-22. See [ARCHITECTURE.md](../architecture/full-reference.md) for the
 I³ architecture reference this dossier extends.*

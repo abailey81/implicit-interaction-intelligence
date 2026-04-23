@@ -40,7 +40,7 @@ import logging
 from typing import TYPE_CHECKING
 
 # ─── Package metadata ────────────────────────────────────────────────
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 __author__ = "Tamer Atesyakar"
 __license__ = "MIT"
 

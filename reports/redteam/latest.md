@@ -1,7 +1,7 @@
 # I3 Red-Team Harness Report
 
-Analysis SHA: `534b7806cfc8c8f39cf4ea2726efd5ed33a7a76a`  
-Timestamp: `2026-04-23T13:59:01Z`
+Analysis SHA: `dc8d53f269fc476263f2c0fb4dc352d31161aa3b`  
+Timestamp: `2026-04-23T21:02:18Z`
 
 ## Methodology
 
