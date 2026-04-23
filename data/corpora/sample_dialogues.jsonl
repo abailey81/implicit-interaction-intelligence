@@ -1,0 +1,35 @@
+{"text": "Good morning! How are you feeling today?", "label": "greeting", "speaker": "user", "conv_id": "smp-0001"}
+{"text": "I'm doing well, thanks for asking. How about you?", "label": "greeting", "speaker": "assistant", "conv_id": "smp-0001"}
+{"text": "Could you help me plan my week? I have three deadlines coming up.", "label": "request", "speaker": "user", "conv_id": "smp-0002"}
+{"text": "Of course. Let's walk through the deadlines one by one and estimate the effort for each.", "label": "request", "speaker": "assistant", "conv_id": "smp-0002"}
+{"text": "I've been feeling really tired lately. I think it's the long hours at work.", "label": "sadness", "speaker": "user", "conv_id": "smp-0003"}
+{"text": "That sounds exhausting. When did you last take a full day off?", "label": "sadness", "speaker": "assistant", "conv_id": "smp-0003"}
+{"text": "The test suite finally passes! I spent the whole afternoon tracking down that race condition.", "label": "happiness", "speaker": "user", "conv_id": "smp-0004"}
+{"text": "Nice work! Race conditions are notoriously hard to reproduce. What was the root cause?", "label": "happiness", "speaker": "assistant", "conv_id": "smp-0004"}
+{"text": "A shared dictionary was being mutated from two threads without a lock.", "label": "happiness", "speaker": "user", "conv_id": "smp-0004"}
+{"text": "Classic. Did you end up using a threading.Lock or an asyncio.Lock?", "label": "happiness", "speaker": "assistant", "conv_id": "smp-0004"}
+{"text": "I'm worried about the review tomorrow. I haven't had time to prepare the slides.", "label": "fear", "speaker": "user", "conv_id": "smp-0005"}
+{"text": "Let's sketch the slide outline together. What are the three most important points?", "label": "fear", "speaker": "assistant", "conv_id": "smp-0005"}
+{"text": "Can you explain what a Temporal Convolutional Network is in simple terms?", "label": "question", "speaker": "user", "conv_id": "smp-0006"}
+{"text": "A TCN is a sequence model that uses dilated causal convolutions instead of recurrence. The dilations let it see far into the past without a separate memory cell.", "label": "question", "speaker": "assistant", "conv_id": "smp-0006"}
+{"text": "That makes sense. How does it compare to an LSTM in practice?", "label": "question", "speaker": "user", "conv_id": "smp-0006"}
+{"text": "TCNs are usually faster to train because convolutions parallelise across time, and they often match or beat LSTM quality on tasks with a bounded receptive field.", "label": "question", "speaker": "assistant", "conv_id": "smp-0006"}
+{"text": "The weather was absolutely beautiful this afternoon. I went for a long walk along the river.", "label": "happiness", "speaker": "user", "conv_id": "smp-0007"}
+{"text": "That sounds lovely. Did you spot any wildlife?", "label": "happiness", "speaker": "assistant", "conv_id": "smp-0007"}
+{"text": "A heron on one of the rocks, and what I think was a kingfisher darting across the water.", "label": "happiness", "speaker": "user", "conv_id": "smp-0007"}
+{"text": "I'm struggling with this bug. The unit tests pass but the integration tests fail intermittently.", "label": "frustration", "speaker": "user", "conv_id": "smp-0008"}
+{"text": "Intermittent failures in integration tests often come down to timing. Is there any shared state that isn't reset between tests?", "label": "frustration", "speaker": "assistant", "conv_id": "smp-0008"}
+{"text": "Actually, yes. A module-level dict that caches results. Let me patch that.", "label": "frustration", "speaker": "user", "conv_id": "smp-0008"}
+{"text": "Great catch. Shared module-level state is a common cause of flakiness.", "label": "frustration", "speaker": "assistant", "conv_id": "smp-0008"}
+{"text": "Do you have any recommendations for cookbook-style recipes for a weeknight dinner?", "label": "request", "speaker": "user", "conv_id": "smp-0009"}
+{"text": "Pasta with garlic, olive oil, chilli, and parsley takes about fifteen minutes. You can stretch it with tinned tuna or grated parmesan if you have some.", "label": "request", "speaker": "assistant", "conv_id": "smp-0009"}
+{"text": "I finished reading the book you recommended. The second act was slower than I expected but the finale was brilliant.", "label": "happiness", "speaker": "user", "conv_id": "smp-0010"}
+{"text": "I'm glad you liked it. The author is known for the slow middle and an explosive third act.", "label": "happiness", "speaker": "assistant", "conv_id": "smp-0010"}
+{"text": "I disagree with the decision. I think we should have pushed the release by a week.", "label": "anger", "speaker": "user", "conv_id": "smp-0011"}
+{"text": "I understand the frustration. What would the extra week have unblocked?", "label": "anger", "speaker": "assistant", "conv_id": "smp-0011"}
+{"text": "Proper load testing and a second pass at the docs. We're going to get bug reports on both.", "label": "anger", "speaker": "user", "conv_id": "smp-0011"}
+{"text": "Could we still schedule the load test as a post-release hardening sprint?", "label": "anger", "speaker": "assistant", "conv_id": "smp-0011"}
+{"text": "My dog has been off his food for a couple of days. I took him to the vet this morning.", "label": "fear", "speaker": "user", "conv_id": "smp-0012"}
+{"text": "I hope he's alright. What did the vet say?", "label": "fear", "speaker": "assistant", "conv_id": "smp-0012"}
+{"text": "They ran some blood work. We should hear the results in the morning.", "label": "fear", "speaker": "user", "conv_id": "smp-0012"}
+{"text": "The weather was absolutely beautiful this afternoon. I went for a long walk along the river.", "label": "happiness", "speaker": "user", "conv_id": "dup-dedup-test"}

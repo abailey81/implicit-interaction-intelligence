@@ -60,14 +60,22 @@ def test_real_ips_are_redacted(sanitizer, text):
 @pytest.mark.parametrize(
     "text",
     [
+        # Each of these has at least one octet > 255 and therefore
+        # cannot be a valid IPv4 address, so the strict regex must
+        # skip them.
         "Windows 10.0.22621 is the build number",
-        "Version 1.2.3.4 shipped today",
         "Telemetry counter 999.999.999.999 out-of-range",
         "SemVer 10.256.0.0 looks like an IP but isn't",
+        "Build stamp 300.4.5.6 for release",
     ],
 )
 def test_non_ip_dotted_quads_not_flagged(sanitizer, text):
-    """Each octet must be ≤ 255; build numbers and SemVer fall outside."""
+    """Each octet must be ≤ 255; out-of-range dotted quads are ignored.
+
+    Note: a coincidental in-range quad like "1.2.3.4" in SemVer text
+    IS still a valid IPv4 literal, so we do NOT claim to distinguish
+    SemVer from real IPs in general — only to reject impossible quads.
+    """
     result = sanitizer.sanitize(text)
     assert "ip_address" not in result.pii_types, (
         f"false-positive IP hit on {text!r}: {result}"

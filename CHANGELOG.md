@@ -7,7 +7,103 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_No unreleased changes; see [1.1.0] below._
+### Added
+
+- **Advanced data pipeline** at `i3/data/` — cleaning, quality
+  filtering, deduplication, deterministic splitting, and provenance
+  tracking for real-world dialogue corpora.
+  - `i3/data/cleaning.py`: NFKC normalisation, zero-width + bidi
+    override stripping, HTML entity decoding, newline
+    canonicalisation, whitespace collapse, control-character
+    stripping.
+  - `i3/data/quality.py`: eight built-in quality rules
+    (`min_length`, `max_length`, `latin_ratio`,
+    `unique_token_ratio`, `no_url_dump`, `no_email_dump`,
+    `no_control_density`, `profanity_budget`) plus a
+    `QualityReport` with per-rule rejection counts and length
+    histogram.
+  - `i3/data/dedup.py`: exact content-hash deduplication plus
+    min-hash + LSH near-duplicate detection (pure Python, 128
+    permutations, 16 bands by default; no external dependency).
+  - `i3/data/sources.py`: source adapters for JSONL, CSV (column-
+    mapped), plain text, DailyDialog (Li et al. 2017), and
+    EmpatheticDialogues (FAIR).
+  - `i3/data/lineage.py`: `Lineage` provenance metadata that
+    travels with every record; `RecordSchema` Pydantic v2 contract
+    with `extra="forbid"` and frozen invariants.
+  - `i3/data/pipeline.py`: the `DataPipeline` orchestrator that
+    composes every stage, writes split-aware JSONL
+    (`train.jsonl` / `val.jsonl` / `test.jsonl`), and emits a
+    structured `report.json` with schema version, duration,
+    per-source counts, per-label counts, per-language signal,
+    and the full quality-rule breakdown.
+- **Bundled sample corpus** at `data/corpora/sample_dialogues.jsonl` —
+  35 curated dialogue turns across 12 conversations for end-to-end
+  smoke-testing the pipeline without external downloads.
+- **`training/prepare_dialogue_v2.py`** — CLI driver for the new
+  pipeline. Repeatable `--jsonl` / `--txt` / `--csv` /
+  `--dailydialog` / `--empathetic` flags let one invocation consume
+  multiple sources together. The original `prepare_dialogue.py` is
+  preserved for backwards compatibility.
+- **Makefile targets** — `prepare-dialogue` / `prepare-data` run the
+  pipeline on the bundled corpus end-to-end.
+- **Sentiment lexicon expanded** (`i3/interaction/data/sentiment_lexicon.json`):
+  123 → 690 curated entries (347 positive + 343 negative) with richer
+  HCI / developer-experience vocabulary and informal interjections.
+- **TF-IDF corpus expanded** (`i3/diary/logger.py`): 60 → 342 terms
+  across communication, time, software engineering, data + ML,
+  productivity, thinking, daily life, health, affective, and
+  conversational-pattern categories.
+- **`.env.example`** now documents 20+ previously-undocumented I3_*
+  and observability environment variables.
+
+### Tests
+
+- **`tests/test_data_pipeline.py`** — 58 tests covering cleaning,
+  quality rules, dedup, every source adapter, end-to-end pipeline
+  runs, deterministic splitting, conv_id split-leakage guard,
+  lineage roundtrip, report-JSON schema, and custom-rule
+  extensibility.
+- **`tests/test_data_properties.py`** — 19 Hypothesis property-based
+  tests over all inputs: cleaner idempotence, unicode normalisation
+  idempotence, control-char absence in output, length bounds,
+  content-hash determinism, Jaccard reflexivity / symmetry /
+  unit-interval range, deduplicator stats conservation, schema
+  frozen-ness.
+- **`tests/test_middleware_integration.py`** — 9 tests of the full
+  middleware stack (security headers, body-size 413, rate-limit 429,
+  exempt paths, `/whatif/*` inclusion in throttling).
+- **`tests/test_auth.py`** — 13 tests for `server/auth.py` covering
+  both activation modes, malformed JSON, cross-user rejection,
+  `secrets.compare_digest` usage, POST-variant.
+- **`tests/test_sentiment_lexicon.py`** — 16 tests (shape invariants
+  + calibration golden set).
+- **`tests/test_verify_harness.py`** — 20 tests for the 46-check
+  harness framework itself.
+- **`tests/test_privacy_sanitizer_hardening.py`** — 7 tests for the
+  2026-04-23 audit sanitiser hardening.
+- **`tests/test_bandit_concurrency.py`** — 7 concurrency tests for
+  `ContextualThompsonBandit`.
+- **`tests/test_config_schema.py`** — 8 tests that pin the canonical
+  `configs/default.yaml` to the strict schema.
+
+### Changed
+
+- **`tests/conftest.py`** — torch-stub fallback so every test module
+  collects cleanly on environments where the binary torch install is
+  broken (Windows without VC++ runtime).
+- **`i3/data/cleaning.py::_collapse_whitespace`** — trims both
+  leading and trailing whitespace on every line (previously
+  trailing-only).
+
+### Fixed
+
+- `MinHashLSH` slots-dataclass now declares `_rows_per_band` as a
+  field so `__post_init__` can assign it.
+- `DailyDialogSource.iter_records` closes its emotion-label file
+  handle (previously leaked on some platforms).
+
+
 
 ## [1.1.0] — 2026-04-23
 

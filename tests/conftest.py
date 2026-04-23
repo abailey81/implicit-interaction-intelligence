@@ -11,11 +11,42 @@ These fixtures provide reproducible, isolated test resources:
 
 from __future__ import annotations
 
+import sys
+import types
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
-import torch
+
+# ─────────────────────────────────────────────────────────────────────────
+# Torch-stub fallback
+# ─────────────────────────────────────────────────────────────────────────
+# If the binary torch install is broken (common on Windows without the
+# VC++ runtime), install a minimal stub in sys.modules so non-torch tests
+# can still collect and run.  Tests that need *real* torch must guard
+# themselves with ``pytest.importorskip("torch")``.
+try:  # pragma: no cover - depends on environment
+    import torch  # noqa: F401
+except Exception:  # noqa: BLE001 — OSError, ImportError, AttributeError, …
+    _torch_stub = types.ModuleType("torch")
+
+    class _Tensor:  # pragma: no cover - stub only
+        pass
+
+    def _tensor(*_a, **_kw):  # pragma: no cover - stub only
+        return _Tensor()
+
+    _torch_stub.Tensor = _Tensor
+    _torch_stub.tensor = _tensor
+    _torch_stub.float32 = "float32"
+
+    class _NoOp:  # pragma: no cover - context manager stub
+        def __enter__(self): return self
+        def __exit__(self, *_): return False
+
+    _torch_stub.no_grad = lambda: _NoOp()
+    sys.modules["torch"] = _torch_stub
+    import torch  # noqa: F401  — now resolves to the stub
 
 if TYPE_CHECKING:
     pass

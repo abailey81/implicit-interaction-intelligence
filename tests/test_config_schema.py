@@ -14,8 +14,10 @@ invariant added during the 2026-04-23 audit.  It proves:
 
 from __future__ import annotations
 
+import os
 import sys
 import types
+import warnings
 from pathlib import Path
 
 import pytest
@@ -30,9 +32,23 @@ _torch_stub.float32 = "float32"
 sys.modules.setdefault("torch", _torch_stub)
 
 
+# Provide a dummy encryption key so load_config() doesn't emit the
+# "I3_ENCRYPTION_KEY is not set" UserWarning under the repo-wide
+# ``filterwarnings=error`` policy.
+os.environ.setdefault("I3_ENCRYPTION_KEY", "testing-key-not-for-production")
+
+
 from i3.config import Config, load_config  # noqa: E402
 
 _DEFAULT_YAML = Path(__file__).resolve().parents[1] / "configs" / "default.yaml"
+
+
+# The ``load_config`` call still emits a defensive UserWarning in some
+# environments; the contract we care about is schema-validation, so we
+# suppress the warning here explicitly.
+pytestmark = pytest.mark.filterwarnings(
+    "ignore::UserWarning:i3.config"
+)
 
 
 def test_default_yaml_exists():

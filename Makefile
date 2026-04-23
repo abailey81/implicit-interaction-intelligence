@@ -204,6 +204,15 @@ generate-data: ## Generate synthetic training data
 	$(PY) -m training.generate_synthetic --config configs/default.yaml
 	@printf "$(GREEN)✓ Data generation complete$(RESET)\n"
 
+prepare-dialogue: ## Clean + dedup + split the bundled sample dialogue corpus
+	@printf "$(BLUE)▶ Running the i3.data pipeline on the bundled sample...$(RESET)\n"
+	$(PY) -m training.prepare_dialogue_v2 \
+		--jsonl data/corpora/sample_dialogues.jsonl \
+		--output-dir data/processed/sample
+	@printf "$(GREEN)✓ Sample dataset written to data/processed/sample/$(RESET)\n"
+
+prepare-data: prepare-dialogue ## Alias for prepare-dialogue
+
 train-encoder: ## Train the TCN encoder
 	@printf "$(BLUE)▶ Training TCN encoder...$(RESET)\n"
 	$(PY) -m training.train_encoder --config configs/default.yaml
@@ -376,8 +385,19 @@ verify-quick: ## Only code + config + interview categories
 	$(PY) scripts/verify_all.py --categories code,config,interview \
 		--out reports/verification_quick.json --out-md reports/verification_quick.md
 
-redteam: ## Run the 55-attack red-team harness (Batch G6)
-	$(PY) scripts/run_redteam.py --targets sanitizer,pddl,guardrails --fail-fast
+redteam: ## Run the 55-attack red-team harness
+	$(PY) scripts/security/run_redteam.py --targets sanitizer,pddl,guardrails --fail-fast
+
+audit: ## Run every verification layer (tests + strict harness + red-team + lint)
+	@printf "$(BLUE)▶ Layer 1 — pytest suite...$(RESET)\n"
+	@$(MAKE) --no-print-directory test
+	@printf "$(BLUE)▶ Layer 2 — 44-check verification harness (strict)...$(RESET)\n"
+	@$(MAKE) --no-print-directory verify-strict
+	@printf "$(BLUE)▶ Layer 3 — 55-attack red-team harness...$(RESET)\n"
+	@$(MAKE) --no-print-directory redteam
+	@printf "$(BLUE)▶ Layer 4 — lint + types + security scan...$(RESET)\n"
+	@$(MAKE) --no-print-directory lint typecheck security-check
+	@printf "$(GREEN)✓ Every verification layer passed$(RESET)\n"
 
 run-ablation: ## Run the preregistered empirical ablation study (Batch A)
 	$(PY) -m scripts.run_ablation_study --out reports/ablation_latest.json --out-md reports/ablation_latest.md
