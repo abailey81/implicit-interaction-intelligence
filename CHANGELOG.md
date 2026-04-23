@@ -37,6 +37,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     structured `report.json` with schema version, duration,
     per-source counts, per-label counts, per-language signal,
     and the full quality-rule breakdown.
+  - `i3/data/stats.py`: post-hoc dataset diagnostics — vocabulary
+    size, type-token ratio, Zipf slope on the top-N tokens, OOV
+    rate of every non-train split against the train vocabulary,
+    vocab overlap, label entropy + Gini, length histograms in
+    tokens and characters, residual-duplicate fingerprint.
 - **Bundled sample corpus** at `data/corpora/sample_dialogues.jsonl` —
   35 curated dialogue turns across 12 conversations for end-to-end
   smoke-testing the pipeline without external downloads.
@@ -86,6 +91,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ContextualThompsonBandit`.
 - **`tests/test_config_schema.py`** — 8 tests that pin the canonical
   `configs/default.yaml` to the strict schema.
+- **`tests/test_data_stats.py`** — 14 tests for the stats module
+  (type-token ratio, Zipf slope range, label entropy / Gini, OOV
+  rate against train, malformed-input resilience).
 
 ### Changed
 

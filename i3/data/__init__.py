@@ -64,6 +64,7 @@ from i3.data.sources import (
     PlainTextSource,
     SourceAdapter,
 )
+from i3.data.stats import DatasetStats, SplitStats, compute_stats
 
 __all__ = [
     "CSVColumnMap",
@@ -72,6 +73,7 @@ __all__ = [
     "CleaningConfig",
     "DailyDialogSource",
     "DataPipeline",
+    "DatasetStats",
     "Deduplicator",
     "EmpatheticDialoguesSource",
     "JSONLSource",
@@ -85,6 +87,8 @@ __all__ = [
     "RecordSchema",
     "SCHEMA_VERSION",
     "SourceAdapter",
+    "SplitStats",
+    "compute_stats",
     "content_hash",
     "default_rules",
     "jaccard",
