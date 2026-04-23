@@ -199,7 +199,7 @@ def _cli_main() -> None:  # pragma: no cover - convenience shim
             state = state["state_dict"]
         model.load_state_dict(state, strict=False)
     export_tcn(model, Path(args.output), opset=args.opset, verify=not args.no_verify)
-    print(f"wrote {args.output}", file=sys.stderr)
+    sys.stderr.write(f"wrote {args.output}\n")
 
 
 if __name__ == "__main__":  # pragma: no cover

@@ -1,0 +1,380 @@
+{
+  "total": 46,
+  "passed": 17,
+  "failed": 14,
+  "skipped": 15,
+  "duration_s": 1.8599999999860302,
+  "pass_rate": 0.5483870967741935,
+  "per_category_summary": {
+    "code_integrity": {
+      "total": 10,
+      "passed": 4,
+      "failed": 4,
+      "skipped": 2
+    },
+    "config_data": {
+      "total": 7,
+      "passed": 4,
+      "failed": 2,
+      "skipped": 1
+    },
+    "security": {
+      "total": 4,
+      "passed": 0,
+      "failed": 1,
+      "skipped": 3
+    },
+    "architecture_runtime": {
+      "total": 7,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 7
+    },
+    "providers": {
+      "total": 5,
+      "passed": 0,
+      "failed": 5,
+      "skipped": 0
+    },
+    "infrastructure": {
+      "total": 5,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 2
+    },
+    "interview_readiness": {
+      "total": 8,
+      "passed": 6,
+      "failed": 2,
+      "skipped": 0
+    }
+  },
+  "results": [
+    {
+      "check_id": "code.ast_parse_all_python",
+      "status": "PASS",
+      "duration_ms": 1313,
+      "message": "parsed 399 files cleanly",
+      "evidence": null
+    },
+    {
+      "check_id": "code.top_level_imports",
+      "status": "FAIL",
+      "duration_ms": 16,
+      "message": "1 import failures",
+      "evidence": "i3: ModuleNotFoundError: No module named 'numpy'"
+    },
+    {
+      "check_id": "code.no_bare_except",
+      "status": "PASS",
+      "duration_ms": 1063,
+      "message": "no bare except handlers",
+      "evidence": null
+    },
+    {
+      "check_id": "code.no_print_in_library",
+      "status": "FAIL",
+      "duration_ms": 1000,
+      "message": "2 print() call(s) in i3/",
+      "evidence": "i3\\encoder\\onnx_export.py:202\ni3\\slm\\onnx_export.py:303"
+    },
+    {
+      "check_id": "code.soft_import_pattern",
+      "status": "FAIL",
+      "duration_ms": 1077,
+      "message": "2 unguarded soft-import(s)",
+      "evidence": "i3\\cloud\\dspy_adapter.py:306: dspy\ni3\\cloud\\dspy_adapter.py:315: dspy"
+    },
+    {
+      "check_id": "code.ruff_clean",
+      "status": "SKIP",
+      "duration_ms": 93,
+      "message": "ruff binary not on PATH",
+      "evidence": null
+    },
+    {
+      "check_id": "code.mypy_clean",
+      "status": "SKIP",
+      "duration_ms": 46,
+      "message": "mypy binary not on PATH",
+      "evidence": null
+    },
+    {
+      "check_id": "code.from_future_annotations",
+      "status": "FAIL",
+      "duration_ms": 188,
+      "message": "170 module(s) without __future__ annotations (threshold 20)",
+      "evidence": "i3\\config.py\ni3\\adaptation\\ablation.py\ni3\\adaptation\\controller.py\ni3\\adaptation\\dimensions.py\ni3\\adaptation\\types.py\ni3\\adaptation\\uncertainty.py\ni3\\analytics\\arrow_interop.py\ni3\\analytics\\duckdb_engine.py\ni3\\analytics\\ibis_queries.py\ni3\\analytics\\lance_vector.py\ni3\\analytics\\polars_features.py\ni3\\authz\\cedar_adapter.py\ni3\\biometric\\continuous_auth.py\ni3\\biometric\\keystroke_id.py\ni3\\cloud\\client.py\ni3\\cloud\\cost_tracker.py\ni3\\cloud\\dspy_adapter.py\ni3\\cloud\\guarded_client.py\ni3\\cloud\\guardrails.py\ni3\\cloud\\guardrails_nemo.py\ni3\\cloud\\instructor_adapter.py\ni3\\cloud\\multi_provider.py\ni3\\cloud\\outlines_constrained.py\ni3\\cloud\\postprocess.py\ni3\\cloud\\prompt_builder.py\ni3\\cloud\\prompt_translator.py\ni3\\cloud\\provider_registry.py\ni3\\cloud\\pydantic_ai_adapter.py\ni3\\continual\\drift_detector.py\ni3\\continual\\ewc.py\ni3\\continual\\ewc_user_model.py\ni3\\continual\\replay_buffer.py\ni3\\crossdevice\\ai_glasses_arm.py\ni3\\crossdevice\\hmos_ddm_sync.py\ni3\\diary\\logger.py\ni3\\diary\\store.py\ni3\\diary\\summarizer.py\ni3\\edge\\coreml_export.py\ni3\\edge\\executorch_export.py\ni3\\edge\\iree_export.py"
+    },
+    {
+      "check_id": "code.pep604_union_syntax",
+      "status": "PASS",
+      "duration_ms": 233,
+      "message": "111 legacy Optional/Union occurrence(s) (warning only)",
+      "evidence": "i3\\adaptation\\uncertainty.py:392\ni3\\authz\\cedar_adapter.py:149\ni3\\authz\\cedar_adapter.py:152\ni3\\authz\\cedar_adapter.py:175\ni3\\authz\\cedar_adapter.py:186\ni3\\authz\\cedar_adapter.py:199\ni3\\authz\\cedar_adapter.py:211\ni3\\authz\\cedar_adapter.py:212\ni3\\authz\\cedar_adapter.py:247\ni3\\authz\\cedar_adapter.py:248\ni3\\biometric\\continuous_auth.py:168\ni3\\biometric\\continuous_auth.py:203\ni3\\biometric\\continuous_auth.py:273\ni3\\biometric\\keystroke_id.py:80\ni3\\biometric\\keystroke_id.py:112\ni3\\biometric\\keystroke_id.py:329\ni3\\cloud\\client.py:147\ni3\\cloud\\client.py:213\ni3\\cloud\\client.py:296\ni3\\cloud\\client.py:353"
+    },
+    {
+      "check_id": "code.no_todo_personnel_references",
+      "status": "PASS",
+      "duration_ms": 31,
+      "message": "no invalidated personnel references",
+      "evidence": null
+    },
+    {
+      "check_id": "config.yaml_parse_all",
+      "status": "FAIL",
+      "duration_ms": 608,
+      "message": "11 YAML parse failure(s)",
+      "evidence": "deploy\\helm\\i3\\templates\\configmap.yaml: while parsing a flow node\nexpected the node content, but found '-'\n  in \"<unicode string>\", line 7, column 7:\n        {{- include \"i3.labels\" . | ninden ... \n          ^\ndeploy\\helm\\i3\\templates\\deployment.yaml: while parsing a flow node\nexpected the node content, but found '-'\n  in \"<unicode string>\", line 7, column 7:\n        {{- include \"i3.labels\" . | ninden ... \n          ^\ndeploy\\helm\\i3\\templates\\hpa.yaml: while parsing a flow node\nexpected the node content, but found '-'\n  in \"<unicode string>\", line 1, column 3:\n    {{- if .Values.autoscaling.enabled -}}\n      ^\ndeploy\\helm\\i3\\templates\\ingress.yaml: while parsing a flow node\nexpected the node content, but found '-'\n  in \"<unicode string>\", line 1, column 3:\n    {{- if .Values.ingress.enabled -}}\n      ^\ndeploy\\helm\\i3\\templates\\networkpolicy.yaml: while parsing a flow node\nexpected the node content, but found '-'\n  in \"<unicode string>\", line 1, column 3:\n    {{- if .Values.networkPolicy.enabl ... \n      ^\ndeploy\\helm\\i3\\templates\\pdb.yaml: while parsing a flow node\nexpected the node content, but found '-'\n  in \"<unicode string>\", line 1, column 3:\n    {{- if .Values.podDisruptionBudget ... \n      ^\ndeploy\\helm\\i3\\templates\\service.yaml: while parsing a flow node\nexpected the node content, but found '-'\n  in \"<unicode string>\", line 7, column 7:\n        {{- include \"i3.labels\" . | ninden ... \n          ^\ndeploy\\helm\\i3\\templates\\serviceaccount.yaml: while parsing a flow node\nexpected the node content, but found '-'\n  in \"<unicode string>\", line 1, column 3:\n    {{- if .Values.serviceAccount.crea ... \n      ^\ndeploy\\helm\\i3\\templates\\servicemonitor.yaml: while parsing a flow node\nexpected the node content, but found '-'\n  in \"<unicode string>\", line 1, column 3:\n    {{- if .Values.serviceMonitor.enab ... \n      ^\ndeploy\\helm\\i3\\templates\\tests\\test-connection.yaml: while parsing a block mapping\n  in \"<unicode string>\", line 4, column 3:\n      name: \"{{ include \"i3.fullname\"  ... \n      ^\nexpected <block end>, but found '<scalar>'\n  in \"<unicode string>\", line 4, column 22:\n      name: \"{{ include \"i3.fullname\" . }}-test-connection\"\n                         ^\nmkdocs.yml: could not determine a constructor for the tag 'tag:yaml.org,2002:python/name:material.extensions.emoji.twemoji'\n  in \"<unicode string>\", line 145, column 20:\n          emoji_index: !!python/name:material.extension ... \n                       ^"
+    },
+    {
+      "check_id": "config.json_parse_all",
+      "status": "PASS",
+      "duration_ms": 125,
+      "message": "15 JSON file(s) parsed cleanly",
+      "evidence": null
+    },
+    {
+      "check_id": "config.toml_parse_all",
+      "status": "PASS",
+      "duration_ms": 108,
+      "message": "4 TOML file(s) parsed cleanly",
+      "evidence": null
+    },
+    {
+      "check_id": "config.notebooks_valid_nbformat",
+      "status": "PASS",
+      "duration_ms": 94,
+      "message": "7 notebook(s) valid",
+      "evidence": null
+    },
+    {
+      "check_id": "config.env_example_keys_documented",
+      "status": "FAIL",
+      "duration_ms": 125,
+      "message": "9/28 env keys not referenced in source",
+      "evidence": "AWS_ACCESS_KEY_ID\nAWS_SECRET_ACCESS_KEY\nI3_DB_PATH\nI3_ENCODER_CHECKPOINT\nI3_LLM_PROVIDER\nI3_OFFLINE_ONLY\nI3_SLM_CHECKPOINT\nI3_TELEMETRY_DEBUG\nI3_TEST_LIVE_PROVIDERS"
+    },
+    {
+      "check_id": "config.no_hardcoded_secrets",
+      "status": "FAIL",
+      "duration_ms": 437,
+      "message": "1 potential secret(s) found",
+      "evidence": "i3\\cloud\\guardrails.py: ghp_*"
+    },
+    {
+      "check_id": "config.claude_model_id_locked",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "cloud.model == 'claude-sonnet-4-5'",
+      "evidence": null
+    },
+    {
+      "check_id": "config.mkdocs_build_strict",
+      "status": "SKIP",
+      "duration_ms": 16,
+      "message": "mkdocs binary not on PATH",
+      "evidence": null
+    },
+    {
+      "check_id": "runtime.fastapi_app_creation",
+      "status": "SKIP",
+      "duration_ms": 0,
+      "message": "fastapi or server.app not importable: No module named 'fastapi'",
+      "evidence": null
+    },
+    {
+      "check_id": "runtime.all_routes_registered",
+      "status": "SKIP",
+      "duration_ms": 0,
+      "message": "server.app not importable: No module named 'fastapi'",
+      "evidence": null
+    },
+    {
+      "check_id": "runtime.health_live_endpoints",
+      "status": "SKIP",
+      "duration_ms": 0,
+      "message": "TestClient unavailable: No module named 'fastapi'",
+      "evidence": null
+    },
+    {
+      "check_id": "runtime.ready_endpoint_shape",
+      "status": "SKIP",
+      "duration_ms": 0,
+      "message": "TestClient unavailable: No module named 'fastapi'",
+      "evidence": null
+    },
+    {
+      "check_id": "runtime.privacy_sanitizer_patterns",
+      "status": "SKIP",
+      "duration_ms": 14,
+      "message": "PrivacySanitizer import failed: No module named 'numpy'",
+      "evidence": null
+    },
+    {
+      "check_id": "runtime.pddl_refuses_sensitive_cloud",
+      "status": "SKIP",
+      "duration_ms": 0,
+      "message": "PDDL planner import failed: No module named 'numpy'",
+      "evidence": null
+    },
+    {
+      "check_id": "runtime.tcn_forward_pass",
+      "status": "SKIP",
+      "duration_ms": 0,
+      "message": "torch or TCN not importable: No module named 'torch'",
+      "evidence": null
+    },
+    {
+      "check_id": "runtime.adaptation_vector_roundtrip",
+      "status": "SKIP",
+      "duration_ms": 0,
+      "message": "AdaptationVector not importable: No module named 'numpy'",
+      "evidence": null
+    },
+    {
+      "check_id": "runtime.encryption_roundtrip",
+      "status": "SKIP",
+      "duration_ms": 0,
+      "message": "ModelEncryptor not importable: No module named 'numpy'",
+      "evidence": null
+    },
+    {
+      "check_id": "runtime.bandit_thompson_sample_validity",
+      "status": "SKIP",
+      "duration_ms": 0,
+      "message": "bandit not importable: No module named 'numpy'",
+      "evidence": null
+    },
+    {
+      "check_id": "providers.all_registered",
+      "status": "FAIL",
+      "duration_ms": 16,
+      "message": "ProviderRegistry not importable: No module named 'numpy'",
+      "evidence": null
+    },
+    {
+      "check_id": "providers.construct_without_sdk",
+      "status": "FAIL",
+      "duration_ms": 0,
+      "message": "exception: ModuleNotFoundError: No module named 'numpy'",
+      "evidence": "Traceback (most recent call last):\n  File \"D:\\implicit-interaction-intelligence\\scripts\\verification\\framework.py\", line 291, in _run_one\n    result = future.result(timeout=timeout_s)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\User\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\concurrent\\futures\\_base.py\", line 456, in result\n    return self.__get_result()\n           ^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\User\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\concurrent\\futures\\_base.py\", line 401, in __get_result\n    raise self._exception\n  File \"C:\\Users\\User\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\concurrent\\futures\\thread.py\", line 59, in run\n    result = self.fn(*self.args, **self.kwargs)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\implicit-interaction-intelligence\\scripts\\verification\\checks_providers.py\", line 80, in check_provider_construct_without_sdk\n    from i3.cloud import providers as _pkg  # noqa: F401 - ensures package\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\implicit-interaction-intelligence\\i3\\__init__.py\", line 51, in <module>\n    from i3.config import Config, load_config\n  File \"D:\\implicit-interaction-intelligence\\i3\\config.py\", line 29, in <module>\n    import numpy as np\nModuleNotFoundError: No module named 'numpy'\n"
+    },
+    {
+      "check_id": "providers.multi_provider_fallback",
+      "status": "FAIL",
+      "duration_ms": 0,
+      "message": "multi_provider not importable: No module named 'numpy'",
+      "evidence": null
+    },
+    {
+      "check_id": "providers.cost_tracker_basic",
+      "status": "FAIL",
+      "duration_ms": 0,
+      "message": "cost_tracker not importable: No module named 'numpy'",
+      "evidence": null
+    },
+    {
+      "check_id": "providers.prompt_translator_shapes",
+      "status": "FAIL",
+      "duration_ms": 0,
+      "message": "prompt_translator import failed: No module named 'numpy'",
+      "evidence": null
+    },
+    {
+      "check_id": "infra.dockerfile_parses",
+      "status": "PASS",
+      "duration_ms": 16,
+      "message": "4 Dockerfile(s) valid",
+      "evidence": null
+    },
+    {
+      "check_id": "infra.compose_schema",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "2 compose file(s) valid",
+      "evidence": null
+    },
+    {
+      "check_id": "infra.helm_lint",
+      "status": "SKIP",
+      "duration_ms": 15,
+      "message": "helm binary not on PATH",
+      "evidence": null
+    },
+    {
+      "check_id": "infra.kubernetes_manifests",
+      "status": "PASS",
+      "duration_ms": 16,
+      "message": "10 k8s manifest(s) valid",
+      "evidence": null
+    },
+    {
+      "check_id": "infra.cedar_policy_parses",
+      "status": "SKIP",
+      "duration_ms": 0,
+      "message": "cedarpy not available",
+      "evidence": null
+    },
+    {
+      "check_id": "interview.slide_count",
+      "status": "FAIL",
+      "duration_ms": 0,
+      "message": "16 slide separator(s), expected 15",
+      "evidence": null
+    },
+    {
+      "check_id": "interview.qa_pair_count",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "52 '### ' Q&A heading(s), expected 52",
+      "evidence": null
+    },
+    {
+      "check_id": "interview.closing_line_verbatim",
+      "status": "FAIL",
+      "duration_ms": 0,
+      "message": "verbatim closing line NOT found",
+      "evidence": null
+    },
+    {
+      "check_id": "interview.honesty_slide_title_case",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "honesty slide title present",
+      "evidence": null
+    },
+    {
+      "check_id": "interview.adr_count",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "10 numbered ADR(s) (>=10 required)",
+      "evidence": null
+    },
+    {
+      "check_id": "interview.brief_analysis_header",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "Corrections notice present in first 30 lines",
+      "evidence": null
+    },
+    {
+      "check_id": "interview.changelog_unreleased_nonempty",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "[Unreleased] body is 19671 chars (>500 required)",
+      "evidence": null
+    },
+    {
+      "check_id": "interview.notes_md_sections",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "10 '## ' section header(s) (>=10 required)",
+      "evidence": null
+    }
+  ],
+  "run_at": "2026-04-22T23:54:39.990517Z",
+  "git_sha": "56a447f488bfccb3627c63812348dffbed757d24",
+  "python_version": "3.12.10",
+  "platform": "Windows-11-10.0.22621-SP0"
+}

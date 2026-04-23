@@ -300,4 +300,4 @@ if __name__ == "__main__":  # pragma: no cover
             state = state["state_dict"]
         slm.load_state_dict(state, strict=False)
     export_slm(slm, Path(args.output), opset=args.opset, verify=not args.no_verify)
-    print(f"wrote {args.output}", file=sys.stderr)
+    sys.stderr.write(f"wrote {args.output}\n")

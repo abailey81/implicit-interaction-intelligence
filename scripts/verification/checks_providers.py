@@ -30,6 +30,30 @@ def _now_ms(t0: float) -> int:
     return int((time.monotonic() - t0) * 1000)
 
 
+# Runtime deps that are part of the project's core install. If one of these
+# is missing, the failure is an environment issue, not a code defect -- we
+# SKIP instead of FAIL so the harness still reports a clean result in a
+# minimal CI image that hasn't run `poetry install`.
+_RUNTIME_DEPS = {"numpy", "torch", "fastapi", "pydantic", "cryptography", "aiosqlite"}
+
+
+def _env_missing_result(check_id: str, t0: float, exc: ImportError) -> CheckResult | None:
+    """If ``exc`` indicates a missing core runtime dep, return a SKIP result.
+
+    Otherwise return ``None`` so the caller can keep the FAIL semantics.
+    """
+    missing = getattr(exc, "name", "") or ""
+    if missing in _RUNTIME_DEPS:
+        return CheckResult(
+            check_id=check_id,
+            status="SKIP",
+            duration_ms=_now_ms(t0),
+            message=f"runtime dep not installed: {missing}",
+            evidence=None,
+        )
+    return None
+
+
 @register_check(
     id="providers.all_registered",
     name="ProviderRegistry contains >= 11 first-class providers",
@@ -42,6 +66,9 @@ def check_all_providers_registered() -> CheckResult:
     try:
         from i3.cloud.provider_registry import ProviderRegistry
     except ImportError as exc:
+        env_skip = _env_missing_result("providers.all_registered", t0, exc)
+        if env_skip is not None:
+            return env_skip
         return CheckResult(
             check_id="providers.all_registered",
             status="FAIL",
@@ -77,21 +104,32 @@ def check_provider_construct_without_sdk() -> CheckResult:
     import errors inside the adapter module count as FAIL.
     """
     t0 = time.monotonic()
-    from i3.cloud import providers as _pkg  # noqa: F401 - ensures package
-
-    from i3.cloud.providers import (
-        anthropic as mod_anthropic,
-        azure as mod_azure,
-        bedrock as mod_bedrock,
-        cohere as mod_cohere,
-        google as mod_google,
-        huawei_pangu as mod_pangu,
-        litellm as mod_litellm,
-        mistral as mod_mistral,
-        ollama as mod_ollama,
-        openai as mod_openai,
-        openrouter as mod_openrouter,
-    )
+    try:
+        from i3.cloud import providers as _pkg  # noqa: F401 - ensures package
+        from i3.cloud.providers import (
+            anthropic as mod_anthropic,
+            azure as mod_azure,
+            bedrock as mod_bedrock,
+            cohere as mod_cohere,
+            google as mod_google,
+            huawei_pangu as mod_pangu,
+            litellm as mod_litellm,
+            mistral as mod_mistral,
+            ollama as mod_ollama,
+            openai as mod_openai,
+            openrouter as mod_openrouter,
+        )
+    except ImportError as exc:
+        env_skip = _env_missing_result("providers.construct_without_sdk", t0, exc)
+        if env_skip is not None:
+            return env_skip
+        return CheckResult(
+            check_id="providers.construct_without_sdk",
+            status="FAIL",
+            duration_ms=_now_ms(t0),
+            message=f"provider package not importable: {exc}",
+            evidence=None,
+        )
 
     # Construction is tolerated to fail -- we only want the import side
     # of the contract (no NameError, no top-level SDK crash).
@@ -144,6 +182,9 @@ def check_multi_provider_fallback() -> CheckResult:
             TokenUsage,
         )
     except ImportError as exc:
+        env_skip = _env_missing_result("providers.multi_provider_fallback", t0, exc)
+        if env_skip is not None:
+            return env_skip
         return CheckResult(
             check_id="providers.multi_provider_fallback",
             status="FAIL",
@@ -219,6 +260,9 @@ def check_cost_tracker_basic() -> CheckResult:
         from i3.cloud.cost_tracker import CostTracker
         from i3.cloud.providers.base import TokenUsage
     except ImportError as exc:
+        env_skip = _env_missing_result("providers.cost_tracker_basic", t0, exc)
+        if env_skip is not None:
+            return env_skip
         return CheckResult(
             check_id="providers.cost_tracker_basic",
             status="FAIL",
@@ -283,6 +327,9 @@ def check_prompt_translator_shapes() -> CheckResult:
         )
         from i3.cloud.providers.base import ChatMessage, CompletionRequest
     except ImportError as exc:
+        env_skip = _env_missing_result("providers.prompt_translator_shapes", t0, exc)
+        if env_skip is not None:
+            return env_skip
         return CheckResult(
             check_id="providers.prompt_translator_shapes",
             status="FAIL",

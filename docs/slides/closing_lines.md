@@ -9,8 +9,7 @@ presentation and the candidate-questions segment that follows.
 
 Deliver exactly as written. No paraphrasing. No preamble.
 
-> *"I build intelligent systems that adapt to people.
-> I'd like to do that in your lab."*
+> *"I build intelligent systems that adapt to people. I'd like to do that in your lab."*
 
 **Delivery notes:**
 

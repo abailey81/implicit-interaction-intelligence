@@ -31,12 +31,21 @@ def _read(path: Path) -> str | None:
 
 @register_check(
     id="interview.slide_count",
-    name="docs/slides/presentation.md has exactly 15 '---' separators",
+    name="docs/slides/presentation.md has exactly 15 slides (frontmatter-aware)",
     category="interview_readiness",
     severity="high",
 )
 def check_slide_count() -> CheckResult:
-    """Marp slide decks use ``---`` on its own line as a separator."""
+    """Marp slide decks use ``---`` on its own line as a separator.
+
+    A Marp deck contains:
+      * 1 leading `---` on line 1 (frontmatter opener),
+      * 1 closing `---` after the YAML frontmatter (slide 1 boundary),
+      * N-1 `---` between slides 1..N.
+
+    So for N = 15 slides we expect **either** 16 `---` separators
+    (with Marp frontmatter) **or** 15 (without frontmatter). Accept both.
+    """
     t0 = time.monotonic()
     p = REPO_ROOT / "docs" / "slides" / "presentation.md"
     src = _read(p)
@@ -50,11 +59,16 @@ def check_slide_count() -> CheckResult:
         )
     # Count lines that are exactly '---' (with optional trailing whitespace).
     count = sum(1 for line in src.splitlines() if line.strip() == "---")
+    has_frontmatter = src.lstrip().startswith("---")
+    expected = 16 if has_frontmatter else 15
     return CheckResult(
         check_id="interview.slide_count",
-        status="PASS" if count == 15 else "FAIL",
+        status="PASS" if count == expected else "FAIL",
         duration_ms=_now_ms(t0),
-        message=f"{count} slide separator(s), expected 15",
+        message=(
+            f"{count} '---' separator(s); "
+            f"expected {expected} (Marp frontmatter={has_frontmatter})"
+        ),
         evidence=None,
     )
 
