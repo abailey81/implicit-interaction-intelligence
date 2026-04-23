@@ -34,8 +34,10 @@ from collections import OrderedDict
 from typing import Any, Optional
 
 import torch
-from fastapi import APIRouter, FastAPI, HTTPException, Path, Request
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Path, Request
 from fastapi.responses import JSONResponse
+
+from server.auth import require_user_identity, require_user_identity_from_body
 from pydantic import BaseModel, ConfigDict, Field
 
 from i3.adaptation.types import AdaptationVector
@@ -226,21 +228,40 @@ def _classify(std: float, threshold: float) -> str:
     return "uncertain" if float(std) >= float(threshold) else "confident"
 
 
+#: Cached deterministic surrogate layer.  Lazily constructed once per
+#: process (see :func:`_surrogate_mapping_fn`) so every explain request
+#: shares the same ranking.  Building the layer is cheap (~1 KB of
+#: floats) but the *previous* implementation called ``torch.manual_seed``
+#: — a **global** side-effect that reseeded every other coroutine's RNG
+#: on every request (H-8, 2026-04-23 audit).  We now use a scoped
+#: ``torch.Generator`` so no global state is touched.
+_SURROGATE_LAYER: "torch.nn.Module | None" = None
+
+
 def _surrogate_mapping_fn() -> torch.nn.Module:
     """Return a deterministic linear surrogate for counterfactual explanations.
 
     We cannot backprop through the actual adaptation controller
     (non-differentiable thresholds in :class:`AccessibilityAdapter`),
     so we use a small bias-free linear surrogate. The weights are
-    seeded deterministically so two explanation calls in close
-    succession return the same ranking.
+    seeded deterministically via a **scoped**
+    :class:`torch.Generator` — never via :func:`torch.manual_seed`,
+    which would mutate every other coroutine's RNG.
     """
+    global _SURROGATE_LAYER
+    if _SURROGATE_LAYER is not None:
+        return _SURROGATE_LAYER
+
     import torch.nn as nn
 
-    torch.manual_seed(0xA11CE)
+    gen = torch.Generator(device="cpu").manual_seed(0xA11CE)
     layer = nn.Linear(32, 8, bias=False)
-    for p in layer.parameters():
-        p.requires_grad_(True)
+    with torch.no_grad():
+        for p in layer.parameters():
+            # SEC (H-8): scoped generator → no global RNG side-effect.
+            p.copy_(torch.randn(p.shape, generator=gen))
+            p.requires_grad_(True)
+    _SURROGATE_LAYER = layer
     return layer
 
 
@@ -350,7 +371,10 @@ def _build_fallback_payload(user_id: str, threshold: float) -> ExplainResponse:
 # ---------------------------------------------------------------------------
 
 
-@router.post("/adaptation")
+@router.post(
+    "/adaptation",
+    dependencies=[Depends(require_user_identity_from_body)],
+)
 async def explain_adaptation(request: Request) -> JSONResponse:
     """Run MC-Dropout + counterfactuals for the given user.
 
@@ -416,7 +440,10 @@ async def explain_adaptation(request: Request) -> JSONResponse:
     return JSONResponse(payload.model_dump(mode="json"))
 
 
-@router.get("/last-decision/{user_id}")
+@router.get(
+    "/last-decision/{user_id}",
+    dependencies=[Depends(require_user_identity)],
+)
 async def last_decision(
     user_id: str = Path(..., pattern=USER_ID_REGEX, min_length=1, max_length=64),
 ) -> JSONResponse:

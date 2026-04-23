@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 import time
 from typing import Any
 
@@ -66,6 +67,9 @@ class OpenRouterProvider:
         self._referer = referer
         self._x_title = x_title
         self._client: httpx.AsyncClient | None = None
+        # SEC (H-6, 2026-04-23 audit): serialise lazy-init so two
+        # concurrent first-hit callers cannot both build a client.
+        self._client_init_lock: threading.Lock = threading.Lock()
 
     # ------------------------------------------------------------------
     # Internal
@@ -74,6 +78,9 @@ class OpenRouterProvider:
     def _ensure_client(self) -> httpx.AsyncClient:
         if self._client is not None:
             return self._client
+        with self._client_init_lock:
+            if self._client is not None:
+                return self._client
         api_key = os.environ.get("OPENROUTER_API_KEY", "")
         if not api_key:
             raise AuthError(
@@ -89,10 +96,20 @@ class OpenRouterProvider:
             headers["HTTP-Referer"] = self._referer
         if self._x_title:
             headers["X-Title"] = self._x_title
+        # SEC (L-1, 2026-04-23 audit): pin every security-relevant
+        # ``httpx.AsyncClient`` kwarg explicitly so a future httpx
+        # default-flip cannot silently weaken the outbound path.
         self._client = httpx.AsyncClient(
             base_url=_BASE_URL,
             headers=headers,
             timeout=httpx.Timeout(self._timeout),
+            verify=True,
+            follow_redirects=False,
+            limits=httpx.Limits(
+                max_keepalive_connections=8,
+                max_connections=16,
+                keepalive_expiry=60.0,
+            ),
         )
         return self._client
 
@@ -156,8 +173,19 @@ class OpenRouterProvider:
                 f"OpenRouter HTTP {status}", provider=self.provider_name
             )
         if status >= 400:
+            # SEC (M-4, 2026-04-23 audit): do NOT echo response.text into
+            # the exception message — some upstreams reflect headers
+            # (including the offending ``Authorization:`` prefix) back in
+            # their 4xx bodies.  Log the body to the DEBUG channel (which
+            # operators can opt into) while the exception string stays
+            # narrow.
+            logger.debug(
+                "openrouter.4xx_body status=%s body_head=%s",
+                status,
+                response.text[:200].replace("\n", " "),
+            )
             raise PermanentError(
-                f"OpenRouter HTTP {status}: {response.text[:200]}",
+                f"OpenRouter HTTP {status}",
                 provider=self.provider_name,
             )
 

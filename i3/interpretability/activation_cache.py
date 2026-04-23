@@ -276,7 +276,12 @@ class ActivationCache:
         cache._entries = {}
 
         if src.is_file():
-            payload = torch.load(src, map_location="cpu")
+            # SEC (M-1, 2026-04-23 audit): ``weights_only=True`` restricts
+            # the pickle deserialiser to a safe allow-list of types, so an
+            # attacker-supplied ``.pt`` cannot execute arbitrary code via
+            # a malicious ``__reduce__``.  The payload is a dict of pure
+            # tensors, so weights_only is a drop-in.
+            payload = torch.load(src, map_location="cpu", weights_only=True)
             if not isinstance(payload, dict):
                 raise ValueError(
                     f"expected dict in {src}, got {type(payload).__name__}"
@@ -301,11 +306,45 @@ class ActivationCache:
             raise ValueError(
                 f"sharded cache missing index.json in {src}"
             )
+        # SEC (M-10, 2026-04-23 audit): cap the manifest file size so a
+        # hostile index.json cannot drive a multi-GB read.
+        _MAX_MANIFEST_BYTES = 1 * 1024 * 1024  # 1 MiB
+        if manifest_path.stat().st_size > _MAX_MANIFEST_BYTES:
+            raise ValueError(
+                f"activation-cache manifest exceeds {_MAX_MANIFEST_BYTES} bytes"
+            )
         manifest = json.loads(manifest_path.read_text())
+        # SEC (M-10): validate manifest shape before trusting it.
+        if not isinstance(manifest, dict):
+            raise ValueError("activation-cache manifest must be a JSON object")
+        src_resolved = src.resolve()
         for name, shards in manifest.items():
+            if not isinstance(name, str) or not isinstance(shards, list):
+                raise ValueError(
+                    "manifest entries must be str -> list[str] (got invalid shape)"
+                )
             parts: list[torch.Tensor] = []
             for shard_name in shards:
-                parts.append(torch.load(src / shard_name, map_location="cpu"))
+                if not isinstance(shard_name, str):
+                    raise ValueError(
+                        f"shard name under {name!r} is not a string"
+                    )
+                # SEC (M-10): resolve the candidate path and enforce it
+                # stays inside ``src``.  Blocks "../" traversal via
+                # index.json (a model-marketplace attack surface).
+                candidate = (src / shard_name).resolve()
+                try:
+                    candidate.relative_to(src_resolved)
+                except ValueError as exc:
+                    raise ValueError(
+                        f"shard path {shard_name!r} escapes the cache directory"
+                    ) from exc
+                # SEC (M-1): weights_only blocks pickle RCE.
+                parts.append(
+                    torch.load(
+                        candidate, map_location="cpu", weights_only=True
+                    )
+                )
             placeholder = _CacheEntry(
                 layer_name=name,
                 module=nn.Identity(),

@@ -40,6 +40,7 @@ transport explicit avoids an ImportError-at-import-time foot-gun.
 from __future__ import annotations
 
 import logging
+import threading
 import os
 import time
 from typing import Any
@@ -111,6 +112,8 @@ class HuaweiPanGuProvider:
         self._max_tokens = max_tokens
         self._timeout = timeout
         self._client: httpx.AsyncClient | None = None
+        # SEC (H-6, 2026-04-23 audit): serialise lazy-init.
+        self._client_init_lock: threading.Lock = threading.Lock()
 
     # ------------------------------------------------------------------
     # Internal
@@ -119,28 +122,36 @@ class HuaweiPanGuProvider:
     def _ensure_client(self) -> httpx.AsyncClient:
         if self._client is not None:
             return self._client
-        api_key = os.environ.get("HUAWEI_CLOUD_PANGU_APIKEY", "")
-        if not api_key:
-            raise AuthError(
-                "HUAWEI_CLOUD_PANGU_APIKEY is not set.  "
-                "Huawei Cloud PanGu API access requires a Huawei Cloud "
-                "account with the PanGu Large Models service enabled in "
-                f"region {self._region}.",
-                provider=self.provider_name,
+        with self._client_init_lock:
+            if self._client is not None:
+                return self._client
+            api_key = os.environ.get("HUAWEI_CLOUD_PANGU_APIKEY", "")
+            if not api_key:
+                raise AuthError(
+                    "HUAWEI_CLOUD_PANGU_APIKEY is not set.  "
+                    "Huawei Cloud PanGu API access requires a Huawei Cloud "
+                    "account with the PanGu Large Models service enabled in "
+                    f"region {self._region}.",
+                    provider=self.provider_name,
+                )
+            base_url = _endpoint_for(self._region)
+            self._client = httpx.AsyncClient(
+                base_url=base_url,
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                    "X-PanGu-Model-Family": self._model.split("-")[0] if "-" in self._model else self._model,
+                },
+                timeout=httpx.Timeout(self._timeout),
+                verify=True,
+                follow_redirects=False,
+                limits=httpx.Limits(
+                    max_keepalive_connections=8,
+                    max_connections=16,
+                    keepalive_expiry=60.0,
+                ),
             )
-        base_url = _endpoint_for(self._region)
-        self._client = httpx.AsyncClient(
-            base_url=base_url,
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-                "Accept": "application/json",
-                "X-PanGu-Model-Family": self._model.split("-")[0] if "-" in self._model else self._model,
-            },
-            timeout=httpx.Timeout(self._timeout),
-            verify=True,
-            follow_redirects=False,
-        )
         return self._client
 
     @staticmethod
@@ -217,8 +228,15 @@ class HuaweiPanGuProvider:
                 f"PanGu HTTP {status}", provider=self.provider_name
             )
         if status >= 400:
+            # SEC (L-2, 2026-04-23 audit): body stays in DEBUG log only;
+            # exception message carries status + provider identity only.
+            logger.debug(
+                "pangu.4xx_body status=%s body_head=%s",
+                status,
+                response.text[:200].replace("\n", " "),
+            )
             raise PermanentError(
-                f"PanGu HTTP {status}: {response.text[:200]}",
+                f"PanGu HTTP {status}",
                 provider=self.provider_name,
             )
 

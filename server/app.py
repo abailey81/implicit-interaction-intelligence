@@ -49,7 +49,45 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     pipeline: Pipeline | None = None
     try:
-        config = load_config("configs/default.yaml")
+        # PERF (M-1): reuse the config already loaded in ``create_app``
+        # instead of re-parsing the YAML (which would also re-seed the
+        # global RNGs).  Fall back to loading fresh if no config is
+        # attached — mostly for tests that instantiate ``lifespan``
+        # directly.
+        config = getattr(app.state, "config", None)
+        if config is None:
+            config = load_config("configs/default.yaml", set_seeds=False)
+        # SEC (M-3, 2026-04-23 audit): the in-memory sliding-window rate
+        # limiter keeps per-process state.  If operators scale to
+        # ``I3_WORKERS > 1`` without a shared store, each worker
+        # independently enforces the per-IP limit, so the effective rate
+        # silently multiplies by worker count.  Require an explicit
+        # opt-in override so the failure mode is *loud* rather than
+        # silent.
+        workers_env = os.environ.get("I3_WORKERS", "1").strip()
+        try:
+            workers_n = int(workers_env) if workers_env else 1
+        except ValueError:
+            workers_n = 1
+        if workers_n > 1:
+            allow_local = (
+                os.environ.get("I3_ALLOW_LOCAL_LIMITER", "").strip() == "1"
+            )
+            if not allow_local:
+                raise RuntimeError(
+                    f"I3_WORKERS={workers_n} but no shared rate-limit store is "
+                    "configured.  The in-memory limiter is per-process, so "
+                    "per-IP limits multiply by worker count under this config. "
+                    "Set I3_ALLOW_LOCAL_LIMITER=1 to override (accepting the "
+                    "risk), or migrate to a Redis-backed limiter for "
+                    "production multi-worker deployments."
+                )
+            logger.warning(
+                "I3_WORKERS=%d with per-process limiter; effective per-IP "
+                "rate multiplies by worker count. I3_ALLOW_LOCAL_LIMITER=1 "
+                "is the explicit operator override.",
+                workers_n,
+            )
         pipeline = Pipeline(config)
         await pipeline.initialize()
         app.state.pipeline = pipeline
@@ -157,10 +195,14 @@ def create_app() -> FastAPI:
     )
 
     # ------------------------------------------------------------------
-    # Load config *once* for the middleware stack (the lifespan reloads
-    # it again for the pipeline — cheap and keeps layers decoupled).
+    # Load config *once* for the whole process.  The lifespan previously
+    # called ``load_config`` a second time (M-1, 2026-04-23 audit) which
+    # re-seeded Python / NumPy / torch RNGs mid-startup and doubled the
+    # config-parsing cost.  We load it here, stash it on ``app.state``,
+    # and disable seed-setting for the second (no-op) reload.
     # ------------------------------------------------------------------
     config = load_config("configs/default.yaml")
+    app.state.config = config
     cors_origins = _resolve_cors_origins(config)
     logger.info("CORS origins: %s", cors_origins)
 

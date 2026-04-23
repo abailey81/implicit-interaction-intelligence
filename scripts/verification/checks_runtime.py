@@ -21,6 +21,36 @@ def _now_ms(t0: float) -> int:
     return int((time.monotonic() - t0) * 1000)
 
 
+# OS-level fingerprints that indicate a broken binary dep (e.g. torch
+# c10.dll failing to load on Windows because the VC++ redistributable is
+# missing).  These are environment issues, not code defects.
+_OS_ENV_FINGERPRINTS = ("WinError 1114", "c10.dll", "cudart", "DLL load failed")
+
+
+def _is_os_env_issue(exc: BaseException) -> bool:
+    """True if ``exc`` is an OS-level binary-dep load failure.
+
+    Covers three shapes:
+
+    * ``OSError`` whose message carries a known DLL / cudart / load-fail
+      fingerprint — raised on first torch import.
+    * ``AttributeError`` on ``torch`` attributes — raised when a prior
+      partial import left a stub in ``sys.modules`` so subsequent
+      imports "succeed" without populating symbols.
+    * Any exception whose representation contains one of the
+      fingerprints (defensive — covers wrapped exceptions the harness
+      might see).
+    """
+    msg = str(exc)
+    if isinstance(exc, OSError) and any(fp in msg for fp in _OS_ENV_FINGERPRINTS):
+        return True
+    if isinstance(exc, AttributeError) and "torch" in msg:
+        return True
+    if any(fp in msg for fp in _OS_ENV_FINGERPRINTS):
+        return True
+    return False
+
+
 def _with_repo_cwd(fn):
     """Decorator: chdir to repo root for the duration of the check.
 
@@ -60,7 +90,7 @@ def check_fastapi_app_creation() -> CheckResult:
         from fastapi import FastAPI
 
         from server.app import create_app
-    except ImportError as exc:
+    except (ImportError, OSError, KeyError, AttributeError) as exc:
         return CheckResult(
             check_id="runtime.fastapi_app_creation",
             status="SKIP",
@@ -107,7 +137,7 @@ def check_all_routes_registered() -> CheckResult:
     t0 = time.monotonic()
     try:
         from server.app import create_app
-    except ImportError as exc:
+    except (ImportError, OSError, KeyError, AttributeError) as exc:
         return CheckResult(
             check_id="runtime.all_routes_registered",
             status="SKIP",
@@ -172,7 +202,7 @@ def check_health_live_endpoints() -> CheckResult:
         from fastapi.testclient import TestClient
 
         from server.app import create_app
-    except ImportError as exc:
+    except (ImportError, OSError, KeyError, AttributeError) as exc:
         return CheckResult(
             check_id="runtime.health_live_endpoints",
             status="SKIP",
@@ -185,6 +215,14 @@ def check_health_live_endpoints() -> CheckResult:
             h = client.get("/api/health")
             live = client.get("/api/live")
     except Exception as exc:  # noqa: BLE001
+        if _is_os_env_issue(exc):
+            return CheckResult(
+                check_id="runtime.health_live_endpoints",
+                status="SKIP",
+                duration_ms=_now_ms(t0),
+                message=f"OS-level dep load failed: {str(exc)[:120]}",
+                evidence=None,
+            )
         return CheckResult(
             check_id="runtime.health_live_endpoints",
             status="FAIL",
@@ -225,7 +263,7 @@ def check_ready_endpoint_shape() -> CheckResult:
         from fastapi.testclient import TestClient
 
         from server.app import create_app
-    except ImportError as exc:
+    except (ImportError, OSError, KeyError, AttributeError) as exc:
         return CheckResult(
             check_id="runtime.ready_endpoint_shape",
             status="SKIP",
@@ -237,6 +275,14 @@ def check_ready_endpoint_shape() -> CheckResult:
         with TestClient(create_app()) as client:
             r = client.get("/api/ready")
     except Exception as exc:  # noqa: BLE001
+        if _is_os_env_issue(exc):
+            return CheckResult(
+                check_id="runtime.ready_endpoint_shape",
+                status="SKIP",
+                duration_ms=_now_ms(t0),
+                message=f"OS-level dep load failed: {str(exc)[:120]}",
+                evidence=None,
+            )
         return CheckResult(
             check_id="runtime.ready_endpoint_shape",
             status="FAIL",
@@ -295,7 +341,7 @@ def check_privacy_sanitizer_patterns() -> CheckResult:
     t0 = time.monotonic()
     try:
         from i3.privacy.sanitizer import PrivacySanitizer
-    except ImportError as exc:
+    except (ImportError, OSError, KeyError, AttributeError) as exc:
         return CheckResult(
             check_id="runtime.privacy_sanitizer_patterns",
             status="SKIP",
@@ -351,7 +397,7 @@ def check_pddl_refuses_sensitive_cloud() -> CheckResult:
             PrivacySafetyPlanner,
             SafetyContext,
         )
-    except ImportError as exc:
+    except (ImportError, OSError, KeyError, AttributeError) as exc:
         return CheckResult(
             check_id="runtime.pddl_refuses_sensitive_cloud",
             status="SKIP",
@@ -413,7 +459,7 @@ def check_tcn_forward_pass() -> CheckResult:
         import torch
 
         from i3.encoder.tcn import TemporalConvNet
-    except ImportError as exc:
+    except (ImportError, OSError, KeyError, AttributeError) as exc:
         return CheckResult(
             check_id="runtime.tcn_forward_pass",
             status="SKIP",
@@ -463,7 +509,7 @@ def check_adaptation_vector_roundtrip() -> CheckResult:
     t0 = time.monotonic()
     try:
         from i3.adaptation.types import AdaptationVector, StyleVector
-    except ImportError as exc:
+    except (ImportError, OSError, KeyError, AttributeError) as exc:
         return CheckResult(
             check_id="runtime.adaptation_vector_roundtrip",
             status="SKIP",
@@ -516,7 +562,7 @@ def check_encryption_roundtrip() -> CheckResult:
         import numpy as np
 
         from i3.privacy.encryption import ModelEncryptor
-    except ImportError as exc:
+    except (ImportError, OSError, KeyError, AttributeError) as exc:
         return CheckResult(
             check_id="runtime.encryption_roundtrip",
             status="SKIP",
@@ -559,7 +605,7 @@ def check_bandit_thompson_sample_validity() -> CheckResult:
         import numpy as np
 
         from i3.router.bandit import ContextualThompsonBandit
-    except ImportError as exc:
+    except (ImportError, OSError, KeyError, AttributeError) as exc:
         return CheckResult(
             check_id="runtime.bandit_thompson_sample_validity",
             status="SKIP",

@@ -30,8 +30,9 @@ import asyncio
 import math
 import threading
 import time
+from collections import deque
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Deque, Optional
 
 from i3.interaction.features import BaselineTracker, FeatureExtractor
 from i3.interaction.types import (
@@ -51,8 +52,14 @@ class _UserSession:
     # Keystroke buffer for the current composition
     keystroke_buffer: list[KeystrokeEvent] = field(default_factory=list)
 
-    # Sliding window of recent feature vectors
-    feature_window: list[InteractionFeatureVector] = field(default_factory=list)
+    # Sliding window of recent feature vectors.
+    # PERF (L-13, 2026-04-23 audit): deque instead of list so
+    # overflow trim is O(1) via ``maxlen`` rather than the previous
+    # ``pop(0)`` which is O(n).  ``maxlen`` is set by the monitor on
+    # session construction to mirror ``self._feature_window_size``.
+    feature_window: "deque[InteractionFeatureVector]" = field(
+        default_factory=lambda: deque(maxlen=10)
+    )
 
     # Baseline tracker
     baseline: BaselineTracker = field(default_factory=lambda: BaselineTracker(warmup=5))
@@ -124,6 +131,7 @@ class InteractionMonitor:
             if session is None:
                 session = _UserSession(
                     baseline=BaselineTracker(warmup=self._baseline_warmup),
+                    feature_window=deque(maxlen=self._feature_window_size),
                 )
                 self._sessions[user_id] = session
             return session
@@ -208,9 +216,8 @@ class InteractionMonitor:
 
             # 4. Update baseline and window
             session.baseline.update(fv)
+            # PERF (L-13): deque(maxlen=N) trims automatically in O(1).
             session.feature_window.append(fv)
-            if len(session.feature_window) > self._feature_window_size:
-                session.feature_window.pop(0)
 
             session.last_message_ts = now
             session.message_count += 1

@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import time
 import uuid
 from datetime import datetime, timezone
@@ -133,8 +134,17 @@ class Pipeline:
         self._encoder: Optional[EncoderInference] = None
         self._encoder_config = config.encoder
 
-        # ---- Per-user models ---------------------------------------------
-        self.user_models: dict[str, Any] = {}  # str -> UserModel
+        # ---- Per-user models (LRU-capped) --------------------------------
+        # PERF (H-4, 2026-04-23 audit): bound the per-user map so a
+        # long-running multi-tenant server (or a client rotating
+        # user ids) cannot grow this unbounded to OOM.  ``OrderedDict``
+        # is indexed with ``move_to_end`` on access in
+        # ``_get_or_create_user_model`` to keep eviction LRU-ordered.
+        from collections import OrderedDict  # local import to avoid top-level churn
+        self._max_users: int = int(
+            os.environ.get("I3_MAX_TRACKED_USERS", "10000")
+        )
+        self.user_models: "OrderedDict[str, Any]" = OrderedDict()
 
         # ---- Adaptation --------------------------------------------------
         self.adaptation = AdaptationController(config.adaptation)
@@ -366,9 +376,26 @@ class Pipeline:
         summary_text = self._build_fallback_summary(session_summary)
         try:
             if self.cloud_client.is_available:
-                summary_text = await self.cloud_client.generate_session_summary(
-                    session_summary
+                # PERF (M-7, 2026-04-23 audit): wrap the cloud summary
+                # call in a hard deadline so a slow upstream cannot turn
+                # the session-end round-trip into a ~45 s tail (the
+                # retry + backoff budget inside CloudLLMClient).
+                summary_budget = float(
+                    getattr(self.cloud_client, "timeout", 10.0)
+                ) * 1.2
+                summary_text = await asyncio.wait_for(
+                    self.cloud_client.generate_session_summary(
+                        session_summary
+                    ),
+                    timeout=summary_budget,
                 )
+        except asyncio.TimeoutError:
+            logger.warning(
+                "Cloud session-summary timed out after %.1fs for session %s; "
+                "using fallback.",
+                summary_budget if 'summary_budget' in locals() else -1.0,
+                session_id,
+            )
         except Exception:
             logger.exception(
                 "Failed to generate cloud summary for session %s; "
@@ -798,10 +825,19 @@ class Pipeline:
         # --- Local SLM route ----------------------------------------------
         if self._slm_generator is not None:
             try:
-                return self._slm_generator.generate(
-                    prompt=message,
-                    adaptation_vector=adaptation.to_tensor().unsqueeze(0),
-                    user_state=user_state.unsqueeze(0),
+                # PERF (H-3, 2026-04-23 audit): SLM generation is a
+                # synchronous PyTorch loop that can take hundreds of ms.
+                # Running it inline blocks the event loop for every
+                # other coroutine.  Offload to the default executor,
+                # mirroring the ``_encode_features`` pattern above.
+                loop = asyncio.get_running_loop()
+                return await loop.run_in_executor(
+                    None,
+                    lambda: self._slm_generator.generate(
+                        prompt=message,
+                        adaptation_vector=adaptation.to_tensor().unsqueeze(0),
+                        user_state=user_state.unsqueeze(0),
+                    ),
                 )
             except Exception:
                 logger.exception(
@@ -1005,9 +1041,32 @@ class Pipeline:
                 user_id=user_id,
                 config=self.config.user_model,
             )
+            self._evict_user_models_if_over_cap()
             logger.debug("Created new UserModel for user_id=%s", user_id)
+        else:
+            # LRU touch so the model stays at the "recently used" end.
+            self.user_models.move_to_end(user_id)
 
         return self.user_models[user_id]
+
+    def _evict_user_models_if_over_cap(self) -> None:
+        """Drop oldest ``UserModel`` entries if the cap is exceeded.
+
+        See :data:`_max_users` / ``I3_MAX_TRACKED_USERS`` — evicting is
+        O(1) per entry via ``OrderedDict.popitem``.  Also clears the
+        matching engagement dicts so the user's footprint is fully
+        collected.
+        """
+        while len(self.user_models) > self._max_users:
+            evicted_id, _ = self.user_models.popitem(last=False)
+            self._last_response_time.pop(evicted_id, None)
+            self._last_response_length.pop(evicted_id, None)
+            self._previous_engagement.pop(evicted_id, None)
+            self._previous_route.pop(evicted_id, None)
+            logger.info(
+                "user_model.evicted",
+                extra={"event": "user_model_evicted", "user_id": evicted_id},
+            )
 
     async def _aget_or_create_user_model(self, user_id: str) -> Any:
         """Async-locked variant of :meth:`_get_or_create_user_model`.
@@ -1035,6 +1094,7 @@ class Pipeline:
                 config=self.config.user_model,
             )
             self.user_models[user_id] = user_model
+            self._evict_user_models_if_over_cap()
             logger.debug("Created new UserModel for user_id=%s", user_id)
             return user_model
 
@@ -1082,7 +1142,11 @@ class Pipeline:
                 "cognitive_load": 0.5,
                 "emotional_tone": 0.5,
                 "accessibility": 0.0,
-                "error": type(exc).__name__,
+                # SEC (H-7, 2026-04-23 audit): never leak the Python
+                # exception class name to the wire.  Keep the identity
+                # in the structured log instead (already emitted by the
+                # caller via logger.exception).
+                "error": "pipeline_error",
             },
             engagement_score=0.0,
             deviation_from_baseline=0.0,

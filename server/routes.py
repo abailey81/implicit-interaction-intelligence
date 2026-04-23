@@ -28,8 +28,10 @@ import logging
 import os
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Path, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from fastapi.responses import JSONResponse
+
+from server.auth import require_user_identity
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -106,7 +108,10 @@ async def health_check() -> JSONResponse:
 # User endpoints
 # ------------------------------------------------------------------
 
-@router.get("/user/{user_id}/profile")
+@router.get(
+    "/user/{user_id}/profile",
+    dependencies=[Depends(require_user_identity)],
+)
 async def get_user_profile(
     request: Request,
     user_id: str = UserIdParam,
@@ -134,7 +139,10 @@ async def get_user_profile(
     return JSONResponse(profile)
 
 
-@router.get("/user/{user_id}/diary")
+@router.get(
+    "/user/{user_id}/diary",
+    dependencies=[Depends(require_user_identity)],
+)
 async def get_user_diary(
     request: Request,
     user_id: str = UserIdParam,
@@ -173,7 +181,10 @@ async def get_user_diary(
     return JSONResponse({"entries": entries, "count": len(entries)})
 
 
-@router.get("/user/{user_id}/stats")
+@router.get(
+    "/user/{user_id}/stats",
+    dependencies=[Depends(require_user_identity)],
+)
 async def get_user_stats(
     request: Request,
     user_id: str = UserIdParam,

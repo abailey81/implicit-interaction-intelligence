@@ -29,8 +29,10 @@ import time
 from typing import Any, Optional
 
 import torch
-from fastapi import APIRouter, FastAPI, HTTPException, Request
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
+
+from server.auth import require_user_identity_from_body
 from pydantic import BaseModel, Field, field_validator
 
 logger = logging.getLogger(__name__)
@@ -307,7 +309,10 @@ async def _generate_with_override(
 # ---------------------------------------------------------------------------
 
 
-@router.post("/respond")
+@router.post(
+    "/respond",
+    dependencies=[Depends(require_user_identity_from_body)],
+)
 async def whatif_respond(
     request: Request,
     body: WhatIfRespondRequest,
@@ -355,7 +360,10 @@ async def whatif_respond(
     )
 
 
-@router.post("/compare")
+@router.post(
+    "/compare",
+    dependencies=[Depends(require_user_identity_from_body)],
+)
 async def whatif_compare(
     request: Request,
     body: WhatIfCompareRequest,

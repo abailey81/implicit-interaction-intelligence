@@ -30,8 +30,10 @@ import logging
 import time
 from typing import Any
 
-from fastapi import APIRouter, FastAPI, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
+
+from server.auth import require_user_identity_from_body
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from i3.adaptation.types import AdaptationVector, StyleVector
@@ -363,7 +365,10 @@ def _to_response(
 # ---------------------------------------------------------------------------
 
 
-@router.post("")
+@router.post(
+    "",
+    dependencies=[Depends(require_user_identity_from_body)],
+)
 async def synthesise_tts(request: Request) -> JSONResponse:
     """Synthesise speech for arbitrary text.
 

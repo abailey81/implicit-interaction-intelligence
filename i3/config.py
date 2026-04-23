@@ -222,10 +222,16 @@ class RouterConfig(BaseModel):
     arms: list[str] = Field(default_factory=lambda: ["local_slm", "cloud_llm"])
     bandit_type: str = Field(default="contextual_thompson", min_length=1)
     context_dim: int = Field(default=12, gt=0)
-    # SEC: Beta-distribution priors must be strictly positive — alpha=0
-    # or beta=0 produces a degenerate distribution and a NaN sample.
+    # SEC: Beta-distribution priors for the cold-start Beta-Bernoulli
+    # path inside the bandit — must be strictly positive.
     prior_alpha: float = Field(default=1.0, gt=0.0)
     prior_beta: float = Field(default=1.0, gt=0.0)
+    # SEC (H-9, 2026-04-23 audit): Gaussian **precision** prior on the
+    # Laplace-approximated logistic regression weights.  This is a
+    # different quantity from ``prior_alpha`` (the Beta prior); mixing
+    # them produced coupled mistuning.  Default ``1.0`` matches the
+    # bandit's prior behaviour before the audit.
+    prior_precision: float = Field(default=1.0, gt=0.0)
     exploration_bonus: float = Field(default=0.1, ge=0.0)
     min_cloud_complexity: float = Field(default=0.6, ge=0.0, le=1.0)
     privacy_override: bool = True
@@ -361,7 +367,10 @@ class CloudConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     provider: str = Field(default="anthropic", min_length=1)
-    model: str = Field(default="claude-sonnet-4-20250514", min_length=1)
+    # SEC (M-3, 2026-04-23 audit): default matches the brief-§8-locked
+    # id used throughout ``configs/default.yaml`` and the CHANGELOG.
+    # Prior default (``claude-sonnet-4-20250514``) drifted from the YAML.
+    model: str = Field(default="claude-sonnet-4-5", min_length=1)
     max_tokens: int = Field(default=200, gt=0, le=200_000)
     # SEC: positive timeout — a 0 or negative value would block forever
     # or raise inside httpx with an unhelpful message.
@@ -498,10 +507,14 @@ class Config(BaseModel):
     """Root configuration aggregating all sections.
 
     All sub-models are frozen (immutable) once constructed so that
-    configuration cannot be accidentally mutated at runtime.
+    configuration cannot be accidentally mutated at runtime.  The root
+    enforces ``extra="forbid"`` so a typoed top-level section in
+    ``configs/default.yaml`` fails loudly at load time rather than
+    silently dropping the real section's settings (M-2, 2026-04-23
+    audit).
     """
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     project: ProjectConfig = Field(default_factory=lambda: ProjectConfig(name="I3", version="0.0.0"))
     interaction: InteractionConfig = Field(default_factory=InteractionConfig)

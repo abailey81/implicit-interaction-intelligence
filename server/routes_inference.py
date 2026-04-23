@@ -110,17 +110,24 @@ def _safe_model_path(model: str) -> Path:
         )
 
     if not candidate.is_file():
+        # SEC (M-14, 2026-04-23 audit): do not echo toolchain hints in
+        # 404 detail — that leaks filesystem layout + export command to
+        # a scanner.  Operator guidance now lives in the server log
+        # (``onnx.route.missing.hint``) only.
         logger.info(
             "onnx.route.missing",
-            extra={"event": "onnx_route", "reason": "missing"},
+            extra={
+                "event": "onnx_route",
+                "reason": "missing",
+                "hint": (
+                    "Export via `python -m i3.encoder.onnx_export` and "
+                    "drop into web/models/."
+                ),
+            },
         )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=(
-                "Model not found. Export the ONNX artefact with "
-                "`python -m i3.encoder.onnx_export` and drop it into "
-                "web/models/."
-            ),
+            detail="Model not found",
             headers=dict(_COI_HEADERS),
         )
 

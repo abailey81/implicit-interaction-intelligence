@@ -31,8 +31,10 @@ import logging
 import time
 from typing import Any
 
-from fastapi import APIRouter, FastAPI, HTTPException, Request
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
+
+from server.auth import require_user_identity_from_body
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from i3.adaptation.types import AdaptationVector
@@ -306,7 +308,10 @@ async def _call_cloud(
 # ---------------------------------------------------------------------------
 
 
-@router.post("")
+@router.post(
+    "",
+    dependencies=[Depends(require_user_identity_from_body)],
+)
 async def translate(request: Request) -> JSONResponse:
     """Translate *text* into *target_language*, style-conditioned.
 
@@ -333,8 +338,12 @@ async def translate(request: Request) -> JSONResponse:
         body = TranslateRequest.model_validate_json(raw_body)
     except ValueError as exc:
         # SEC: never echo the raw payload or validation error details.
+        # SEC (M-15, 2026-04-23 audit): preserve the exception chain so
+        # server-side logs point at the real Pydantic failure.
         logger.debug("translate: validation failure: %s", exc)
-        raise HTTPException(status_code=422, detail="Invalid request payload")
+        raise HTTPException(
+            status_code=422, detail="Invalid request payload"
+        ) from exc
 
     # --- Privacy: strip PII before any cloud leg. ---
     sanitisation = _SANITIZER.sanitize(body.text)

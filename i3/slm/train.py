@@ -525,13 +525,49 @@ class SLMTrainer:
         ----------
         path : str
             Path to the checkpoint file.
+
+        Raises
+        ------
+        ValueError
+            If a ``<path>.sha256`` sidecar is present but its digest does
+            not match the checkpoint file.  The sidecar is optional; when
+            absent, the load proceeds and logs a defence-in-depth warning.
         """
-        # SECURITY NOTE: Resuming training requires loading the optimizer
-        # state, which is a pickled Python object, so weights_only=True
-        # is not usable here.  This code path is intended for trusted
-        # local checkpoints produced by *our own* trainer.  Do NOT point
-        # it at untrusted files.  Inference-time loads elsewhere in the
-        # codebase use weights_only=True.
+        # SECURITY NOTE (M-1, 2026-04-23 audit): Resuming training
+        # requires loading the optimizer state, which is a pickled Python
+        # object, so weights_only=True is not usable here.  To narrow the
+        # pickle-RCE blast radius we verify an optional ``<path>.sha256``
+        # sidecar before the load — this lets operators pin a specific
+        # checkpoint artefact without changing the calling convention.
+        # When the sidecar is absent we log at WARNING so the operator
+        # can still see that the weaker trust path was taken.
+        import hashlib
+        import hmac as _hmac
+        from pathlib import Path as _Path
+
+        ckpt_path = _Path(path)
+        sha_path = ckpt_path.with_suffix(ckpt_path.suffix + ".sha256")
+        if sha_path.exists():
+            expected = sha_path.read_text(encoding="utf-8").strip().split()[0]
+            h = hashlib.sha256()
+            with ckpt_path.open("rb") as f:
+                for chunk in iter(lambda: f.read(1 << 20), b""):
+                    h.update(chunk)
+            observed = h.hexdigest()
+            # SEC: constant-time comparison prevents timing-side-channel
+            # hash-oracle attacks during checkpoint verification.
+            if not _hmac.compare_digest(expected.lower(), observed.lower()):
+                raise ValueError(
+                    f"checkpoint sha256 mismatch: expected={expected[:16]}... "
+                    f"observed={observed[:16]}..."
+                )
+            logger.info("Checkpoint sha256 verified against %s", sha_path.name)
+        else:
+            logger.warning(
+                "Loading checkpoint without sha256 sidecar (%s.sha256 absent). "
+                "Do NOT use this code path with untrusted artefacts.",
+                ckpt_path.name,
+            )
         checkpoint = torch.load(
             path, map_location=self.device, weights_only=False
         )

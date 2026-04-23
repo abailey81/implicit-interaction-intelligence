@@ -146,6 +146,10 @@ def check_all_top_level_imports() -> CheckResult:
     env_missing: list[str] = []
     # Deps that imply "environment not fully installed", not a bug.
     RUNTIME_DEPS_MISSING = {"numpy", "torch", "fastapi", "pydantic", "cryptography"}
+    # OS-level fingerprints that indicate a broken binary dep (e.g. torch
+    # c10.dll failing to load on Windows because the VC++ redistributable is
+    # missing).  These are environment issues, not code defects.
+    OS_ENV_FINGERPRINTS = ("WinError 1114", "c10.dll", "cudart", "DLL load failed")
     for m in modules:
         try:
             importlib.import_module(m)
@@ -155,8 +159,23 @@ def check_all_top_level_imports() -> CheckResult:
                 env_missing.append(f"{m}: requires {missing}")
             else:
                 failures.append(f"{m}: {type(exc).__name__}: {exc}")
+        except OSError as exc:
+            msg = str(exc)
+            if any(fp in msg for fp in OS_ENV_FINGERPRINTS):
+                env_missing.append(f"{m}: OS dep load failed ({msg[:80]})")
+            else:
+                failures.append(f"{m}: OSError: {exc}")
         except Exception as exc:  # noqa: BLE001
-            failures.append(f"{m}: {type(exc).__name__}: {exc}")
+            msg = str(exc)
+            # A partial failed import can leave sys.modules in a state where
+            # subsequent imports raise KeyError during module-lookup.  Treat
+            # those as the same environment issue.
+            if any(fp in msg for fp in OS_ENV_FINGERPRINTS) or (
+                isinstance(exc, KeyError) and env_missing
+            ):
+                env_missing.append(f"{m}: cascading env failure ({type(exc).__name__})")
+            else:
+                failures.append(f"{m}: {type(exc).__name__}: {exc}")
     if failures:
         return CheckResult(
             check_id="code.top_level_imports",

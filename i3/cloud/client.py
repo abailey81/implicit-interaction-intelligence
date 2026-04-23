@@ -145,6 +145,12 @@ class CloudLLMClient:
 
         self._api_key: str = os.environ.get("ANTHROPIC_API_KEY", "")
         self._client: Optional[httpx.AsyncClient] = None
+        # SEC (H-6, 2026-04-23 audit): serialise lazy-client construction
+        # so two concurrent first-hit callers do not both build a client
+        # and leak the loser's connection pool.  The lock is created
+        # lazily on first await so it binds to the event loop actually
+        # driving the request.
+        self._client_init_lock: Optional[asyncio.Lock] = None
 
         # Cumulative token counters
         self._total_input_tokens: int = 0
@@ -174,8 +180,19 @@ class CloudLLMClient:
         guards against future refactors that might silently flip the
         flag.  Granular timeouts cover connect / read / write / pool so
         that no single phase of the request can hang the event loop.
+
+        SEC (H-6, 2026-04-23 audit): the lazy construction is now
+        serialised under an ``asyncio.Lock`` so two concurrent first-
+        hit callers cannot both build a client — the loser's
+        connection pool would otherwise leak.
         """
-        if self._client is None:
+        if self._client is not None:
+            return
+        if self._client_init_lock is None:
+            self._client_init_lock = asyncio.Lock()
+        async with self._client_init_lock:
+            if self._client is not None:
+                return
             # SEC: per-phase timeouts.  ``self.timeout`` is the overall
             # ceiling enforced via _MAX_TIMEOUT_SECONDS in __init__.
             timeout = httpx.Timeout(

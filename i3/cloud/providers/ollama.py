@@ -14,6 +14,7 @@ Useful for:
 from __future__ import annotations
 
 import logging
+import threading
 import os
 import time
 from typing import Any
@@ -67,17 +68,30 @@ class OllamaProvider:
         self._max_tokens = max_tokens
         self._timeout = timeout
         self._client: httpx.AsyncClient | None = None
+        # SEC (H-6, 2026-04-23 audit): serialise lazy-init.
+        self._client_init_lock: threading.Lock = threading.Lock()
 
     # ------------------------------------------------------------------
     # Internal
     # ------------------------------------------------------------------
 
     def _ensure_client(self) -> httpx.AsyncClient:
-        if self._client is None:
-            self._client = httpx.AsyncClient(
-                base_url=self._base_url,
-                timeout=httpx.Timeout(self._timeout),
-            )
+        if self._client is not None:
+            return self._client
+        with self._client_init_lock:
+            if self._client is None:
+                # SEC (L-1): pin every security-relevant kwarg explicitly.
+                self._client = httpx.AsyncClient(
+                    base_url=self._base_url,
+                    timeout=httpx.Timeout(self._timeout),
+                    verify=True,
+                    follow_redirects=False,
+                    limits=httpx.Limits(
+                        max_keepalive_connections=4,
+                        max_connections=8,
+                        keepalive_expiry=60.0,
+                    ),
+                )
         return self._client
 
     @staticmethod
@@ -130,8 +144,15 @@ class OllamaProvider:
                 provider=self.provider_name,
             )
         if response.status_code >= 400:
+            # SEC (L-2): keep the exception message narrow; body goes to
+            # the DEBUG log so operators can still diagnose.
+            logger.debug(
+                "ollama.4xx_body status=%s body_head=%s",
+                response.status_code,
+                response.text[:200].replace("\n", " "),
+            )
             raise PermanentError(
-                f"Ollama HTTP {response.status_code}: {response.text[:200]}",
+                f"Ollama HTTP {response.status_code}",
                 provider=self.provider_name,
             )
         try:

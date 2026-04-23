@@ -426,7 +426,14 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str) -> None:
                     logger.warning("Invalid keystroke from %s: %s", user_id, exc)
                     await websocket.close(code=_CLOSE_POLICY_VIOLATION)
                     break
-                pipeline.monitor.process_keystroke(user_id, ks)
+                # SEC/BUG (B-1, 2026-04-23 audit): process_keystroke is
+                # ``async def``.  The prior code dropped the returned
+                # coroutine without awaiting it, so every keystroke event
+                # from every WebSocket client was silently discarded and
+                # the TCN encoder was fed zero-metric feature vectors.
+                # The behavioural-baseline invariant depended on this
+                # await actually happening.
+                await pipeline.monitor.process_keystroke(user_id, ks)
                 # SEC: Only the validated numeric subset is buffered for
                 # aggregation later — never the raw client dict.
                 keystroke_buffer.append({"inter_key_interval_ms": ks_iki})

@@ -112,8 +112,15 @@ class PrivacySanitizer:
             r'\b(?:[0-9]{4}[-\s]?){3}[0-9]{4}\b'
         ), "[CREDIT_CARD]"),
 
+        # SEC (L-3, 2026-04-23 audit): require every octet to be
+        # ``<= 255`` so Windows build numbers (``10.0.22621``), SemVer
+        # fragments (``1.2.3.4-beta``), and telemetry counters do not
+        # inflate PII counters with false-positive IP hits.  The pattern
+        # is still bounded and linear in length, so ReDoS safety is
+        # preserved.
         ("ip_address", re.compile(
-            r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b'
+            r'\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}'
+            r'(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b'
         ), "[IP_ADDRESS]"),
 
         # SEC: Address pattern hardened. Original had \w+ which could match
@@ -250,7 +257,13 @@ class PrivacyAuditor:
     })
 
     def __init__(self) -> None:
-        self._findings: list[dict] = []
+        # PERF (M-5, 2026-04-23 audit): bound the findings buffer so a
+        # long-lived auditor cannot accumulate GBs of violation records
+        # when the sanitiser is misconfigured.  ``deque(maxlen=...)``
+        # drops the oldest record in O(1).
+        from collections import deque
+
+        self._findings: "deque[dict]" = deque(maxlen=1_000)
         self._sanitizer = PrivacySanitizer(enabled=True)
 
     async def audit_database(self, db_path: str) -> dict:
@@ -398,21 +411,36 @@ class PrivacyAuditor:
         """
         issues: list[str] = []
         pii_fields: list[str] = []
+        # SEC (M-4, 2026-04-23 audit): cap recursion depth so an
+        # adversarially nested payload cannot drive RecursionError and
+        # crash the audit.  Build field paths via a list + ``.join`` so
+        # the path string is O(n) not O(n²) in depth.
+        _MAX_DEPTH = 32
 
-        def _scan_value(value, field_path: str) -> None:
-            """Recursively scan a value for PII."""
+        def _scan_value(value, path_parts: list[str], depth: int) -> None:
+            """Recursively scan a value for PII (depth-capped)."""
+            if depth > _MAX_DEPTH:
+                issues.append(
+                    f"Payload nesting exceeds {_MAX_DEPTH} levels at "
+                    f"{'.'.join(path_parts)}"
+                )
+                return
             if isinstance(value, str):
                 if self._sanitizer.contains_pii(value):
-                    pii_fields.append(field_path)
+                    pii_fields.append(".".join(path_parts))
             elif isinstance(value, dict):
                 for k, v in value.items():
-                    _scan_value(v, f"{field_path}.{k}")
+                    path_parts.append(str(k))
+                    _scan_value(v, path_parts, depth + 1)
+                    path_parts.pop()
             elif isinstance(value, list):
                 for i, item in enumerate(value):
-                    _scan_value(item, f"{field_path}[{i}]")
+                    path_parts.append(f"[{i}]")
+                    _scan_value(item, path_parts, depth + 1)
+                    path_parts.pop()
 
         # Scan entire payload for PII
-        _scan_value(request_payload, "root")
+        _scan_value(request_payload, ["root"], 0)
 
         # Check for raw conversation history in system prompt
         messages = request_payload.get("messages", [])

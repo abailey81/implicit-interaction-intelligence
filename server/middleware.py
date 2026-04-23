@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from collections import deque
+from collections import OrderedDict, deque
 from typing import Awaitable, Callable, Deque, Iterable
 
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -304,7 +304,11 @@ class _SlidingWindowLimiter:
         self.limit = limit
         self.window = window_seconds
         self.max_keys = max_keys
-        self._events: dict[str, Deque[float]] = {}
+        # SEC/PERF: insertion-ordered dict gives amortised O(1) oldest-key
+        # eviction (``popitem(last=False)``) instead of the O(n) scan that a
+        # plain dict + ``min(..., key=...)`` required.  Under hostile key
+        # churn this drops the per-accept cost from O(n) to O(1).
+        self._events: "OrderedDict[str, Deque[float]]" = OrderedDict()
         self._lock = threading.Lock()
 
     def allow(self, key: str) -> bool:
@@ -333,6 +337,10 @@ class _SlidingWindowLimiter:
                     self._events.pop(key, None)
                     bucket = deque()
                     self._events[key] = bucket
+                else:
+                    # PERF: refresh LRU ordering so active keys migrate to
+                    # the most-recently-used end, keeping eviction fair.
+                    self._events.move_to_end(key)
 
             if len(bucket) >= self.limit:
                 return False
@@ -346,14 +354,14 @@ class _SlidingWindowLimiter:
             self._events.pop(k, None)
 
     def _evict_oldest(self) -> None:
-        """Evict the single key with the oldest head timestamp."""
+        """Evict the least-recently-used key in O(1).
+
+        Uses ``OrderedDict.popitem(last=False)`` instead of a linear
+        ``min()`` scan — amortised O(1) per accept call.
+        """
         if not self._events:
             return
-        oldest_key = min(
-            self._events,
-            key=lambda k: self._events[k][0] if self._events[k] else 0.0,
-        )
-        self._events.pop(oldest_key, None)
+        self._events.popitem(last=False)
 
     def reset(self, key: str | None = None) -> None:
         if key is None:
@@ -383,19 +391,47 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     middleware that has already validated the upstream IP.
     """
 
+    # SEC: prefixes that serve static / read-only assets and should NOT
+    # be throttled.  This is an **exclude-list** — every request is
+    # throttled by default, which means any newly-added route family
+    # inherits the limiter without having to remember to prefix itself
+    # under ``/api``.  An include-list ("only throttle /api/*") was the
+    # prior design; it silently missed ``/whatif/*`` (see H-1 of the
+    # 2026-04-23 security audit).
+    DEFAULT_EXEMPT_PREFIXES: tuple[str, ...] = (
+        "/ws/",              # WebSocket upgrades bypass BaseHTTPMiddleware
+        "/static/",          # Bundled CSS / JS / fonts
+        "/_static/",         # Starlette-mounted assets
+        "/assets/",          # Front-end build output
+        # SEC (M-12, 2026-04-23 audit): docs are mounted under /api/ in
+        # ``server/app.py::create_app`` (``docs_url="/api/docs"``), so
+        # the exempt prefix must match the real mount point.  Bare
+        # ``/docs`` / ``/redoc`` previously never fired.
+        "/api/docs",
+        "/api/redoc",
+        "/api/openapi.json",
+        "/favicon",          # Favicons
+    )
+
     def __init__(
         self,
         app,
         api_limit: int = DEFAULT_API_RATE_LIMIT,
         window_seconds: int = DEFAULT_WINDOW_SECONDS,
-        exempt_paths: Iterable[str] = ("/api/health",),
+        exempt_paths: Iterable[str] = ("/api/health", "/api/live", "/api/ready"),
         max_tracked_keys: int = DEFAULT_MAX_TRACKED_KEYS,
+        exempt_prefixes: Iterable[str] | None = None,
     ) -> None:
         super().__init__(app)
         self._limiter = _SlidingWindowLimiter(
             api_limit, window_seconds, max_keys=max_tracked_keys
         )
         self._exempt_paths = frozenset(exempt_paths)
+        self._exempt_prefixes: tuple[str, ...] = tuple(
+            exempt_prefixes
+            if exempt_prefixes is not None
+            else self.DEFAULT_EXEMPT_PREFIXES
+        )
         # SEC: cache the Retry-After value so we don't string-format
         # on every rejected request.
         self._retry_after = str(window_seconds)
@@ -405,16 +441,15 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         request: Request,
         call_next: Callable[[Request], Awaitable[Response]],
     ) -> Response:
-        # SEC: only /api/* paths are throttled.  Static assets are not
-        # rate-limited because they are served from disk and the cost is
-        # negligible.  WebSocket upgrades arrive with scope=websocket and
-        # bypass BaseHTTPMiddleware entirely, so /ws/ is implicitly
-        # exempt — confirmed defensively below.
+        # SEC: every request is throttled except static assets, health
+        # probes, WebSocket upgrades, and the OpenAPI/docs surfaces.  The
+        # exclude-list is intentional so that any newly-added route
+        # family is throttled by default (see H-1 / M-5 in the
+        # 2026-04-23 security audit).
         path = request.url.path
         if (
-            not path.startswith("/api")
-            or path in self._exempt_paths
-            or path.startswith("/ws/")
+            path in self._exempt_paths
+            or any(path.startswith(p) for p in self._exempt_prefixes)
         ):
             return await call_next(request)
 

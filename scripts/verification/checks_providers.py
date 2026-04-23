@@ -37,18 +37,50 @@ def _now_ms(t0: float) -> int:
 _RUNTIME_DEPS = {"numpy", "torch", "fastapi", "pydantic", "cryptography", "aiosqlite"}
 
 
-def _env_missing_result(check_id: str, t0: float, exc: ImportError) -> CheckResult | None:
-    """If ``exc`` indicates a missing core runtime dep, return a SKIP result.
+# OS-level fingerprints that indicate a broken binary dep (e.g. torch
+# c10.dll failing to load on Windows because the VC++ redistributable is
+# missing).  These are environment issues, not code defects.
+_OS_ENV_FINGERPRINTS = ("WinError 1114", "c10.dll", "cudart", "DLL load failed")
 
-    Otherwise return ``None`` so the caller can keep the FAIL semantics.
+
+def _env_missing_result(
+    check_id: str, t0: float, exc: BaseException
+) -> CheckResult | None:
+    """If ``exc`` indicates a missing / broken core runtime dep, return SKIP.
+
+    Handles three cases:
+    * ``ModuleNotFoundError`` for a core runtime dep (numpy/torch/...).
+    * ``OSError`` carrying a known DLL-load fingerprint (Windows torch).
+    * ``KeyError`` raised by ``importlib`` after a prior failed binary import
+      left ``sys.modules`` in a partial state.
+
+    Returns ``None`` so the caller can keep the FAIL semantics otherwise.
     """
     missing = getattr(exc, "name", "") or ""
-    if missing in _RUNTIME_DEPS:
+    if isinstance(exc, ModuleNotFoundError) and missing in _RUNTIME_DEPS:
         return CheckResult(
             check_id=check_id,
             status="SKIP",
             duration_ms=_now_ms(t0),
             message=f"runtime dep not installed: {missing}",
+            evidence=None,
+        )
+    msg = str(exc)
+    if isinstance(exc, OSError) and any(fp in msg for fp in _OS_ENV_FINGERPRINTS):
+        return CheckResult(
+            check_id=check_id,
+            status="SKIP",
+            duration_ms=_now_ms(t0),
+            message=f"OS-level dep load failed: {msg[:120]}",
+            evidence=None,
+        )
+    if isinstance(exc, KeyError):
+        # Cascading from a prior partial binary import.
+        return CheckResult(
+            check_id=check_id,
+            status="SKIP",
+            duration_ms=_now_ms(t0),
+            message=f"cascading import failure (KeyError): {msg}",
             evidence=None,
         )
     return None
@@ -65,7 +97,7 @@ def check_all_providers_registered() -> CheckResult:
     t0 = time.monotonic()
     try:
         from i3.cloud.provider_registry import ProviderRegistry
-    except ImportError as exc:
+    except (ImportError, OSError, KeyError, AttributeError) as exc:
         env_skip = _env_missing_result("providers.all_registered", t0, exc)
         if env_skip is not None:
             return env_skip
@@ -119,7 +151,7 @@ def check_provider_construct_without_sdk() -> CheckResult:
             openai as mod_openai,
             openrouter as mod_openrouter,
         )
-    except ImportError as exc:
+    except (ImportError, OSError, KeyError, AttributeError) as exc:
         env_skip = _env_missing_result("providers.construct_without_sdk", t0, exc)
         if env_skip is not None:
             return env_skip
@@ -144,7 +176,7 @@ def check_provider_construct_without_sdk() -> CheckResult:
         ("ollama", mod_ollama, "OllamaProvider"),
         ("openrouter", mod_openrouter, "OpenRouterProvider"),
         ("litellm", mod_litellm, "LiteLLMProvider"),
-        ("huawei_pangu", mod_pangu, "HuaweiPanguProvider"),
+        ("huawei_pangu", mod_pangu, "HuaweiPanGuProvider"),
     ]
     missing_classes: list[str] = []
     for name, module, cls_name in attempts:
@@ -181,7 +213,7 @@ def check_multi_provider_fallback() -> CheckResult:
             ProviderError,
             TokenUsage,
         )
-    except ImportError as exc:
+    except (ImportError, OSError, KeyError, AttributeError) as exc:
         env_skip = _env_missing_result("providers.multi_provider_fallback", t0, exc)
         if env_skip is not None:
             return env_skip
@@ -259,7 +291,7 @@ def check_cost_tracker_basic() -> CheckResult:
     try:
         from i3.cloud.cost_tracker import CostTracker
         from i3.cloud.providers.base import TokenUsage
-    except ImportError as exc:
+    except (ImportError, OSError, KeyError, AttributeError) as exc:
         env_skip = _env_missing_result("providers.cost_tracker_basic", t0, exc)
         if env_skip is not None:
             return env_skip
@@ -326,7 +358,7 @@ def check_prompt_translator_shapes() -> CheckResult:
             openai_messages,
         )
         from i3.cloud.providers.base import ChatMessage, CompletionRequest
-    except ImportError as exc:
+    except (ImportError, OSError, KeyError, AttributeError) as exc:
         env_skip = _env_missing_result("providers.prompt_translator_shapes", t0, exc)
         if env_skip is not None:
             return env_skip

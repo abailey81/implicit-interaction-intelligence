@@ -29,10 +29,12 @@ import logging
 from collections import OrderedDict
 from typing import Any
 
-from fastapi import APIRouter, FastAPI, HTTPException, Path, Request
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Path, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
+from server.auth import require_user_identity, require_user_identity_from_body
+from i3.privacy.sanitizer import PrivacySanitizer
 from i3.router.preference_learning import (
     ActivePreferenceSelector,
     BradleyTerryRewardModel,
@@ -41,6 +43,13 @@ from i3.router.preference_learning import (
     build_response_features,
 )
 from i3.router.router_with_preference import PreferenceAwareRouter
+
+# SEC (H-2, 2026-04-23 audit): all free-text fields entering the preference
+# dataset and leaving through ``GET /api/preference/query/{user_id}`` MUST
+# pass through the sanitiser so an attacker cannot stash PII and harvest it
+# via another client's GET.  The sanitiser is stateless and module-scoped
+# so the compiled regex battery is shared across requests.
+_SANITIZER: PrivacySanitizer = PrivacySanitizer(enabled=True)
 
 logger = logging.getLogger(__name__)
 
@@ -215,7 +224,10 @@ _CACHE = _UserCache()
 router = APIRouter(prefix="/api/preference", tags=["preference"])
 
 
-@router.post("/record")
+@router.post(
+    "/record",
+    dependencies=[Depends(require_user_identity_from_body)],
+)
 async def record_preference(request: Request) -> JSONResponse:
     """Append a labelled preference pair to the user's dataset."""
     raw = await request.body()
@@ -245,11 +257,20 @@ async def record_preference(request: Request) -> JSONResponse:
         else [0.0] * resp_dim
     )
 
+    # SEC (H-2): sanitise every free-text field before it enters the
+    # per-user dataset.  Anything that later flows out of
+    # GET /api/preference/query/{user_id} or GET /api/preference/stats/
+    # {user_id} must have been through the PII sanitiser first, otherwise
+    # we become a cross-user PII harvester.
+    safe_prompt = _SANITIZER.sanitize(body.prompt)
+    safe_response_a = _SANITIZER.sanitize(body.response_a)
+    safe_response_b = _SANITIZER.sanitize(body.response_b)
+
     try:
         pair = PreferencePair(
-            prompt=body.prompt,
-            response_a=body.response_a,
-            response_b=body.response_b,
+            prompt=safe_prompt,
+            response_a=safe_response_a,
+            response_b=safe_response_b,
             winner=body.winner,
             context=context,
             response_a_features=feat_a,
@@ -275,7 +296,7 @@ async def record_preference(request: Request) -> JSONResponse:
     return JSONResponse(payload.model_dump(mode="json"))
 
 
-@router.get("/query/{user_id}")
+@router.get("/query/{user_id}", dependencies=[Depends(require_user_identity)])
 async def query_next(
     user_id: str = Path(..., pattern=USER_ID_REGEX, min_length=1, max_length=64),
 ) -> JSONResponse:
@@ -327,7 +348,7 @@ async def query_next(
     return JSONResponse(payload.model_dump(mode="json"))
 
 
-@router.get("/stats/{user_id}")
+@router.get("/stats/{user_id}", dependencies=[Depends(require_user_identity)])
 async def stats(
     user_id: str = Path(..., pattern=USER_ID_REGEX, min_length=1, max_length=64),
 ) -> JSONResponse:

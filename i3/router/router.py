@@ -85,10 +85,16 @@ class IntelligentRouter:
 
     def __init__(self, config: Config) -> None:
         self.config = config
+        # SEC (H-9, 2026-04-23 audit): previously this constructor
+        # passed ``config.router.prior_alpha`` (a Beta prior) to the
+        # bandit's ``prior_precision`` slot (a Gaussian weight
+        # precision).  They are distinct statistical quantities.  The
+        # config now carries both fields explicitly so operators can
+        # tune them independently.
         self.bandit = ContextualThompsonBandit(
             n_arms=2,
             context_dim=config.router.context_dim,
-            prior_precision=config.router.prior_alpha,
+            prior_precision=config.router.prior_precision,
             exploration_bonus=config.router.exploration_bonus,
         )
         self.complexity_estimator = QueryComplexityEstimator()

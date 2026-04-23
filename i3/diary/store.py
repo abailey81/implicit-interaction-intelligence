@@ -19,11 +19,13 @@ pre-processed data, never raw strings.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, AsyncIterator, Optional
 
 import aiosqlite
 
@@ -96,6 +98,16 @@ class DiaryStore:
         # but it documents the envelope format so auditors can verify the
         # privacy contract end-to-end.
         self._encryptor = encryptor
+        # PERF/SEC (H-2, 2026-04-23 audit): hold a single ``aiosqlite``
+        # connection for the lifetime of the store.  The previous
+        # implementation opened a fresh connection on every call, which
+        # cost 5-30 ms per message *and* defeated ``PRAGMA foreign_keys``
+        # (a per-connection pragma) on every subsequent op.
+        self._db: aiosqlite.Connection | None = None
+        # Serialises writes on the shared connection.  aiosqlite's worker
+        # thread serialises at the driver level, but an explicit async
+        # lock guards transactional multi-statement sequences.
+        self._write_lock: asyncio.Lock | None = None
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -105,14 +117,21 @@ class DiaryStore:
         """Create tables and indices if they do not already exist.
 
         This method is idempotent and safe to call multiple times.  It must
-        be awaited before any read/write operations.
+        be awaited before any read/write operations.  Also opens the
+        persistent connection used by every subsequent op.
         """
-        async with aiosqlite.connect(self.db_path) as db:
-            # SEC: enable foreign-key enforcement so the declared FK on
-            # exchanges(session_id) -> sessions(session_id) is actually
-            # respected.  SQLite has FK enforcement off by default.
-            await db.execute("PRAGMA foreign_keys = ON")
-            await db.executescript("""
+        if self._db is None:
+            self._db = await aiosqlite.connect(self.db_path)
+            # SEC: FK enforcement + WAL journal for concurrent reads.
+            # Both pragmas are per-connection, so holding a persistent
+            # connection means they survive across every query.
+            await self._db.execute("PRAGMA foreign_keys = ON")
+            await self._db.execute("PRAGMA journal_mode = WAL")
+            await self._db.execute("PRAGMA synchronous = NORMAL")
+            self._write_lock = asyncio.Lock()
+        db = self._db
+        # Use the persistent connection to run the schema migration.
+        await db.executescript("""
                 CREATE TABLE IF NOT EXISTS sessions (
                     session_id          TEXT PRIMARY KEY,
                     user_id             TEXT NOT NULL,
@@ -156,9 +175,19 @@ class DiaryStore:
                 CREATE INDEX IF NOT EXISTS idx_exchanges_session
                     ON exchanges(session_id);
             """)
-            await db.commit()
+        await db.commit()
         self._initialized = True
         logger.info("DiaryStore initialised (db=%s)", self.db_path)
+
+    async def close(self) -> None:
+        """Close the persistent connection.  Idempotent."""
+        if self._db is not None:
+            try:
+                await self._db.close()
+            except Exception:  # pragma: no cover - defensive
+                logger.exception("DiaryStore.close() raised")
+            self._db = None
+        self._initialized = False
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -166,11 +195,29 @@ class DiaryStore:
 
     def _ensure_initialized(self) -> None:
         """Raise if :meth:`initialize` has not been called."""
-        if not self._initialized:
+        if not self._initialized or self._db is None:
             raise RuntimeError(
                 "DiaryStore has not been initialised. "
                 "Call `await store.initialize()` first."
             )
+
+    def _db_required(self) -> aiosqlite.Connection:
+        """Return the persistent connection or raise if absent."""
+        self._ensure_initialized()
+        assert self._db is not None  # narrowed by _ensure_initialized
+        return self._db
+
+    @asynccontextmanager
+    async def _conn(self) -> AsyncIterator[aiosqlite.Connection]:
+        """Yield the persistent connection; drop-in for the old
+        ``async with self._conn() as db:`` block.
+
+        We do NOT close the underlying connection on block exit — the
+        store owns the connection lifecycle.  This makes the change an
+        indentation-preserving textual swap across every call site.
+        """
+        db = self._db_required()
+        yield db
 
     # ------------------------------------------------------------------
     # Session CRUD
@@ -188,7 +235,7 @@ class DiaryStore:
         """
         self._ensure_initialized()
         now = datetime.now(timezone.utc).isoformat()
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self._conn() as db:
             await db.execute(
                 """
                 INSERT INTO sessions (session_id, user_id, start_time)
@@ -236,7 +283,7 @@ class DiaryStore:
         now = datetime.now(timezone.utc).isoformat()
 
         # Count exchanges in this session
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self._conn() as db:
             cursor = await db.execute(
                 "SELECT COUNT(*) FROM exchanges WHERE session_id = ?",
                 (session_id,),
@@ -323,7 +370,7 @@ class DiaryStore:
         exchange_id = str(uuid.uuid4())
         now = datetime.now(timezone.utc).isoformat()
 
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self._conn() as db:
             await db.execute(
                 """
                 INSERT INTO exchanges (
@@ -371,7 +418,7 @@ class DiaryStore:
             The ``topics`` field is deserialised from JSON to a list.
         """
         self._ensure_initialized()
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self._conn() as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
                 "SELECT * FROM sessions WHERE session_id = ?",
@@ -403,7 +450,7 @@ class DiaryStore:
             Session records ordered by ``start_time`` descending.
         """
         self._ensure_initialized()
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self._conn() as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
                 """
@@ -438,7 +485,7 @@ class DiaryStore:
             deserialised from JSON.
         """
         self._ensure_initialized()
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self._conn() as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
                 """
@@ -473,7 +520,7 @@ class DiaryStore:
             topic -> count, sorted descending).
         """
         self._ensure_initialized()
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self._conn() as db:
             # Aggregated session-level stats
             cursor = await db.execute(
                 """
@@ -556,7 +603,7 @@ class DiaryStore:
         if max_entries < 0:
             raise ValueError("max_entries must be non-negative")
 
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self._conn() as db:
             # SEC: enable FK enforcement for cascade-correctness checks.
             await db.execute("PRAGMA foreign_keys = ON")
 
@@ -621,7 +668,7 @@ class DiaryStore:
             Diary entries ordered by ``start_time`` descending.
         """
         self._ensure_initialized()
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self._conn() as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
                 """

@@ -22,8 +22,10 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
+from collections import deque
 from pathlib import Path
-from typing import Any
+from typing import Any, Deque
 
 import numpy as np
 
@@ -107,13 +109,25 @@ class ContextualThompsonBandit:
         self.beta_param: list[float] = [1.0] * n_arms
 
         # --- Observation history per arm (for Laplace refitting) ---
-        self.history: list[list[tuple[np.ndarray, float]]] = [
-            [] for _ in range(n_arms)
+        # PERF (H-4, 2026-04-23 audit): ``collections.deque`` with
+        # ``maxlen`` bounds the per-arm history and makes overflow O(1)
+        # rather than the previous ``list[-N:]`` slice churn.
+        self.history: list[Deque[tuple[np.ndarray, float]]] = [
+            deque(maxlen=_MAX_HISTORY_PER_ARM) for _ in range(n_arms)
         ]
 
         # --- Running statistics ---
         self.total_pulls: list[int] = [0] * n_arms
         self.total_rewards: list[float] = [0.0] * n_arms
+
+        # SEC (H-5, 2026-04-23 audit): ``select_arm`` and ``update`` race
+        # on the posterior state (``weight_means`` / ``weight_covs`` /
+        # ``total_pulls``).  A single reentrant threading lock serialises
+        # every mutation so Newton-Raphson refit cannot run against a
+        # partially-updated history, and ``select_arm`` cannot sample
+        # mid-write.  The critical section is short (<1 ms for refit
+        # with ``_NEWTON_ITERS=8``), so contention is acceptable.
+        self._lock: threading.RLock = threading.RLock()
 
     # ------------------------------------------------------------------
     # Arm selection
@@ -149,59 +163,15 @@ class ContextualThompsonBandit:
             )
             context = np.nan_to_num(context, nan=0.0, posinf=0.0, neginf=0.0)
 
+        # SEC (H-5): hold the posterior lock across the whole sampling
+        # loop so ``update``/``_refit_posterior`` cannot mutate
+        # ``weight_means`` / ``weight_covs`` mid-draw.
         sampled_rewards: list[float] = []
 
-        for arm in range(self.n_arms):
-            if self.total_pulls[arm] < _COLD_START_PULLS:
-                # Cold start: draw from Beta-Bernoulli posterior
-                sampled_p = float(
-                    np.random.beta(self.alpha[arm], self.beta_param[arm])
-                )
-            else:
-                # Sample weights from the multivariate-normal posterior.
-                # SEC: Guard the covariance matrix against subtle non-PSD drift
-                # by symmetrising and clipping eigenvalues *before* sampling.
-                cov = self.weight_covs[arm]
-                cov = 0.5 * (cov + cov.T)
-                try:
-                    sampled_weights = np.random.multivariate_normal(
-                        self.weight_means[arm], cov
-                    )
-                except (np.linalg.LinAlgError, ValueError):
-                    # Covariance still not PSD: rebuild via eigendecomposition
-                    # by clipping negative eigenvalues to _MIN_VARIANCE.
-                    logger.warning(
-                        "Covariance not PSD for arm %d; repairing via "
-                        "eigendecomposition.",
-                        arm,
-                    )
-                    try:
-                        eigvals, eigvecs = np.linalg.eigh(cov)
-                        eigvals = np.maximum(eigvals, _MIN_VARIANCE)
-                        cov_psd = (eigvecs * eigvals) @ eigvecs.T
-                        cov_psd = 0.5 * (cov_psd + cov_psd.T)
-                        sampled_weights = np.random.multivariate_normal(
-                            self.weight_means[arm], cov_psd
-                        )
-                    except (np.linalg.LinAlgError, ValueError):
-                        # Last-resort: diagonal sampling
-                        std = np.sqrt(
-                            np.maximum(np.diag(cov), _MIN_VARIANCE)
-                        )
-                        sampled_weights = (
-                            self.weight_means[arm]
-                            + std * np.random.randn(self.context_dim)
-                        )
-
-                # SEC: Clip the raw logit (before exploration bonus and
-                # before sigmoid) to prevent unbounded values from poisoned
-                # context * weights interactions.
-                raw_logit = float(context @ sampled_weights)
-                raw_logit = float(np.clip(raw_logit, -_LOGIT_CLIP, _LOGIT_CLIP))
-                logit = raw_logit + self.exploration_bonus
-                sampled_p = float(_sigmoid(logit))
-
-            sampled_rewards.append(sampled_p)
+        with self._lock:
+            for arm in range(self.n_arms):
+                _sampled = self._sample_arm_reward(arm, context)
+                sampled_rewards.append(_sampled)
 
         chosen = int(np.argmax(sampled_rewards))
 
@@ -216,6 +186,55 @@ class ContextualThompsonBandit:
             }
 
         return chosen, confidence
+
+    def _sample_arm_reward(
+        self, arm: int, context: np.ndarray
+    ) -> float:
+        """Sample a single arm's reward under the current posterior.
+
+        Extracted from :meth:`select_arm` so the critical section can be
+        held around the entire multi-arm sampling loop without
+        duplicating the control flow.  Callers MUST hold ``self._lock``.
+        """
+        if self.total_pulls[arm] < _COLD_START_PULLS:
+            # Cold start: draw from Beta-Bernoulli posterior
+            return float(
+                np.random.beta(self.alpha[arm], self.beta_param[arm])
+            )
+        # Sample weights from the multivariate-normal posterior.
+        cov = self.weight_covs[arm]
+        cov = 0.5 * (cov + cov.T)
+        try:
+            sampled_weights = np.random.multivariate_normal(
+                self.weight_means[arm], cov
+            )
+        except (np.linalg.LinAlgError, ValueError):
+            logger.warning(
+                "Covariance not PSD for arm %d; repairing via "
+                "eigendecomposition.",
+                arm,
+            )
+            try:
+                eigvals, eigvecs = np.linalg.eigh(cov)
+                eigvals = np.maximum(eigvals, _MIN_VARIANCE)
+                cov_psd = (eigvecs * eigvals) @ eigvecs.T
+                cov_psd = 0.5 * (cov_psd + cov_psd.T)
+                sampled_weights = np.random.multivariate_normal(
+                    self.weight_means[arm], cov_psd
+                )
+            except (np.linalg.LinAlgError, ValueError):
+                std = np.sqrt(
+                    np.maximum(np.diag(cov), _MIN_VARIANCE)
+                )
+                sampled_weights = (
+                    self.weight_means[arm]
+                    + std * np.random.randn(self.context_dim)
+                )
+
+        raw_logit = float(context @ sampled_weights)
+        raw_logit = float(np.clip(raw_logit, -_LOGIT_CLIP, _LOGIT_CLIP))
+        logit = raw_logit + self.exploration_bonus
+        return float(_sigmoid(logit))
 
     # ------------------------------------------------------------------
     # Posterior update
@@ -263,24 +282,22 @@ class ContextualThompsonBandit:
             )
             reward_f = float(np.clip(reward_f, 0.0, 1.0))
 
-        # 1. Update Beta-Bernoulli posterior using FRACTIONAL evidence so
-        #    soft engagement signals are not collapsed to a hard 0/1.
-        # SEC: previously a 0.49 reward and a 0.0 reward were treated identically.
-        self.alpha[arm] += reward_f
-        self.beta_param[arm] += 1.0 - reward_f
+        # SEC (H-5): serialise the entire Beta + history + Laplace
+        # update so concurrent callers cannot observe half-applied state.
+        with self._lock:
+            # 1. Update Beta-Bernoulli posterior using FRACTIONAL evidence.
+            # SEC: previously a 0.49 and a 0.0 reward were treated identically.
+            self.alpha[arm] += reward_f
+            self.beta_param[arm] += 1.0 - reward_f
 
-        # 2. Record observation for logistic regression
-        self.history[arm].append((context.copy(), reward_f))
-        # SEC: Cap history per arm to prevent unbounded memory growth.
-        # Keep the most recent observations for non-stationary adaptation.
-        if len(self.history[arm]) > _MAX_HISTORY_PER_ARM:
-            self.history[arm] = self.history[arm][-_MAX_HISTORY_PER_ARM:]
-        self.total_pulls[arm] += 1
-        self.total_rewards[arm] += reward_f
+            # 2. Record observation — deque(maxlen=N) drops oldest in O(1).
+            self.history[arm].append((context.copy(), reward_f))
+            self.total_pulls[arm] += 1
+            self.total_rewards[arm] += reward_f
 
-        # 3. Refit Laplace approximation periodically
-        if self.total_pulls[arm] % self.refit_interval == 0:
-            self._refit_posterior(arm)
+            # 3. Refit Laplace approximation periodically
+            if self.total_pulls[arm] % self.refit_interval == 0:
+                self._refit_posterior(arm)
 
     # ------------------------------------------------------------------
     # Laplace approximation (Newton-Raphson MAP + Hessian)

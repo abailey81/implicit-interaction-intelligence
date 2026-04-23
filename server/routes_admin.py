@@ -451,6 +451,19 @@ async def admin_export(
     except (AttributeError, RuntimeError):
         logger.debug("admin_export.bandit_stats_unavailable")
 
+    # SEC (L-4, 2026-04-23 audit): when every signal is empty the user
+    # genuinely does not exist in any backing store — return 404 rather
+    # than an empty 200 shape so admin-token enumeration is not easier
+    # than it needs to be.  The log still records ``profile_present``
+    # for the present case; for the absent case we emit a dedicated
+    # ``admin.export.not_found`` event.
+    if profile_payload is None and not diary_payload and not bandit_stats:
+        logger.info(
+            "admin.export.not_found",
+            extra={"event": "admin_export_nf", "user_id": user_id},
+        )
+        raise HTTPException(status_code=404, detail="Not found")
+
     logger.info(
         "admin.export",
         extra={
