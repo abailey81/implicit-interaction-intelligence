@@ -37,8 +37,9 @@ only embeddings and aggregate metrics — never raw text.
 17. [Edge deployment](#edge-deployment)
 18. [Privacy and security](#privacy-and-security)
 19. [Command reference (`make`)](#command-reference-make)
-20. [Contributing](#contributing)
-21. [Further reading](#further-reading)
+20. [Troubleshooting](#troubleshooting)
+21. [Contributing](#contributing)
+22. [Further reading](#further-reading)
 
 ---
 
@@ -412,22 +413,38 @@ Top-level files of note:
 
 ## Prerequisites
 
-| Requirement | Minimum | Recommended |
+### Hard requirements
+
+| Requirement | Minimum | Recommended | How to check | How to install |
+|---|---|---|---|---|
+| **Python** | 3.10 | 3.12 | `python --version` | [python.org/downloads](https://www.python.org/downloads/) · `brew install python@3.12` (macOS) · `sudo apt install python3.12` (Ubuntu) · `choco install python` (Windows) |
+| **Poetry** | 1.8 | latest | `poetry --version` | `curl -sSL https://install.python-poetry.org \| python3 -` (Linux/macOS) · `pip install poetry` (Windows) |
+| **Git** | any recent | latest | `git --version` | [git-scm.com](https://git-scm.com/) |
+| **Disk space** | 2 GB | 5 GB | `df -h .` | — |
+| **RAM** | 4 GB (inference) | 8 GB (training) / 16 GB (distributed) | `free -h` / `Activity Monitor` | — |
+| **OS** | Linux / macOS / Windows 10+ | Linux / macOS (Windows via WSL2 for best UX) | — | — |
+
+### Optional toolchain (features degrade gracefully if absent)
+
+| Tool | Purpose | Install |
 |---|---|---|
-| Python | 3.10 | 3.11 |
-| PyTorch | 2.0 | 2.3 (CPU is fine) |
-| Poetry | 1.8 | latest |
-| Disk space | ~2 GB for checkpoints + deps | 5 GB |
-| RAM | 4 GB for inference, 8 GB for training | 16 GB |
-| OS | Linux, macOS, Windows (WSL2 recommended) | |
+| **GNU `make`** | The primary task runner and orchestrator entry point. Everything works without it via direct `python scripts/run_everything.py` invocations. | macOS + Linux: preinstalled · Windows: `choco install make` or use WSL |
+| **CUDA 11.8+ + compatible NVIDIA driver** | Accelerates training from ~3 h (CPU) to ~15 min. Inference is fine on CPU. | [developer.nvidia.com/cuda-downloads](https://developer.nvidia.com/cuda-downloads) |
+| **Docker 24+** | Containerised run, prod-hardened profile, observability stack, CI artefact build. | [docker.com/get-started](https://www.docker.com/get-started/) |
+| **`docker compose` v2** | Bundled with recent Docker Desktop; on Linux `sudo apt install docker-compose-plugin`. | — |
+| **`kubectl` 1.28+** | Only to deploy to K8s. | `brew install kubectl` · `choco install kubernetes-cli` |
+| **`helm` 3.12+** | K8s deployment via the bundled chart. | `brew install helm` · `choco install kubernetes-helm` |
+| **Node.js 20+** | MCP server and a handful of CI workflows; not needed for core. | [nodejs.org](https://nodejs.org/) |
+| **`cosign`, `syft`, `trivy`** | Supply-chain verification of signed release artefacts. | [sigstore.dev](https://www.sigstore.dev/) · [aquasec.com](https://www.aquasec.com/) |
+| **`libcairo-2` (native)** | Only for the MkDocs social-card imaging plugin. Linux: `sudo apt install libcairo2`; macOS: `brew install cairo`; Windows: not on `mkdocs build --strict` path unless you install [GTK3 runtime](https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer). |
 
-Optional (features degrade gracefully if absent):
+### One-liner check
 
-- **Docker 24+** — for the containerised stack.
-- **`make`** — the primary task runner.
-- **Node.js 20+** — only for the MCP server and some CI workflows.
-- **`helm`, `kubectl`** — to deploy the Kubernetes manifests.
-- **`cosign`, `syft`, `trivy`** — for supply-chain verification.
+```bash
+python --version && poetry --version && git --version
+```
+
+If all three print a version number you can proceed to [Quickstart](#quickstart--one-command).
 
 ---
 
@@ -514,28 +531,162 @@ privacy:
 Overlay configs (e.g. `configs/demo.yaml`) can be merged on top for
 fast experimentation.
 
-### Environment variables
+### Environment variables — complete reference
 
-Copy [`.env.example`](.env.example) to `.env` and populate the values
-you need. Every variable is documented inline. Highlights:
+Copy [`.env.example`](.env.example) to `.env` (the orchestrator's `env`
+stage does this for you).  Every variable is documented inline in
+`.env.example` / `.env.providers.example`; the complete reference is
+below.
+
+#### Required
+
+| Variable | Purpose | How to obtain |
+|---|---|---|
+| `I3_ENCRYPTION_KEY` | Fernet key that encrypts user-state embeddings and diary payloads at rest.  The server refuses to start without it. | `poetry run python scripts/security/generate_encryption_key.py --update-env` writes the key into `.env` (the orchestrator's `env` stage does this automatically).  Manually: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
+
+#### Strongly recommended
+
+| Variable | Purpose | Where to get it |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | Unlocks the cloud routing arm.  Without it, every message routes to the local SLM — the demo still works, but you never see the cloud arm fire. | [console.anthropic.com](https://console.anthropic.com/) → Settings → API Keys → "Create Key".  Format: `sk-ant-...` |
+
+#### Server + runtime (all have defaults)
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `I3_HOST` | `127.0.0.1` | Interface to bind.  Set `0.0.0.0` **only** behind a reverse proxy. |
+| `I3_PORT` | `8000` | TCP port. |
+| `I3_WORKERS` | `1` | Uvicorn worker count.  `> 1` requires `I3_ALLOW_LOCAL_LIMITER=1` because the rate limiter is per-process. |
+| `I3_ALLOW_LOCAL_LIMITER` | unset | Acknowledge the multi-worker rate-limit caveat above. |
+| `I3_CORS_ORIGINS` | `http://localhost:8000,http://127.0.0.1:8000` | Comma-separated origins the SPA and WebSocket clients may come from. |
+| `I3_ALLOW_CORS_WILDCARD` | unset | Set to `1` to permit `allow_origins=["*"]`.  Off by default. |
+| `I3_LOG_LEVEL` | `INFO` | `DEBUG` / `INFO` / `WARNING` / `ERROR`. |
+| `I3_LOG_FORMAT` | `json` | `json` (prod) or `console` (dev). |
+| `I3_LOG_EXTRA_REDACTIONS` | unset | Comma-separated extra logging keys to redact (merged with the built-in set). |
+| `I3_ENV` | `dev` | Deployment-environment tag attached to every trace / log. |
+| `I3_VERSION` | `0.0.0` | Version string exposed by `/api/health`. |
+| `I3_DB_PATH` | `data/i3.db` | SQLite diary DB location. |
+| `I3_ENCODER_CHECKPOINT` | `checkpoints/encoder/best.pt` | Trained TCN encoder.  Falls back to random init if absent. |
+| `I3_SLM_CHECKPOINT` | `checkpoints/slm/best.pt` | Trained SLM.  Same fallback. |
+| `I3_OFFLINE_ONLY` | `false` | Force local-SLM-only routing (cloud arm disabled). |
+| `I3_MAX_TRACKED_USERS` | `10000` | LRU cap on per-user state held in memory. |
+| `I3_FORWARDED_IPS` | `127.0.0.1` | Comma-separated IPs trusted to set `X-Forwarded-For`. |
+| `I3_DISABLE_ENCRYPTION` | unset | Dev only — disables at-rest encryption.  **Never** in production. |
+
+#### Feature flags
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `I3_DEMO_MODE` | `0` | Enables the destructive `/api/demo/reset` + `/api/demo/seed` endpoints.  Required by `make demo` and the seed stage. |
+| `I3_DISABLE_OPENAPI` | `0` | Hard-disables `/api/docs` and `/api/redoc`.  Recommended in production. |
+| `I3_DISABLE_ADMIN` | `0` | Hard-disables the entire `/admin/*` router regardless of `I3_ADMIN_TOKEN`. |
+| `I3_METRICS_ENABLED` | `1` | Controls the `/api/metrics` Prometheus scrape endpoint. |
+| `I3_TELEMETRY_DEBUG` | `false` | Verbose telemetry logging. |
+
+#### Auth
 
 | Variable | Purpose |
 |---|---|
-| `ANTHROPIC_API_KEY` | Cloud route for the default Anthropic adapter. |
-| `I3_ENCRYPTION_KEY` | Fernet key for user-state-embedding encryption at rest. Generate with `scripts/security/generate_encryption_key.py`. |
-| `I3_ADMIN_TOKEN` | Bearer token for the `/admin/*` endpoints. |
-| `I3_REQUIRE_USER_AUTH` | Set to `1` to gate per-user routes. |
-| `I3_USER_TOKENS` | JSON map `{"user_id": "token"}` for caller-identity auth. |
-| `I3_DEMO_MODE` | Enable the destructive demo endpoints. |
-| `I3_DISABLE_ADMIN` | Hard-disable the admin router. |
-| `I3_DISABLE_OPENAPI` | Hard-disable `/api/docs` + `/api/redoc`. |
-| `I3_CORS_ORIGINS` | Comma-separated CORS allow-list. |
-| `I3_MAX_TRACKED_USERS` | LRU cap on per-user state (default 10 000). |
-| `I3_WORKERS` | Uvicorn worker count. Setting `> 1` requires `I3_ALLOW_LOCAL_LIMITER=1`. |
+| `I3_ADMIN_TOKEN` | Bearer token required by every `/admin/*` endpoint.  Unset → admin disabled. |
+| `I3_REQUIRE_USER_AUTH` | Set to `1` to gate per-user routes (`/api/user/{uid}/*`, `/api/preference/*`). |
+| `I3_USER_TOKENS` | JSON map `{"alice": "alice-secret", "bob": "bob-secret"}` used by the caller-identity auth check. |
 
-Per-provider API keys (Google, Azure, Bedrock, Mistral, Cohere,
-OpenRouter, LiteLLM, Huawei PanGu, etc.) live in
-[`.env.providers.example`](.env.providers.example).
+#### LLM providers (pick whichever you want; all optional)
+
+The active provider is selected by `I3_LLM_PROVIDER=<name>` (default
+`anthropic`).  Full list in [`.env.providers.example`](.env.providers.example).
+
+| Provider | Required env | Where to obtain |
+|---|---|---|
+| **Anthropic** (default) | `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com/) |
+| **OpenAI** | `OPENAI_API_KEY` | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) |
+| **Google Gemini** | `GOOGLE_API_KEY` | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
+| **Azure OpenAI** | `AZURE_OPENAI_API_KEY` + `AZURE_OPENAI_ENDPOINT` (optional `AZURE_OPENAI_API_VERSION`) | Azure Portal → your OpenAI resource → Keys and Endpoint |
+| **AWS Bedrock** | `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY` + `AWS_REGION` (default `us-east-1`) | AWS IAM console; or `aws configure` |
+| **Mistral AI** | `MISTRAL_API_KEY` | [console.mistral.ai/api-keys](https://console.mistral.ai/api-keys/) |
+| **Cohere** | `COHERE_API_KEY` | [dashboard.cohere.com/api-keys](https://dashboard.cohere.com/api-keys) |
+| **OpenRouter** | `OPENROUTER_API_KEY` | [openrouter.ai/keys](https://openrouter.ai/keys) |
+| **Ollama** (local) | `OLLAMA_BASE_URL` (default `http://localhost:11434`) | Install: [ollama.com/download](https://ollama.com/download) · then `ollama pull llama3.1` |
+| **Huawei Cloud PanGu** | `HUAWEI_CLOUD_PANGU_APIKEY` + `HUAWEI_CLOUD_PANGU_REGION` (default `cn-southwest-2`) | Huawei Cloud console → PanGu Large Models |
+
+Flip the active provider:
+
+```dotenv
+I3_LLM_PROVIDER=openai   # or google, mistral, cohere, bedrock, azure, ollama, openrouter, huawei_pangu
+```
+
+Gate live-API integration tests:
+
+```dotenv
+I3_TEST_LIVE_PROVIDERS=1   # unset in CI unless you've provisioned keys
+```
+
+#### Observability — all optional (service boots fine without any)
+
+| Variable | Tool | Where to obtain |
+|---|---|---|
+| `SENTRY_DSN`, `SENTRY_ENVIRONMENT`, `SENTRY_TRACES_SAMPLE_RATE`, `SENTRY_PROFILES_SAMPLE_RATE` | Sentry error tracking | [sentry.io](https://sentry.io/) → Project → Client Keys |
+| `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME`, `OTEL_RESOURCE_ATTRIBUTES`, `OTEL_TRACES_SAMPLER`, `OTEL_TRACES_SAMPLER_ARG` | OpenTelemetry traces + metrics | Your collector / Grafana Tempo / Jaeger endpoint |
+| `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST` | Langfuse LLM-call tracing | [cloud.langfuse.com](https://cloud.langfuse.com/) → Project → Settings → API Keys |
+| `LOGFIRE_TOKEN` | Pydantic-native structured logs | [logfire.pydantic.dev](https://logfire.pydantic.dev/) |
+| `TRACELOOP_API_KEY`, `TRACELOOP_BASE_URL` | OpenLLMetry (LLM OTel semconv) | [traceloop.com](https://www.traceloop.com/) |
+| `PYROSCOPE_SERVER_URL`, `PYROSCOPE_ENABLE_ALLOC` | Pyroscope continuous profiling | [grafana.com/products/cloud/profiles-for-continuous-profiling](https://grafana.com/products/cloud/profiles-for-continuous-profiling/) or self-hosted |
+| `MLFLOW_TRACKING_URI`, `MLFLOW_EXPERIMENT_NAME` | MLflow experiment tracking | Your MLflow server, or `file:./mlruns` for local |
+| `WANDB_API_KEY`, `WANDB_PROJECT` | Weights & Biases model registry | `wandb login`, or [wandb.ai/settings](https://wandb.ai/settings) |
+
+#### Complete `.env` skeleton
+
+```dotenv
+# ── REQUIRED ───────────────────────────────────────────────────────
+I3_ENCRYPTION_KEY=<32-byte fernet key; the `env` stage writes this>
+
+# ── STRONGLY RECOMMENDED ──────────────────────────────────────────
+ANTHROPIC_API_KEY=sk-ant-...
+
+# ── SERVER ────────────────────────────────────────────────────────
+I3_HOST=127.0.0.1
+I3_PORT=8000
+I3_LOG_LEVEL=INFO
+I3_LOG_FORMAT=json
+I3_CORS_ORIGINS=http://localhost:8000,http://127.0.0.1:8000
+I3_DB_PATH=data/i3.db
+I3_ENCODER_CHECKPOINT=checkpoints/encoder/best.pt
+I3_SLM_CHECKPOINT=checkpoints/slm/best.pt
+
+# ── FEATURE FLAGS ─────────────────────────────────────────────────
+I3_DEMO_MODE=0
+I3_OFFLINE_ONLY=false
+I3_METRICS_ENABLED=1
+
+# ── AUTH (optional) ───────────────────────────────────────────────
+# I3_ADMIN_TOKEN=<long random string>
+# I3_REQUIRE_USER_AUTH=1
+# I3_USER_TOKENS={"alice":"alice-secret"}
+
+# ── ALT LLM PROVIDERS (optional) ──────────────────────────────────
+# I3_LLM_PROVIDER=anthropic
+# OPENAI_API_KEY=
+# GOOGLE_API_KEY=
+# MISTRAL_API_KEY=
+# COHERE_API_KEY=
+# OPENROUTER_API_KEY=
+# AZURE_OPENAI_API_KEY=
+# AZURE_OPENAI_ENDPOINT=
+# AWS_ACCESS_KEY_ID=
+# AWS_SECRET_ACCESS_KEY=
+# AWS_REGION=us-east-1
+# HUAWEI_CLOUD_PANGU_APIKEY=
+# OLLAMA_BASE_URL=http://localhost:11434
+
+# ── OBSERVABILITY (optional) ──────────────────────────────────────
+# SENTRY_DSN=
+# OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+# LANGFUSE_PUBLIC_KEY=
+# LANGFUSE_SECRET_KEY=
+# LOGFIRE_TOKEN=
+# MLFLOW_TRACKING_URI=file:./mlruns
+# WANDB_API_KEY=
+```
 
 ---
 
@@ -778,28 +929,211 @@ The full API reference is at
 
 ## The demo UI
 
-Two user interfaces ship with the project.
+The server serves **four** interactive surfaces on the same port plus a
+separate MkDocs site.  Everything is static HTML + vanilla JS /
+Three.js / Chart.js — no build step required on the front end.
 
-- **Basic UI** at `/` — a single-page app in vanilla HTML/CSS/JS with
-  a chat area, route/latency badges, and animated adaptation gauges.
-- **Advanced UI** at `/advanced` — a cinematic command-centre layout:
-  a seven-panel CSS-Grid with a Three.js 3-D embedding cloud, Chart.js
-  metric graphs, SVG radial adaptation gauges with uncertainty bands,
-  a 4 × 4 cross-attention heatmap, an `Alt + T` guided tour that
-  walks the four demo phases autonomously, and a runtime WCAG 2.2 AA
-  contrast audit.
+### Surfaces
 
-To run:
+| URL | What it is | When to use |
+|---|---|---|
+| `http://127.0.0.1:8000/` | **Demo SPA** (`web/index.html`) — chat + live dashboard | Everyday interaction + presenting the demo |
+| `http://127.0.0.1:8000/advanced/` | **Command Center** (`web/advanced/`) — 7-panel cinematic dashboard | Interview demo, screen recording, guided tour |
+| `http://127.0.0.1:8000/api/docs` | **Swagger UI** — interactive OpenAPI explorer | Hand-firing REST endpoints |
+| `http://127.0.0.1:8000/api/redoc` | **ReDoc** — reference-style API docs | Reading the API schema |
+| `http://127.0.0.1:8001/` | **MkDocs site** (via `make docs-serve`) | Project documentation |
+
+### Launch
 
 ```bash
-make run
-# Open http://127.0.0.1:8000/
-# Or:   http://127.0.0.1:8000/advanced
+# One command — seeds demo data, starts dev server, opens browser
+make demo
+#   ▶ http://127.0.0.1:8000/             (Demo SPA)
+#   ▶ http://127.0.0.1:8000/advanced/    (Command Center)
+#   ▶ http://127.0.0.1:8000/api/docs     (Swagger)
+#   ▶ http://127.0.0.1:8000/api/redoc    (ReDoc)
+
+# Or via the orchestrator (install + env + verify + serve)
+make all-fast
+
+# Or raw
+poetry run uvicorn server.app:create_app --factory --reload
 ```
 
-Keystroke capture is browser-local — nothing is transmitted to the
-server beyond the inter-key-interval list and the submitted message
-text.
+To serve the MkDocs site at the same time:
+
+```bash
+make docs-serve
+# ▶ http://127.0.0.1:8001/
+```
+
+### Demo SPA — what the two columns show
+
+**Left column — Chat**
+- Single input + Send button
+- Every keystroke is captured (timing + key type) and streamed to the
+  server over WebSocket (`/ws/{user_id}`)
+- AI responses appear with badges: **route** (`local_slm` /
+  `cloud_llm`), **latency**, **adaptation vector**
+
+**Right column — Live dashboard**
+- **User State** — 2-D PCA projection of the 64-dim TCN embedding,
+  one dot per message
+- **Adaptation gauges** — eight radials: cognitive load, style
+  mirror, emotional tone, warmth, formality, response length,
+  accessibility, complexity
+- **Routing** — donut of which arm fired, confidence, Thompson-sample
+  distribution
+- **Session** — message count, baseline deviation, engagement score
+
+### Command Center (`/advanced/`) — seven panels
+
+1. **Top bar** — live clock, connection status, tour + record-mode
+   controls
+2. **Chat** — composition-intensity meter that pulses with inter-key
+   interval
+3. **3-D embedding space** (Three.js) — last 200 user-state embeddings
+   as a rotating, colour-coded sphere; the current state glows and
+   pulses, older states fade
+4. **Adaptation gauges** — eight radial SVGs with animated fills,
+   target markers, and uncertainty bands from the MC-dropout UQ head
+5. **Cross-attention heatmap** (4 × 4) — live-animated from
+   `/api/explain/adaptation` with a synthetic fallback
+6. **Router dashboard** — donut of `local_slm` / `cloud` /
+   `local_reflect` counts, P50/P95 latency line chart, live cost
+   counter in GBP broken down per provider
+7. **Interpretability strip** — counterfactual "why this response"
+   text, uncertainty pills, refusal badges, active A/B preference
+   readout
+
+### Keyboard shortcuts (Command Center)
+
+| Key | Action |
+|---|---|
+| `Alt+T` | Start the **guided cinematic tour** (Cold Start → Energetic → Fatigue → Accessibility) |
+| `Alt+S` | **Screen-recording preset** — hide dev chrome, bump font size, slow transitions, high-visibility cursor |
+| `Alt+R` | Reset the demo user |
+| `Alt+W` | What-if panel (counterfactual adaptation override) |
+| `Alt+A` | Run the WCAG 2.2 AA contrast audit (results in browser console) |
+| `Alt+M` | Toggle reduced motion |
+| `?` | Shortcut help overlay |
+| `Esc` | Cancel / close overlay |
+
+### 60-second walkthrough — try these in order
+
+1. Type `Hello` → cognitive-load gauge settles mid-range (cold-start baseline).
+2. Type *"Can you explain how a TCN's receptive field is computed?"* → complexity gauge climbs, route may stay local.
+3. Type the same question slowly with corrections → motor-accessibility score rises, response simplifies.
+4. Type *"I'm feeling overwhelmed and need something gentle"* → emotional-tone warmth rises.
+5. Type *"Can you summarise what I've been talking about?"* → session-summary reply, metadata-only, no raw content leaks.
+
+### Privacy by design
+
+- Chat bubbles use `textContent`, never `innerHTML` — AI output cannot
+  inject HTML/JS.
+- Keystroke capture is browser-local; only the **inter-key-interval**
+  list (plus the submitted message text) is transmitted.
+- WebSocket `Origin` is validated against `I3_CORS_ORIGINS` before the
+  handshake completes.
+- Per-user WebSocket rate limit; violators are closed with RFC-6455
+  code 1008.
+- Message text is capped at ~4 KB; keystroke buffer is bounded.
+
+### Interacting without the UI — three options
+
+#### REST (easiest)
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/translate \
+    -H 'Content-Type: application/json' \
+    -H 'X-I3-User-Id: alice' \
+    -d '{
+        "user_id": "alice",
+        "text": "Explain how TCNs work.",
+        "target_lang": "en",
+        "keystroke_intervals_ms": [120, 145, 98, 210, 88]
+    }'
+
+curl -s http://127.0.0.1:8000/api/user/demo_user/profile | jq
+curl -s "http://127.0.0.1:8000/api/user/demo_user/diary?limit=10" | jq
+curl -s http://127.0.0.1:8000/api/user/demo_user/stats | jq
+curl -s http://127.0.0.1:8000/api/profiling/report | jq
+
+# Demo mode (requires I3_DEMO_MODE=1)
+curl -X POST http://127.0.0.1:8000/api/demo/seed
+curl -X POST http://127.0.0.1:8000/api/demo/reset
+
+# Counterfactual what-if
+curl -X POST http://127.0.0.1:8000/api/whatif \
+  -H 'Content-Type: application/json' \
+  -d '{"user_id":"demo_user","message":"hi","adaptation_override":{"cognitive_load":0.9}}'
+```
+
+Every endpoint is discoverable via Swagger at `/api/docs`.
+
+#### WebSocket (how the UI works)
+
+```javascript
+const ws = new WebSocket("ws://127.0.0.1:8000/ws/alice");
+
+// Stream keystroke timings as the user types
+ws.send(JSON.stringify({
+  type: "keystroke",
+  timestamp: Date.now() / 1000,
+  key_type: "char",
+  inter_key_interval_ms: 145,
+}));
+
+// Submit the full message when Enter is pressed
+ws.send(JSON.stringify({
+  type: "message",
+  text: "Hello, how are you?",
+}));
+
+ws.onmessage = (ev) => {
+  const msg = JSON.parse(ev.data);
+  // msg.type ∈ {"session_started","response","adaptation_update","error"}
+};
+```
+
+#### Python SDK (no server)
+
+```python
+import asyncio
+from i3.config import load_config
+from i3.pipeline.engine import PipelineEngine
+from i3.pipeline.types import PipelineInput
+
+async def main() -> None:
+    engine = await PipelineEngine.create(load_config("configs/default.yaml"))
+    out = await engine.process(PipelineInput(
+        user_id="alice",
+        message="Can you explain how TCNs work?",
+        keystroke_intervals_ms=[120, 145, 98, 210, 88, 112, 155, 95],
+        timestamp=1712534400.0,
+    ))
+    print(out.route, out.latency_ms, out.response)
+
+asyncio.run(main())
+```
+
+### Endpoint map
+
+| Category | Endpoint | Method |
+|---|---|---|
+| **Health** | `/api/health`, `/api/live`, `/api/ready`, `/api/metrics` | GET |
+| **User** | `/api/user/{uid}/profile`, `/diary`, `/stats` | GET (auth-gated) |
+| **WebSocket** | `/ws/{user_id}` | WS |
+| **Explain** | `/api/explain/adaptation`, `/api/explain/feature/{name}` | POST/GET |
+| **What-if** | `/api/whatif`, `/api/whatif/suggest` | POST |
+| **TTS** | `/api/tts`, `/api/tts/backends`, `/api/tts/preview` | POST/GET |
+| **Translate** | `/api/translate`, `/api/translate/languages` | POST/GET |
+| **Preference** | `/api/preference`, `/api/preference/query/{uid}`, `/stats/{uid}` | POST/GET |
+| **Profiling** | `/api/profiling/report` | GET |
+| **Demo** (flag-gated) | `/api/demo/reset`, `/api/demo/seed` | POST |
+| **Admin** (token-gated) | `/admin/reset`, `/profiling`, `/seed`, `/users/{uid}` | POST/GET/DELETE |
+| **Inference** | `/api/inference/{model}` | GET |
+| **Docs** | `/api/docs`, `/api/redoc`, `/api/openapi.json` | GET |
 
 ---
 
@@ -1124,6 +1458,96 @@ Build + release
 ```
 
 Full target listing: `make help`.
+
+---
+
+## Troubleshooting
+
+### Installation
+
+- **`poetry: command not found`** — install poetry:
+  `curl -sSL https://install.python-poetry.org | python3 -` (Linux/macOS)
+  or `pip install poetry` (Windows).
+- **`Python 3.10+ required, have 3.9`** — install a newer Python:
+  see the [Prerequisites](#prerequisites) table.
+- **`poetry install` hangs on resolution** — the deep-learning stack is
+  large (~2.5 GB).  Wait 5–10 minutes on first run.  If it genuinely
+  hangs, try `poetry lock --no-update && poetry install`.
+- **`ModuleNotFoundError: rich` in the orchestrator** — the script
+  self-installs `rich` into the current interpreter; wait for the
+  first `pip install --user` line to complete.
+
+### Encryption
+
+- **`ValueError: Fernet key must be 32 url-safe base64-encoded bytes`**
+  — `I3_ENCRYPTION_KEY` is empty or malformed.  Regenerate:
+  `poetry run python scripts/security/generate_encryption_key.py --update-env`.
+- **`cryptography.fernet.InvalidToken`** — you changed the key between
+  writes.  Either restore the old key or rotate with `MultiFernet`
+  (see `ModelEncryptor.rotate_to`).
+
+### Cloud routing
+
+- **Anthropic 401 / 403** — `ANTHROPIC_API_KEY` is wrong, expired, or
+  out of credits.  The router logs a warning and falls back to the
+  local SLM; the demo still works.
+- **"cloud arm never fires"** — set `I3_OFFLINE_ONLY=false` (the
+  default) and make sure a provider key is present.  Flip the active
+  provider with `I3_LLM_PROVIDER=openai` (or another supported name).
+
+### Server
+
+- **Port 8000 already in use** — `I3_PORT=8001 make serve-dev`.
+- **`CORS error` in browser console** — add the origin to
+  `I3_CORS_ORIGINS`.  The SPA assumes `http://localhost:8000` and
+  `http://127.0.0.1:8000`.
+- **WebSocket closes with code 1008** — `Origin` header is not in
+  `I3_CORS_ORIGINS`.  Either add it or load the SPA from one of the
+  allow-listed origins.
+- **Uvicorn refuses multi-worker start** — the in-process rate limiter
+  is per-worker; set `I3_ALLOW_LOCAL_LIMITER=1` to acknowledge or run
+  behind nginx / HAProxy.
+
+### Training
+
+- **Training loss NaN / Inf** — reduce the learning rate, ensure the
+  input data has no degenerate samples (quality rules in
+  `i3/data/quality.py` catch most of these), or lower the contrastive
+  temperature `contrastive_tau`.
+- **CUDA out of memory** — reduce `batch_size` in
+  `configs/default.yaml` or pass `--batch-size 32` to the training
+  script.
+
+### Tests / verification
+
+- **`pytest` collects 0 tests** — run from the repo root; tests assume
+  `$PWD` is the package root.
+- **`torch` import fails with `WinError 1114`** — a Windows-specific
+  CPU-wheel issue.  The test suite's
+  [`tests/conftest.py`](tests/conftest.py) automatically registers
+  torch-dependent test modules in `collect_ignore_glob` when the
+  import fails, so the non-torch subset still runs.
+- **`mkdocs build --strict` fails with a social-plugin warning** —
+  native `libcairo-2.dll` is missing.  On Linux CI runners this is
+  already installed.  Locally: `brew install cairo` /
+  `sudo apt install libcairo2` / install [GTK3 runtime](https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer) on Windows.
+
+### Docker
+
+- **`docker: command not found`** — install Docker Desktop (macOS /
+  Windows) or the Docker Engine + Compose plugin (Linux).
+- **`make docker-up` hangs on "Waiting for health check"** — the app
+  takes ~15 s to load PyTorch.  `docker compose logs -f app` shows
+  progress.  Increase the health-check `start_period` in
+  `docker-compose.yml` if your machine is slow.
+
+### Where to look when something else breaks
+
+1. `reports/orchestration/<stage>.log` — the stage log
+2. `reports/verification_<timestamp>.md` — the latest verification run
+3. `docs/operations/troubleshooting.md` — the full operator-oriented
+   troubleshooting guide
+4. `docs/operations/runbook.md` — production runbook
 
 ---
 
