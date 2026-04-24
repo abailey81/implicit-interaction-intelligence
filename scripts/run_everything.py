@@ -97,7 +97,9 @@ def _ensure_rich() -> None:
 
 _ensure_rich()
 
+from rich.columns import Columns  # noqa: E402
 from rich.console import Console, Group  # noqa: E402
+from rich.layout import Layout  # noqa: E402
 from rich.live import Live  # noqa: E402
 from rich.panel import Panel  # noqa: E402
 from rich.progress import (  # noqa: E402
@@ -112,6 +114,47 @@ from rich.progress import (  # noqa: E402
 from rich.rule import Rule  # noqa: E402
 from rich.table import Table  # noqa: E402
 from rich.text import Text  # noqa: E402
+
+
+# ---------------------------------------------------------------------------
+# Dashboard-support imports (sibling modules authored by this feature).
+# They live alongside the orchestrator so a fresh clone needs nothing
+# beyond the repo root on sys.path.
+# ---------------------------------------------------------------------------
+
+# ``scripts/`` is not a package; ``orchestration_progress`` lives next to
+# this file, so we load it via a filesystem spec.
+import importlib.util as _importlib_util  # noqa: E402
+
+_PROGRESS_SPEC = _importlib_util.spec_from_file_location(
+    "orchestration_progress",
+    Path(__file__).resolve().parent / "orchestration_progress.py",
+)
+assert _PROGRESS_SPEC and _PROGRESS_SPEC.loader
+orchestration_progress = _importlib_util.module_from_spec(_PROGRESS_SPEC)
+sys.modules.setdefault("orchestration_progress", orchestration_progress)
+_PROGRESS_SPEC.loader.exec_module(orchestration_progress)
+
+# ``i3.runtime.monitoring`` needs the repo root on sys.path so the
+# import works whether we're invoked via ``poetry run`` or the bare
+# interpreter.
+_REPO_ROOT_STR = str(Path(__file__).resolve().parent.parent)
+if _REPO_ROOT_STR not in sys.path:
+    sys.path.insert(0, _REPO_ROOT_STR)
+
+try:
+    from i3.runtime.monitoring import (  # noqa: E402
+        ResourceSampler,
+        ResourceSnapshot,
+        render_resource_panel,
+    )
+
+    _HAS_MONITORING = True
+except Exception:  # noqa: BLE001 - extremely unlikely but keeps orchestrator robust
+    ResourceSampler = None  # type: ignore[assignment,misc]
+    ResourceSnapshot = None  # type: ignore[assignment,misc]
+    render_resource_panel = None  # type: ignore[assignment]
+    _HAS_MONITORING = False
 
 
 CONSOLE = Console()
@@ -166,6 +209,199 @@ class Stage:
     @property
     def log_path(self) -> Path:
         return LOG_DIR / f"{self.name}.log"
+
+
+# ---------------------------------------------------------------------------
+# Post-stage health check registry.  Each function takes the completed
+# ``Stage`` and returns an optional one-line badge rendered in the
+# pipeline-status table (e.g. "✓ 2.5M params (16 MiB)").  A raised
+# exception turns into a red "check failed" annotation but never aborts
+# the run — we trust the stage's own exit code for failure gating.
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class HealthBadge:
+    """One-line post-stage annotation."""
+
+    ok: bool
+    text: str
+
+
+def _fmt_bytes(n: float) -> str:
+    units = ["B", "KiB", "MiB", "GiB", "TiB"]
+    i = 0
+    while n >= 1024 and i < len(units) - 1:
+        n /= 1024
+        i += 1
+    return f"{n:.1f} {units[i]}"
+
+
+def _check_torch_checkpoint(path: Path, required_keys: list[str]) -> HealthBadge:
+    """Load a torch checkpoint and verify required keys + param count."""
+    try:
+        import torch  # type: ignore
+    except Exception as exc:  # noqa: BLE001
+        return HealthBadge(False, f"torch not available ({exc})")
+    try:
+        ckpt = torch.load(
+            str(path), map_location="cpu", weights_only=False
+        )  # trusted: produced by us this run
+    except Exception as exc:  # noqa: BLE001
+        return HealthBadge(False, f"load failed: {exc}")
+    missing = [k for k in required_keys if k not in ckpt]
+    if missing:
+        return HealthBadge(False, f"missing keys: {','.join(missing)}")
+    n_params = 0
+    state = ckpt.get("model_state_dict") or ckpt.get("state_dict") or {}
+    if isinstance(state, dict):
+        n_params = sum(
+            int(v.numel()) for v in state.values() if hasattr(v, "numel")
+        )
+    size = path.stat().st_size
+    if n_params:
+        pretty = (
+            f"{n_params / 1_000_000:.1f}M params"
+            if n_params >= 1_000_000
+            else f"{n_params / 1000:.1f}K params"
+        )
+        return HealthBadge(True, f"{pretty} ({_fmt_bytes(size)})")
+    return HealthBadge(True, f"checkpoint {_fmt_bytes(size)}")
+
+
+def _check_onnx(path: Path) -> HealthBadge:
+    """Ensure the exported ONNX has a non-empty graph."""
+    if not path.exists():
+        return HealthBadge(False, "onnx file missing")
+    try:
+        import onnx  # type: ignore
+    except Exception:  # noqa: BLE001
+        return HealthBadge(True, f"onnx {_fmt_bytes(path.stat().st_size)} (onnx not installed)")
+    try:
+        model = onnx.load(str(path))
+        n_nodes = len(model.graph.node)
+        return HealthBadge(
+            n_nodes > 0,
+            f"{n_nodes} nodes ({_fmt_bytes(path.stat().st_size)})",
+        )
+    except Exception as exc:  # noqa: BLE001
+        return HealthBadge(False, f"onnx parse failed: {exc}")
+
+
+def _check_file_nonempty(path: Path) -> HealthBadge:
+    if not path.exists():
+        return HealthBadge(False, f"{path.name} missing")
+    size = path.stat().st_size
+    if size == 0:
+        return HealthBadge(False, f"{path.name} empty")
+    return HealthBadge(True, f"{path.name} {_fmt_bytes(size)}")
+
+
+def _check_data_outputs(stage: Stage) -> HealthBadge:
+    """All produced .pt shards exist + report row count if possible."""
+    missing = [p for p in stage.produces if not p.exists()]
+    if missing:
+        return HealthBadge(False, f"missing {','.join(p.name for p in missing)}")
+    total_rows = 0
+    try:
+        import torch  # type: ignore
+
+        for p in stage.produces:
+            if p.suffix == ".pt":
+                data = torch.load(str(p), map_location="cpu", weights_only=False)
+                # Shape [N, ...] or tuple of (X, y); best-effort.
+                if hasattr(data, "shape"):
+                    total_rows += int(data.shape[0])
+                elif isinstance(data, (tuple, list)) and hasattr(data[0], "shape"):
+                    total_rows += int(data[0].shape[0])
+                elif isinstance(data, dict) and "sequences" in data and hasattr(data["sequences"], "shape"):
+                    total_rows += int(data["sequences"].shape[0])
+    except Exception:  # noqa: BLE001
+        pass
+    size = sum(p.stat().st_size for p in stage.produces)
+    if total_rows:
+        return HealthBadge(True, f"{total_rows:,} rows · {_fmt_bytes(size)}")
+    return HealthBadge(True, f"{len(stage.produces)} files · {_fmt_bytes(size)}")
+
+
+def _check_pytest_log(stage: Stage) -> HealthBadge:
+    """Scrape pass / fail totals from the latest log tail."""
+    if not stage.log_path.exists():
+        return HealthBadge(False, "no log")
+    import re as _re
+
+    text = stage.log_path.read_text(encoding="utf-8", errors="replace")
+    pat = _re.compile(
+        r"(\d+)\s+passed"
+        r"(?:[^,]*?,\s*(\d+)\s+failed)?"
+        r"(?:[^,]*?,\s*(\d+)\s+skipped)?"
+    )
+    last: tuple[int, int, int] | None = None
+    for m in pat.finditer(text):
+        last = (int(m.group(1)), int(m.group(2) or 0), int(m.group(3) or 0))
+    if last is None:
+        return HealthBadge(False, "no pytest summary found")
+    passed, failed, skipped = last
+    return HealthBadge(
+        failed == 0,
+        f"{passed} passed · {failed} failed · {skipped} skipped",
+    )
+
+
+def _check_docker_image(_stage: Stage) -> HealthBadge:
+    res = subprocess.run(
+        ["docker", "image", "inspect", "i3:latest"],
+        capture_output=True,
+        text=True,
+    )
+    if res.returncode != 0:
+        return HealthBadge(False, "docker image missing")
+    return HealthBadge(True, "i3:latest present")
+
+
+def _check_verify_report(_stage: Stage) -> HealthBadge:
+    """Find the most recent verification_*.md and scrape its verdict."""
+    candidates = sorted(REPORTS_DIR.glob("verification_*.md"))
+    if not candidates:
+        return HealthBadge(False, "no verification report")
+    latest = candidates[-1]
+    text = latest.read_text(encoding="utf-8", errors="replace")
+    # Cheap heuristic: verification reports end with PASS/FAIL.
+    if "FAIL" in text.split("\n")[-5:][0:].__str__().upper() or "fail=" in text.lower() and "fail=0" not in text.lower():
+        ok = False
+    else:
+        ok = True
+    return HealthBadge(ok, f"{latest.name}")
+
+
+def _check_docs_site(_stage: Stage) -> HealthBadge:
+    idx = REPO_ROOT / "site" / "index.html"
+    if not idx.exists() or idx.stat().st_size == 0:
+        return HealthBadge(False, "site/index.html missing or empty")
+    return HealthBadge(True, f"site/index.html {_fmt_bytes(idx.stat().st_size)}")
+
+
+# Registry keyed by stage name.
+HEALTH_CHECKS: dict[str, Callable[[Stage], HealthBadge]] = {
+    "train-encoder": lambda s: _check_torch_checkpoint(
+        REPO_ROOT / "checkpoints" / "encoder" / "best_model.pt",
+        ["model_state_dict"],
+    ),
+    "train-slm": lambda s: _check_torch_checkpoint(
+        REPO_ROOT / "checkpoints" / "slm" / "best_model.pt",
+        ["model_state_dict"],
+    ),
+    "onnx-export": lambda s: _check_onnx(
+        REPO_ROOT / "checkpoints" / "encoder" / "tcn.onnx"
+    ),
+    "data": _check_data_outputs,
+    "dialogue": _check_data_outputs,
+    "test": _check_pytest_log,
+    "benchmarks": _check_pytest_log,
+    "docker-build": _check_docker_image,
+    "verify": _check_verify_report,
+    "docs": _check_docs_site,
+}
 
 
 # ---------------------------------------------------------------------------
@@ -300,6 +536,196 @@ def _action_launch_server(args: argparse.Namespace) -> None:
         )
     )
     os.execvp(cmd[0], cmd)
+
+
+# ---------------------------------------------------------------------------
+# Pre-flight checks.  Run before wave 0 so broken environments fail
+# immediately with a clear diagnosis rather than exploding half-way
+# through training.
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class PreflightResult:
+    """One pre-flight line."""
+
+    ok: bool  # True = green ✓; False + fatal=False = yellow ⚠; False + fatal=True = red ✗
+    label: str
+    detail: str
+    fatal: bool = False
+
+
+def _preflight_python() -> PreflightResult:
+    v = sys.version_info
+    ok = v >= (3, 12)
+    return PreflightResult(
+        ok,
+        "Python version",
+        f"{v.major}.{v.minor}.{v.micro}",
+        fatal=not ok,
+    )
+
+
+def _preflight_disk() -> PreflightResult:
+    try:
+        import psutil
+
+        path = "D:" if os.path.exists("D:") else os.getcwd()
+        usage = psutil.disk_usage(path)
+        gib = usage.free / (1024**3)
+    except Exception as exc:  # noqa: BLE001
+        return PreflightResult(False, "Disk free", f"error: {exc}", fatal=False)
+    if gib < 5:
+        return PreflightResult(False, f"Disk free ({path})", f"{gib:.1f} GiB — CRITICAL", fatal=True)
+    if gib < 10:
+        return PreflightResult(False, f"Disk free ({path})", f"{gib:.1f} GiB — low", fatal=False)
+    return PreflightResult(True, f"Disk free ({path})", f"{gib:.1f} GiB")
+
+
+def _preflight_docker(args: argparse.Namespace) -> PreflightResult | None:
+    if not getattr(args, "with_docker", False):
+        return None
+    if not _docker_available():
+        return PreflightResult(False, "Docker", "docker not on PATH", fatal=True)
+    try:
+        res = subprocess.run(
+            ["docker", "info"], capture_output=True, text=True, timeout=10
+        )
+        if res.returncode != 0:
+            return PreflightResult(False, "Docker daemon", "not reachable", fatal=True)
+    except Exception as exc:  # noqa: BLE001
+        return PreflightResult(False, "Docker daemon", f"error: {exc}", fatal=True)
+    return PreflightResult(True, "Docker daemon", "reachable")
+
+
+def _preflight_env_file() -> PreflightResult:
+    env_path = REPO_ROOT / ".env"
+    if not env_path.exists():
+        return PreflightResult(False, ".env", "missing — will be generated", fatal=False)
+    text = env_path.read_text(encoding="utf-8", errors="replace")
+    n_placeholders = text.count("REPLACE_ME")
+    if n_placeholders:
+        return PreflightResult(
+            False,
+            ".env",
+            f"contains {n_placeholders} REPLACE_ME placeholder(s)",
+            fatal=False,
+        )
+    return PreflightResult(True, ".env", "populated")
+
+
+def _preflight_gpu() -> PreflightResult | None:
+    try:
+        import torch  # type: ignore
+    except Exception:  # noqa: BLE001
+        return None
+    if not torch.cuda.is_available():
+        return PreflightResult(True, "GPU", "CPU-only torch (no CUDA)", fatal=False)
+    name = torch.cuda.get_device_name(0)
+    try:
+        free_b, total_b = torch.cuda.mem_get_info(0)
+        vram_gib = total_b / (1024**3)
+    except Exception:  # noqa: BLE001
+        vram_gib = 0.0
+    if vram_gib and vram_gib < 4:
+        return PreflightResult(False, "GPU", f"{name} · {vram_gib:.1f} GiB VRAM — tight", fatal=False)
+    if vram_gib:
+        return PreflightResult(True, "GPU", f"{name} · {vram_gib:.1f} GiB VRAM")
+    return PreflightResult(True, "GPU", name)
+
+
+def _preflight_llm_ping() -> PreflightResult | None:
+    """Best-effort ping of a configured LLM provider.
+
+    Only runs when ``I3_TEST_LIVE_PROVIDERS=1`` so we never surprise
+    the user with a paid API call.
+    """
+    if os.environ.get("I3_TEST_LIVE_PROVIDERS") != "1":
+        return None
+    key = os.environ.get("ANTHROPIC_API_KEY")
+    if not key:
+        return None
+    try:
+        from anthropic import Anthropic  # type: ignore
+
+        client = Anthropic(api_key=key)
+        client.messages.create(
+            model="claude-3-5-haiku-latest",
+            max_tokens=1,
+            messages=[{"role": "user", "content": "hi"}],
+        )
+    except Exception as exc:  # noqa: BLE001
+        return PreflightResult(False, "Anthropic API", f"ping failed: {exc}", fatal=False)
+    return PreflightResult(True, "Anthropic API", "reachable (1-token ping)")
+
+
+def _preflight_sidecars() -> list[PreflightResult]:
+    """Best-effort probe of OTel collector + MLflow if configured."""
+    results: list[PreflightResult] = []
+    otel = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", "")
+    if otel:
+        import socket as _socket
+        from urllib.parse import urlparse
+
+        parsed = urlparse(otel if "://" in otel else f"http://{otel}")
+        host = parsed.hostname or "localhost"
+        port = parsed.port or 4317
+        try:
+            with _socket.create_connection((host, port), timeout=2):
+                pass
+            results.append(PreflightResult(True, "OTel collector", f"{host}:{port}"))
+        except Exception as exc:  # noqa: BLE001
+            results.append(
+                PreflightResult(False, "OTel collector", f"{host}:{port} · {exc}", fatal=False)
+            )
+    mlflow = os.environ.get("MLFLOW_TRACKING_URI", "")
+    if mlflow.startswith("http"):
+        try:
+            import urllib.request as _ur
+
+            with _ur.urlopen(mlflow, timeout=2):
+                pass
+            results.append(PreflightResult(True, "MLflow", mlflow))
+        except Exception as exc:  # noqa: BLE001
+            results.append(
+                PreflightResult(False, "MLflow", f"{mlflow} · {exc}", fatal=False)
+            )
+    return results
+
+
+def _render_preflight_panel(results: list[PreflightResult]) -> Panel:
+    """Render the pre-flight summary as a single collapsible panel."""
+    table = Table.grid(padding=(0, 1))
+    table.add_column(no_wrap=True)
+    table.add_column(no_wrap=True)
+    table.add_column()
+    for r in results:
+        if r.ok:
+            icon = Text("✓", style="green")
+        elif r.fatal:
+            icon = Text("✗", style="red bold")
+        else:
+            icon = Text("⚠", style="yellow")
+        table.add_row(icon, Text(r.label, style="bold"), Text(r.detail))
+    return Panel(table, title="Pre-flight", border_style="cyan", padding=(0, 1))
+
+
+def _preflight_checks(args: argparse.Namespace) -> list[PreflightResult]:
+    """Run all pre-flight checks in order."""
+    results: list[PreflightResult] = [
+        _preflight_python(),
+        _preflight_disk(),
+        _preflight_env_file(),
+    ]
+    for optional in (
+        _preflight_gpu(),
+        _preflight_docker(args),
+        _preflight_llm_ping(),
+    ):
+        if optional is not None:
+            results.append(optional)
+    results.extend(_preflight_sidecars())
+    return results
 
 
 # ---------------------------------------------------------------------------
@@ -835,7 +1261,9 @@ def _status_table(
     statuses: dict[str, str],
     timings: dict[str, float],
     history: dict[str, float],
+    badges: dict[str, HealthBadge] | None = None,
 ) -> Table:
+    badges = badges or {}
     table = Table(
         title="Pipeline status",
         title_style="bold",
@@ -849,11 +1277,14 @@ def _status_table(
     table.add_column("Description")
     table.add_column("Status", width=14)
     table.add_column("Elapsed", justify="right", width=9)
-    table.add_column("ETA", justify="right", width=9)
+    table.add_column("ETA / badge", width=28)
 
     for i, stage in enumerate(stages):
         status = statuses.get(stage.name, "pending")
         if i == current_idx and status == "running":
+            icon = "[cyan]●[/cyan]"
+            status_cell = Text("running", style="cyan")
+        elif status == "running":
             icon = "[cyan]●[/cyan]"
             status_cell = Text("running", style="cyan")
         elif status == "done":
@@ -872,7 +1303,19 @@ def _status_table(
         elapsed = timings.get(stage.name)
         elapsed_cell = _fmt_seconds(elapsed) if elapsed is not None else "—"
         eta = history.get(stage.name, stage.eta_seed_s)
-        eta_cell = _fmt_seconds(eta) if status == "pending" else "—"
+
+        # ETA column doubles as the post-stage badge once the stage
+        # has finished — "✓ 2.5M params (42 MiB)" etc.
+        badge = badges.get(stage.name)
+        if status == "done" and badge is not None:
+            colour = "green" if badge.ok else "yellow"
+            eta_cell: Text = Text(
+                f"{'✓' if badge.ok else '⚠'} {badge.text}", style=colour
+            )
+        elif status == "pending":
+            eta_cell = Text(_fmt_seconds(eta), style="dim")
+        else:
+            eta_cell = Text("—", style="dim")
 
         cat_colour = _CATEGORY_COLOURS.get(stage.category, "white")
         table.add_row(
@@ -893,7 +1336,21 @@ def _stream_subprocess(
     progress: Progress,
     task_id: int,
     tail: list[str],
+    live_state: dict,
 ) -> int:
+    """Stream a subprocess's stdout into log file, tail ring, and progress.
+
+    For every line emitted we:
+
+    1. Write it verbatim to the stage's log file.
+    2. Append an ANSI-stripped copy to the shared rolling tail (so the
+       dashboard panel stays readable).
+    3. Dispatch to the stage's registered progress parser; if the
+       parser returns a :class:`ProgressUpdate` the rich progress bar
+       is updated with absolute ``completed`` / ``total`` values — this
+       is how the bar tracks real training progress instead of the
+       time-based ETA fallback.
+    """
     assert stage.cmd is not None
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     log_handle = stage.log_path.open("w", encoding="utf-8", errors="replace")
@@ -912,11 +1369,29 @@ def _stream_subprocess(
         for line in proc.stdout:
             log_handle.write(line)
             log_handle.flush()
-            clean = line.rstrip("\n")
+            raw = line.rstrip("\n")
+            clean = orchestration_progress.strip_ansi(raw)
             tail.append(clean)
             while len(tail) > 6:
                 tail.pop(0)
-            progress.update(task_id, advance=1)
+
+            # Stage-specific progress parser — drives the real bar.
+            update = orchestration_progress.parse_line(stage.name, clean)
+            if update is not None:
+                total = max(int(update.total), 1)
+                progress.update(
+                    task_id,
+                    completed=min(float(update.completed), float(total)),
+                    total=float(total),
+                    description=(
+                        f"[cyan]{stage.name}[/cyan] — {update.description}"
+                        if update.description
+                        else f"[cyan]{stage.name}[/cyan] — {stage.description}"
+                    ),
+                )
+                # Flag the stage as driven-by-parser so the heartbeat
+                # stops clobbering ``completed`` with the ETA estimate.
+                live_state.setdefault("parser_driven", set()).add(stage.name)
     finally:
         log_handle.close()
         proc.wait()
@@ -929,6 +1404,19 @@ def _run_stage(
     history: dict[str, float],
     live_state: dict,
 ) -> tuple[bool, float, str | None]:
+    """Run one stage and return ``(ok, elapsed_seconds, failure_msg)``.
+
+    Responsibilities:
+
+    * Allocate a progress task and drive it either via the parser
+      (preferred) or via a time-based ETA heartbeat (fallback).
+    * Keep a per-stage rolling log tail so the multi-pane log grid can
+      render every concurrent stage independently.
+    * Sample resource telemetry every 500 ms and record per-stage peaks
+      for the final summary.
+    * After a successful stage, run the registered health check and
+      attach a one-line badge to the pipeline-status table.
+    """
     eta = history.get(stage.name, stage.eta_seed_s)
     extra_env: dict[str, str] = {}
     if stage.needs_demo_mode:
@@ -940,17 +1428,43 @@ def _run_stage(
         description=f"[cyan]{stage.name}[/cyan] — {stage.description}",
         total=max(10, int(eta)),
     )
+    # Register this tail in the per-stage dict so the multi-pane log
+    # grid can render every active stage concurrently.
+    live_state.setdefault("stage_tails", {})[stage.name] = tail
+    live_state.setdefault("active_stages", set()).add(stage.name)
+    # Last-stage pointer is still useful for the --quiet single-pane
+    # view; mutate under a lock-free single-writer discipline.
     live_state["current_tail"] = tail
     live_state["current_stage"] = stage.name
     start = time.perf_counter()
+
+    # Peak-resource tracking — shared sampler with the main loop.
+    peaks = live_state.setdefault("peaks", {}).setdefault(
+        stage.name,
+        {"cpu": 0.0, "ram_mib": 0.0, "vram_mib": 0.0},
+    )
+    sampler: object | None = live_state.get("sampler")
 
     stop = threading.Event()
 
     def _heartbeat() -> None:
         while not stop.is_set():
             elapsed = time.perf_counter() - start
-            progress.update(task_id, completed=min(elapsed, eta - 0.01))
-            stop.wait(0.4)
+            # Only advance the bar by wall-clock when we don't have a
+            # real progress parser driving it.
+            if stage.name not in live_state.get("parser_driven", set()):
+                progress.update(task_id, completed=min(elapsed, eta - 0.01))
+            # Sample peak resources for this stage.
+            if sampler is not None:
+                try:
+                    snap = sampler.sample()  # type: ignore[attr-defined]
+                    peaks["cpu"] = max(peaks["cpu"], snap.cpu_pct)
+                    peaks["ram_mib"] = max(peaks["ram_mib"], snap.ram_used_mib)
+                    if snap.vram_used_mib is not None:
+                        peaks["vram_mib"] = max(peaks["vram_mib"], snap.vram_used_mib)
+                except Exception:  # noqa: BLE001
+                    pass
+            stop.wait(0.5)
 
     hb = threading.Thread(target=_heartbeat, daemon=True)
     hb.start()
@@ -961,7 +1475,9 @@ def _run_stage(
             stage.action(args)
             rc = 0
         else:
-            rc = _stream_subprocess(stage, extra_env, progress, task_id, tail)
+            rc = _stream_subprocess(
+                stage, extra_env, progress, task_id, tail, live_state
+            )
         if rc != 0:
             if stage.optional:
                 failure = f"optional stage exited with {rc} (continuing)"
@@ -972,32 +1488,161 @@ def _run_stage(
     finally:
         stop.set()
         hb.join(timeout=1.0)
+        live_state.get("active_stages", set()).discard(stage.name)
     seconds = time.perf_counter() - start
     progress.update(task_id, completed=max(10, int(eta)))
     progress.stop_task(task_id)
     ok = failure is None or stage.optional
+
+    # Post-stage health check — best-effort; never turns a passing
+    # stage into a failure, but the badge surfaces any anomaly.
+    if ok and failure is None and stage.name in HEALTH_CHECKS:
+        try:
+            badge = HEALTH_CHECKS[stage.name](stage)
+        except Exception as exc:  # noqa: BLE001
+            badge = HealthBadge(False, f"check error: {exc}")
+        live_state.setdefault("badges", {})[stage.name] = badge
+
     return ok, seconds, failure
 
 
-def _render(stages: list[Stage], state: dict) -> Group:
+def _render_log_grid(state: dict) -> Panel:
+    """Render one tail panel per currently-active stage.
+
+    During a parallel wave (e.g. wave 7 with 5 concurrent stages) we
+    flow the tails into a :class:`rich.columns.Columns` layout so every
+    stage gets its own visible tile rather than fighting over a single
+    tail panel.  Finished stages in the same wave get a compact "done"
+    summary in place of their tail.
+    """
+    active: set[str] = state.get("active_stages", set())
+    tails: dict[str, list[str]] = state.get("stage_tails", {})
+    statuses: dict[str, str] = state.get("statuses", {})
+    badges: dict[str, HealthBadge] = state.get("badges", {})
+
+    if not active and not tails:
+        return Panel(
+            "(waiting for first stage…)",
+            title="Active stage logs",
+            border_style="dim",
+            padding=(0, 1),
+        )
+
+    panels: list[Panel] = []
+    # Active first, then just-finished siblings from the current wave.
+    ordered = sorted(active) + [n for n in tails if n not in active][-3:]
+    seen: set[str] = set()
+    for name in ordered:
+        if name in seen:
+            continue
+        seen.add(name)
+        status = statuses.get(name, "running")
+        tail = tails.get(name, [])
+        if status == "done":
+            badge = badges.get(name)
+            body = (
+                f"[green]✓ done[/green] — {badge.text}"
+                if badge
+                else "[green]✓ done[/green]"
+            )
+            border = "green"
+        elif status == "failed":
+            body = "[red]✗ failed[/red] — see log tail"
+            border = "red"
+        else:
+            body = "\n".join(tail[-4:]) if tail else "(waiting for output…)"
+            border = "cyan" if name in active else "dim"
+        panels.append(
+            Panel(
+                body,
+                title=name,
+                border_style=border,
+                padding=(0, 1),
+                width=42,
+                height=7,
+            )
+        )
+    return Panel(
+        Columns(panels, equal=False, expand=True),
+        title="Active stage logs",
+        border_style="dim",
+        padding=(0, 0),
+    )
+
+
+def _render_quiet(stages: list[Stage], state: dict) -> Group:
+    """Simplified renderer for ``--quiet``: status table + one resource line."""
     table = _status_table(
         stages,
         current_idx=state["current_idx"],
         statuses=state["statuses"],
         timings=state["timings"],
         history=state["history"],
+        badges=state.get("badges", {}),
     )
-    progress = state["progress"]
-    tail_lines = state.get("current_tail") or []
-    stage_name = state.get("current_stage", "—")
-    tail_body = "\n".join(tail_lines[-6:]) if tail_lines else "(waiting for output…)"
-    tail_panel = Panel(
-        tail_body,
-        title=f"live log tail — {stage_name}",
-        border_style="dim",
-        padding=(0, 1),
+    snap: ResourceSnapshot | None = state.get("last_snapshot")  # type: ignore[assignment]
+    res_line = snap.format_line() if snap else ""
+    return Group(table, Text(res_line, style="dim"))
+
+
+def _render(stages: list[Stage], state: dict) -> Layout:
+    """Compose the full dashboard as a rich :class:`Layout` tree.
+
+    Top-down: pre-flight → resources → pipeline status table → progress
+    bars → multi-pane active-stage logs.  Each section is wrapped in a
+    Panel so the overall layout remains legible on a narrow terminal.
+    """
+    if state.get("quiet"):
+        # The quiet layout is a plain group so rich can render it as a
+        # sequence of lines; :class:`Live` is happy with either.
+        return _render_quiet(stages, state)  # type: ignore[return-value]
+
+    layout = Layout()
+    layout.split_column(
+        Layout(name="top", size=3 + max(1, len(state.get("preflight", [])))),
+        Layout(name="resources", size=9),
+        Layout(name="status", ratio=2, minimum_size=10),
+        Layout(name="progress", size=max(3, len(stages) + 2)),
+        Layout(name="logs", size=9),
     )
-    return Group(table, Rule(style="dim"), progress, tail_panel)
+
+    # Pre-flight panel (may be empty on skip).
+    preflight = state.get("preflight") or []
+    layout["top"].update(
+        _render_preflight_panel(preflight)
+        if preflight
+        else Panel(
+            Text("(pre-flight skipped)", style="dim"),
+            title="Pre-flight",
+            border_style="dim",
+            padding=(0, 1),
+        )
+    )
+
+    # Resource panel — refresh-driven by the sampler in the main loop.
+    snap: ResourceSnapshot | None = state.get("last_snapshot")  # type: ignore[assignment]
+    if snap is not None and render_resource_panel is not None:
+        layout["resources"].update(render_resource_panel(snap))
+    else:
+        layout["resources"].update(
+            Panel(Text("(monitoring unavailable)", style="dim"), border_style="dim")
+        )
+
+    layout["status"].update(
+        _status_table(
+            stages,
+            current_idx=state["current_idx"],
+            statuses=state["statuses"],
+            timings=state["timings"],
+            history=state["history"],
+            badges=state.get("badges", {}),
+        )
+    )
+    layout["progress"].update(
+        Panel(state["progress"], title="Live progress", border_style="dim")
+    )
+    layout["logs"].update(_render_log_grid(state))
+    return layout
 
 
 def _run(stages: list[Stage], args: argparse.Namespace) -> int:
@@ -1005,6 +1650,26 @@ def _run(stages: list[Stage], args: argparse.Namespace) -> int:
     statuses: dict[str, str] = {s.name: "pending" for s in stages}
     timings: dict[str, float] = {}
     failures: dict[str, str] = {}
+
+    # ---- Pre-flight --------------------------------------------------
+    preflight_results = _preflight_checks(args)
+    fatal_fails = [r for r in preflight_results if not r.ok and r.fatal]
+    if fatal_fails:
+        CONSOLE.print(_render_preflight_panel(preflight_results))
+        CONSOLE.print(
+            "[red bold]Fatal pre-flight failures:[/red bold] "
+            + ", ".join(r.label for r in fatal_fails)
+        )
+        if not getattr(args, "yes", False):
+            try:
+                ans = input("Continue anyway? [y/N] ").strip().lower()
+            except EOFError:
+                ans = "n"
+            if ans != "y":
+                return 2
+
+    # ---- Resource sampler (best-effort) ------------------------------
+    sampler = ResourceSampler() if _HAS_MONITORING else None  # type: ignore[misc]
 
     progress = Progress(
         SpinnerColumn(style="cyan"),
@@ -1017,7 +1682,7 @@ def _run(stages: list[Stage], args: argparse.Namespace) -> int:
         expand=True,
         transient=False,
     )
-    state = {
+    state: dict = {
         "progress": progress,
         "current_idx": -1,
         "current_stage": "—",
@@ -1025,6 +1690,15 @@ def _run(stages: list[Stage], args: argparse.Namespace) -> int:
         "timings": timings,
         "history": history,
         "current_tail": [],
+        "stage_tails": {},
+        "active_stages": set(),
+        "badges": {},
+        "peaks": {},
+        "parser_driven": set(),
+        "preflight": preflight_results,
+        "sampler": sampler,
+        "last_snapshot": sampler.sample() if sampler else None,
+        "quiet": getattr(args, "quiet", False),
     }
 
     overall_start = time.perf_counter()
@@ -1057,6 +1731,25 @@ def _run(stages: list[Stage], args: argparse.Namespace) -> int:
     max_parallel = getattr(args, "parallelism", 0) or max(
         2, min(8, os.cpu_count() or 4)
     )
+
+    # Background resource-refresh thread.  Samples every ~500 ms so
+    # the resource panel feels alive even when no stage is spewing
+    # output.  Terminated cleanly via ``stop_event`` after the last
+    # wave finishes.
+    stop_event = threading.Event()
+
+    def _resource_pump() -> None:
+        while not stop_event.is_set() and sampler is not None:
+            try:
+                state["last_snapshot"] = sampler.sample()  # type: ignore[attr-defined]
+            except Exception:  # noqa: BLE001
+                pass
+            stop_event.wait(0.5)
+
+    pump_thread: threading.Thread | None = None
+    if sampler is not None:
+        pump_thread = threading.Thread(target=_resource_pump, daemon=True)
+        pump_thread.start()
 
     with Live(_render(stages, state), console=CONSOLE, refresh_per_second=6) as live:
         aborted = False
@@ -1142,6 +1835,16 @@ def _run(stages: list[Stage], args: argparse.Namespace) -> int:
                         aborted = True
                     live.update(_render(stages, state))
 
+    # Tear down the sampler pump before printing the final summary.
+    stop_event.set()
+    if pump_thread is not None:
+        pump_thread.join(timeout=1.0)
+    if sampler is not None:
+        try:
+            sampler.close()
+        except Exception:  # noqa: BLE001
+            pass
+
     _save_history(history)
 
     total = time.perf_counter() - overall_start
@@ -1149,13 +1852,25 @@ def _run(stages: list[Stage], args: argparse.Namespace) -> int:
     CONSOLE.print(Rule(style="cyan"))
     CONSOLE.print()
 
-    summary = Table(show_header=True, header_style="bold", expand=True)
+    summary = Table(
+        title="Run summary",
+        title_style="bold",
+        show_header=True,
+        header_style="bold",
+        expand=True,
+    )
     summary.add_column("Stage", style="bold")
-    summary.add_column("Status", width=14)
+    summary.add_column("Status", width=10)
     summary.add_column("Elapsed", justify="right", width=9)
-    summary.add_column("Log file", style="dim")
+    summary.add_column("Peak CPU", justify="right", width=9)
+    summary.add_column("Peak RAM", justify="right", width=11)
+    summary.add_column("Peak VRAM", justify="right", width=11)
+    summary.add_column("Health", width=34)
+    summary.add_column("Log", style="dim")
 
     any_failed = False
+    peaks_map: dict[str, dict[str, float]] = state.get("peaks", {})
+    badges_map: dict[str, HealthBadge] = state.get("badges", {})
     for s in stages:
         status = statuses[s.name]
         style = {
@@ -1167,15 +1882,92 @@ def _run(stages: list[Stage], args: argparse.Namespace) -> int:
         }.get(status, "white")
         if status == "failed":
             any_failed = True
+        p = peaks_map.get(s.name, {})
+        peak_cpu = f"{p['cpu']:.0f}%" if p.get("cpu") else "—"
+        peak_ram = f"{p['ram_mib'] / 1024:.1f} GiB" if p.get("ram_mib") else "—"
+        peak_vram = (
+            f"{p['vram_mib'] / 1024:.1f} GiB" if p.get("vram_mib") else "—"
+        )
+        badge = badges_map.get(s.name)
+        badge_cell = (
+            Text(
+                f"{'✓' if badge.ok else '⚠'} {badge.text}",
+                style="green" if badge.ok else "yellow",
+            )
+            if badge
+            else Text("—", style="dim")
+        )
         summary.add_row(
             s.name,
             Text(status, style=style),
             _fmt_seconds(timings.get(s.name)),
+            peak_cpu,
+            peak_ram,
+            peak_vram,
+            badge_cell,
             str(s.log_path.relative_to(REPO_ROOT)) if s.cmd else "—",
         )
 
     CONSOLE.print(summary)
     CONSOLE.print()
+
+    # Artefact inventory + report file links.
+    artefact_patterns = [
+        REPO_ROOT / "checkpoints" / "encoder" / "best_model.pt",
+        REPO_ROOT / "checkpoints" / "slm" / "best_model.pt",
+        REPO_ROOT / "checkpoints" / "encoder" / "tcn.onnx",
+        REPO_ROOT / "data" / "synthetic" / "train.pt",
+        REPO_ROOT / "data" / "synthetic" / "val.pt",
+        REPO_ROOT / "data" / "synthetic" / "test.pt",
+        REPO_ROOT / "data" / "dialogue" / "train.pt",
+        REPO_ROOT / "data" / "dialogue" / "tokenizer.json",
+        REPO_ROOT / "site" / "index.html",
+    ]
+    artefact_size = 0
+    existing_artefacts: list[Path] = []
+    for p in artefact_patterns:
+        if p.exists():
+            artefact_size += p.stat().st_size
+            existing_artefacts.append(p)
+
+    report_files = sorted(REPORTS_DIR.glob("*.json")) + sorted(
+        REPORTS_DIR.glob("*.md")
+    )
+    if existing_artefacts or report_files:
+        CONSOLE.print(
+            Panel.fit(
+                f"[bold]Artefacts:[/bold] {len(existing_artefacts)} files · "
+                f"total {_fmt_bytes(artefact_size)}\n"
+                + "\n".join(
+                    f"  [dim]•[/dim] {p.relative_to(REPO_ROOT)}"
+                    for p in existing_artefacts[:10]
+                )
+                + (
+                    f"\n\n[bold]Reports[/bold] (latest 6):\n"
+                    + "\n".join(
+                        f"  [dim]•[/dim] {p.relative_to(REPO_ROOT)}"
+                        for p in report_files[-6:]
+                    )
+                    if report_files
+                    else ""
+                ),
+                title="Outputs",
+                border_style="green" if not any_failed else "yellow",
+            )
+        )
+        CONSOLE.print()
+
+    # One-liner suitable for Slack / email.
+    done_count = sum(1 for v in statuses.values() if v == "done")
+    failed_count = sum(1 for v in statuses.values() if v == "failed")
+    skipped_count = sum(1 for v in statuses.values() if v == "skipped")
+    oneliner = (
+        f"I³ orchestrator [{args.mode}] — "
+        f"{done_count} ok, {failed_count} failed, {skipped_count} skipped · "
+        f"{_fmt_seconds(total)} · "
+        f"{len(existing_artefacts)} artefacts ({_fmt_bytes(artefact_size)})"
+    )
+    CONSOLE.print(Text(oneliner, style="bold magenta"))
     CONSOLE.print(f"[bold]Total wall-clock: {_fmt_seconds(total)}[/bold]")
 
     if failures:
@@ -1344,6 +2136,20 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help=(
             "Max concurrent stages per wave.  0 (default) = "
             "min(8, cpu_count).  1 = serial execution."
+        ),
+    )
+    p.add_argument(
+        "--yes",
+        "-y",
+        action="store_true",
+        help="Auto-confirm any interactive prompts (e.g. pre-flight warnings).",
+    )
+    p.add_argument(
+        "--quiet",
+        action="store_true",
+        help=(
+            "Simplified dashboard: status table + one resource line only "
+            "(useful for CI or long-running terminals)."
         ),
     )
     args = p.parse_args(argv)

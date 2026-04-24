@@ -107,6 +107,12 @@ cryptography   = "^43.0"          # SEC: close PKCS#12 + OpenSSL EC CVEs
 # `scripts/run_everything.py` orchestrator and various demo scripts.
 rich           = "^13.7"
 
+# Orchestrator resource monitor — reads GPU/CPU/RAM/disk telemetry so the
+# live dashboard can render a "Resources" panel.  Already transitively
+# pulled in by several deps, but we declare it explicitly because
+# ``i3.runtime.monitoring`` imports it at module-top.
+psutil         = "^5.9"
+
 # ─── Transitive-dep resolution overrides ────────────────────────────────
 # These packages are not imported anywhere in our own code — they are
 # declared here purely to *pin the resolver*.  Without them, Poetry 2.x

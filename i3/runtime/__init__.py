@@ -10,9 +10,17 @@ from i3.runtime.device import (
     enable_cuda_optimizations,
     pick_device,
 )
+from i3.runtime.monitoring import (
+    ResourceSampler,
+    ResourceSnapshot,
+    render_resource_panel,
+)
 
 __all__ = [
+    "ResourceSampler",
+    "ResourceSnapshot",
     "autocast_context",
     "enable_cuda_optimizations",
     "pick_device",
+    "render_resource_panel",
 ]
