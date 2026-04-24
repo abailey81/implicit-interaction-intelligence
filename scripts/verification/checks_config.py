@@ -383,7 +383,15 @@ def check_no_hardcoded_secrets() -> CheckResult:
         return False
 
     for p in REPO_ROOT.rglob("*"):
-        if not p.is_file():
+        # WIN: ``.venv-wsl/`` contains Linux ELF binaries exposed via
+        # the WSL mount — ``p.is_file()`` raises OSError on Windows
+        # because the NTFS layer can't open a Linux-only inode.  Skip
+        # the whole subtree defensively before touching the file.
+        try:
+            is_file = p.is_file()
+        except OSError:
+            continue
+        if not is_file:
             continue
         # Skip obvious non-source artefacts and the env-example files.
         if p.name in _ENV_EXAMPLE_ALLOWLIST:
@@ -393,6 +401,7 @@ def check_no_hardcoded_secrets() -> CheckResult:
             ".git",
             "__pycache__",
             ".venv",
+            ".venv-wsl",
             "venv",
             "node_modules",
             "site",
@@ -400,12 +409,30 @@ def check_no_hardcoded_secrets() -> CheckResult:
             # as part of a previous run's failure evidence -- scanning them
             # would turn the harness into a self-referential loop.
             "reports",
+            # ruff caches the contents of scanned source files; if any of
+            # those source files contain a harness literal (e.g. this
+            # check), the cache would inherit the match.
+            ".ruff_cache",
+            ".mypy_cache",
+            ".pytest_cache",
+            ".hypothesis",
+            # Poetry's lockfile pins packages whose names happen to
+            # match secret prefixes (e.g. ``ghp-import`` for ghp-deploy).
+            # It's a generated artefact, not source.
+            "htmlcov",
         }:
             continue
         if p.suffix.lower() in {
             ".png", ".jpg", ".jpeg", ".gif", ".ico", ".pdf",
             ".zip", ".bin", ".onnx", ".pt", ".pth",
         }:
+            continue
+        # Bare filename checks — ``.env`` holds the user's live
+        # credentials by design (gitignored).  The check is meant to
+        # catch accidentally-committed prefixes, and ``.env`` is never
+        # committed.  Same for ``poetry.lock`` where package names like
+        # ``ghp-import`` legitimately include the ``ghp_`` prefix.
+        if p.name in {".env", ".env.local", "poetry.lock"}:
             continue
         rel = p.relative_to(REPO_ROOT)
         if _is_self_or_vendor(rel):

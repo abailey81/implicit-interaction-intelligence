@@ -951,13 +951,15 @@ def _build_all_stages(args: argparse.Namespace) -> list[Stage]:
         Stage(
             name="seed",
             description="Seed the demo database",
+            # ``demo/pre_seed.py`` seeds a single user id into the
+            # SQLite diary.  The older bulk-seed flags
+            # (--users / --sessions-per-user) belong to a deprecated
+            # variant that no longer exists.
             cmd=py
             + [
                 "demo/pre_seed.py",
-                "--users",
-                "3",
-                "--sessions-per-user",
-                "20",
+                "--user-id",
+                "demo",
             ],
             eta_seed_s=5.0,
             optional=True,
@@ -1005,11 +1007,16 @@ def _build_all_stages(args: argparse.Namespace) -> list[Stage]:
             # PERF: ``pytest-xdist`` fans the test run across all cores;
             # ``-n auto`` auto-detects.  Still respects the 120 s per-
             # test timeout so a hung test can't wedge the worker pool.
+            # ``-p no:benchmark`` disables the pytest-benchmark plugin
+            # because it self-disables under xdist and, with the
+            # project's ``filterwarnings = error`` policy, its
+            # disable-warning is promoted to a fatal INTERNALERROR.
+            # The ``benchmarks`` stage below runs benchmarks serially.
             description="pytest unit + integration tests (parallel -n auto)",
             cmd=(
-                ["poetry", "run", "pytest", "-q", "-n", "auto", "--timeout=120"]
+                ["poetry", "run", "pytest", "-q", "-n", "auto", "-p", "no:benchmark", "--timeout=120"]
                 if _poetry_available()
-                else [sys.executable, "-m", "pytest", "-q", "-n", "auto", "--timeout=120"]
+                else [sys.executable, "-m", "pytest", "-q", "-n", "auto", "-p", "no:benchmark", "--timeout=120"]
             ),
             eta_seed_s=180.0,
             optional=True,
@@ -1072,11 +1079,15 @@ def _build_all_stages(args: argparse.Namespace) -> list[Stage]:
         # ─────────────────────────────────────────────────────────────
         Stage(
             name="benchmarks",
-            description="Latency + throughput micro-benchmarks (parallel -n auto)",
+            # Benchmarks MUST run serially — pytest-benchmark self-
+            # disables under xdist because it relies on stable single-
+            # process timing.  Running with ``-p no:xdist`` avoids the
+            # plugin loading at all; no ``-n auto`` here.
+            description="Latency + throughput micro-benchmarks (serial)",
             cmd=(
                 ["make", "benchmarks"]
                 if _make_available()
-                else py + ["-m", "pytest", "benchmarks/", "-q", "-n", "auto"]
+                else py + ["-m", "pytest", "benchmarks/", "-q", "-p", "no:xdist"]
             ),
             eta_seed_s=90.0,
             optional=True,
@@ -1421,6 +1432,14 @@ def _run_stage(
     extra_env: dict[str, str] = {}
     if stage.needs_demo_mode:
         extra_env["I3_DEMO_MODE"] = "1"
+    # WIN: force UTF-8 I/O in every stage subprocess.  bandit and some
+    # other tools emit BOM / non-ASCII characters that a default
+    # Windows cp1251 stdout can't encode, triggering spurious
+    # "'charmap' codec can't encode" RuntimeErrors.  The ``UTF-8`` flag
+    # (PEP 540) flips Python's stdout/stderr encoding to utf-8 and
+    # disables strict-ASCII on the file system layer.
+    extra_env.setdefault("PYTHONIOENCODING", "utf-8")
+    extra_env.setdefault("PYTHONUTF8", "1")
 
     tail: list[str] = []
     progress = live_state["progress"]
