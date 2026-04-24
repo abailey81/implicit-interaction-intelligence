@@ -2,6 +2,13 @@ project:
   name: "Implicit Interaction Intelligence"
   version: "1.0.0"
   seed: 42
+  # PERF: 'auto' -> CUDA when available, else MPS (Apple Silicon), else CPU.
+  # See i3/runtime/device.py::pick_device for the exact resolution order.
+  device: "auto"
+  # PERF: mixed-precision training (torch.amp autocast + GradScaler on fp16).
+  # Honoured by training scripts; a no-op on CPU so CPU reproducibility is
+  # preserved bit-for-bit.
+  mixed_precision: true
 
 interaction:
   feature_window: 10

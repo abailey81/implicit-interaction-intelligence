@@ -31,6 +31,8 @@ from typing import TYPE_CHECKING
 import torch
 import torch.nn.functional as F
 
+from i3.runtime.device import pick_device
+
 if TYPE_CHECKING:
     from i3.slm.model import AdaptiveSLM
     from i3.slm.tokenizer import SimpleTokenizer
@@ -63,11 +65,13 @@ class SLMGenerator:
         self,
         model: AdaptiveSLM,
         tokenizer: SimpleTokenizer,
-        device: str = "cpu",
+        device: str = "auto",
     ) -> None:
         self.model = model
         self.tokenizer = tokenizer
-        self.device = torch.device(device)
+        # PERF: pick_device promotes to CUDA/MPS when available; callers
+        # that explicitly passed "cpu" keep CPU behaviour unchanged.
+        self.device = pick_device(device)
         self.model.to(self.device)
         self.model.eval()
 

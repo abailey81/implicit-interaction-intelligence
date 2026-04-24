@@ -203,6 +203,30 @@ def export_slm(
     wrapper = _SLMExportWrapper(model)
     wrapper.eval()
 
+    # PERF: warm the trace on CUDA if available — speeds the export of
+    # large transformer stacks noticeably and exercises the kernels that
+    # ONNX is about to trace.  Move everything back to CPU before the
+    # actual export so the serialised graph and dummy tensors are
+    # device-independent.
+    try:
+        if torch.cuda.is_available():
+            wrapper = wrapper.to("cuda")
+            input_ids = input_ids.to("cuda")
+            conditioning_tokens = conditioning_tokens.to("cuda")
+            attention_mask = attention_mask.to("cuda")
+            with torch.no_grad():
+                _ = wrapper(input_ids, conditioning_tokens, attention_mask)
+            wrapper = wrapper.to("cpu")
+            input_ids = input_ids.to("cpu")
+            conditioning_tokens = conditioning_tokens.to("cpu")
+            attention_mask = attention_mask.to("cpu")
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("CUDA warm-up failed (%s); continuing on CPU.", exc)
+        wrapper = wrapper.to("cpu")
+        input_ids = input_ids.to("cpu")
+        conditioning_tokens = conditioning_tokens.to("cpu")
+        attention_mask = attention_mask.to("cpu")
+
     # NOTE: this graph is the PREFILL-ONLY variant. Token-by-token
     # decode requires past_key_values wiring and is exported separately.
     try:

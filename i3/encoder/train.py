@@ -20,6 +20,8 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
+from i3.runtime.device import autocast_context
+
 logger = logging.getLogger(__name__)
 
 
@@ -107,6 +109,8 @@ def train_epoch(
     temperature: float = 0.07,
     grad_clip: float = 1.0,
     device: torch.device | None = None,
+    amp_enabled: bool = False,
+    scaler: "torch.amp.GradScaler | None" = None,
 ) -> dict[str, float]:
     """Run a single training epoch.
 
@@ -117,6 +121,11 @@ def train_epoch(
         temperature: NT-Xent temperature.
         grad_clip:   Max gradient norm for clipping.
         device:      Target device. ``None`` = auto-detect from model.
+        amp_enabled: When ``True``, wrap the forward pass in
+            :func:`i3.runtime.device.autocast_context` for mixed-precision.
+        scaler:      Optional :class:`torch.amp.GradScaler`.  Required for
+            fp16 on CUDA so that the backward pass does not underflow.
+            Ignored on CPU and when ``amp_enabled`` is False.
 
     Returns:
         Dict with keys ``"loss"`` (epoch mean) and ``"lr"`` (current LR).
@@ -128,17 +137,28 @@ def train_epoch(
     total_loss = 0.0
     n_batches = 0
 
+    # PERF: only pay the autocast context-manager cost when AMP is on.
+    use_amp = amp_enabled and device.type in {"cuda", "mps"}
+
     for sequences, labels in dataloader:
         sequences = sequences.to(device)
         labels = labels.to(device)
 
-        embeddings = model(sequences)
-        loss = contrastive_loss(embeddings, labels, temperature)
+        with autocast_context(device, enabled=use_amp):
+            embeddings = model(sequences)
+            loss = contrastive_loss(embeddings, labels, temperature)
 
         optimizer.zero_grad()
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
-        optimizer.step()
+        if scaler is not None and use_amp:
+            scaler.scale(loss).backward()
+            scaler.unscale_(optimizer)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
+            scaler.step(optimizer)
+            scaler.update()
+        else:
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
+            optimizer.step()
 
         total_loss += loss.item()
         n_batches += 1
@@ -241,6 +261,7 @@ def train(
     checkpoint_every: int = 10,
     patience: int = 15,
     device: torch.device | None = None,
+    amp_enabled: bool = False,
 ) -> dict[str, Any]:
     """Full training procedure with scheduling, checkpointing, and early stop.
 
@@ -280,6 +301,13 @@ def train(
         optimizer, T_max=epochs, eta_min=1e-6
     )
 
+    # PERF: GradScaler is only meaningful for fp16 on CUDA — bf16 and CPU
+    # ignore it.  We gate on amp_enabled so CPU runs behave exactly as
+    # before.
+    scaler: torch.amp.GradScaler | None = None
+    if amp_enabled and device.type == "cuda":
+        scaler = torch.amp.GradScaler(device="cuda")
+
     best_val_loss = float("inf")
     best_epoch = 0
     epochs_no_improve = 0
@@ -293,7 +321,14 @@ def train(
     for epoch in range(1, epochs + 1):
         # -- Train ------------------------------------------------------------
         train_metrics = train_epoch(
-            model, train_loader, optimizer, temperature, grad_clip, device
+            model,
+            train_loader,
+            optimizer,
+            temperature,
+            grad_clip,
+            device,
+            amp_enabled=amp_enabled,
+            scaler=scaler,
         )
         scheduler.step()
 

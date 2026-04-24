@@ -116,6 +116,24 @@ def export_tcn(
             "embedding": {0: "batch"},
         }
 
+    # PERF: run the export trace on CUDA when visible — the traced
+    # forward executes once and benefits from the GPU — then move the
+    # model + dummy input back to CPU before ONNX emission so that the
+    # saved graph is device-independent and ``torch.onnx.export``'s
+    # serialiser sees plain CPU tensors. CPU-only boxes skip the round-trip.
+    try:
+        if torch.cuda.is_available():
+            model = model.to("cuda")
+            dummy = dummy.to("cuda")
+            with torch.no_grad():
+                _ = model(dummy)  # warm the cache so export trace is fast
+            model = model.to("cpu")
+            dummy = dummy.to("cpu")
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("CUDA warm-up failed (%s); continuing on CPU.", exc)
+        model = model.to("cpu")
+        dummy = dummy.to("cpu")
+
     model.eval()
     try:
         torch.onnx.export(

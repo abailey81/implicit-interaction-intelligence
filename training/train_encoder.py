@@ -32,6 +32,7 @@ if str(_PROJECT_ROOT) not in sys.path:
 
 from i3.encoder.tcn import TemporalConvNet
 from i3.encoder.train import train
+from i3.runtime.device import enable_cuda_optimizations, pick_device
 
 logger = logging.getLogger(__name__)
 
@@ -155,9 +156,21 @@ def main() -> None:
     parser.add_argument(
         "--device",
         type=str,
-        default=None,
-        choices=["cpu", "cuda", "mps"],
-        help="Device override (cpu, cuda, mps). Auto-detects if not set.",
+        default="auto",
+        help=(
+            "Device override ('auto', 'cpu', 'cuda', 'cuda:N', 'mps'). "
+            "Default 'auto' picks CUDA when available, else MPS, else CPU."
+        ),
+    )
+    parser.add_argument(
+        "--amp",
+        type=str,
+        default="auto",
+        choices=["auto", "on", "off"],
+        help=(
+            "Mixed-precision training. 'auto' enables AMP on CUDA/MPS and "
+            "disables it on CPU."
+        ),
     )
     args = parser.parse_args()
 
@@ -179,6 +192,10 @@ def main() -> None:
         level=logging.INFO,
         format="%(asctime)s  %(name)s  %(levelname)s  %(message)s",
     )
+
+    # PERF: flip on cuDNN benchmark + TF32 fast matmul when CUDA is visible.
+    # Safe no-op on CPU-only boxes, so it lives unconditionally here.
+    enable_cuda_optimizations()
 
     # -- Config ---------------------------------------------------------------
     # SEC: resolve the config path so log messages and downstream code see
@@ -206,16 +223,18 @@ def main() -> None:
         torch.cuda.manual_seed_all(seed)
 
     # -- Device ---------------------------------------------------------------
-    # Detection priority: explicit override > CUDA > MPS (Apple Silicon) > CPU.
-    if args.device:
-        device = torch.device(args.device)
-    elif torch.cuda.is_available():
-        device = torch.device("cuda")
-    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-        device = torch.device("mps")
-    else:
-        device = torch.device("cpu")
-    logger.info("Device: %s", device)
+    # Detection priority lives in i3.runtime.device.pick_device: explicit
+    # override > CUDA > MPS (Apple Silicon) > CPU.
+    device = pick_device(args.device)
+    # AMP is enabled on CUDA/MPS by default and skipped on CPU (where it
+    # would be a slowdown / numeric change).
+    if args.amp == "on":
+        amp_enabled = device.type in {"cuda", "mps"}
+    elif args.amp == "off":
+        amp_enabled = False
+    else:  # auto
+        amp_enabled = device.type in {"cuda", "mps"}
+    logger.info("Device: %s  (AMP: %s)", device, "on" if amp_enabled else "off")
 
     # -- Data -----------------------------------------------------------------
     data_dir = Path(args.data_dir)
@@ -288,6 +307,7 @@ def main() -> None:
         checkpoint_every=10,
         patience=args.patience,
         device=device,
+        amp_enabled=amp_enabled,
     )
 
     # -- Report ---------------------------------------------------------------

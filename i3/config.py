@@ -72,6 +72,14 @@ class ProjectConfig(BaseModel):
     # rejects values outside [0, 2**32-1] at runtime, so failing fast at
     # config load is preferable to a stack trace deep inside training.
     seed: int = Field(default=42, ge=0, le=2**32 - 1)
+    # PERF: device selection knob consumed by training scripts and the
+    # runtime bootstrap.  Accepted values: 'auto' (CUDA > MPS > CPU),
+    # 'cpu', 'cuda', 'cuda:N', 'mps'.  Resolution lives in
+    # :func:`i3.runtime.device.pick_device`.
+    device: str = Field(default="auto", min_length=1)
+    # PERF: enable torch.amp mixed-precision training when CUDA/MPS are
+    # available.  Honoured by the training loops; always a no-op on CPU.
+    mixed_precision: bool = True
 
 
 class InteractionConfig(BaseModel):

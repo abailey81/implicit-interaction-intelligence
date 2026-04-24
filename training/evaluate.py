@@ -42,6 +42,7 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from i3.config import load_config
+from i3.runtime.device import enable_cuda_optimizations, pick_device
 from i3.slm.model import AdaptiveSLM
 from i3.slm.tokenizer import SimpleTokenizer
 from i3.slm.generate import SLMGenerator
@@ -618,14 +619,10 @@ def run_evaluation(
         Complete evaluation results.
     """
     # --- Device ---
-    if device_str:
-        device = torch.device(device_str)
-    elif torch.cuda.is_available():
-        device = torch.device("cuda")
-    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-        device = torch.device("mps")
-    else:
-        device = torch.device("cpu")
+    # PERF: flip on cuDNN benchmark + TF32 matmul (CUDA-only, safe no-op
+    # on CPU) before the first forward pass.
+    enable_cuda_optimizations()
+    device = pick_device(device_str)
 
     logger.info("Using device: %s", device)
 
@@ -877,9 +874,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--device",
         type=str,
-        default=None,
-        choices=["cpu", "cuda", "mps"],
-        help="Device override (cpu, cuda, mps).",
+        default="auto",
+        help=(
+            "Device override ('auto', 'cpu', 'cuda', 'cuda:N', 'mps'). "
+            "Default 'auto' picks CUDA when available, else MPS, else CPU."
+        ),
     )
     args = parser.parse_args()
 

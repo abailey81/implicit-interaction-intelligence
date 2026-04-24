@@ -18,6 +18,7 @@ import torch.nn as nn
 
 from i3.encoder.tcn import TemporalConvNet
 from i3.interaction.types import InteractionFeatureVector
+from i3.runtime.device import pick_device
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +49,7 @@ class EncoderInference:
         self,
         checkpoint_path: str | Path,
         window_size: int = 10,
-        device: str = "cpu",
+        device: str = "auto",
         quantise_int8: bool = False,
         input_dim: int = 32,
         hidden_dims: list[int] | None = None,
@@ -60,7 +61,13 @@ class EncoderInference:
         self.window_size = window_size
         self.input_dim = input_dim
         self.embedding_dim = embedding_dim
-        self.device = torch.device(device)
+        # PERF: route device selection through i3.runtime.device so a
+        # caller passing "auto" (or the default) picks CUDA when visible.
+        # INT8 quantisation requires CPU, so we force that below.
+        if quantise_int8:
+            self.device = torch.device("cpu")
+        else:
+            self.device = pick_device(device)
 
         # SEC: validate checkpoint path -- resolve symlinks and confirm the
         # target is an existing regular file before handing it to torch.load.
@@ -72,9 +79,11 @@ class EncoderInference:
                 f"Checkpoint path is not a regular file: {ckpt_path}"
             )
 
-        # SEC: dynamic INT8 quantisation only supports CPU; combining CUDA +
-        # INT8 silently mis-runs.  Fail loudly here.
-        if quantise_int8 and self.device.type != "cpu":
+        # SEC: dynamic INT8 quantisation only supports CPU; above we force
+        # ``self.device`` to CPU when quantise_int8 is set, so this assert
+        # is a belt-and-braces guard that will only fire if someone mutates
+        # self.device between those two lines.
+        if quantise_int8 and self.device.type != "cpu":  # pragma: no cover
             raise ValueError(
                 "Dynamic INT8 quantisation is CPU-only; "
                 f"got device={self.device}."
@@ -140,7 +149,7 @@ class EncoderInference:
 
     # -- Core encoding --------------------------------------------------------
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def encode(
         self, features: list[InteractionFeatureVector]
     ) -> torch.Tensor:
@@ -182,7 +191,7 @@ class EncoderInference:
         embedding = self.model(batch)  # [1, embedding_dim]
         return embedding.squeeze(0).cpu()
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def encode_single(
         self, feature: InteractionFeatureVector, user_id: str
     ) -> torch.Tensor:

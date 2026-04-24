@@ -33,6 +33,7 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from i3.config import load_config, Config
+from i3.runtime.device import enable_cuda_optimizations, pick_device
 from i3.slm.model import AdaptiveSLM
 from i3.slm.tokenizer import SimpleTokenizer
 from i3.slm.train import SLMTrainer
@@ -191,9 +192,21 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--device",
         type=str,
-        default=None,
-        choices=["cpu", "cuda", "mps"],
-        help="Device override (cpu, cuda, mps). Auto-detects if not set.",
+        default="auto",
+        help=(
+            "Device override ('auto', 'cpu', 'cuda', 'cuda:N', 'mps'). "
+            "Default 'auto' picks CUDA when available, else MPS, else CPU."
+        ),
+    )
+    parser.add_argument(
+        "--amp",
+        type=str,
+        default="auto",
+        choices=["auto", "on", "off"],
+        help=(
+            "Mixed-precision training. 'auto' enables AMP on CUDA/MPS and "
+            "disables it on CPU."
+        ),
     )
     args = parser.parse_args()
 
@@ -223,6 +236,9 @@ def parse_args() -> argparse.Namespace:
 def detect_device(override: str | None = None) -> torch.device:
     """Detect the best available device.
 
+    Thin compatibility shim around :func:`i3.runtime.device.pick_device` —
+    preserved so existing callers keep working.
+
     Parameters
     ----------
     override : str, optional
@@ -233,15 +249,7 @@ def detect_device(override: str | None = None) -> torch.device:
     torch.device
         The selected device.
     """
-    if override:
-        return torch.device(override)
-
-    if torch.cuda.is_available():
-        return torch.device("cuda")
-    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-        return torch.device("mps")
-    else:
-        return torch.device("cpu")
+    return pick_device(override)
 
 
 # ---------------------------------------------------------------------------
@@ -257,6 +265,10 @@ def main() -> None:
         level=logging.INFO,
         format="%(asctime)s  %(name)s  %(levelname)s  %(message)s",
     )
+
+    # PERF: cuDNN benchmark + TF32 matmul fast paths. No-op on CPU so it is
+    # always safe to call — keeps the CUDA-vs-CPU launch logic uniform.
+    enable_cuda_optimizations()
 
     # -- Load configuration --------------------------------------------------
     # SEC: validate config path resolves under the project root and exists.
@@ -289,7 +301,15 @@ def main() -> None:
 
     # -- Device --------------------------------------------------------------
     device = detect_device(args.device)
-    logger.info("Using device: %s", device)
+    if args.amp == "on":
+        amp_enabled = device.type in {"cuda", "mps"}
+    elif args.amp == "off":
+        amp_enabled = False
+    else:  # auto
+        amp_enabled = device.type in {"cuda", "mps"}
+    logger.info(
+        "Using device: %s  (AMP: %s)", device, "on" if amp_enabled else "off"
+    )
 
     # -- Load tokenizer ------------------------------------------------------
     # SEC: resolve all input paths so log messages are unambiguous and
@@ -395,6 +415,7 @@ def main() -> None:
         config=config,
         device=str(device),
         checkpoint_dir=args.checkpoint_dir,
+        amp_enabled=amp_enabled,
     )
 
     # Apply LR override after trainer construction

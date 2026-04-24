@@ -35,6 +35,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
+from i3.runtime.device import autocast_context
+
 logger = logging.getLogger(__name__)
 
 
@@ -169,6 +171,7 @@ class SLMTrainer:
         config: Any,
         device: str = "cpu",
         checkpoint_dir: str = "models/slm",
+        amp_enabled: bool = False,
     ) -> None:
         self.model = model
         self.tokenizer = tokenizer
@@ -181,6 +184,14 @@ class SLMTrainer:
 
         # Training config shortcuts
         self.train_cfg = config.slm.training
+
+        # PERF: autocast + GradScaler only on CUDA/MPS.  CPU keeps the
+        # pre-AMP behaviour bit-for-bit so tests that compare losses
+        # stay deterministic.
+        self.amp_enabled = bool(amp_enabled) and self.device.type in {"cuda", "mps"}
+        self.scaler: torch.amp.GradScaler | None = None
+        if self.amp_enabled and self.device.type == "cuda":
+            self.scaler = torch.amp.GradScaler(device="cuda")
 
         # Optimizer
         self.optimizer = torch.optim.AdamW(
@@ -238,37 +249,47 @@ class SLMTrainer:
         conditioning = batch["conditioning"].to(self.device)
         user_state = batch["user_state"].to(self.device)
 
-        # Forward pass
-        logits, _ = self.model(
-            input_ids, conditioning, user_state, use_cache=False
-        )
+        # Forward pass (optionally under autocast for mixed precision)
+        with autocast_context(self.device, enabled=self.amp_enabled):
+            logits, _ = self.model(
+                input_ids, conditioning, user_state, use_cache=False
+            )
 
-        # Cross-entropy loss on shifted targets, ignoring padding
-        # logits[:, :-1] predicts target_ids[:, 1:]
-        shift_logits = logits[:, :-1, :].contiguous()
-        shift_targets = target_ids[:, 1:].contiguous()
+            # Cross-entropy loss on shifted targets, ignoring padding
+            # logits[:, :-1] predicts target_ids[:, 1:]
+            shift_logits = logits[:, :-1, :].contiguous()
+            shift_targets = target_ids[:, 1:].contiguous()
 
-        loss = F.cross_entropy(
-            shift_logits.view(-1, self.model.vocab_size),
-            shift_targets.view(-1),
-            ignore_index=self.tokenizer.PAD_ID,
-        )
+            loss = F.cross_entropy(
+                shift_logits.view(-1, self.model.vocab_size),
+                shift_targets.view(-1),
+                ignore_index=self.tokenizer.PAD_ID,
+            )
 
         # Backward pass
         self.optimizer.zero_grad()
-        loss.backward()
+        if self.scaler is not None:
+            # PERF: fp16 needs loss scaling to prevent gradient underflow;
+            # unscale before grad-norm computation so the reported number
+            # reflects real magnitudes, not the scaled ones.
+            self.scaler.scale(loss).backward()
+            self.scaler.unscale_(self.optimizer)
+            grad_norm = self._compute_grad_norm()
+            torch.nn.utils.clip_grad_norm_(
+                self.model.parameters(),
+                self.train_cfg.gradient_clip,
+            )
+            self.scaler.step(self.optimizer)
+            self.scaler.update()
+        else:
+            loss.backward()
+            grad_norm = self._compute_grad_norm()
+            torch.nn.utils.clip_grad_norm_(
+                self.model.parameters(),
+                self.train_cfg.gradient_clip,
+            )
+            self.optimizer.step()
 
-        # Gradient norm (before clipping)
-        grad_norm = self._compute_grad_norm()
-
-        # Gradient clipping
-        torch.nn.utils.clip_grad_norm_(
-            self.model.parameters(),
-            self.train_cfg.gradient_clip,
-        )
-
-        # Optimiser step + LR schedule step
-        self.optimizer.step()
         self.scheduler.step()
 
         self.global_step += 1
@@ -312,18 +333,19 @@ class SLMTrainer:
             conditioning = batch["conditioning"].to(self.device)
             user_state = batch["user_state"].to(self.device)
 
-            logits, _ = self.model(
-                input_ids, conditioning, user_state, use_cache=False
-            )
+            with autocast_context(self.device, enabled=self.amp_enabled):
+                logits, _ = self.model(
+                    input_ids, conditioning, user_state, use_cache=False
+                )
 
-            shift_logits = logits[:, :-1, :].contiguous()
-            shift_targets = target_ids[:, 1:].contiguous()
+                shift_logits = logits[:, :-1, :].contiguous()
+                shift_targets = target_ids[:, 1:].contiguous()
 
-            loss = F.cross_entropy(
-                shift_logits.view(-1, self.model.vocab_size),
-                shift_targets.view(-1),
-                ignore_index=self.tokenizer.PAD_ID,
-            )
+                loss = F.cross_entropy(
+                    shift_logits.view(-1, self.model.vocab_size),
+                    shift_targets.view(-1),
+                    ignore_index=self.tokenizer.PAD_ID,
+                )
 
             total_loss += loss.item()
             n_batches += 1

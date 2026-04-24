@@ -215,6 +215,13 @@ def _resolve_cors_origins(config) -> list[str]:
 
 def create_app() -> FastAPI:
     """Build and return the configured FastAPI application."""
+    # PERF: flip on cuDNN benchmark + TF32 fast matmul once at import/
+    # startup so every downstream forward pass (encoder, SLM, explain
+    # endpoints, WebSocket inference) gets the GPU fast path for free.
+    # Safe no-op when CUDA is not visible.
+    from i3.runtime.device import enable_cuda_optimizations
+    enable_cuda_optimizations()
+
     # SEC: ``I3_DISABLE_OPENAPI=1`` removes the schema endpoint and the
     # interactive docs UIs.  Production deployments should set this — the
     # OpenAPI schema is an information-disclosure vector that catalogues
