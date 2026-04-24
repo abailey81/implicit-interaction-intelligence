@@ -128,13 +128,18 @@ pre-commit         = "^3.6"
 [tool.poetry.group.observability.dependencies]
 structlog                                     = "^24.1"
 prometheus_client                             = "^0.20"
-opentelemetry-api                             = "^1.25"
-opentelemetry-sdk                             = "^1.25"
-opentelemetry-exporter-otlp                   = "^1.25"   # trace + metric OTLP
-opentelemetry-instrumentation-fastapi         = "^0.46b0"
-opentelemetry-instrumentation-httpx           = "^0.46b0"
-opentelemetry-instrumentation-sqlite3         = "^0.46b0"
-opentelemetry-instrumentation-logging         = "^0.46b0"
+# SEC: OTel-api >=1.27 required for compatibility with traceloop-sdk
+# ^0.30 in the llm-ecosystem group.  The instrumentation packages
+# follow a parallel 0.NN-beta version stream where each release pins
+# its OTel-api match; we therefore widen both ranges rather than
+# pinning to a specific minor, and let Poetry pick a consistent pair.
+opentelemetry-api                             = ">=1.27,<2.0"
+opentelemetry-sdk                             = ">=1.27,<2.0"
+opentelemetry-exporter-otlp                   = ">=1.27,<2.0"   # trace + metric OTLP
+opentelemetry-instrumentation-fastapi         = ">=0.48b0,<1.0"
+opentelemetry-instrumentation-httpx           = ">=0.48b0,<1.0"
+opentelemetry-instrumentation-sqlite3         = ">=0.48b0,<1.0"
+opentelemetry-instrumentation-logging         = ">=0.48b0,<1.0"
 sentry-sdk                                    = { version = "^2.0", extras = ["fastapi"] }
 
 # ─── MLOps Dependencies ──────────────────────────────────────────────────
