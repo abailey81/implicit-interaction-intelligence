@@ -90,9 +90,14 @@ def _ensure_rich() -> None:
     except ImportError:
         pass
     print("[run_everything] 'rich' not installed; installing it now...")
-    subprocess.check_call(
-        [sys.executable, "-m", "pip", "install", "--quiet", "--user", "rich>=13.7"]
-    )
+    # In a venv, ``pip install --user`` fails because user-site is hidden;
+    # install into the active env instead.  ``sys.prefix != sys.base_prefix``
+    # is the portable venv-detection idiom.
+    in_venv = sys.prefix != sys.base_prefix or hasattr(sys, "real_prefix")
+    cmd = [sys.executable, "-m", "pip", "install", "--quiet", "rich>=13.7"]
+    if not in_venv:
+        cmd.insert(-1, "--user")
+    subprocess.check_call(cmd)
 
 
 _ensure_rich()
