@@ -18,26 +18,151 @@ only embeddings and aggregate metrics — never raw text.
 
 ## Table of contents
 
-1. [Why this project exists](#why-this-project-exists)
-2. [Architecture](#architecture)
-3. [Novel contribution — cross-attention conditioning](#novel-contribution--cross-attention-conditioning)
-4. [Repository layout](#repository-layout)
-5. [Prerequisites](#prerequisites)
-6. [Installation](#installation)
-7. [Configuration](#configuration)
-8. [Training the models](#training-the-models)
-9. [Running the server](#running-the-server)
-10. [Using the API](#using-the-api)
-11. [The demo UI](#the-demo-ui)
-12. [Docker and Docker Compose](#docker-and-docker-compose)
-13. [Kubernetes and Helm](#kubernetes-and-helm)
-14. [Testing and verification](#testing-and-verification)
-15. [Observability](#observability)
-16. [Edge deployment](#edge-deployment)
-17. [Privacy and security](#privacy-and-security)
-18. [Command reference (`make`)](#command-reference-make)
-19. [Contributing](#contributing)
-20. [Further reading](#further-reading)
+1. [Quickstart — one command](#quickstart--one-command)
+2. [Why this project exists](#why-this-project-exists)
+3. [Architecture](#architecture)
+4. [Novel contribution — cross-attention conditioning](#novel-contribution--cross-attention-conditioning)
+5. [Repository layout](#repository-layout)
+6. [Prerequisites](#prerequisites)
+7. [Installation](#installation)
+8. [Configuration](#configuration)
+9. [Training the models](#training-the-models)
+10. [Running the server](#running-the-server)
+11. [Using the API](#using-the-api)
+12. [The demo UI](#the-demo-ui)
+13. [Docker and Docker Compose](#docker-and-docker-compose)
+14. [Kubernetes and Helm](#kubernetes-and-helm)
+15. [Testing and verification](#testing-and-verification)
+16. [Observability](#observability)
+17. [Edge deployment](#edge-deployment)
+18. [Privacy and security](#privacy-and-security)
+19. [Command reference (`make`)](#command-reference-make)
+20. [Contributing](#contributing)
+21. [Further reading](#further-reading)
+
+---
+
+## Quickstart — one command
+
+Two canonical run profiles, both driven by a single orchestrator that
+shows a live ``rich`` dashboard with spinners, progress bars, ETAs,
+per-stage log tails, and a calibrated-to-your-machine total projection.
+
+```bash
+git clone https://github.com/abailey81/implicit-interaction-intelligence.git
+cd implicit-interaction-intelligence
+
+# ── Option A — Fast (≈ 5 minutes on a laptop) ──
+# prereq → install → .env + encryption key → demo seed → verification → serve
+make all-fast
+#   ▶ opens http://127.0.0.1:8000/  (UI) and /api/docs (Swagger)
+
+# ── Option B — Full end-to-end (hours on CPU, ≈ 15 min on GPU) ──
+# Everything in fast mode PLUS:
+#   synthetic data → dialogue corpus → TCN encoder training →
+#   SLM training → evaluation → conditioning sensitivity →
+#   lint → typecheck → tests → bandit + pip-audit → red-team →
+#   verification harness → benchmarks → ONNX export → edge profiling →
+#   MkDocs build → serve
+make all-full
+```
+
+Both targets call [`scripts/run_everything.py`](scripts/run_everything.py),
+which you can invoke directly for finer control:
+
+```bash
+# See every stage the orchestrator knows about (fast + full tables)
+make all-list
+
+# Skip stages whose outputs already exist on disk (useful after a crash)
+make all-resume
+
+# Only run specific stages
+python scripts/run_everything.py --mode full --only install,data,train-encoder
+
+# Skip stages
+python scripts/run_everything.py --mode full --skip benchmarks,docs
+
+# Run everything except launching the server at the end
+python scripts/run_everything.py --mode full --no-serve
+
+# Include the Docker image-build stage (off by default)
+python scripts/run_everything.py --mode full --with-docker
+```
+
+### What the orchestrator shows
+
+```
+┌────────────────────── Pipeline status ──────────────────────┐
+│ #   Stage           Category  Description         Status   Elapsed   ETA │
+│ ✓   prereq          setup     Check Python + …    done      0.2s     — │
+│ ✓   install         setup     Install deps …      done    184.3s     — │
+│ ✓   env             setup     Create .env + …     done      0.3s     — │
+│ ✓   data            data      Generate synth …    done     27.1s     — │
+│ ●   train-encoder   train     Train TCN (NT-…)    running  12.4m  28.7m │
+│ ·   train-slm       train     Train SLM …         pending     —   50.0m │
+│ ·   evaluate        eval      Perplexity + …      pending     —    2.0m │
+│ …                                                                      │
+└────────────────────────────────────────────────────────────────────────┘
+ ⠋ train-encoder — Train TCN encoder     ████████░░░░  42/100   12:25  ETA 17:35
+┌─────────── live log tail — train-encoder ───────────┐
+│ epoch  4/10  step  120/480  loss 2.431  lr 2.8e-04  │
+│ epoch  4/10  step  160/480  loss 2.388  lr 2.9e-04  │
+│ epoch  4/10  step  200/480  loss 2.341  lr 3.0e-04  │
+│ epoch  4/10  step  240/480  loss 2.302  lr 3.0e-04  │
+└─────────────────────────────────────────────────────┘
+```
+
+- **Per-stage spinner + bar** — updates 6 Hz from a heartbeat thread so
+  quiet stages still move.
+- **ETA** — seeded from historical timings in
+  `reports/orchestration.json`; after one full run the bars calibrate
+  to your exact machine via EMA (α = 0.7).
+- **Live log tail** — last 6 lines of stdout/stderr for the current
+  stage; full log at `reports/orchestration/<stage>.log`.
+- **Failure panel** — on any non-zero exit, the orchestrator stops and
+  prints the last 12 lines of the offending log.
+- **Category colour-coding** — setup, data, train, eval, quality,
+  security, verify, perf, docs, deploy, serve.
+
+### Resuming after a crash / re-running incrementally
+
+```bash
+# Skips every stage whose output file already exists.
+make all-resume
+# Equivalent: python scripts/run_everything.py --mode full --resume
+```
+
+### Flags cheat-sheet
+
+| Flag | Effect |
+|---|---|
+| `--mode fast` / `--mode full` | Choose profile (default: `fast`) |
+| `--only NAMES` | Run only the named stages (comma-separated) |
+| `--skip NAMES` | Skip the named stages |
+| `--resume` | Skip stages whose outputs already exist |
+| `--no-serve` | Do not launch the server at the end |
+| `--list` | Print the stage graph for the chosen mode |
+| `--skip-install` | Assume the env is ready, skip `poetry install` |
+| `--skip-onnx` | Skip ONNX export (full mode) |
+| `--skip-docs` | Skip MkDocs build (full mode) |
+| `--skip-benchmarks` | Skip benchmarks (full mode) |
+| `--with-docker` | Include Docker build stage (full mode) |
+| `--sessions-per-archetype N` | Synthetic data size (default 400) |
+| `--encoder-epochs N` | TCN encoder epochs (default 10) |
+| `--slm-epochs N` | SLM epochs (default 5) |
+
+### Minimum environment for the fast path
+
+Just two env vars (the orchestrator creates both for you):
+
+| Var | Source |
+|---|---|
+| `I3_ENCRYPTION_KEY` | Auto-generated into `.env` by the `env` stage |
+| `ANTHROPIC_API_KEY` | *Optional.*  Paste into `.env` to exercise the cloud arm; falls back to the local SLM if absent.  [console.anthropic.com](https://console.anthropic.com/). |
+
+Every other env var ([`.env.example`](.env.example) · [`.env.providers.example`](.env.providers.example))
+has a sensible default.
 
 ---
 
@@ -308,17 +433,24 @@ Optional (features degrade gracefully if absent):
 
 ## Installation
 
+> For the impatient: **`make all-fast`** orchestrates install + env + verify
+> + serve with live progress bars.  See
+> [Quickstart — one command](#quickstart--one-command).
+
 ### With Poetry (recommended)
 
 ```bash
 git clone https://github.com/abailey81/implicit-interaction-intelligence.git
 cd implicit-interaction-intelligence
 
-# Install core dependencies
-poetry install
+# Install core + dev dependencies (the orchestrator default)
+poetry install --with dev,security
 
-# Or with optional groups
-poetry install --with dev,docs,observability,providers
+# Or full fat with every optional group
+poetry install --with dev,docs,security,observability,mlops,providers
+
+# Or core only (inference without dev tools)
+poetry install
 ```
 
 Optional dependency groups (see [`pyproject.toml`](pyproject.toml)):
@@ -413,6 +545,12 @@ Two models need training before the pipeline can produce non-trivial
 output: the TCN encoder and the SLM. Both can be trained on a laptop
 CPU in under an hour on the default configuration.
 
+> **Single-command path.**  `make all-full` runs every step below in
+> the right order — with live progress bars, ETAs, log tails, and
+> crash-resumable ``--resume`` support.  See
+> [Quickstart — one command](#quickstart--one-command).  The manual
+> path below gives you the option to run individual steps.
+
 ### 1. Generate synthetic interaction data
 
 ```bash
@@ -499,17 +637,23 @@ poetry run deepspeed training/train_with_deepspeed.py \
 
 ## Running the server
 
+> **One command.**  `make all-fast` handles install + env + verify
+> *and* launches the server.  `make all-full` does the same after
+> training, evaluation, tests, security, and benchmarks.  Use the raw
+> commands below when you want to launch the server without running
+> the other stages.
+
 ### Development
 
 ```bash
-poetry run uvicorn server.app:app --reload
+poetry run uvicorn server.app:create_app --factory --reload
 # Serves at http://127.0.0.1:8000
 ```
 
 Or the Makefile shortcut:
 
 ```bash
-make run
+make serve-dev
 ```
 
 ### Production
@@ -894,56 +1038,89 @@ Policy-as-code (Kyverno, OPA, Cedar, Falco, Tracee):
 ## Command reference (`make`)
 
 ```
+End-to-end orchestrator  (one command, live progress bars + ETAs)
+  make all                Alias for all-fast
+  make all-fast           Fast path: install → env → verify → serve (~5 min)
+  make all-full           Full path: data → train → eval → tests → security
+                          → verify → bench → onnx → docs → serve (hours/~15 min GPU)
+  make all-list           Print the stage graph for both modes
+  make all-resume         Re-run, skipping stages whose outputs already exist
+
 Installation + setup
-  make install            Install core dependencies
-  make install-dev        Install with dev extras
-  make install-all        Install every optional group
-  make clean              Remove caches and build artefacts
+  make install            Install core + dev dependencies
+  make install-prod       Install without dev dependencies
+  make install-all        Install with dev + security + docs groups
+  make setup              Alias for install
+  make clean              Remove build artefacts + caches
+  make clean-data         Remove generated synthetic data
+  make clean-checkpoints  Remove model checkpoints (confirms first)
+  make clean-all          clean + clean-data
 
-Running the server
-  make run                Start the dev server (reload)
-  make run-prod           Start the prod server
+Code quality
+  make lint               Ruff lint
+  make format             Ruff format + autofix
+  make typecheck          Mypy type check
+  make check              lint + typecheck + test  (pre-commit gate)
+  make security-check     Bandit + pip-audit
+  make audit              Alias for security-check
 
-Training
+Testing + verification
+  make test               Full pytest suite
+  make test-cov           With coverage
+  make test-fast          Skip slow tests
+  make test-security      Security-marked tests only
+  make test-parallel      pytest-xdist parallel
+  make verify             44-check verification harness
+  make verify-strict      Strict mode (any FAIL fails the build)
+  make verify-quick       Only code + config + interview categories
+  make redteam            55-attack red-team harness
+  make benchmarks         pytest-benchmark micro-benchmarks
+  make bench-ci           Emit CI-friendly JSON
+
+Training + data
+  make generate-data      Synthetic interaction corpus
+  make prepare-dialogue   Clean + dedup + split sample dialogue corpus
+  make prepare-data       Alias for prepare-dialogue
   make train-encoder      Train the TCN encoder
   make train-slm          Train the adaptive SLM
-  make evaluate           Run the evaluation script
+  make train-all          Generate data + train encoder + train SLM
+  make evaluate           Perplexity + latency report
+  make eval-conditioning  Cross-attention KL sensitivity
 
-Testing
-  make test               Full pytest suite
-  make test-cov           With coverage report
-  make test-fast          Skip slow tests
-  make verify             46-check verification harness (--strict)
-  make verify-quick       Skip slow runtime checks
-  make redteam            55-attack adversarial harness
-  make benchmarks         pytest-benchmark
+Server + demo
+  make serve              Production server (0.0.0.0:8000)
+  make serve-dev          Dev server with hot reload
+  make seed-demo          Pre-seed the demo database
+  make demo               seed-demo + serve-dev (opens browser)
 
-Linting and types
-  make lint               Ruff + black check
-  make format             Ruff + black format
-  make type               mypy
+Export + edge
+  make export-onnx        Export TCN + SLM to ONNX
+  make verify-onnx        ONNX ↔ PyTorch parity check
+  make profile-edge       Edge-feasibility profiling report
+  make sign-model         Sign a checkpoint with Sigstore
 
 Docker
-  make docker-build       Build the production image
-  make docker-build-dev   Build the dev image
-  make docker-up          docker compose up
-  make docker-up-prod     docker compose up -f prod.yml
+  make docker-build       Production image (multi-stage, non-root, tini PID 1)
+  make docker-build-dev   Dev image (Dockerfile.dev, hot reload)
+  make docker-up          docker compose up (base profile)
+  make docker-up-prod     Hardened profile (read-only rootfs, cap_drop, nginx)
+  make docker-down        Tear down
 
 Documentation
-  make docs               Build the MkDocs site
-  make docs-serve         Serve at http://127.0.0.1:8000
+  make docs               Alias for docs-serve
+  make docs-serve         MkDocs at http://127.0.0.1:8001 with hot reload
+  make docs-build         Build static site into ./site
+  make docs-strict        Build with --strict (fails on warnings)
   make docs-deploy        Deploy to gh-pages
 
 Observability
-  make obs-up             Start the local OTel/Prom/Tempo/Grafana stack
-  make obs-down           Tear it down
+  make obs-up             Grafana :3000, Prometheus :9090, Tempo, Loki
+  make obs-down           Tear down
 
-Export and edge
-  make export-onnx        ONNX export + parity check
-  make verify-onnx        Verify ONNX artefacts
-  make profile-edge       Run the edge-feasibility profiler
-  make sign-model         Sign a checkpoint with Sigstore
-  make eval-conditioning  Cross-attention KL sensitivity
+Build + release
+  make build              Build wheel + sdist
+  make publish            Publish to PyPI
+  make release-check      All quality + security gates
 ```
 
 Full target listing: `make help`.

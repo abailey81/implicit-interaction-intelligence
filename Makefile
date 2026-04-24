@@ -67,6 +67,9 @@ help: ## Show this help message
 	@printf "$(BOLD)  ── Server & Demo ───────────────────────────────────────────────$(RESET)\n"
 	@awk 'BEGIN {FS = ":.*?## "} /^(serve.*|demo.*|seed.*):.*?## / {printf "    $(GREEN)%-22s$(RESET) %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@echo ""
+	@printf "$(BOLD)  ── End-to-end Orchestrator ─────────────────────────────────────$(RESET)\n"
+	@awk 'BEGIN {FS = ":.*?## "} /^(all|all-.*):.*?## / {printf "    $(GREEN)%-22s$(RESET) %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@echo ""
 	@printf "$(BOLD)  ── Build & Release ─────────────────────────────────────────────$(RESET)\n"
 	@awk 'BEGIN {FS = ":.*?## "} /^(build|publish|docker.*|release.*):.*?## / {printf "    $(GREEN)%-22s$(RESET) %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@echo ""
@@ -256,6 +259,32 @@ serve-dev: ## Run the FastAPI server with hot reload
 	$(UVICORN) server.app:app --host 127.0.0.1 --port 8000 --reload
 
 demo: seed-demo serve-dev ## Full demo setup (seed + serve-dev)
+
+# ═════════════════════════════════════════════════════════════════════════
+#  End-to-end orchestrator — one command to rule them all
+# ═════════════════════════════════════════════════════════════════════════
+
+.PHONY: all all-fast all-full all-list all-resume
+
+all-fast: ## Fast end-to-end: deps + env + verify + serve (~5 min, uses demo ckpts)
+	@printf "$(BOLD)$(CYAN)▶ Orchestrator — fast mode$(RESET)\n"
+	$(PY) scripts/run_everything.py --mode fast
+
+all-full: ## Full end-to-end: prereq → install → env → data → train → eval → tests → security → verify → bench → onnx → docs → serve
+	@printf "$(BOLD)$(CYAN)▶ Orchestrator — full mode$(RESET)\n"
+	$(PY) scripts/run_everything.py --mode full
+
+all: all-fast ## Alias for all-fast (the quickstart path)
+
+all-list: ## Print the orchestrator stage graph (fast + full) and exit
+	@printf "$(BOLD)$(CYAN)── fast mode ──$(RESET)\n"
+	@$(PY) scripts/run_everything.py --mode fast --list
+	@printf "\n$(BOLD)$(CYAN)── full mode ──$(RESET)\n"
+	@$(PY) scripts/run_everything.py --mode full --list
+
+all-resume: ## Re-run the orchestrator, skipping stages whose outputs already exist
+	@printf "$(BOLD)$(CYAN)▶ Orchestrator — resume$(RESET)\n"
+	$(PY) scripts/run_everything.py --mode full --resume
 
 # ═════════════════════════════════════════════════════════════════════════
 #  Build & Release

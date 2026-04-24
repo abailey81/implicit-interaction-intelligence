@@ -99,6 +99,10 @@ aiosqlite      = "^0.20"
 # Privacy
 cryptography   = "^43.0"          # SEC: close PKCS#12 + OpenSSL EC CVEs
 
+# CLI UX — live progress bars, tables, and panels used by the
+# `scripts/run_everything.py` orchestrator and various demo scripts.
+rich           = "^13.7"
+
 # ─── Development Dependencies ────────────────────────────────────────────
 [tool.poetry.group.dev.dependencies]
 pytest             = "^8.0"
