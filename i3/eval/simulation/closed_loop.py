@@ -31,9 +31,11 @@ seed)`` triple.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from collections.abc import Iterable
+from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
@@ -67,6 +69,28 @@ def _adaptation_vector_l2(a: AdaptationVector, b: AdaptationVector) -> float:
     va = a.to_tensor().numpy().astype(np.float64)[:7]
     vb = b.to_tensor().numpy().astype(np.float64)[:7]
     return float(np.linalg.norm(va - vb))
+
+
+@dataclass
+class _SessionOutcome:
+    """Per-session derived state, produced by :meth:`_run_one_session`.
+
+    Collecting these in a typed struct keeps the concurrent/sequential
+    merge identical — the top-level :meth:`run` only knows how to
+    accumulate these dataclasses, not how they were generated.
+    """
+
+    persona_name: str
+    session_index: int
+    records: list[MessageRecord]
+    message_errors: list[float]
+    #: List of ``(message_index, error)`` pairs so the caller can
+    #: increment the per-message-index sum + count arrays.
+    per_message_index_errors: list[tuple[int, float]]
+    route_local_flags: list[int]
+    session_mean_error: float
+    converged_at: int | None
+    recovered_name: str
 
 
 def _adaptation_from_pipeline_output(
@@ -271,6 +295,7 @@ class ClosedLoopEvaluator:
         adapt_converged_threshold: float = 0.3,
         seed: int = 42,
         bootstrap_rng_seed: int = 4242,
+        concurrency: int = 1,
     ) -> None:
         if n_sessions_per_persona < 1:
             raise ValueError(
@@ -287,6 +312,8 @@ class ClosedLoopEvaluator:
                 f"adapt_converged_threshold must be > 0, "
                 f"got {adapt_converged_threshold}"
             )
+        if concurrency < 1:
+            raise ValueError(f"concurrency must be >= 1, got {concurrency}")
 
         self.pipeline = pipeline
         self.personas: list[HCIPersona] = list(personas)
@@ -297,6 +324,14 @@ class ClosedLoopEvaluator:
         self.adapt_converged_threshold = float(adapt_converged_threshold)
         self.seed = int(seed)
         self._bootstrap_rng = np.random.default_rng(int(bootstrap_rng_seed))
+        # PERF: opt-in parallelism.  Sessions within a persona AND
+        # across personas are logically independent (distinct user_id
+        # per session), so dispatching them concurrently via
+        # ``asyncio.gather`` lets pipeline I/O (LLM calls, DB writes)
+        # overlap.  Default ``concurrency=1`` keeps behaviour bit-
+        # identical to the sequential loop so pinned tests and
+        # determinism guarantees are preserved.
+        self.concurrency = int(concurrency)
 
     # ------------------------------------------------------------------
     # Public API
@@ -346,91 +381,66 @@ class ClosedLoopEvaluator:
         }
 
         # -- main simulation loop -------------------------------------------
-        for persona in self.personas:
+        # Build the full (persona, session_idx) schedule up-front.  The
+        # deterministic iteration order here is the key to bit-stable
+        # merging: ``asyncio.gather`` returns results in submission
+        # order, so iterating in this same order when accumulating
+        # preserves every sequential append/sum.
+        schedule: list[tuple[HCIPersona, int]] = [
+            (persona, session_idx)
+            for persona in self.personas
+            for session_idx in range(self.n_sessions_per_persona)
+        ]
+
+        if self.concurrency == 1:
             logger.info(
-                "Running persona=%s (%d sessions × %d messages)",
-                persona.name,
+                "Running %d personas × %d sessions sequentially",
+                len(self.personas),
                 self.n_sessions_per_persona,
-                self.n_messages_per_session,
             )
-            for session_idx in range(self.n_sessions_per_persona):
-                session_seed = self.seed + 1000 * session_idx
-                simulator = UserSimulator(persona, seed=session_seed)
-                messages = simulator.run_session(
-                    n_messages=self.n_messages_per_session
+            outcomes: list[_SessionOutcome] = []
+            for persona, session_idx in schedule:
+                outcomes.append(
+                    await self._run_one_session(persona, session_idx)
                 )
+        else:
+            sem = asyncio.Semaphore(self.concurrency)
 
-                final_inferred: AdaptationVector | None = None
-                session_errors: list[float] = []
-                converged_at: int | None = None
-                user_id = f"persona:{persona.name}:session:{session_idx}"
-                session_id = await self._start_session(user_id)
+            async def _gated(persona: HCIPersona, s_idx: int) -> _SessionOutcome:
+                async with sem:
+                    return await self._run_one_session(persona, s_idx)
 
-                for msg in messages:
-                    pipeline_output = await self._process_message(
-                        user_id=user_id,
-                        session_id=session_id,
-                        message=msg,
-                    )
-                    inferred = _adaptation_from_pipeline_output(pipeline_output)
-                    final_inferred = inferred
-                    err = _adaptation_vector_l2(
-                        inferred, persona.expected_adaptation
-                    )
-                    session_errors.append(err)
-                    per_persona_message_errors[persona.name].append(err)
-                    per_persona_error_by_msg_sum[persona.name][
-                        msg.message_index
-                    ] += err
-                    per_persona_error_by_msg_count[persona.name][
-                        msg.message_index
-                    ] += 1
-                    per_persona_route_local[persona.name].append(
-                        1 if pipeline_output.route_chosen == "local_slm" else 0
-                    )
-                    if converged_at is None and err < self.adapt_converged_threshold:
-                        converged_at = msg.message_index
-
-                    inferred_vec = inferred.to_tensor().numpy().astype(
-                        float
-                    )[:7].tolist()
-                    ground_vec = persona.expected_adaptation.to_tensor().numpy().astype(
-                        float
-                    )[:7].tolist()
-                    records.append(
-                        MessageRecord(
-                            persona_name=persona.name,
-                            session_index=session_idx,
-                            message_index=msg.message_index,
-                            l2_error=err,
-                            route_chosen=pipeline_output.route_chosen,
-                            inferred=inferred_vec,
-                            ground_truth=ground_vec,
-                            embedding_2d=(
-                                float(pipeline_output.user_state_embedding_2d[0]),
-                                float(pipeline_output.user_state_embedding_2d[1]),
-                            ),
-                        )
-                    )
-
-                # -- session summary --
-                per_persona_session_errors[persona.name].append(
-                    float(np.mean(session_errors)) if session_errors else 0.0
+            logger.info(
+                "Running %d personas × %d sessions concurrently "
+                "(concurrency=%d)",
+                len(self.personas),
+                self.n_sessions_per_persona,
+                self.concurrency,
+            )
+            outcomes = list(
+                await asyncio.gather(
+                    *(_gated(p, s) for (p, s) in schedule)
                 )
-                per_persona_convergence[persona.name].append(converged_at)
+            )
 
-                # 1-NN persona recovery: which persona's expected_adaptation
-                # is closest to final inferred?
-                if final_inferred is None:
-                    recovered_name = persona.name  # degenerate edge case
-                else:
-                    recovered_name = self._nearest_persona(final_inferred)
-                recovered_idx = persona_index[recovered_name]
-                true_idx = persona_index[persona.name]
-                confusion[true_idx][recovered_idx] += 1
-                per_persona_sessions_recovery[persona.name].append(
-                    1.0 if recovered_name == persona.name else 0.0
-                )
+        # Deterministic accumulation — iterate in schedule order so the
+        # merge is identical to what the old sequential loop produced.
+        for outcome in outcomes:
+            pname = outcome.persona_name
+            records.extend(outcome.records)
+            per_persona_message_errors[pname].extend(outcome.message_errors)
+            for idx, err in outcome.per_message_index_errors:
+                per_persona_error_by_msg_sum[pname][idx] += err
+                per_persona_error_by_msg_count[pname][idx] += 1
+            per_persona_route_local[pname].extend(outcome.route_local_flags)
+            per_persona_session_errors[pname].append(outcome.session_mean_error)
+            per_persona_convergence[pname].append(outcome.converged_at)
+            true_idx = persona_index[pname]
+            recovered_idx = persona_index[outcome.recovered_name]
+            confusion[true_idx][recovered_idx] += 1
+            per_persona_sessions_recovery[pname].append(
+                1.0 if outcome.recovered_name == pname else 0.0
+            )
 
         # -- aggregate metrics ----------------------------------------------
         (
@@ -523,6 +533,97 @@ class ClosedLoopEvaluator:
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+
+    async def _run_one_session(
+        self,
+        persona: HCIPersona,
+        session_idx: int,
+    ) -> _SessionOutcome:
+        """Run a single (persona, session) and return its derived state.
+
+        The body is a verbatim extract of the original inner loop —
+        same seeds, same ordering, same arithmetic.  All mutations
+        land in local variables; the caller merges them into the
+        top-level accumulators in deterministic schedule order.
+        """
+        session_seed = self.seed + 1000 * session_idx
+        simulator = UserSimulator(persona, seed=session_seed)
+        messages = simulator.run_session(
+            n_messages=self.n_messages_per_session
+        )
+
+        final_inferred: AdaptationVector | None = None
+        session_errors: list[float] = []
+        converged_at: int | None = None
+        user_id = f"persona:{persona.name}:session:{session_idx}"
+        session_id = await self._start_session(user_id)
+
+        session_records: list[MessageRecord] = []
+        message_errors: list[float] = []
+        per_message_index_errors: list[tuple[int, float]] = []
+        route_local_flags: list[int] = []
+
+        for msg in messages:
+            pipeline_output = await self._process_message(
+                user_id=user_id,
+                session_id=session_id,
+                message=msg,
+            )
+            inferred = _adaptation_from_pipeline_output(pipeline_output)
+            final_inferred = inferred
+            err = _adaptation_vector_l2(
+                inferred, persona.expected_adaptation
+            )
+            session_errors.append(err)
+            message_errors.append(err)
+            per_message_index_errors.append((msg.message_index, err))
+            route_local_flags.append(
+                1 if pipeline_output.route_chosen == "local_slm" else 0
+            )
+            if converged_at is None and err < self.adapt_converged_threshold:
+                converged_at = msg.message_index
+
+            inferred_vec = inferred.to_tensor().numpy().astype(
+                float
+            )[:7].tolist()
+            ground_vec = persona.expected_adaptation.to_tensor().numpy().astype(
+                float
+            )[:7].tolist()
+            session_records.append(
+                MessageRecord(
+                    persona_name=persona.name,
+                    session_index=session_idx,
+                    message_index=msg.message_index,
+                    l2_error=err,
+                    route_chosen=pipeline_output.route_chosen,
+                    inferred=inferred_vec,
+                    ground_truth=ground_vec,
+                    embedding_2d=(
+                        float(pipeline_output.user_state_embedding_2d[0]),
+                        float(pipeline_output.user_state_embedding_2d[1]),
+                    ),
+                )
+            )
+
+        # 1-NN persona recovery — same logic as the original loop.
+        if final_inferred is None:
+            recovered_name = persona.name  # degenerate edge case
+        else:
+            recovered_name = self._nearest_persona(final_inferred)
+
+        return _SessionOutcome(
+            persona_name=persona.name,
+            session_index=session_idx,
+            records=session_records,
+            message_errors=message_errors,
+            per_message_index_errors=per_message_index_errors,
+            route_local_flags=route_local_flags,
+            session_mean_error=(
+                float(np.mean(session_errors)) if session_errors else 0.0
+            ),
+            converged_at=converged_at,
+            recovered_name=recovered_name,
+        )
 
     async def _start_session(self, user_id: str) -> str:
         """Open a pipeline session when the pipeline supports it.

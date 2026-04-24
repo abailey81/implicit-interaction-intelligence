@@ -105,6 +105,18 @@ def _parse_args() -> argparse.Namespace:
         help="Global deterministic seed (default: 42).",
     )
     parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=1,
+        help=(
+            "Number of (persona, session) pairs to run concurrently "
+            "via asyncio.gather.  1 (default) = sequential, matches "
+            "historical behaviour bit-for-bit.  Higher values overlap "
+            "pipeline I/O (LLM calls, DB writes) for a near-linear "
+            "speedup until the pipeline becomes CPU-bound."
+        ),
+    )
+    parser.add_argument(
         "--out",
         type=str,
         default=f"reports/closed_loop_eval_{ts}.json",
@@ -520,6 +532,7 @@ async def _run_async(args: argparse.Namespace) -> ClosedLoopResult:
             n_messages_per_session=args.n_messages,
             adapt_converged_threshold=args.threshold,
             seed=args.seed,
+            concurrency=args.concurrency,
         )
         return await evaluator.run()
     finally:
