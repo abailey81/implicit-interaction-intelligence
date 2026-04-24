@@ -382,20 +382,26 @@ def _build_all_stages(args: argparse.Namespace) -> list[Stage]:
         ),
         Stage(
             name="dialogue",
-            description="Clean + dedup + split bundled dialogue corpus",
+            description="Prepare dialogue corpus + build tokenizer",
+            # v1 ``prepare_dialogue.py`` is the full SLM-training
+            # pipeline: clean + dedup + split + build tokenizer +
+            # write ``tokenizer.json`` + train/val/test ``.pt`` shards.
+            # v2 ``prepare_dialogue_v2.py`` only does cleaning, so the
+            # SLM trainer (which needs the tokenizer) fails downstream.
             cmd=(
                 ["make", "prepare-dialogue"]
                 if _make_available()
                 else py
                 + [
-                    "training/prepare_dialogue_v2.py",
-                    "--jsonl",
-                    "data/corpora/sample_dialogues.jsonl",
-                    "--output",
-                    "data/dialogue/",
+                    "training/prepare_dialogue.py",
+                    "--output-dir",
+                    "data/dialogue",
                 ]
             ),
-            produces=[REPO_ROOT / "data" / "dialogue" / "train.jsonl"],
+            produces=[
+                REPO_ROOT / "data" / "dialogue" / "tokenizer.json",
+                REPO_ROOT / "data" / "dialogue" / "train.pt",
+            ],
             eta_seed_s=20.0,
             optional=True,
             skip_if=lambda a: a.mode == "fast",
@@ -1348,8 +1354,43 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return args
 
 
+def _autoload_dotenv() -> None:
+    """Load ``.env`` into ``os.environ`` so subprocess stages inherit it.
+
+    Stages invoked via ``subprocess.Popen`` only see variables already in
+    the orchestrator's environment.  Without this, ``I3_ENCRYPTION_KEY``,
+    ``ANTHROPIC_API_KEY`` and friends are silently missing for every
+    downstream stage even though the ``env`` stage just wrote them.
+
+    Soft dependency on ``python-dotenv``.  If the package is not
+    available (or the file is missing), do nothing — stages that need
+    specific vars will still work if they've been set in the shell.
+    """
+    dotenv_path = REPO_ROOT / ".env"
+    if not dotenv_path.exists():
+        return
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        # Minimal inline parser fallback so the orchestrator stays
+        # functional even on a machine where python-dotenv is not yet
+        # installed (e.g. the very first ``install`` stage run).
+        for raw in dotenv_path.read_text(encoding="utf-8").splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            key = key.strip()
+            value = value.strip().strip('"').strip("'")
+            if key and key not in os.environ:
+                os.environ[key] = value
+        return
+    load_dotenv(dotenv_path, override=False)
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
+    _autoload_dotenv()
     stages = _build_all_stages(args)
     stages = _filter(stages, args)
     if args.list:
