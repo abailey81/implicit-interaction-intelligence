@@ -66,6 +66,7 @@ class SLMGenerator:
         model: AdaptiveSLM,
         tokenizer: SimpleTokenizer,
         device: str = "auto",
+        compile_model: bool = False,
     ) -> None:
         self.model = model
         self.tokenizer = tokenizer
@@ -74,6 +75,15 @@ class SLMGenerator:
         self.device = pick_device(device)
         self.model.to(self.device)
         self.model.eval()
+        # PERF: opt-in torch.compile for the server inference path.
+        # Off by default because the first call takes 30-60 s to warm
+        # up (bad for first-response latency); flip to True in long-
+        # running services where steady-state throughput matters.
+        if compile_model and self.device.type == "cuda" and hasattr(torch, "compile"):
+            try:
+                self.model = torch.compile(self.model, mode="reduce-overhead")
+            except Exception:  # pragma: no cover - environment-specific
+                pass
 
     # ------------------------------------------------------------------
     # Main generation method

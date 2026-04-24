@@ -172,6 +172,19 @@ def main() -> None:
             "disables it on CPU."
         ),
     )
+    parser.add_argument(
+        "--compile",
+        type=str,
+        default="auto",
+        choices=["auto", "on", "off"],
+        dest="compile_mode",
+        help=(
+            "torch.compile() JIT the model graph.  'auto' = on when CUDA "
+            "is visible and the running torch supports it, else off.  "
+            "Adds ~30 s warm-up on the first step but yields a 1.2-1.6x "
+            "steady-state speedup on Ampere+ GPUs."
+        ),
+    )
     args = parser.parse_args()
 
     # SEC: bound-check numeric CLI arguments to catch obviously bad inputs
@@ -244,35 +257,47 @@ def main() -> None:
     # PERF: DataLoader prefetching — ``num_workers`` spawns sidecar
     # Python processes that load+collate the next batch while the
     # current one is on the GPU/CPU.  Defaults:
-    #   * ``--num-workers`` CLI override if provided
-    #   * else ``min(4, cpu_count/2)`` — leaves half the cores for the
-    #     training loop itself
+    #   * ``--num-workers`` CLI override wins outright
+    #   * On CUDA we want the GPU *never* idle, so we scale up to 8 or
+    #     (cpu_count - 2) whichever is smaller — keeps 2 cores free for
+    #     the main loop + Python overhead.
+    #   * On CPU we keep it tight at ``min(4, cpu_count/2)`` — the CPU
+    #     is *also* the trainer, contending with workers costs more
+    #     than the overlap gains.
     #   * ``persistent_workers=True`` keeps the pool alive across
     #     epochs so fork/spawn cost is paid once per run, not per epoch
-    #   * ``pin_memory`` only when CUDA is available (a no-op otherwise
-    #     that just wastes allocation on CPU-only boxes)
+    #   * ``pin_memory`` only when CUDA is available (a no-op otherwise)
+    #   * ``prefetch_factor`` bumped on CUDA — keeps 4 batches queued
+    #     per worker so the GPU never waits on I/O
     import torch as _torch
+    _cuda = _torch.cuda.is_available()
     _num_workers = getattr(args, "num_workers", None)
     if _num_workers is None:
-        _num_workers = max(0, min(4, (os.cpu_count() or 2) // 2))
-    _pin = _torch.cuda.is_available()
+        if _cuda:
+            _num_workers = min(8, max(0, (os.cpu_count() or 4) - 2))
+        else:
+            _num_workers = max(0, min(4, (os.cpu_count() or 2) // 2))
+    _pin = _cuda
+    _prefetch = 4 if (_cuda and _num_workers > 0) else 2
+    _dl_kwargs: dict[str, Any] = dict(
+        num_workers=_num_workers,
+        pin_memory=_pin,
+    )
+    if _num_workers > 0:
+        _dl_kwargs.update(persistent_workers=True, prefetch_factor=_prefetch)
     train_loader = DataLoader(
         train_ds,
         batch_size=args.batch_size,
         shuffle=True,
         drop_last=True,
-        num_workers=_num_workers,
-        persistent_workers=_num_workers > 0,
-        pin_memory=_pin,
+        **_dl_kwargs,
     )
     val_loader = DataLoader(
         val_ds,
         batch_size=args.batch_size,
         shuffle=False,
         drop_last=False,
-        num_workers=_num_workers,
-        persistent_workers=_num_workers > 0,
-        pin_memory=_pin,
+        **_dl_kwargs,
     )
 
     # -- Model ----------------------------------------------------------------
@@ -288,6 +313,21 @@ def main() -> None:
     n_params = sum(p.numel() for p in model.parameters())
     logger.info("Model parameters: %d", n_params)
     logger.info("Receptive field: %d timesteps", model.get_receptive_field())
+
+    # PERF: torch.compile JITs the forward graph on first use and caches
+    # the Inductor / NVIDIA kernels.  Typical speedup on Ampere/Ada: 1.2-
+    # 1.6x steady state, 30-60 s warm-up.  Opt-out with --compile off if
+    # the compile step itself errors out on a weird op.
+    _want_compile = (
+        args.compile_mode == "on"
+        or (args.compile_mode == "auto" and device.type == "cuda")
+    )
+    if _want_compile and hasattr(torch, "compile"):
+        try:
+            model = torch.compile(model, mode="default")
+            logger.info("torch.compile enabled (mode=default)")
+        except Exception as exc:  # pragma: no cover - environment-specific
+            logger.warning("torch.compile failed (%s); continuing uncompiled.", exc)
 
     # -- Training hyperparams -------------------------------------------------
     epochs = args.epochs if args.epochs is not None else 100

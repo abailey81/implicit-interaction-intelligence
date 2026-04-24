@@ -208,6 +208,18 @@ def parse_args() -> argparse.Namespace:
             "disables it on CPU."
         ),
     )
+    parser.add_argument(
+        "--compile",
+        type=str,
+        default="auto",
+        choices=["auto", "on", "off"],
+        dest="compile_mode",
+        help=(
+            "torch.compile() JIT the model graph.  'auto' = on when CUDA "
+            "is visible.  Adds ~30 s warm-up, yields 1.2-1.6x steady-state "
+            "speedup on Ampere+ GPUs."
+        ),
+    )
     args = parser.parse_args()
 
     # SEC: bound-check numeric CLI overrides so user typos surface fast,
@@ -347,33 +359,53 @@ def main() -> None:
     train_dataset = DialogueDataset(train_path)
     val_dataset = DialogueDataset(val_path)
 
-    batch_size = args.batch_size or config.slm.training.batch_size
-
-    # PERF: same DataLoader prefetching strategy as train_encoder.py —
-    # spawn sidecar workers to hide collation latency behind GPU work,
-    # keep them alive across epochs via ``persistent_workers``.
+    # PERF: auto-bump batch size when we have the VRAM.  The SLM is
+    # tiny (4 layers, 256 d_model) so even a 6 GB RTX 4050 has room for
+    # 2-4× the config default.  Users can always pin with --batch-size.
     import os as _os
+    _cuda = device.type == "cuda"
+    batch_size = args.batch_size or config.slm.training.batch_size
+    if args.batch_size is None and _cuda:
+        # 2× the config default is conservative and safe on 6 GB VRAM
+        # at seq_len=256, d_model=256.  Keeps a comfortable 50 %
+        # activation headroom for AMP + gradient buffers.
+        batch_size = batch_size * 2
+        logger.info(
+            "CUDA detected: auto-bumping batch_size %d -> %d "
+            "(override with --batch-size).",
+            config.slm.training.batch_size,
+            batch_size,
+        )
+
+    # PERF: DataLoader workers scaled by device — see train_encoder.py
+    # for the rationale.  CUDA path prefetches 4 batches per worker.
     _num_workers = getattr(args, "num_workers", None)
     if _num_workers is None:
-        _num_workers = max(0, min(4, (_os.cpu_count() or 2) // 2))
+        if _cuda:
+            _num_workers = min(8, max(0, (_os.cpu_count() or 4) - 2))
+        else:
+            _num_workers = max(0, min(4, (_os.cpu_count() or 2) // 2))
+    _prefetch = 4 if (_cuda and _num_workers > 0) else 2
+    _dl_kwargs: dict[str, Any] = dict(
+        num_workers=_num_workers,
+        pin_memory=_cuda,
+    )
+    if _num_workers > 0:
+        _dl_kwargs.update(persistent_workers=True, prefetch_factor=_prefetch)
 
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
         shuffle=True,
         drop_last=True,
-        num_workers=_num_workers,
-        persistent_workers=_num_workers > 0,
-        pin_memory=(device.type == "cuda"),
+        **_dl_kwargs,
     )
     val_loader = DataLoader(
         val_dataset,
         batch_size=batch_size,
         shuffle=False,
         drop_last=False,
-        num_workers=_num_workers,
-        persistent_workers=_num_workers > 0,
-        pin_memory=(device.type == "cuda"),
+        **_dl_kwargs,
     )
 
     logger.info(
@@ -402,6 +434,21 @@ def main() -> None:
     n_params = sum(p.numel() for p in model.parameters())
     logger.info("Model: %s", model)
     logger.info("Total parameters: %d (%.2f MB)", n_params, n_params * 4 / 1e6)
+
+    # PERF: torch.compile JIT the forward+backward graph.  Only kicks in
+    # on CUDA by default (the Inductor CPU path is slower than eager for
+    # small transformers).  --compile on forces it; --compile off skips
+    # even on GPU.
+    _want_compile = (
+        args.compile_mode == "on"
+        or (args.compile_mode == "auto" and device.type == "cuda")
+    )
+    if _want_compile and hasattr(torch, "compile"):
+        try:
+            model = torch.compile(model, mode="default")
+            logger.info("torch.compile enabled (mode=default)")
+        except Exception as exc:  # pragma: no cover - environment-specific
+            logger.warning("torch.compile failed (%s); continuing uncompiled.", exc)
 
     # -- Build trainer -------------------------------------------------------
     # Apply CLI overrides to config (create mutable copy of training config)

@@ -87,8 +87,12 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--device",
-        default="cpu",
-        help="Torch device (default: cpu).",
+        default="auto",
+        help=(
+            "Torch device ('auto', 'cpu', 'cuda', 'cuda:N', 'mps'). "
+            "Default 'auto' picks CUDA when available (fallback: MPS, then "
+            "CPU) via i3.runtime.device.pick_device."
+        ),
     )
     return parser
 
@@ -107,11 +111,16 @@ def _load_prompts(path: Optional[Path]) -> list[str]:
 
 
 def _load_model(checkpoint: Optional[Path], device: str) -> Any:
+    from i3.runtime.device import enable_cuda_optimizations, pick_device
     from i3.slm.model import AdaptiveSLM
 
-    model = AdaptiveSLM().to(device).eval()
+    # PERF: TF32 matmul + cuDNN benchmark when CUDA is visible.  Safe
+    # no-op on CPU-only wheels.
+    enable_cuda_optimizations()
+    resolved = pick_device(device)
+    model = AdaptiveSLM().to(resolved).eval()
     if checkpoint is not None:
-        state: Any = torch.load(str(checkpoint), map_location=device, weights_only=True)
+        state: Any = torch.load(str(checkpoint), map_location=resolved, weights_only=True)
         if isinstance(state, dict) and "state_dict" in state:
             state = state["state_dict"]
         model.load_state_dict(state, strict=False)
@@ -155,16 +164,20 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         standard_adaptation_vectors,
     )
 
+    from i3.runtime.device import pick_device
+
     prompts = _load_prompts(args.prompts)
+    resolved_device = pick_device(args.device)
     model = _load_model(args.checkpoint, args.device)
     tokenizer = _load_tokenizer(args.tokenizer)
+    logger.info("Conditioning eval running on device=%s", resolved_device)
 
     results = measure_conditioning_sensitivity(
         model=model,
         tokenizer=tokenizer,
         prompts=prompts,
         adaptation_vectors=standard_adaptation_vectors(),
-        device=args.device,
+        device=str(resolved_device),
     )
 
     out_path = save_report(results, args.out)
