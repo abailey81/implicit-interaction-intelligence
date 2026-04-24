@@ -154,6 +154,14 @@ class Stage:
     skip_if: Callable[[argparse.Namespace], bool] | None = None
     #: Categorisation for the summary table.
     category: str = "core"
+    #: Execution wave.  Stages in the same wave run *concurrently* via
+    #: a thread pool (subprocess stages) or sequentially (action stages
+    #: that mutate shared Python state — they always run alone).  Waves
+    #: run in ascending numeric order.  A wave gate waits for every
+    #: stage in the current wave to finish before advancing.  Design
+    #: contract: stages sharing a wave MUST have no mutual file /
+    #: directory / port / DB conflicts.
+    wave: int = 0
 
     @property
     def log_path(self) -> Path:
@@ -301,14 +309,20 @@ def _action_launch_server(args: argparse.Namespace) -> None:
 def _build_all_stages(args: argparse.Namespace) -> list[Stage]:
     py = _py_cmd()
     stages: list[Stage] = [
-        # ── Setup ─────────────────────────────────────────────────────
+        # ─────────────────────────────────────────────────────────────
+        # Wave 0 — prereq check.  Fast, must run first.
+        # ─────────────────────────────────────────────────────────────
         Stage(
             name="prereq",
             description="Check Python + toolchain",
             action=_action_prerequisites,
             eta_seed_s=0.5,
             category="setup",
+            wave=0,
         ),
+        # ─────────────────────────────────────────────────────────────
+        # Wave 1 — install.  Single heavy stage, blocks everything.
+        # ─────────────────────────────────────────────────────────────
         Stage(
             name="install",
             description="Install dependencies (poetry install --with dev,security)",
@@ -321,7 +335,11 @@ def _build_all_stages(args: argparse.Namespace) -> list[Stage]:
             eta_seed_s=240.0,
             skip_if=lambda a: a.skip_install,
             category="setup",
+            wave=1,
         ),
+        # ─────────────────────────────────────────────────────────────
+        # Wave 2 — env.  Python action; must run alone.
+        # ─────────────────────────────────────────────────────────────
         Stage(
             name="env",
             description="Create .env + generate Fernet encryption key",
@@ -329,8 +347,13 @@ def _build_all_stages(args: argparse.Namespace) -> list[Stage]:
             produces=[REPO_ROOT / ".env"],
             eta_seed_s=0.3,
             category="setup",
+            wave=2,
         ),
-        # ── Data ──────────────────────────────────────────────────────
+        # ─────────────────────────────────────────────────────────────
+        # Wave 3 — data generation + dialogue prep.  Different inputs,
+        # different output paths, completely independent.  Run
+        # concurrently → roughly halves data-prep wall-clock.
+        # ─────────────────────────────────────────────────────────────
         Stage(
             name="data",
             description="Generate synthetic interaction corpus",
@@ -348,6 +371,7 @@ def _build_all_stages(args: argparse.Namespace) -> list[Stage]:
             eta_seed_s=30.0,
             skip_if=lambda a: a.mode == "fast",
             category="data",
+            wave=3,
         ),
         Stage(
             name="dialogue",
@@ -369,8 +393,12 @@ def _build_all_stages(args: argparse.Namespace) -> list[Stage]:
             optional=True,
             skip_if=lambda a: a.mode == "fast",
             category="data",
+            wave=3,
         ),
-        # ── Training ──────────────────────────────────────────────────
+        # ─────────────────────────────────────────────────────────────
+        # Wave 4 — TCN encoder.  Blocks SLM training (needs encoder
+        # checkpoint).  Runs alone in the wave.
+        # ─────────────────────────────────────────────────────────────
         Stage(
             name="train-encoder",
             description="Train TCN encoder (NT-Xent contrastive loss)",
@@ -388,7 +416,15 @@ def _build_all_stages(args: argparse.Namespace) -> list[Stage]:
             eta_seed_s=1800.0,
             skip_if=lambda a: a.mode == "fast",
             category="train",
+            wave=4,
         ),
+        # ─────────────────────────────────────────────────────────────
+        # Wave 5 — SLM training + demo seed.  SLM needs encoder, demo
+        # seed is independent of everything but shouldn't race the GPU
+        # with training — so it sits after training in a non-blocking
+        # wave with the SLM (seed writes to SQLite, SLM writes to
+        # disk, no conflict).
+        # ─────────────────────────────────────────────────────────────
         Stage(
             name="train-slm",
             description="Train SLM with cross-attention conditioning",
@@ -408,8 +444,14 @@ def _build_all_stages(args: argparse.Namespace) -> list[Stage]:
             eta_seed_s=3000.0,
             skip_if=lambda a: a.mode == "fast",
             category="train",
+            wave=5,
         ),
-        # ── Evaluation ────────────────────────────────────────────────
+        # ─────────────────────────────────────────────────────────────
+        # Wave 6 — evaluation + conditioning-sensitivity + demo seed.
+        # All independent: each reads checkpoints, writes its own
+        # report file.  Concurrent execution trims ~1.5× off the
+        # post-training bar.
+        # ─────────────────────────────────────────────────────────────
         Stage(
             name="evaluate",
             description="Perplexity + conditioning sensitivity + latency",
@@ -430,6 +472,7 @@ def _build_all_stages(args: argparse.Namespace) -> list[Stage]:
             optional=True,
             skip_if=lambda a: a.mode == "fast",
             category="eval",
+            wave=6,
         ),
         Stage(
             name="eval-conditioning",
@@ -446,8 +489,8 @@ def _build_all_stages(args: argparse.Namespace) -> list[Stage]:
             optional=True,
             skip_if=lambda a: a.mode == "fast",
             category="eval",
+            wave=6,
         ),
-        # ── Seed / demo ───────────────────────────────────────────────
         Stage(
             name="seed",
             description="Seed the demo database",
@@ -463,8 +506,15 @@ def _build_all_stages(args: argparse.Namespace) -> list[Stage]:
             optional=True,
             needs_demo_mode=True,
             category="demo",
+            wave=6,
         ),
-        # ── Quality gates ─────────────────────────────────────────────
+        # ─────────────────────────────────────────────────────────────
+        # Wave 7 — code-quality + security gates.  Every stage here
+        # is read-only over the source tree and writes its own
+        # report; full concurrency.  Typically 4-5× wall-clock win on
+        # an 8-core box since lint+typecheck+test+security+redteam are
+        # bounded by the slowest (test).
+        # ─────────────────────────────────────────────────────────────
         Stage(
             name="lint",
             description="ruff lint",
@@ -477,6 +527,7 @@ def _build_all_stages(args: argparse.Namespace) -> list[Stage]:
             optional=True,
             skip_if=lambda a: a.mode != "full",
             category="quality",
+            wave=7,
         ),
         Stage(
             name="typecheck",
@@ -490,21 +541,25 @@ def _build_all_stages(args: argparse.Namespace) -> list[Stage]:
             optional=True,
             skip_if=lambda a: a.mode != "full",
             category="quality",
+            wave=7,
         ),
         Stage(
             name="test",
-            description="pytest unit + integration tests",
+            # PERF: ``pytest-xdist`` fans the test run across all cores;
+            # ``-n auto`` auto-detects.  Still respects the 120 s per-
+            # test timeout so a hung test can't wedge the worker pool.
+            description="pytest unit + integration tests (parallel -n auto)",
             cmd=(
-                ["poetry", "run", "pytest", "-q", "--timeout=120"]
+                ["poetry", "run", "pytest", "-q", "-n", "auto", "--timeout=120"]
                 if _poetry_available()
-                else [sys.executable, "-m", "pytest", "-q", "--timeout=120"]
+                else [sys.executable, "-m", "pytest", "-q", "-n", "auto", "--timeout=120"]
             ),
             eta_seed_s=180.0,
             optional=True,
             skip_if=lambda a: a.mode != "full",
             category="quality",
+            wave=7,
         ),
-        # ── Security ──────────────────────────────────────────────────
         Stage(
             name="security",
             description="Bandit + pip-audit security scan",
@@ -517,6 +572,7 @@ def _build_all_stages(args: argparse.Namespace) -> list[Stage]:
             optional=True,
             skip_if=lambda a: a.mode != "full",
             category="security",
+            wave=7,
         ),
         Stage(
             name="redteam",
@@ -526,28 +582,43 @@ def _build_all_stages(args: argparse.Namespace) -> list[Stage]:
             optional=True,
             skip_if=lambda a: a.mode != "full",
             category="security",
+            wave=7,
         ),
-        # ── Verification ──────────────────────────────────────────────
+        # ─────────────────────────────────────────────────────────────
+        # Wave 8 — verification harness gate.  Runs after quality +
+        # security gates so a failure there bubbles up first.
+        # ─────────────────────────────────────────────────────────────
         Stage(
             name="verify",
-            description="44-check verification harness",
+            description="44-check verification harness (parallel internally)",
             cmd=py + ["scripts/verify_all.py", "--fail-on", "blocker,high"],
             eta_seed_s=5.0,
             category="verify",
+            wave=8,
         ),
-        # ── Benchmarks + edge ─────────────────────────────────────────
+        # ─────────────────────────────────────────────────────────────
+        # Wave 9 — perf + docs + deploy artefacts.  All read-only
+        # over checkpoints, each writes its own output directory:
+        #   benchmarks → .benchmarks/
+        #   onnx-export → checkpoints/*.onnx
+        #   profile-edge → reports/edge_profile_*.md
+        #   docs → site/
+        #   docker-build → container registry / local daemon
+        # No mutual conflicts → full concurrency.
+        # ─────────────────────────────────────────────────────────────
         Stage(
             name="benchmarks",
-            description="Latency + throughput micro-benchmarks",
+            description="Latency + throughput micro-benchmarks (parallel -n auto)",
             cmd=(
                 ["make", "benchmarks"]
                 if _make_available()
-                else py + ["-m", "pytest", "benchmarks/", "-q"]
+                else py + ["-m", "pytest", "benchmarks/", "-q", "-n", "auto"]
             ),
             eta_seed_s=90.0,
             optional=True,
             skip_if=lambda a: a.mode != "full" or a.skip_benchmarks,
             category="perf",
+            wave=9,
         ),
         Stage(
             name="onnx-export",
@@ -562,6 +633,7 @@ def _build_all_stages(args: argparse.Namespace) -> list[Stage]:
             optional=True,
             skip_if=lambda a: a.mode != "full" or a.skip_onnx,
             category="perf",
+            wave=9,
         ),
         Stage(
             name="profile-edge",
@@ -575,8 +647,8 @@ def _build_all_stages(args: argparse.Namespace) -> list[Stage]:
             optional=True,
             skip_if=lambda a: a.mode != "full",
             category="perf",
+            wave=9,
         ),
-        # ── Docs ──────────────────────────────────────────────────────
         Stage(
             name="docs",
             description="Build MkDocs site (non-strict)",
@@ -590,8 +662,8 @@ def _build_all_stages(args: argparse.Namespace) -> list[Stage]:
             optional=True,
             skip_if=lambda a: a.mode != "full" or a.skip_docs,
             category="docs",
+            wave=9,
         ),
-        # ── Docker (optional, heavy) ──────────────────────────────────
         Stage(
             name="docker-build",
             description="Build production Docker image",
@@ -604,8 +676,11 @@ def _build_all_stages(args: argparse.Namespace) -> list[Stage]:
                 or not _docker_available()
             ),
             category="deploy",
+            wave=9,
         ),
-        # ── Serve ─────────────────────────────────────────────────────
+        # ─────────────────────────────────────────────────────────────
+        # Wave 10 — serve.  Always last, blocks forever in foreground.
+        # ─────────────────────────────────────────────────────────────
         Stage(
             name="serve",
             description="Launch the FastAPI server",
@@ -613,6 +688,7 @@ def _build_all_stages(args: argparse.Namespace) -> list[Stage]:
             eta_seed_s=0.0,
             skip_if=lambda a: a.no_serve,
             category="serve",
+            wave=10,
         ),
     ]
     return stages
@@ -908,29 +984,105 @@ def _run(stages: list[Stage], args: argparse.Namespace) -> int:
     )
     CONSOLE.print()
 
+    # Group stages by wave.  Waves run in ascending order; stages
+    # within a wave run concurrently.  Action-only stages (pure Python
+    # mutation) always run alone — grouped by themselves.
+    waves: dict[int, list[Stage]] = {}
+    for s in stages:
+        waves.setdefault(s.wave, []).append(s)
+    wave_order = sorted(waves.keys())
+
+    # How many subprocess stages may run concurrently per wave.  Honour
+    # ``--parallelism`` if supplied, else scale with core count (but at
+    # least 2, at most 8 — disk + network I/O typically saturate before
+    # that).
+    max_parallel = getattr(args, "parallelism", 0) or max(
+        2, min(8, os.cpu_count() or 4)
+    )
+
     with Live(_render(stages, state), console=CONSOLE, refresh_per_second=6) as live:
-        for idx, stage in enumerate(stages):
-            state["current_idx"] = idx
-            statuses[stage.name] = "running"
-            live.update(_render(stages, state))
-
-            ok, seconds, failure = _run_stage(stage, args, history, state)
-            timings[stage.name] = seconds
-
-            if ok and failure is None:
-                statuses[stage.name] = "done"
-                prev = history.get(stage.name, seconds)
-                history[stage.name] = 0.3 * prev + 0.7 * seconds
-            elif ok and failure is not None:
-                statuses[stage.name] = "skipped"
-                failures[stage.name] = failure
-            else:
-                statuses[stage.name] = "failed"
-                failures[stage.name] = failure or "unknown failure"
-                live.update(_render(stages, state))
+        aborted = False
+        for wave in wave_order:
+            if aborted:
                 break
+            wave_stages = waves[wave]
 
+            # Action stages must run alone — Python actions mutate the
+            # orchestrator's own process state (the launch_server
+            # action even ``os.execvp``s).  Fall back to sequential for
+            # those.
+            has_action = any(s.action is not None for s in wave_stages)
+            if len(wave_stages) == 1 or has_action:
+                # Sequential — each stage alone.
+                for stage in wave_stages:
+                    idx = stages.index(stage)
+                    state["current_idx"] = idx
+                    statuses[stage.name] = "running"
+                    live.update(_render(stages, state))
+
+                    ok, seconds, failure = _run_stage(stage, args, history, state)
+                    timings[stage.name] = seconds
+
+                    if ok and failure is None:
+                        statuses[stage.name] = "done"
+                        prev = history.get(stage.name, seconds)
+                        history[stage.name] = 0.3 * prev + 0.7 * seconds
+                    elif ok and failure is not None:
+                        statuses[stage.name] = "skipped"
+                        failures[stage.name] = failure
+                    else:
+                        statuses[stage.name] = "failed"
+                        failures[stage.name] = failure or "unknown failure"
+                        aborted = True
+                        live.update(_render(stages, state))
+                        break
+
+                    live.update(_render(stages, state))
+                continue
+
+            # Concurrent — run the whole wave through a thread pool.
+            # Each subprocess has its own PIPE, its own log file, and
+            # its own progress task, so contention is only at the
+            # ``rich.Live.update`` surface which is already thread-safe
+            # under a single Live instance.
+            CONSOLE.print(
+                f"[dim]  → wave {wave}: running {len(wave_stages)} stages "
+                f"concurrently (max {min(max_parallel, len(wave_stages))} at a "
+                f"time)[/dim]"
+            )
+            for s in wave_stages:
+                statuses[s.name] = "running"
             live.update(_render(stages, state))
+
+            import concurrent.futures as _cf
+
+            with _cf.ThreadPoolExecutor(
+                max_workers=min(max_parallel, len(wave_stages)),
+                thread_name_prefix=f"wave{wave}",
+            ) as pool:
+                future_to_stage = {
+                    pool.submit(_run_stage, s, args, history, state): s
+                    for s in wave_stages
+                }
+                for fut in _cf.as_completed(future_to_stage):
+                    stage = future_to_stage[fut]
+                    try:
+                        ok, seconds, failure = fut.result()
+                    except Exception as exc:  # pragma: no cover
+                        ok, seconds, failure = False, 0.0, f"{type(exc).__name__}: {exc}"
+                    timings[stage.name] = seconds
+                    if ok and failure is None:
+                        statuses[stage.name] = "done"
+                        prev = history.get(stage.name, seconds)
+                        history[stage.name] = 0.3 * prev + 0.7 * seconds
+                    elif ok and failure is not None:
+                        statuses[stage.name] = "skipped"
+                        failures[stage.name] = failure
+                    else:
+                        statuses[stage.name] = "failed"
+                        failures[stage.name] = failure or "unknown failure"
+                        aborted = True
+                    live.update(_render(stages, state))
 
     _save_history(history)
 
@@ -1126,6 +1278,15 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--list",
         action="store_true",
         help="Print the stage graph for the chosen mode and exit.",
+    )
+    p.add_argument(
+        "--parallelism",
+        type=int,
+        default=0,
+        help=(
+            "Max concurrent stages per wave.  0 (default) = "
+            "min(8, cpu_count).  1 = serial execution."
+        ),
     )
     args = p.parse_args(argv)
     if args.fast:

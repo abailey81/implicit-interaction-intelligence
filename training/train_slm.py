@@ -138,6 +138,15 @@ def parse_args() -> argparse.Namespace:
         help="Override training batch size.",
     )
     parser.add_argument(
+        "--num-workers",
+        type=int,
+        default=None,
+        help=(
+            "DataLoader worker processes (default: min(4, cpu_count/2)). "
+            "Set to 0 to disable prefetching."
+        ),
+    )
+    parser.add_argument(
         "--lr",
         type=float,
         default=None,
@@ -320,12 +329,21 @@ def main() -> None:
 
     batch_size = args.batch_size or config.slm.training.batch_size
 
+    # PERF: same DataLoader prefetching strategy as train_encoder.py —
+    # spawn sidecar workers to hide collation latency behind GPU work,
+    # keep them alive across epochs via ``persistent_workers``.
+    import os as _os
+    _num_workers = getattr(args, "num_workers", None)
+    if _num_workers is None:
+        _num_workers = max(0, min(4, (_os.cpu_count() or 2) // 2))
+
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
         shuffle=True,
         drop_last=True,
-        num_workers=0,
+        num_workers=_num_workers,
+        persistent_workers=_num_workers > 0,
         pin_memory=(device.type == "cuda"),
     )
     val_loader = DataLoader(
@@ -333,7 +351,8 @@ def main() -> None:
         batch_size=batch_size,
         shuffle=False,
         drop_last=False,
-        num_workers=0,
+        num_workers=_num_workers,
+        persistent_workers=_num_workers > 0,
         pin_memory=(device.type == "cuda"),
     )
 

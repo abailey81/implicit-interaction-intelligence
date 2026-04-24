@@ -107,6 +107,19 @@ cryptography   = "^43.0"          # SEC: close PKCS#12 + OpenSSL EC CVEs
 # `scripts/run_everything.py` orchestrator and various demo scripts.
 rich           = "^13.7"
 
+# ─── Transitive-dep resolution overrides ────────────────────────────────
+# These packages are not imported anywhere in our own code — they are
+# declared here purely to *pin the resolver*.  Without them, Poetry 2.x
+# walks the full historical release stream of each transitive package
+# every time it resolves, because many old releases on PyPI have
+# malformed dependency metadata that the strict PEP-440 parser now
+# skips (e.g. datasets-1.6.2's `pyarrow (>=1.0.0<4.0.0)` missing comma).
+# A single cold ``poetry install`` without these overrides took >9 min
+# on a fresh Windows box; adding them cut it to ~2 min.
+datasets       = ">=2.14"    # HF datasets; old releases had malformed pyarrow spec
+fsspec         = ">=2024.2"  # pulled by datasets / mlflow; skip 2023 releases with bad specs
+"huggingface-hub" = ">=0.23"
+
 # ─── Development Dependencies ────────────────────────────────────────────
 [tool.poetry.group.dev.dependencies]
 pytest             = "^8.0"

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -105,6 +106,15 @@ def main() -> None:
         type=int,
         default=64,
         help="Training batch size (default: 64).",
+    )
+    parser.add_argument(
+        "--num-workers",
+        type=int,
+        default=None,
+        help=(
+            "DataLoader worker processes (default: min(4, cpu_count/2)). "
+            "Set to 0 to disable prefetching."
+        ),
     )
     parser.add_argument(
         "--lr",
@@ -212,19 +222,38 @@ def main() -> None:
     train_ds = load_split(data_dir / "train.pt")
     val_ds = load_split(data_dir / "val.pt")
 
+    # PERF: DataLoader prefetching — ``num_workers`` spawns sidecar
+    # Python processes that load+collate the next batch while the
+    # current one is on the GPU/CPU.  Defaults:
+    #   * ``--num-workers`` CLI override if provided
+    #   * else ``min(4, cpu_count/2)`` — leaves half the cores for the
+    #     training loop itself
+    #   * ``persistent_workers=True`` keeps the pool alive across
+    #     epochs so fork/spawn cost is paid once per run, not per epoch
+    #   * ``pin_memory`` only when CUDA is available (a no-op otherwise
+    #     that just wastes allocation on CPU-only boxes)
+    import torch as _torch
+    _num_workers = getattr(args, "num_workers", None)
+    if _num_workers is None:
+        _num_workers = max(0, min(4, (os.cpu_count() or 2) // 2))
+    _pin = _torch.cuda.is_available()
     train_loader = DataLoader(
         train_ds,
         batch_size=args.batch_size,
         shuffle=True,
         drop_last=True,
-        num_workers=0,
+        num_workers=_num_workers,
+        persistent_workers=_num_workers > 0,
+        pin_memory=_pin,
     )
     val_loader = DataLoader(
         val_ds,
         batch_size=args.batch_size,
         shuffle=False,
         drop_last=False,
-        num_workers=0,
+        num_workers=_num_workers,
+        persistent_workers=_num_workers > 0,
+        pin_memory=_pin,
     )
 
     # -- Model ----------------------------------------------------------------
@@ -284,7 +313,9 @@ def main() -> None:
             batch_size=args.batch_size,
             shuffle=False,
             drop_last=False,
-            num_workers=0,
+            num_workers=_num_workers,
+            persistent_workers=_num_workers > 0,
+            pin_memory=_pin,
         )
         test_metrics = validate(model, test_loader, args.temperature, device)
         logger.info("-" * 40)

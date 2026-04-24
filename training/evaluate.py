@@ -690,12 +690,18 @@ def run_evaluation(
         val_path = data_path / "test.pt"
 
     val_dataset = EvalDataset(val_path)
+    # PERF: prefetch with a modest worker pool.  Eval is usually shorter
+    # than training, but workers still help when the dataset is on a
+    # slow disk.
+    import os as _os
+    _nw = max(0, min(4, (_os.cpu_count() or 2) // 2))
     val_loader = DataLoader(
         val_dataset,
         batch_size=batch_size,
         shuffle=False,
         drop_last=False,
-        num_workers=0,
+        num_workers=_nw,
+        persistent_workers=_nw > 0,
     )
 
     # --- Test prompts ---
