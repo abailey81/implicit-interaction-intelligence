@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Performance
+
+- **Orchestrator wave-based concurrency** (`scripts/run_everything.py`).
+  Stages now carry a `wave: int` and every stage within the same wave
+  runs concurrently via `asyncio` while preserving cross-wave
+  dependencies.  New top-level `--parallelism N` flag caps the number
+  of concurrent stages per wave (default `0` → `min(8, cpu_count)`;
+  `1` forces serial execution, matching the historical behaviour).
+- **DataLoader workers + `pytest-xdist`** — unit, integration, and
+  micro-benchmark suites now fan across all cores (`-n auto`),
+  substantially reducing wall-clock for `make test` and
+  `make benchmarks`.
+- **Closed-loop persona simulation is now parallelisable.**
+  `ClosedLoopEvaluator` accepts a new `concurrency: int` parameter
+  and `scripts/experiments/closed_loop_eval.py` exposes it as
+  `--concurrency N` (default `1` = sequential, bit-for-bit identical
+  to the historical path).  Higher values overlap pipeline I/O
+  (LLM calls, DB writes) via `asyncio.gather` for a near-linear
+  speedup until the run becomes CPU-bound.
+
 ### Added
 
 - **Advanced data pipeline** at `i3/data/` — cleaning, quality
@@ -106,6 +126,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Orchestrator stage CLIs aligned with the actual training /
+  evaluation / security scripts** — every stage now invokes its
+  script with the supported argument surface (earlier wiring passed
+  flags the downstream scripts did not accept).
 - `MinHashLSH` slots-dataclass now declares `_rows_per_band` as a
   field so `__post_init__` can assign it.
 - `DailyDialogSource.iter_records` closes its emotion-label file

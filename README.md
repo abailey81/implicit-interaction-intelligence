@@ -48,6 +48,9 @@ only embeddings and aggregate metrics — never raw text.
 Two canonical run profiles, both driven by a single orchestrator that
 shows a live ``rich`` dashboard with spinners, progress bars, ETAs,
 per-stage log tails, and a calibrated-to-your-machine total projection.
+Independent stages run **concurrently in waves** (`asyncio`-scheduled,
+bounded by `--parallelism`), so quality-gate stages such as lint,
+typecheck, tests, bandit, and pip-audit all fan out in a single pass.
 
 ```bash
 git clone https://github.com/abailey81/implicit-interaction-intelligence.git
@@ -152,6 +155,7 @@ make all-resume
 | `--sessions-per-archetype N` | Synthetic data size (default 400) |
 | `--encoder-epochs N` | TCN encoder epochs (default 10) |
 | `--slm-epochs N` | SLM epochs (default 5) |
+| `--parallelism N` | Max concurrent stages per wave.  `0` (default) = `min(8, cpu_count)`.  `1` forces serial execution. |
 
 ### Minimum environment for the fast path
 
@@ -769,6 +773,22 @@ poetry run python training/evaluate.py \
 Metrics: sliding-window perplexity, cross-attention
 conditioning-sensitivity KL divergence, and responsiveness on a
 12-example tone-class golden set.
+
+#### Closed-loop persona simulation
+
+```bash
+poetry run python scripts/experiments/closed_loop_eval.py \
+    --concurrency 8 \
+    --out reports/closed_loop_eval.json \
+    --out-md reports/closed_loop_eval.md
+```
+
+Eight personas drive the pipeline end-to-end.  `--concurrency N`
+(default `1`, bit-for-bit identical to the historical sequential path)
+fans `(persona, session)` pairs across `asyncio.gather` to overlap
+pipeline I/O (LLM calls, DB writes) for a near-linear speedup until the
+run becomes CPU-bound.  The same `concurrency` knob is exposed
+programmatically on `ClosedLoopEvaluator(..., concurrency=N)`.
 
 ### Distributed training (optional)
 
