@@ -315,12 +315,21 @@ def main() -> None:
     logger.info("Receptive field: %d timesteps", model.get_receptive_field())
 
     # PERF: torch.compile JITs the forward graph on first use and caches
-    # the Inductor / NVIDIA kernels.  Typical speedup on Ampere/Ada: 1.2-
-    # 1.6x steady state, 30-60 s warm-up.  Opt-out with --compile off if
-    # the compile step itself errors out on a weird op.
-    _want_compile = (
-        args.compile_mode == "on"
-        or (args.compile_mode == "auto" and device.type == "cuda")
+    # the Inductor / NVIDIA kernels.  Only auto-enabled when Triton is
+    # importable (Linux) — Windows has no official Triton wheel so we
+    # silently skip compile and keep AMP + TF32 for the speedup we can
+    # deliver.  Users can force-on with ``--compile on``.
+    def _triton_available() -> bool:
+        try:
+            import triton  # type: ignore[import-not-found]  # noqa: F401
+        except ImportError:
+            return False
+        return True
+
+    _want_compile = args.compile_mode == "on" or (
+        args.compile_mode == "auto"
+        and device.type == "cuda"
+        and _triton_available()
     )
     if _want_compile and hasattr(torch, "compile"):
         try:
@@ -328,6 +337,11 @@ def main() -> None:
             logger.info("torch.compile enabled (mode=default)")
         except Exception as exc:  # pragma: no cover - environment-specific
             logger.warning("torch.compile failed (%s); continuing uncompiled.", exc)
+    elif args.compile_mode == "auto" and device.type == "cuda" and not _triton_available():
+        logger.info(
+            "torch.compile skipped: Triton not available (common on Windows). "
+            "AMP + TF32 still active."
+        )
 
     # -- Training hyperparams -------------------------------------------------
     epochs = args.epochs if args.epochs is not None else 100

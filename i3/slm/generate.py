@@ -79,9 +79,15 @@ class SLMGenerator:
         # Off by default because the first call takes 30-60 s to warm
         # up (bad for first-response latency); flip to True in long-
         # running services where steady-state throughput matters.
+        # Also requires Triton, which has no Windows wheels today.
         if compile_model and self.device.type == "cuda" and hasattr(torch, "compile"):
             try:
+                import triton  # type: ignore[import-not-found]  # noqa: F401
                 self.model = torch.compile(self.model, mode="reduce-overhead")
+            except ImportError:
+                # Silently skip on Windows (no Triton) — the CUDA path
+                # still runs eager with AMP/TF32 enabled upstream.
+                pass
             except Exception:  # pragma: no cover - environment-specific
                 pass
 

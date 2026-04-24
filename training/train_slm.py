@@ -435,13 +435,22 @@ def main() -> None:
     logger.info("Model: %s", model)
     logger.info("Total parameters: %d (%.2f MB)", n_params, n_params * 4 / 1e6)
 
-    # PERF: torch.compile JIT the forward+backward graph.  Only kicks in
-    # on CUDA by default (the Inductor CPU path is slower than eager for
-    # small transformers).  --compile on forces it; --compile off skips
-    # even on GPU.
-    _want_compile = (
-        args.compile_mode == "on"
-        or (args.compile_mode == "auto" and device.type == "cuda")
+    # PERF: torch.compile JIT the forward+backward graph.  Auto-enabled
+    # when (a) CUDA is visible AND (b) Triton is importable — the
+    # Inductor backend needs Triton for GPU kernels and Triton has no
+    # official Windows wheels (see triton-lang/triton#1640).  Keep AMP
+    # + TF32 for the speedup we can deliver; skip compile cleanly.
+    def _triton_available() -> bool:
+        try:
+            import triton  # type: ignore[import-not-found]  # noqa: F401
+        except ImportError:
+            return False
+        return True
+
+    _want_compile = args.compile_mode == "on" or (
+        args.compile_mode == "auto"
+        and device.type == "cuda"
+        and _triton_available()
     )
     if _want_compile and hasattr(torch, "compile"):
         try:
@@ -449,6 +458,11 @@ def main() -> None:
             logger.info("torch.compile enabled (mode=default)")
         except Exception as exc:  # pragma: no cover - environment-specific
             logger.warning("torch.compile failed (%s); continuing uncompiled.", exc)
+    elif args.compile_mode == "auto" and device.type == "cuda" and not _triton_available():
+        logger.info(
+            "torch.compile skipped: Triton not available (common on Windows). "
+            "AMP + TF32 still active."
+        )
 
     # -- Build trainer -------------------------------------------------------
     # Apply CLI overrides to config (create mutable copy of training config)
