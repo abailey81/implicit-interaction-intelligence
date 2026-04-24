@@ -19,7 +19,10 @@ from __future__ import annotations
 
 import os
 import shutil
-from dataclasses import dataclass
+import time
+from collections import deque
+from dataclasses import dataclass, field
+from typing import Deque
 
 import psutil
 
@@ -82,6 +85,19 @@ class ResourceSnapshot:
     disk_total_mib: float
     #: Which drive / path the disk numbers are for (e.g. ``"D:"``).
     disk_path: str
+    #: Instantaneous disk read rate, MiB/s (diff-per-second between
+    #: successive samples).  ``0.0`` for the very first sample.
+    disk_read_mib_s: float = 0.0
+    #: Instantaneous disk write rate, MiB/s.
+    disk_write_mib_s: float = 0.0
+    #: Instantaneous network tx rate, MiB/s.  Useful for spotting
+    #: large LLM-API payloads or HF-hub model downloads that stall
+    #: a stage.
+    net_tx_mib_s: float = 0.0
+    #: Instantaneous network rx rate, MiB/s.
+    net_rx_mib_s: float = 0.0
+    #: Epoch-seconds when this sample was taken.
+    timestamp: float = 0.0
 
     # ------------------------------------------------------------------
     # Display helpers
@@ -165,6 +181,26 @@ class ResourceSampler:
         # Prime cpu_percent so the first real read returns non-zero.
         psutil.cpu_percent(interval=None)
 
+        # Prime disk / network counters so subsequent reads can produce
+        # a per-second delta.  These are CPU-system-wide totals from
+        # ``psutil.disk_io_counters`` / ``net_io_counters``; we compute
+        # the MiB/s rate by diffing against the previous timestamp.
+        self._last_sample_ts: float = time.monotonic()
+        try:
+            dio = psutil.disk_io_counters()
+            self._last_disk_read = float(dio.read_bytes) if dio else 0.0
+            self._last_disk_write = float(dio.write_bytes) if dio else 0.0
+        except Exception:
+            self._last_disk_read = 0.0
+            self._last_disk_write = 0.0
+        try:
+            nio = psutil.net_io_counters()
+            self._last_net_sent = float(nio.bytes_sent) if nio else 0.0
+            self._last_net_recv = float(nio.bytes_recv) if nio else 0.0
+        except Exception:
+            self._last_net_sent = 0.0
+            self._last_net_recv = 0.0
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
@@ -190,6 +226,38 @@ class ResourceSampler:
 
         cpu = psutil.cpu_percent(interval=None)
 
+        # -- I/O rate deltas -----------------------------------------
+        # Compute (bytes_now - bytes_prev) / (t_now - t_prev) so we
+        # report true MiB/s between successive sample() calls.  Caller
+        # controls the sampling cadence; at 500 ms it gives a smooth
+        # enough display without quantisation artefacts.
+        now = time.monotonic()
+        dt = max(now - self._last_sample_ts, 1e-6)
+
+        try:
+            dio = psutil.disk_io_counters()
+            read_b = float(dio.read_bytes) if dio else 0.0
+            write_b = float(dio.write_bytes) if dio else 0.0
+            disk_read_rate = (read_b - self._last_disk_read) / dt / (1024 * 1024)
+            disk_write_rate = (write_b - self._last_disk_write) / dt / (1024 * 1024)
+            self._last_disk_read = read_b
+            self._last_disk_write = write_b
+        except Exception:
+            disk_read_rate = disk_write_rate = 0.0
+
+        try:
+            nio = psutil.net_io_counters()
+            tx_b = float(nio.bytes_sent) if nio else 0.0
+            rx_b = float(nio.bytes_recv) if nio else 0.0
+            net_tx_rate = (tx_b - self._last_net_sent) / dt / (1024 * 1024)
+            net_rx_rate = (rx_b - self._last_net_recv) / dt / (1024 * 1024)
+            self._last_net_sent = tx_b
+            self._last_net_recv = rx_b
+        except Exception:
+            net_tx_rate = net_rx_rate = 0.0
+
+        self._last_sample_ts = now
+
         return ResourceSnapshot(
             gpu_name=self._gpu_name,
             gpu_util_pct=gpu_util,
@@ -202,6 +270,11 @@ class ResourceSampler:
             disk_free_mib=disk_free,
             disk_total_mib=disk_total,
             disk_path=self._disk_path,
+            disk_read_mib_s=max(0.0, disk_read_rate),
+            disk_write_mib_s=max(0.0, disk_write_rate),
+            net_tx_mib_s=max(0.0, net_tx_rate),
+            net_rx_mib_s=max(0.0, net_rx_rate),
+            timestamp=time.time(),
         )
 
     # ------------------------------------------------------------------
@@ -255,6 +328,131 @@ class ResourceSampler:
 
 
 # ---------------------------------------------------------------------------
+# Sparkline history — keeps a rolling ring buffer of samples so the dashboard
+# can render mini time-series charts next to the point-in-time values.
+# ---------------------------------------------------------------------------
+
+
+# Unicode 1/8-block glyphs for sparkline rendering.  Index 0 = empty,
+# index 7 = full block.  Good on every modern terminal font.
+_SPARK_BLOCKS = " ▁▂▃▄▅▆▇█"
+
+
+def sparkline(values: list[float], width: int | None = None) -> str:
+    """Render a values list as a compact unicode sparkline.
+
+    ``width`` — if set, truncates or left-pads the output to that many
+    characters.  Without a width we emit one char per value.  Empty
+    input returns an empty string.
+    """
+    if not values:
+        return ""
+    if width is not None and len(values) > width:
+        # Take the most recent ``width`` samples so the rightmost bar
+        # reflects the freshest value.
+        values = values[-width:]
+
+    lo = min(values)
+    hi = max(values)
+    span = hi - lo
+    if span <= 1e-9:
+        # Flat line — render one mid-height bar so the user sees it's
+        # reporting data rather than "nothing".
+        return _SPARK_BLOCKS[4] * len(values)
+    out: list[str] = []
+    for v in values:
+        norm = (v - lo) / span
+        idx = min(len(_SPARK_BLOCKS) - 1, int(round(norm * (len(_SPARK_BLOCKS) - 1))))
+        out.append(_SPARK_BLOCKS[idx])
+    rendered = "".join(out)
+    if width is not None and len(rendered) < width:
+        rendered = rendered.rjust(width)
+    return rendered
+
+
+@dataclass
+class ResourceHistory:
+    """Ring buffer of recent :class:`ResourceSnapshot` values.
+
+    The dashboard renders one sparkline per series (GPU util, VRAM %,
+    CPU %, RAM %).  A 120-sample buffer at a 500 ms sampling cadence
+    covers the last 60 s — enough context to spot a stage transitioning
+    from "idle" to "under load" without being visually noisy.
+    """
+
+    capacity: int = 120
+    gpu_util: Deque[float] = field(default_factory=deque)
+    vram_pct: Deque[float] = field(default_factory=deque)
+    cpu_pct: Deque[float] = field(default_factory=deque)
+    ram_pct: Deque[float] = field(default_factory=deque)
+    disk_read: Deque[float] = field(default_factory=deque)
+    disk_write: Deque[float] = field(default_factory=deque)
+    net_tx: Deque[float] = field(default_factory=deque)
+    net_rx: Deque[float] = field(default_factory=deque)
+
+    def __post_init__(self) -> None:
+        # Cap each series at ``capacity`` so memory use stays flat even
+        # on very long runs.
+        for d in (
+            self.gpu_util,
+            self.vram_pct,
+            self.cpu_pct,
+            self.ram_pct,
+            self.disk_read,
+            self.disk_write,
+            self.net_tx,
+            self.net_rx,
+        ):
+            # deque-with-maxlen needs to be set after construction because
+            # dataclass default_factory can't take a maxlen argument.
+            while len(d) > self.capacity:
+                d.popleft()
+
+    def push(self, snap: ResourceSnapshot) -> None:
+        """Append ``snap`` to every series, dropping stale samples."""
+        vram_pct = (
+            100.0 * (snap.vram_used_mib or 0.0) / max(snap.vram_total_mib or 1.0, 1.0)
+            if snap.vram_total_mib
+            else 0.0
+        )
+        ram_pct = 100.0 * snap.ram_used_mib / max(snap.ram_total_mib, 1.0)
+
+        for d, v in (
+            (self.gpu_util, snap.gpu_util_pct or 0.0),
+            (self.vram_pct, vram_pct),
+            (self.cpu_pct, snap.cpu_pct),
+            (self.ram_pct, ram_pct),
+            (self.disk_read, snap.disk_read_mib_s),
+            (self.disk_write, snap.disk_write_mib_s),
+            (self.net_tx, snap.net_tx_mib_s),
+            (self.net_rx, snap.net_rx_mib_s),
+        ):
+            d.append(float(v))
+            while len(d) > self.capacity:
+                d.popleft()
+
+    # ------------------------------------------------------------------
+    # Sparklines ready for the dashboard
+    # ------------------------------------------------------------------
+    def spark(self, series: str, width: int = 24) -> str:
+        """Return a unicode sparkline for the named series."""
+        mapping: dict[str, Deque[float]] = {
+            "gpu": self.gpu_util,
+            "vram": self.vram_pct,
+            "cpu": self.cpu_pct,
+            "ram": self.ram_pct,
+            "disk_r": self.disk_read,
+            "disk_w": self.disk_write,
+            "net_tx": self.net_tx,
+            "net_rx": self.net_rx,
+        }
+        data = mapping.get(series)
+        if data is None:
+            return ""
+        return sparkline(list(data), width=width)
+
+
+# ---------------------------------------------------------------------------
 # Rendering
 # ---------------------------------------------------------------------------
 
@@ -279,8 +477,16 @@ def _threshold_colour(pct: float, warn: float, crit: float) -> str:
     return "green"
 
 
-def render_resource_panel(snap: ResourceSnapshot):  # type: ignore[no-untyped-def]
+def render_resource_panel(
+    snap: ResourceSnapshot,
+    history: "ResourceHistory | None" = None,
+):  # type: ignore[no-untyped-def]
     """Return a compact ``rich.panel.Panel`` for the dashboard.
+
+    When ``history`` is supplied, each row also gets a 24-char unicode
+    sparkline showing the last minute of values — this is what turns
+    the panel from a point-in-time readout into a precise, responsive
+    telemetry display.
 
     The import of ``rich`` is deferred so this module remains usable
     in non-rich contexts (e.g. the ``--quiet`` path).
@@ -289,9 +495,14 @@ def render_resource_panel(snap: ResourceSnapshot):  # type: ignore[no-untyped-de
     from rich.table import Table
     from rich.text import Text
 
+    def _spark(series: str) -> str:
+        return history.spark(series, width=24) if history else ""
+
     table = Table.grid(padding=(0, 1))
+    # label | main reading | sparkline
     table.add_column(justify="left", no_wrap=True)
     table.add_column(justify="left")
+    table.add_column(justify="left", style="magenta dim", no_wrap=True)
 
     # GPU row ------------------------------------------------------------
     if snap.gpu_name and snap.vram_total_mib:
@@ -313,13 +524,18 @@ def render_resource_panel(snap: ResourceSnapshot):  # type: ignore[no-untyped-de
         )
     else:
         gpu_cell = Text("(no CUDA GPU detected)", style="dim")
-    table.add_row(Text("GPU ", style="bold"), gpu_cell)
+    table.add_row(Text("GPU ", style="bold"), gpu_cell, _spark("gpu"))
+
+    # VRAM sparkline row (only when we actually have VRAM data).
+    if snap.gpu_name and snap.vram_total_mib and history:
+        table.add_row(Text("VRAM", style="bold"), Text(""), _spark("vram"))
 
     # CPU row ------------------------------------------------------------
     cpu_colour = _threshold_colour(snap.cpu_pct, 75, 95)
     table.add_row(
         Text("CPU ", style="bold"),
         Text(f"{_bar(snap.cpu_pct)} {snap.cpu_pct:3.0f}%", style=cpu_colour),
+        _spark("cpu"),
     )
 
     # RAM row ------------------------------------------------------------
@@ -334,6 +550,7 @@ def render_resource_panel(snap: ResourceSnapshot):  # type: ignore[no-untyped-de
             f"({ram_pct:.0f}%)",
             style=ram_colour,
         ),
+        _spark("ram"),
     )
 
     # Disk row -----------------------------------------------------------
@@ -347,22 +564,38 @@ def render_resource_panel(snap: ResourceSnapshot):  # type: ignore[no-untyped-de
         disk_colour = "green"
     table.add_row(
         Text(f"Disk {snap.disk_path} ", style="bold"),
-        Text(f"free {disk_free_gib:.1f} GiB", style=disk_colour),
+        Text(
+            f"free {disk_free_gib:.1f} GiB  "
+            f"R {snap.disk_read_mib_s:5.1f} MiB/s  "
+            f"W {snap.disk_write_mib_s:5.1f} MiB/s",
+            style=disk_colour,
+        ),
+        _spark("disk_r"),
     )
+
+    # Network row — helpful to spot LLM/API throughput during training
+    # or package downloads during install.
+    net_desc = (
+        f"↑ {snap.net_tx_mib_s:5.2f} MiB/s  ↓ {snap.net_rx_mib_s:5.2f} MiB/s"
+    )
+    table.add_row(Text("Net ", style="bold"), Text(net_desc, style="dim"), _spark("net_rx"))
 
     # Orchestrator RSS — low-key, no threshold colour.
     table.add_row(
         Text("Proc ", style="bold"),
         Text(f"RSS {snap.proc_rss_mib:.0f} MiB", style="dim"),
+        Text(""),
     )
 
-    return Panel(table, title="Resources", border_style="cyan", padding=(0, 1))
+    return Panel(table, title="Resources (sparklines = last 60 s)", border_style="cyan", padding=(0, 1))
 
 
 __all__ = [
+    "ResourceHistory",
     "ResourceSampler",
     "ResourceSnapshot",
     "render_resource_panel",
+    "sparkline",
 ]
 
 

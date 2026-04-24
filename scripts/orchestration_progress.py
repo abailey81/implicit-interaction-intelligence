@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 # ---------------------------------------------------------------------------
 # ANSI-colour stripper — shared by all parsers.
@@ -62,11 +62,24 @@ class ProgressUpdate:
     description:
         Optional one-line override for the progress row, e.g.
         ``"epoch 3/5 · loss 0.42"``.
+    loss:
+        Optional scalar training/validation loss snapshot — the
+        orchestrator feeds this into ``StageMetrics`` to render a
+        mini loss curve alongside the bar.
+    lr:
+        Optional learning-rate snapshot.
+    metric_kind:
+        Opt-in hint telling the dashboard which curve this frame
+        contributes to.  Currently ``"train"`` or ``"val"``.  ``None``
+        means "don't plot".
     """
 
     completed: float
     total: float
     description: str | None = None
+    loss: float | None = None
+    lr: float | None = None
+    metric_kind: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -86,7 +99,9 @@ def parse_train_encoder(line: str) -> ProgressUpdate | None:
     """Parse TCN encoder training log lines.
 
     Matches both the summary ``Epoch  N/M`` line emitted once per epoch
-    and the intra-epoch batch loss lines if present.
+    and the intra-epoch batch loss lines if present.  When a loss is
+    present it's surfaced as ``ProgressUpdate.loss`` so the dashboard
+    can render a mini loss curve.
     """
     m = _ENCODER_EPOCH_RE.search(line)
     if not m:
@@ -99,7 +114,19 @@ def parse_train_encoder(line: str) -> ProgressUpdate | None:
         desc_bits.append(f"train_loss={train_loss}")
     if val_loss:
         desc_bits.append(f"val_loss={val_loss}")
-    return ProgressUpdate(cur, tot, " · ".join(desc_bits))
+    # Prefer val_loss for the plotted curve when both are present —
+    # generalisation matters more than training fit for observers.
+    loss_val: float | None = None
+    metric_kind: str | None = None
+    if val_loss:
+        loss_val = float(val_loss)
+        metric_kind = "val"
+    elif train_loss:
+        loss_val = float(train_loss)
+        metric_kind = "train"
+    return ProgressUpdate(
+        cur, tot, " · ".join(desc_bits), loss=loss_val, metric_kind=metric_kind
+    )
 
 
 # --- train-slm -------------------------------------------------------------
@@ -112,13 +139,30 @@ _SLM_PLAN_RE = re.compile(r"to\s+(\d+)\s+steps")
 
 
 def parse_train_slm(line: str) -> ProgressUpdate | None:
-    """Parse SLM training log lines (cross-attention trainer)."""
+    """Parse SLM training log lines (cross-attention trainer).
+
+    Extracts step, loss, and learning-rate into a :class:`ProgressUpdate`
+    so the dashboard can show a live loss curve + current LR alongside
+    the progress bar.
+    """
     m = _SLM_STEP_RE.search(line)
     if m:
         cur, tot = int(m.group(1)), int(m.group(2))
         loss = m.group(3)
-        desc = f"step {cur}/{tot}" + (f" · loss={loss}" if loss else "")
-        return ProgressUpdate(cur, tot, desc)
+        lr = m.group(4)
+        bits = [f"step {cur}/{tot}"]
+        if loss:
+            bits.append(f"loss={loss}")
+        if lr:
+            bits.append(f"lr={lr}")
+        return ProgressUpdate(
+            cur,
+            tot,
+            " · ".join(bits),
+            loss=float(loss) if loss else None,
+            lr=float(lr) if lr else None,
+            metric_kind="train" if loss else None,
+        )
     # Plan-line: gives us the total but not the current — prime the bar.
     m = _SLM_PLAN_RE.search(line)
     if m:
@@ -391,9 +435,147 @@ def parse_line(stage_name: str, line: str) -> ProgressUpdate | None:
     return parser(strip_ansi(line))
 
 
+# ---------------------------------------------------------------------------
+# Per-stage metric tracker — feeds the dashboard's live throughput, ETA,
+# and loss-curve widgets.
+# ---------------------------------------------------------------------------
+
+import time
+from collections import deque
+from typing import Deque
+
+
+@dataclass
+class StageMetrics:
+    """Accumulates progress frames for one stage and derives rich metrics.
+
+    The orchestrator creates one instance per stage as it transitions to
+    ``running``; every parsed :class:`ProgressUpdate` is pushed in via
+    :meth:`update`.  The dashboard then reads:
+
+    * :attr:`throughput_per_s` — EMA of completed-steps-per-second,
+      computed from the rolling 30-sample timing window.  Smooths out
+      the noise you get from per-step timing alone.
+    * :meth:`eta_seconds` — ``(total - completed) / throughput``.  Falls
+      back to ``None`` when we don't yet have enough samples.
+    * :meth:`loss_sparkline` — unicode sparkline of the last 60 loss
+      values, split by ``metric_kind``.
+    * :meth:`summary_line` — one-line formatted string for the stage row.
+    """
+
+    stage_name: str
+    started_at: float = field(default_factory=time.monotonic)
+    #: Rolling buffer of ``(monotonic_ts, completed)`` pairs — used to
+    #: compute a windowed EMA of throughput.
+    _samples: Deque[tuple[float, float]] = field(default_factory=lambda: deque(maxlen=30))
+    #: Latest parsed state.
+    completed: float = 0.0
+    total: float = 0.0
+    #: Rolling loss history per kind ("train" / "val"), 120 samples each.
+    train_losses: Deque[float] = field(default_factory=lambda: deque(maxlen=120))
+    val_losses: Deque[float] = field(default_factory=lambda: deque(maxlen=120))
+    latest_lr: float | None = None
+    latest_description: str | None = None
+    #: Exponentially-smoothed throughput in steps/sec.  ``0.0`` until
+    #: we've seen two samples.
+    throughput_per_s: float = 0.0
+    #: EMA smoothing factor — 0.3 prioritises recent data without being
+    #: jittery.  Tuned against real training runs.
+    ema_alpha: float = 0.3
+
+    def update(self, frame: ProgressUpdate) -> None:
+        """Incorporate one parsed progress frame."""
+        self.completed = frame.completed
+        self.total = frame.total
+        if frame.description is not None:
+            self.latest_description = frame.description
+        if frame.loss is not None:
+            if frame.metric_kind == "val":
+                self.val_losses.append(float(frame.loss))
+            else:
+                self.train_losses.append(float(frame.loss))
+        if frame.lr is not None:
+            self.latest_lr = float(frame.lr)
+
+        # Timing sample — only if "completed" actually moved forward so
+        # log lines that merely restate the current state don't pollute
+        # the throughput calculation.
+        now = time.monotonic()
+        if self._samples:
+            prev_ts, prev_completed = self._samples[-1]
+            if frame.completed <= prev_completed:
+                return  # stale or duplicate line
+            dt = max(now - prev_ts, 1e-6)
+            rate = (frame.completed - prev_completed) / dt
+            # Bootstrap the EMA with the first real rate, then blend.
+            if self.throughput_per_s <= 0.0:
+                self.throughput_per_s = rate
+            else:
+                self.throughput_per_s = (
+                    self.ema_alpha * rate
+                    + (1.0 - self.ema_alpha) * self.throughput_per_s
+                )
+        self._samples.append((now, frame.completed))
+
+    def eta_seconds(self) -> float | None:
+        """Return the projected remaining wall-clock seconds, or ``None``."""
+        if self.total <= 0 or self.throughput_per_s <= 0.0:
+            return None
+        remaining = max(0.0, self.total - self.completed)
+        return remaining / self.throughput_per_s
+
+    def elapsed_seconds(self) -> float:
+        """Seconds since this stage started."""
+        return time.monotonic() - self.started_at
+
+    def loss_sparkline(self, kind: str = "train", width: int = 24) -> str:
+        """Return a unicode sparkline of the selected loss series."""
+        try:
+            from i3.runtime.monitoring import sparkline
+        except ImportError:  # pragma: no cover — monitoring missing
+            return ""
+        src = self.val_losses if kind == "val" else self.train_losses
+        return sparkline(list(src), width=width)
+
+    def latest_loss(self, kind: str = "train") -> float | None:
+        """Return the most recent loss value of the named kind."""
+        src = self.val_losses if kind == "val" else self.train_losses
+        return src[-1] if src else None
+
+    def summary_line(self) -> str:
+        """One-line status ready for the live dashboard.
+
+        Example::
+
+            step 412/2830 · loss=2.41 · lr=1.2e-04 · 18.4 steps/s · ETA 2m13s
+        """
+        bits: list[str] = []
+        if self.latest_description:
+            bits.append(self.latest_description)
+        if self.throughput_per_s > 0:
+            bits.append(f"{self.throughput_per_s:.1f} steps/s")
+        eta = self.eta_seconds()
+        if eta is not None:
+            bits.append(f"ETA {_fmt_eta(eta)}")
+        return " · ".join(bits)
+
+
+def _fmt_eta(seconds: float) -> str:
+    """Compact duration formatter: 2m13s / 41s / 1h04m."""
+    if seconds < 60:
+        return f"{int(seconds)}s"
+    if seconds < 3600:
+        m, s = divmod(int(seconds), 60)
+        return f"{m}m{s:02d}s"
+    h, rem = divmod(int(seconds), 3600)
+    m, _ = divmod(rem, 60)
+    return f"{h}h{m:02d}m"
+
+
 __all__ = [
     "PARSERS",
     "ProgressUpdate",
+    "StageMetrics",
     "parse_data",
     "parse_dialogue",
     "parse_docker_build",
