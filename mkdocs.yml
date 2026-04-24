@@ -277,6 +277,7 @@ nav:
       - Observability: operations/observability.md
       - Docker: operations/docker.md
       - Kubernetes: operations/kubernetes.md
+      - WSL2 on Windows: operations/wsl.md
       - Runbook: operations/runbook.md
       - Troubleshooting: operations/troubleshooting.md
       - Reproducibility: operations/reproducibility.md

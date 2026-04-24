@@ -53,6 +53,7 @@ venv/
 env/
 ENV/
 .venv/
+.venv-wsl/
 .env/
 env.bak/
 venv.bak/

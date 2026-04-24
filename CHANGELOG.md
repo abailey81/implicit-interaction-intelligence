@@ -7,8 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **WSL2 setup guide** at
+  [`docs/operations/wsl.md`](docs/operations/wsl.md) covering the
+  `torch.compile()` feature parity path for Windows users.  Triton
+  (the backend `torch.compile` uses on CUDA) has no supported
+  Windows wheel today, so users who want the 1.2–1.6× compile
+  speed-up now have a documented recipe: install Ubuntu-22.04 via
+  `wsl --install`, reuse the Windows NVIDIA driver for GPU
+  passthrough, and build a parallel `.venv-wsl/` alongside the
+  Windows `.venv/` so the same checkpoints can be driven from
+  either side.
+- **Sophisticated live dashboard** in `scripts/run_everything.py`
+  — pre-flight panel (Python / disk / `.env` / GPU / Docker / OTel
+  probes), resources panel with unicode sparklines of the last 60 s
+  across GPU / VRAM / CPU / RAM / disk I/O / network I/O, per-stage
+  progress bars driven by actual parsed output (not static ETAs),
+  post-stage artefact verification, and a multi-pane log grid during
+  parallel waves.  New files: `i3/runtime/monitoring.py` and
+  `scripts/orchestration_progress.py` with 14 stage-specific log
+  parsers and a `StageMetrics` tracker that computes live throughput
+  (EMA steps/sec) and recomputed ETA from parsed progress.
+- **Pluggable progress parsers**
+  (`scripts/orchestration_progress.py`) for `train-encoder`,
+  `train-slm`, `data`, `dialogue`, `test`, `benchmarks`, `lint`,
+  `typecheck`, `security`, `redteam`, `verify`, `onnx-export`,
+  `docker-build`, with regression tests in
+  `tests/test_orchestration_progress.py`.
+
 ### Performance
 
+- **Full CUDA/GPU autodetect path** — `i3/runtime/device.py` with
+  `pick_device()`, `enable_cuda_optimizations()` (cuDNN benchmark
+  + TF32), and `autocast_context()` for mixed-precision training.
+  Training scripts (`train_encoder.py`, `train_slm.py`,
+  `evaluate.py`) default to `--device auto --amp auto`.  AMP is
+  wired via `torch.amp.GradScaler` on CUDA; CPU keeps bit-identical
+  numerics.  `configs/default.yaml` now exposes `project.device:
+  auto` and `project.mixed_precision: true`.
+- **`torch.compile` opt-in** on both trainers via
+  `--compile {auto,on,off}`.  Auto-enabled only when CUDA is
+  visible **and** Triton imports cleanly — on Windows (no Triton
+  wheel) the orchestrator logs `torch.compile skipped: Triton not
+  available` and keeps AMP + TF32 for the speed-up we can still
+  deliver.  Linux users get the full 1.2–1.6× steady-state bump.
+- **DataLoader tuning** now scales by device: CUDA path raises
+  `num_workers` to `min(8, cpu_count-2)` and `prefetch_factor=4`
+  to keep the GPU fed, CPU path stays at the conservative
+  `min(4, cpu_count/2)` so workers don't contend with the trainer.
+- **Auto-bumped SLM batch size** to 2× the config default when CUDA
+  is detected (respects an explicit `--batch-size`).  Keeps ~50 %
+  VRAM headroom for AMP + gradients on a 6 GiB card.
+- **`SLMGenerator` opt-in compile** via `compile_model=True` for
+  long-running inference services (skips on Windows via the same
+  Triton probe).
+- **`evaluate_conditioning.py` default flipped to `--device auto`**
+  so the wave-6 conditioning-sensitivity stage lights up the GPU
+  automatically.
 - **Orchestrator wave-based concurrency** (`scripts/run_everything.py`).
   Stages now carry a `wave: int` and every stage within the same wave
   runs concurrently via `asyncio` while preserving cross-wave

@@ -486,6 +486,57 @@ python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
+### On Windows — native *or* WSL2
+
+Two supported paths on Windows:
+
+**1. Native Windows (easy but loses `torch.compile`)**
+
+```powershell
+py -3.12 -m venv .venv
+poetry config virtualenvs.in-project true
+poetry install --with dev,security
+# CUDA wheel for GPU runs — cu121 stopped at torch 2.5; use cu124 or cu126 for torch 2.6+:
+poetry run pip install --index-url https://download.pytorch.org/whl/cu124 torch
+```
+
+You get AMP (fp16/bf16), TF32 matmul, cuDNN benchmark, enlarged batch sizes,
+and 8-way DataLoader prefetch on CUDA.  You **do not** get
+`torch.compile()` — Triton has no official Windows wheels (see
+[triton-lang/triton#1640](https://github.com/triton-lang/triton/issues/1640)).
+The orchestrator auto-detects this and logs
+`torch.compile skipped: Triton not available (common on Windows)`.
+
+**2. WSL2 Ubuntu (full feature parity with Linux)**
+
+Required when you want `torch.compile()` (1.2–1.6× extra speedup), or
+simply for a cleaner dev loop (no Windows path / CRLF / `make` friction).
+Instructions and performance numbers live in
+[`docs/operations/wsl.md`](docs/operations/wsl.md).  Short version:
+
+```powershell
+# In PowerShell (admin once for install)
+wsl --install -d Ubuntu-22.04
+
+# Then inside WSL — project files stay on D: via the mount
+wsl -d Ubuntu-22.04 -u root -- bash -c "
+  cd /mnt/d/implicit-interaction-intelligence &&
+  apt-get update && apt-get install -y python3.12 python3.12-venv build-essential git &&
+  python3.12 -m venv .venv-wsl &&
+  .venv-wsl/bin/pip install --upgrade pip poetry &&
+  .venv-wsl/bin/poetry config virtualenvs.create false &&
+  .venv-wsl/bin/poetry install --with dev,security
+"
+
+# Run anything:
+wsl -d Ubuntu-22.04 -u root -- bash -c "
+  cd /mnt/d/implicit-interaction-intelligence &&
+  .venv-wsl/bin/python scripts/run_everything.py --mode full --with-docker
+"
+```
+
+WSL2 inherits your Windows NVIDIA driver — no separate CUDA install needed.
+
 ### Verifying the install
 
 ```bash

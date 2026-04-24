@@ -25,6 +25,40 @@ CPU wheel:
 poetry run pip install "torch>=2.6" --index-url https://download.pytorch.org/whl/cpu
 ```
 
+### `RuntimeError: Cannot find a working triton installation`
+
+You enabled `torch.compile()` on Windows.  Triton has no supported
+Windows wheel today
+([triton-lang/triton#1640](https://github.com/triton-lang/triton/issues/1640)).
+
+The orchestrator auto-detects this and skips compile gracefully on
+modern versions (you'll see `torch.compile skipped: Triton not
+available (common on Windows).  AMP + TF32 still active.` in the
+stage log).  If you need the 1.2–1.6× compile speed-up anyway, run
+the project from WSL2 Ubuntu — see [WSL2 on Windows](wsl.md).
+
+```powershell
+# Disable compile on native Windows
+poetry run python training/train_slm.py --compile off
+# Or run the orchestrator with --compile off (also accepted by
+# train_encoder.py).  AMP + TF32 + cuDNN benchmark + bigger batch
+# + prefetch all remain active.
+```
+
+### CUDA wheel missing for torch ≥ 2.6 on Windows
+
+PyTorch's `cu121` wheel stream stopped at torch 2.5.1.  For torch
+≥ 2.6 with CUDA, use `cu124` (or `cu126` for very new torch):
+
+```powershell
+poetry run pip uninstall -y torch
+poetry run pip install --index-url https://download.pytorch.org/whl/cu124 torch
+```
+
+The driver on your Windows host (`nvidia-smi` should report CUDA 12.x)
+is forward-compatible — you do not need to match the wheel's minor
+version to the driver exactly.
+
 ### `cryptography.fernet.InvalidToken` on startup
 
 Your `I3_ENCRYPTION_KEY` does not match the key used to write the
