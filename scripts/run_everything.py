@@ -1020,7 +1020,7 @@ def _build_all_stages(args: argparse.Namespace) -> list[Stage]:
             ),
             eta_seed_s=180.0,
             optional=True,
-            skip_if=lambda a: a.mode != "full",
+            skip_if=lambda a: a.mode != "full" or a.skip_tests,
             category="quality",
             wave=7,
         ),
@@ -2119,6 +2119,16 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--skip-benchmarks",
         action="store_true",
         help="Skip the pytest-benchmark stage (full mode only).",
+    )
+    p.add_argument(
+        "--skip-tests",
+        action="store_true",
+        help=(
+            "Skip the pytest stage.  Useful when one test is hanging "
+            "a worker and blocking the downstream waves — the rest of "
+            "the quality gates (lint, typecheck, security, redteam) "
+            "still run because they don't share a pytest process."
+        ),
     )
     p.add_argument(
         "--with-docker",
