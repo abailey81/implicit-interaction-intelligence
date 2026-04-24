@@ -328,6 +328,18 @@ kokoro        = { version = ">=0.1",  optional = true }   # Kokoro 82M open-weig
 mkdocs                                   = "^1.5"
 mkdocs-material                          = { version = "^9.5", extras = ["imaging"] }
 mkdocstrings                             = { version = "^0.24", extras = ["python"] }
+# Pin autorefs to 1.3.x: 1.4.x raises "AttributeError: 'dict' object
+# has no attribute 'link_titles'" during ``mkdocs build --strict``
+# against mkdocs 1.6 because its plugin ``on_config`` expects a typed
+# MkDocsConfig object but sometimes receives a plain dict from
+# upstream plugins in the chain.  The verify-all harness's
+# ``config.mkdocs_build_strict`` check trips on this.
+mkdocs-autorefs                          = "~1.3.0"
+# Pin griffe to 1.x: griffe 2.0 removed the ``griffe.collections``
+# module which ``mkdocstrings_handlers.python.handler`` still imports
+# from.  Upgrade together when a compatible mkdocstrings-python
+# lands.
+griffe                                   = "^1.0"
 mkdocs-include-markdown-plugin           = "^6.0"
 mkdocs-git-revision-date-localized-plugin = "^1.2"
 mkdocs-macros-plugin                     = "^1.0"
