@@ -120,6 +120,12 @@ datasets       = ">=2.14"    # HF datasets; old releases had malformed pyarrow s
 fsspec         = ">=2024.2"  # pulled by datasets / mlflow; skip 2023 releases with bad specs
 "huggingface-hub" = ">=0.23"
 
+# OBS: Langfuse LLM-call tracer.  Pinned to 2.x because 4.x requires
+# opentelemetry-api >=1.33 which conflicts with the traceloop-sdk
+# 0.30 pin elsewhere in this file.  Upgrade together when both
+# families land compatible OTel versions.
+langfuse       = "^2.60"
+
 # ─── Development Dependencies ────────────────────────────────────────────
 [tool.poetry.group.dev.dependencies]
 pytest             = "^8.0"
