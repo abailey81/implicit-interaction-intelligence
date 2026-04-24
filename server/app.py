@@ -18,6 +18,53 @@ import logging
 import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from pathlib import Path
+
+
+def _load_dotenv_into_os_environ() -> None:
+    """Populate ``os.environ`` from a ``.env`` file in the repo root.
+
+    SEC: ``pydantic-settings`` supports ``env_file=`` but our
+    :mod:`i3.config` reads several variables — most notably
+    ``I3_ENCRYPTION_KEY`` — directly via ``os.environ.get`` long before
+    the Pydantic model is built.  If the process was launched by
+    ``uvicorn`` (which does not auto-load ``.env``), those reads return
+    ``None`` and the server warns about a missing Fernet key.  This
+    loader closes that gap with a minimal stdlib parser so the project
+    works without ``python-dotenv``.
+
+    Rules:
+        * Only lines of the form ``KEY=VALUE`` are parsed.
+        * Existing ``os.environ`` entries take precedence (the process
+          environment always wins over the file).
+        * Lines starting with ``#`` and blank lines are skipped.
+        * Trailing comments after an unquoted value are preserved as
+          part of the value; users who need a ``#`` in a value should
+          quote it (common ``.env`` convention).
+    """
+    env_path = Path(__file__).resolve().parent.parent / ".env"
+    if not env_path.exists():
+        return
+    try:
+        text = env_path.read_text(encoding="utf-8")
+    except OSError:
+        return
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        value = value.strip()
+        # Strip matching quote wrappers so VALUE="foo" → foo.
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
+            value = value[1:-1]
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
+_load_dotenv_into_os_environ()
+
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -297,9 +344,16 @@ def create_app() -> FastAPI:
     # Routers
     # ------------------------------------------------------------------
     from server.routes import router as api_router
+    from server.routes_health import router as health_router
     from server.websocket import router as ws_router
 
     app.include_router(api_router, prefix="/api")
+    # SEC: health, live, ready, metrics probes.  routes_health.py owns
+    # the full /live and /ready logic (disk + encryption key + pipeline
+    # readiness); server/routes.py only has a minimal /health alias.
+    # Mount health_router *after* api_router so /api/health from
+    # routes_health takes precedence for the richer payload.
+    app.include_router(health_router, prefix="/api")
     app.include_router(ws_router)
 
     # What-if / adaptation-override endpoints for the interpretability panel.

@@ -68,6 +68,16 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
+# SEC: Force UTF-8 on stdout/stderr so the "I³" glyph and rich's box
+# drawing characters render on Windows consoles that default to
+# cp1251 / cp437 / cp1252.  Without this, rich crashes with
+# ``UnicodeEncodeError: 'charmap' codec can't encode character '\\xb3'``
+# the first time the banner panel is rendered.
+if sys.platform == "win32":
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 
 # ---------------------------------------------------------------------------
 # Rich bootstrap — auto-install on first run so a fresh clone just works.
@@ -167,7 +177,23 @@ def _docker_available() -> bool:
 
 
 def _py_cmd() -> list[str]:
-    """Return the command prefix for running project Python."""
+    """Return the command prefix for running project Python.
+
+    Resolution order:
+
+    1. If a project-local virtualenv exists at ``./.venv``, use its
+       Python binary directly.  This is the most reliable choice on
+       machines where ``poetry`` itself might be installed under a
+       different interpreter than the project's venv (e.g. Poetry
+       bootstrapped via Python 3.14 while the project venv is 3.12).
+    2. Otherwise, if ``poetry`` is on PATH, ``poetry run python``.
+    3. Otherwise, the interpreter running *this* script.
+    """
+    venv_py = REPO_ROOT / ".venv" / (
+        "Scripts" if sys.platform == "win32" else "bin"
+    ) / ("python.exe" if sys.platform == "win32" else "python")
+    if venv_py.exists():
+        return [str(venv_py)]
     if _poetry_available():
         return ["poetry", "run", "python"]
     return [sys.executable]

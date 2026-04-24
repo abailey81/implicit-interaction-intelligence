@@ -10,8 +10,26 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import io
 import sys
 from pathlib import Path
+
+# SEC: Force UTF-8 on stdout/stderr so the "I³" glyph and the colour
+# escape codes render cleanly on Windows consoles that default to
+# cp1251 / cp437 / cp1252.  Without this the first ``print()`` crashes
+# with ``UnicodeEncodeError: 'charmap' codec can't encode character
+# '\\xb3'``.
+if sys.platform == "win32":
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    else:  # pragma: no cover - pre-3.7 fallback, kept for robustness
+        sys.stdout = io.TextIOWrapper(
+            sys.stdout.buffer, encoding="utf-8", errors="replace"
+        )
+        sys.stderr = io.TextIOWrapper(
+            sys.stderr.buffer, encoding="utf-8", errors="replace"
+        )
 
 
 # ── ANSI colors (no external deps) ──────────────────────────────────────

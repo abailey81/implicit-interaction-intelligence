@@ -1473,9 +1473,31 @@ Full target listing: `make help`.
 - **`poetry install` hangs on resolution** — the deep-learning stack is
   large (~2.5 GB).  Wait 5–10 minutes on first run.  If it genuinely
   hangs, try `poetry lock --no-update && poetry install`.
+- **`poetry install` fails with "Python requirement ... not compatible"
+  for ``fastembed``** — Poetry is using Python 3.13+ but
+  ``fastembed`` (transitive through ``nemoguardrails``) only supports
+  3.8–3.12.  Fix by creating a project venv explicitly on 3.12:
+  ```bash
+  py -3.12 -m venv .venv
+  .venv/Scripts/python.exe -m pip install --upgrade pip
+  # then from inside the activated venv:
+  poetry config virtualenvs.in-project true
+  poetry install --with dev,security
+  ```
 - **`ModuleNotFoundError: rich` in the orchestrator** — the script
   self-installs `rich` into the current interpreter; wait for the
   first `pip install --user` line to complete.
+- **`UnicodeEncodeError: 'charmap' codec can't encode character '\xb3'`**
+  on Windows — the ``I³`` glyph cannot be rendered in the terminal's
+  default code page.  The orchestrator and the encryption-key script
+  both force UTF-8 on ``stdout``/``stderr`` as of v1.1.1; if you are on
+  an older checkout, set ``$env:PYTHONIOENCODING = "utf-8"`` before
+  running the script.
+- **``torch`` import fails with `OSError: [WinError 1114]`** — some
+  torch 2.10+/2.11+ CPU wheels on Windows fail to load ``c10.dll``
+  against the system VC++ runtime.  Install the known-good range
+  ``pip install "torch==2.6.0"`` (the ``i3/edge`` exporters stay
+  compatible with 2.6–2.9+).
 
 ### Encryption
 

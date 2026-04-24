@@ -442,10 +442,13 @@ def include_whatif_routes(app: FastAPI) -> None:
         a FastAPI internal assertion; callers should call this exactly
         once per application.
     """
-    # SEC: mounted under /whatif (no /api prefix) so the interpretability
-    # panel can namespace itself distinctly from the main REST API in
-    # reverse-proxy rules.
-    app.include_router(router)
+    # SEC: mounted under /api so the what-if / interpretability routes
+    # live on the same namespace as the rest of the REST surface.  The
+    # router's own ``/whatif`` prefix is preserved, giving the final
+    # paths ``/api/whatif/respond`` and ``/api/whatif/compare`` — the
+    # forms assumed by the Advanced UI client and the verification
+    # harness.
+    app.include_router(router, prefix="/api")
 
 
 __all__ = [
