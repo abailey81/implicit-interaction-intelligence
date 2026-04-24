@@ -53,6 +53,8 @@ def _safe_float(value: object, default: float = 0.0) -> float:
     # ultimately end up in the SLM conditioning tensor.
     if value is None:
         return float(default)
+    if not isinstance(value, (int, float, str)):
+        return float(default)
     try:
         v = float(value)
     except (TypeError, ValueError):

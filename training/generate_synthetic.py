@@ -218,7 +218,7 @@ def _generate_feature_vector(
     msg_len_n = primary[4]      # message_length_words normalised
     vocab_n = primary[5]        # vocabulary_richness normalised
     formality_n = primary[6]    # formality normalised
-    iki_n = primary[0]          # mean_iki normalised
+    iki_n = primary[0]          # noqa: F841  # mean_iki normalised; kept for documentation of the primary-feature layout
 
     content = np.array([
         msg_len_n,                                          # message_length

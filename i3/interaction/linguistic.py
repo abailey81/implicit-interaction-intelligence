@@ -60,7 +60,7 @@ POSITIVE_LEXICON: dict[str, float] = {
     "awesome": 0.85, "fabulous": 0.85, "remarkable": 0.82, "sublime": 0.88,
     "delightful": 0.85, "exquisite": 0.85, "glorious": 0.82, "blissful": 0.88,
     "ecstatic": 0.90, "thrilled": 0.85, "overjoyed": 0.90, "elated": 0.88,
-    "euphoric": 0.90, "triumphant": 0.82, "magnificent": 0.85, "divine": 0.82,
+    "euphoric": 0.90, "triumphant": 0.82, "divine": 0.82,
 
     # Moderate positive (0.5 - 0.79)
     "good": 0.60, "great": 0.70, "nice": 0.55, "fine": 0.50, "happy": 0.75,
@@ -76,7 +76,7 @@ POSITIVE_LEXICON: dict[str, float] = {
     "warm": 0.58, "friendly": 0.65, "kind": 0.68, "generous": 0.70,
     "caring": 0.70, "compassionate": 0.72, "gentle": 0.60, "tender": 0.62,
     "sweet": 0.65, "charming": 0.65, "graceful": 0.65, "elegant": 0.62,
-    "smart": 0.65, "clever": 0.62, "wise": 0.68, "brilliant": 0.75,
+    "smart": 0.65, "clever": 0.62, "wise": 0.68,
     "talented": 0.70, "skilled": 0.62, "capable": 0.58, "competent": 0.55,
     "efficient": 0.60, "effective": 0.62, "productive": 0.60, "successful": 0.72,
     "accomplished": 0.68, "achieved": 0.65, "victory": 0.72, "winning": 0.68,
@@ -87,14 +87,14 @@ POSITIVE_LEXICON: dict[str, float] = {
     "solid": 0.48, "steady": 0.42, "stable": 0.42, "reliable": 0.50,
     "consistent": 0.45, "clear": 0.48, "clean": 0.45, "smooth": 0.50,
     "easy": 0.48, "simple": 0.42, "straightforward": 0.48, "intuitive": 0.55,
-    "responsive": 0.55, "fast": 0.50, "quick": 0.48, "prompt": 0.45,
+    "fast": 0.50, "quick": 0.48, "prompt": 0.45,
     "ready": 0.40, "prepared": 0.42, "willing": 0.45, "eager": 0.55,
     "keen": 0.50, "enthusiastic": 0.65, "passionate": 0.70, "devoted": 0.65,
     "loyal": 0.62, "faithful": 0.60, "honest": 0.60, "sincere": 0.62,
     "genuine": 0.60, "authentic": 0.58, "natural": 0.45, "organic": 0.42,
 
     # Conversational AI interaction positive
-    "understand": 0.55, "understood": 0.55, "helpful": 0.70, "thanks": 0.65,
+    "understand": 0.55, "understood": 0.55, "thanks": 0.65,
     "thank": 0.65, "assist": 0.55, "support": 0.58, "solve": 0.60,
     "resolved": 0.65, "fixed": 0.60, "works": 0.55, "working": 0.50,
     "correct": 0.58, "accurate": 0.60, "precise": 0.58, "relevant": 0.55,
@@ -167,7 +167,7 @@ NEGATIVE_LEXICON: dict[str, float] = {
 
     # Conversational AI interaction negative
     "error": -0.55, "bug": -0.55, "crash": -0.65, "fail": -0.62,
-    "failed": -0.65, "failure": -0.68, "broken": -0.65, "glitch": -0.55,
+    "failed": -0.65, "failure": -0.68, "glitch": -0.55,
     "laggy": -0.50, "unresponsive": -0.58, "hang": -0.50, "freeze": -0.55,
     "spam": -0.55, "scam": -0.72, "fake": -0.60, "misleading": -0.62,
     "inaccurate": -0.58, "incorrect": -0.55, "irrelevant": -0.50,

@@ -159,6 +159,9 @@ async def admin_reset(request: Request) -> JSONResponse:
         pipeline._last_response_length.pop(user_id, None)
         pipeline._previous_engagement.pop(user_id, None)
         pipeline._previous_route.pop(user_id, None)
+        prev_ctx = getattr(pipeline, "_previous_routing_context", None)
+        if prev_ctx is not None:
+            prev_ctx.pop(user_id, None)
     except AttributeError:
         # Pipeline shape is stable; fall through without blocking the reset.
         logger.debug("admin_reset: pipeline missing in-memory maps")
@@ -528,6 +531,9 @@ async def admin_delete_user(
         pipeline._last_response_length.pop(user_id, None)
         pipeline._previous_engagement.pop(user_id, None)
         pipeline._previous_route.pop(user_id, None)
+        prev_ctx = getattr(pipeline, "_previous_routing_context", None)
+        if prev_ctx is not None:
+            prev_ctx.pop(user_id, None)
     except AttributeError:
         logger.debug("admin_delete_user: pipeline missing in-memory maps")
 

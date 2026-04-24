@@ -256,7 +256,7 @@ async def _run(args: argparse.Namespace) -> int:
     print("values (full):", [f"{x:.4f}" for x in emb_list])
 
     print("\nModality availability:")
-    print(f"  keystroke: simulated")
+    print("  keystroke: simulated")
     print(f"  voice:     {'ok' if voice_vec is not None else 'unavailable'}")
     print(f"  vision:    {'ok' if vision_vec is not None else 'unavailable'}")
     print("  accelerometer: not captured in this demo")

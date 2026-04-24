@@ -51,6 +51,8 @@ def _sanitize(value: object, default: float) -> float:
     """
     if value is None:
         return float(default)
+    if not isinstance(value, (int, float, str)):
+        return float(default)
     try:
         v = float(value)
     except (TypeError, ValueError):

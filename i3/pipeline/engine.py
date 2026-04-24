@@ -205,6 +205,15 @@ class Pipeline:
         self._last_response_length: dict[str, int] = {}
         self._previous_engagement: dict[str, float] = {}
         self._previous_route: dict[str, int] = {}
+        # SEC: the contextual bandit's Laplace approximation requires the
+        # *same* routing-context vector used at arm-selection time to be
+        # passed back when the engagement reward arrives. Storing only
+        # the integer arm index (``_previous_route``) and then fabricating
+        # a zero context at update time degenerates the posterior — the
+        # bandit learns reward-vs-zero-vector instead of
+        # reward-vs-actual-routing-context. We persist the vector here
+        # so ``compute_engagement()`` can replay it verbatim.
+        self._previous_routing_context: dict[str, np.ndarray] = {}
         self.engagement_estimator = EngagementEstimator()
 
         # ---- Pipeline state ----------------------------------------------
@@ -335,6 +344,7 @@ class Pipeline:
 
         # Clear per-user route tracking for the new session
         self._previous_route.pop(user_id, None)
+        self._previous_routing_context.pop(user_id, None)
 
         logger.info(
             "Session started: session_id=%s, user_id=%s", session_id, user_id
@@ -425,6 +435,7 @@ class Pipeline:
         self._last_response_time.pop(user_id, None)
         self._last_response_length.pop(user_id, None)
         self._previous_route.pop(user_id, None)
+        self._previous_routing_context.pop(user_id, None)
 
         logger.info("Session ended: session_id=%s, user_id=%s", session_id, user_id)
         return {"summary": summary_text, **session_summary}
@@ -557,7 +568,7 @@ class Pipeline:
             input.message_text
         )
 
-        route_chosen, routing_confidence = self._make_routing_decision(
+        route_chosen, routing_confidence, routing_ctx_vec = self._make_routing_decision(
             user_id=input.user_id,
             user_state_embedding=user_state_embedding,
             features=features,
@@ -611,6 +622,9 @@ class Pipeline:
         self._previous_route[input.user_id] = (
             0 if route_chosen == "local_slm" else 1
         )
+        # SEC: persist the exact context vector so compute_engagement()
+        # can feed it back to bandit.update() instead of zeros.
+        self._previous_routing_context[input.user_id] = routing_ctx_vec
 
         # ---- Build output ------------------------------------------------
         session = user_model.current_session
@@ -692,14 +706,18 @@ class Pipeline:
         score = signal.score
         self._previous_engagement[user_id] = score
 
-        # Update the router bandit with the reward from the previous turn
+        # Update the router bandit with the reward from the previous turn.
+        # SEC: the contextual Thompson bandit's Laplace posterior is fitted
+        # per-arm on the *(context, reward)* pairs accumulated in its
+        # history.  Feeding a zero context at every update collapses the
+        # context-reward mapping to a degenerate non-contextual bandit.
+        # We therefore replay the exact context vector that was handed to
+        # ``select_arm`` at the time of the routing decision.
         prev_route = self._previous_route.get(user_id)
-        if prev_route is not None:
+        prev_ctx = self._previous_routing_context.get(user_id)
+        if prev_route is not None and prev_ctx is not None:
             try:
-                # Build a dummy context for the update (the bandit just
-                # needs the arm index and reward)
-                ctx = np.zeros(self.config.router.context_dim, dtype=np.float64)
-                self.router.update(prev_route, ctx, reward=score)
+                self.router.update(prev_route, prev_ctx, reward=score)
             except Exception:
                 logger.exception(
                     "Failed to update router bandit for user_id=%s", user_id
@@ -719,13 +737,18 @@ class Pipeline:
         query_complexity: float,
         topic_sensitivity: float,
         user_model: Any,
-    ) -> tuple[str, dict[str, float]]:
+    ) -> tuple[str, dict[str, float], np.ndarray]:
         """Run the contextual bandit to choose a generation route.
 
         Returns:
-            A tuple ``(route_name, confidence_dict)`` where ``route_name``
-            is one of ``"local_slm"`` or ``"cloud_llm"`` and
-            ``confidence_dict`` maps arm names to selection probabilities.
+            A tuple ``(route_name, confidence_dict, context_vector)``
+            where ``route_name`` is one of ``"local_slm"`` or
+            ``"cloud_llm"``, ``confidence_dict`` maps arm names to
+            selection probabilities, and ``context_vector`` is the
+            exact numpy vector that was handed to ``select_arm`` — the
+            caller must replay it verbatim when later calling
+            ``bandit.update()`` so the Laplace posterior sees the same
+            context at update time as at selection time.
         """
         from i3.router.types import RoutingContext
 
@@ -746,6 +769,7 @@ class Pipeline:
             cloud_latency_est=0.5,
             slm_confidence=0.5,
         )
+        context_vector = routing_context.to_vector()
 
         # Privacy override: force local if topic is sensitive
         privacy_override = (
@@ -754,6 +778,7 @@ class Pipeline:
         )
 
         arms = self.config.router.arms
+        confidence: dict[str, float]
 
         if privacy_override:
             route_chosen = "local_slm"
@@ -764,20 +789,18 @@ class Pipeline:
                 topic_sensitivity,
             )
         else:
-            arm_index, raw_confidence = self.router.select_arm(
-                routing_context.to_vector()
-            )
+            arm_index, raw_confidence = self.router.select_arm(context_vector)
             route_chosen = arms[arm_index] if arm_index < len(arms) else "local_slm"
 
             # Translate arm indices to arm names
-            confidence: dict[str, float] = {}
+            confidence = {}
             for key, value in raw_confidence.items():
                 # raw_confidence keys are "arm_0", "arm_1", etc.
                 idx = int(key.split("_")[1]) if "_" in key else 0
                 name = arms[idx] if idx < len(arms) else f"unknown_{idx}"
                 confidence[name] = value
 
-        return route_chosen, confidence
+        return route_chosen, confidence, context_vector
 
     # ------------------------------------------------------------------
     # Internal: response generation
@@ -820,7 +843,8 @@ class Pipeline:
                 )
 
         # --- Local SLM route ----------------------------------------------
-        if self._slm_generator is not None:
+        slm_generator = self._slm_generator
+        if slm_generator is not None:
             try:
                 # PERF (H-3, 2026-04-23 audit): SLM generation is a
                 # synchronous PyTorch loop that can take hundreds of ms.
@@ -830,7 +854,7 @@ class Pipeline:
                 loop = asyncio.get_running_loop()
                 return await loop.run_in_executor(
                     None,
-                    lambda: self._slm_generator.generate(
+                    lambda: slm_generator.generate(
                         prompt=message,
                         adaptation_vector=adaptation.to_tensor().unsqueeze(0),
                         user_state=user_state.unsqueeze(0),
@@ -1060,6 +1084,7 @@ class Pipeline:
             self._last_response_length.pop(evicted_id, None)
             self._previous_engagement.pop(evicted_id, None)
             self._previous_route.pop(evicted_id, None)
+            self._previous_routing_context.pop(evicted_id, None)
             logger.info(
                 "user_model.evicted",
                 extra={"event": "user_model_evicted", "user_id": evicted_id},
@@ -1191,7 +1216,8 @@ class Pipeline:
             values = []
         if len(values) < 4:
             values = values + [0.0] * (4 - len(values))
-        return values[:4]
+        result: list[float] = [float(v) for v in values[:4]]
+        return result
 
     @staticmethod
     def _normalized_hour() -> float:

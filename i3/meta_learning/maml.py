@@ -340,7 +340,7 @@ class MAMLTrainer:
         self.head.train()
         self.optimizer.zero_grad(set_to_none=True)
 
-        create_graph = not self.first_order
+        create_graph = not self.first_order  # noqa: F841  # documents the second-order/first-order branch semantics below
         total_query = 0.0
         total_support = 0.0
         n_tasks = float(len(batch.tasks))

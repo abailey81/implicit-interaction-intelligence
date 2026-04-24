@@ -44,6 +44,10 @@ from __future__ import annotations
 import logging
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from i3.safety.certificates import SafetyCertificate
 
 logger = logging.getLogger(__name__)
 

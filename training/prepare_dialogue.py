@@ -179,7 +179,7 @@ def load_empathetic_dialogues(data_dir: Path) -> list[dict[str, Any]]:
     conversations: dict[str, list[tuple[int, str, str]]] = {}
 
     with open(csv_file, "r", encoding="utf-8") as f:
-        header = f.readline().strip().split(",")
+        header = f.readline().strip().split(",")  # noqa: F841  # skips + documents the header row
         for line in f:
             parts = line.strip().split(",")
             if len(parts) >= 6:
@@ -325,7 +325,9 @@ def generate_synthetic_dialogues(
         complex_responses, simple_responses, follow_ups,
     ]
 
-    emotion_map = {
+    # Reference mapping of pool labels -> emotion indices (for documentation
+    # of the emotion-assignment logic below).
+    emotion_map = {  # noqa: F841
         "casual": 0,
         "formal": 0,
         "emotional_positive": 4,

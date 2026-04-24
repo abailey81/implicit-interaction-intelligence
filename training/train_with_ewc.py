@@ -355,7 +355,7 @@ def _write_report(report: EWCTrainingReport, report_dir: Path) -> tuple[Path, Pa
         json.dump(payload, f, indent=2, sort_keys=True)
 
     lines: list[str] = []
-    lines.append(f"# EWC Sequential-Task Training Report\n")
+    lines.append("# EWC Sequential-Task Training Report\n")
     lines.append(f"- timestamp: `{report.timestamp}`")
     lines.append(f"- lambda_ewc: `{report.lambda_ewc}`")
     lines.append(f"- online_ewc: `{report.online_ewc}`")

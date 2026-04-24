@@ -26,9 +26,14 @@ from __future__ import annotations
 
 import logging
 import math
+from typing import TYPE_CHECKING
 
 import torch
 import torch.nn.functional as F
+
+if TYPE_CHECKING:
+    from i3.slm.model import AdaptiveSLM
+    from i3.slm.tokenizer import SimpleTokenizer
 
 logger = logging.getLogger(__name__)
 

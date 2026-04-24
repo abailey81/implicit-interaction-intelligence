@@ -24,7 +24,7 @@ import logging
 import sys
 from pathlib import Path
 from types import ModuleType
-from typing import Any
+from typing import Any, NoReturn
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +49,7 @@ def _soft_import(name: str) -> ModuleType | None:
         return None
 
 
-def _fatal(msg: str, code: int = 2) -> None:
+def _fatal(msg: str, code: int = 2) -> NoReturn:
     """Log a fatal error and exit with the supplied code.
 
     Args:

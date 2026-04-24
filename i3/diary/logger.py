@@ -133,7 +133,7 @@ _DEFAULT_IDF: dict[str, float] = {
     "thread": 3.3, "process": 2.5, "queue": 3.2, "cache": 3.2,
     # Technology — data + ML
     "data": 2.8, "dataset": 3.4, "model": 2.5, "training": 2.9,
-    "inference": 3.6, "prediction": 3.3, "classifier": 3.9, "regression": 3.7,
+    "inference": 3.6, "prediction": 3.3, "classifier": 3.9,
     "neural": 3.8, "network": 2.8, "transformer": 4.0, "embedding": 4.2,
     "attention": 3.5, "layer": 3.0, "weight": 3.0, "gradient": 4.1,
     "loss": 2.8, "accuracy": 3.0, "precision": 3.0, "recall": 3.2,
@@ -156,12 +156,12 @@ _DEFAULT_IDF: dict[str, float] = {
     "blocker": 3.8, "priority": 3.2,
     # Thinking / creation
     "idea": 2.8, "plan": 2.9, "goal": 2.7, "strategy": 3.3,
-    "approach": 2.8, "method": 3.0, "solution": 2.8, "problem": 2.5,
+    "approach": 2.8, "solution": 2.8, "problem": 2.5,
     "decision": 3.0, "option": 2.8, "choice": 2.8, "reason": 2.3,
     "cause": 2.5, "effect": 2.6, "analysis": 3.3, "research": 3.0,
     "insight": 3.5, "hypothesis": 3.9, "conclusion": 3.3,
     "write": 2.3, "read": 2.2, "learn": 2.4, "study": 2.7,
-    "create": 2.5, "design": 3.0, "draft": 3.2, "publish": 3.3,
+    "create": 2.5, "design": 3.0, "publish": 3.3,
     "edit": 2.7, "revise": 3.4, "rewrite": 3.3,
     # Daily life
     "weather": 3.1, "temperature": 3.4, "rain": 3.3, "sunny": 3.6,

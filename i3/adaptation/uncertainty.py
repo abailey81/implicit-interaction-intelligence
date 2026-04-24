@@ -57,6 +57,8 @@ from i3.adaptation.types import AdaptationVector, StyleVector
 if TYPE_CHECKING:  # pragma: no cover - import only for typing
     from i3.adaptation.controller import AdaptationController
     from i3.encoder.tcn import TemporalConvNet
+    from i3.interaction.types import InteractionFeatureVector
+    from i3.user_model.types import DeviationMetrics
 
 logger = logging.getLogger(__name__)
 
@@ -396,7 +398,7 @@ class MCDropoutAdaptationEstimator:
         try:
             for _ in range(self._n_samples):
                 if saved_style is not None:
-                    self._controller._current_style = saved_style  # type: ignore[attr-defined]
+                    self._controller._current_style = saved_style
                 with torch.no_grad():
                     embedding = self._encoder(batch)
                 features, deviation = _derive_controller_inputs(
@@ -412,7 +414,7 @@ class MCDropoutAdaptationEstimator:
                 samples.append(vec)
         finally:
             if saved_style is not None:
-                self._controller._current_style = saved_style  # type: ignore[attr-defined]
+                self._controller._current_style = saved_style
         return samples
 
 
@@ -593,7 +595,7 @@ def _controller_modules(controller: object) -> list[nn.Module]:
 
 def _derive_controller_inputs(
     feature_window: torch.Tensor, embedding: torch.Tensor
-) -> tuple[object, object]:
+) -> tuple["InteractionFeatureVector", "DeviationMetrics"]:
     """Build ``(features, deviation)`` inputs for ``controller.compute``.
 
     The controller expects an

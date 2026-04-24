@@ -254,7 +254,7 @@ class TestDeviationComputation:
         """Engagement score should be a finite number."""
         model.start_session()
         for _ in range(5):
-            dev = model.update_state(_random_embedding(), _make_features())
+            dev = model.update_state(_random_embedding(), _make_features())  # noqa: F841
 
         score = model.engagement_score
         assert isinstance(score, float)

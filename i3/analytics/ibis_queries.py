@@ -127,7 +127,7 @@ def top_topics_by_day(
         An Ibis expression selecting ``day``, ``topic``, ``count``,
         ``rank_in_day``.
     """
-    ibis = _require_ibis()
+    ibis = _require_ibis()  # noqa: F841  # bound for parity with other fns; side-effect-raises on missing dep
     sessions_t, _ = _diary_tables(con)
     expr = sessions_t
     if user_id is not None:

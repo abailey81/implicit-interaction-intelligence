@@ -51,7 +51,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeAlias
 
 import numpy as np
 
@@ -67,7 +67,7 @@ logger = logging.getLogger(__name__)
 if TYPE_CHECKING:  # pragma: no cover - type-checking only
     import numpy.typing as npt
 
-    NDArrayF32 = npt.NDArray[np.float32]
+    NDArrayF32: TypeAlias = npt.NDArray[np.float32]
 else:
     NDArrayF32 = np.ndarray
 

@@ -252,7 +252,7 @@ def _pairs_from_ablation(
     """
     rng = random.Random(seed)
     summary = payload.get("summary", {})
-    archetype_labels = list(summary.get("archetype_labels") or [])
+    archetype_labels = list(summary.get("archetype_labels") or [])  # noqa: F841
     per_pair_records = payload.get("per_pair_records") or []
     generated_texts = payload.get("generated_texts") or {}
 
