@@ -357,17 +357,24 @@ def _build_all_stages(args: argparse.Namespace) -> list[Stage]:
         Stage(
             name="data",
             description="Generate synthetic interaction corpus",
+            # ``generate_synthetic.py`` writes train/val/test ``.pt``
+            # shards to ``--output-dir``.  Total sessions = the product
+            # of the old (archetypes × sessions-per-archetype) knobs —
+            # 8 × args.sessions_per_archetype — so behaviour matches
+            # the prior orchestrator contract.
             cmd=py
             + [
                 "training/generate_synthetic.py",
-                "--archetypes",
-                "8",
-                "--sessions-per-archetype",
-                str(args.sessions_per_archetype),
-                "--output",
-                "data/interaction_dataset.jsonl",
+                "--sessions",
+                str(8 * args.sessions_per_archetype),
+                "--output-dir",
+                "data/synthetic",
             ],
-            produces=[REPO_ROOT / "data" / "interaction_dataset.jsonl"],
+            produces=[
+                REPO_ROOT / "data" / "synthetic" / "train.pt",
+                REPO_ROOT / "data" / "synthetic" / "val.pt",
+                REPO_ROOT / "data" / "synthetic" / "test.pt",
+            ],
             eta_seed_s=30.0,
             skip_if=lambda a: a.mode == "fast",
             category="data",
@@ -402,6 +409,9 @@ def _build_all_stages(args: argparse.Namespace) -> list[Stage]:
         Stage(
             name="train-encoder",
             description="Train TCN encoder (NT-Xent contrastive loss)",
+            # The trainer writes ``best_model.pt`` inside
+            # ``--checkpoint-dir`` and reads shards from
+            # ``--data-dir`` produced by the data stage.
             cmd=py
             + [
                 "training/train_encoder.py",
@@ -409,10 +419,12 @@ def _build_all_stages(args: argparse.Namespace) -> list[Stage]:
                 "configs/default.yaml",
                 "--epochs",
                 str(args.encoder_epochs),
-                "--output",
-                "checkpoints/encoder/tcn_v1.pt",
+                "--data-dir",
+                "data/synthetic",
+                "--checkpoint-dir",
+                "checkpoints/encoder",
             ],
-            produces=[REPO_ROOT / "checkpoints" / "encoder" / "tcn_v1.pt"],
+            produces=[REPO_ROOT / "checkpoints" / "encoder" / "best_model.pt"],
             eta_seed_s=1800.0,
             skip_if=lambda a: a.mode == "fast",
             category="train",
@@ -428,6 +440,10 @@ def _build_all_stages(args: argparse.Namespace) -> list[Stage]:
         Stage(
             name="train-slm",
             description="Train SLM with cross-attention conditioning",
+            # The SLM trainer pulls encoder conditioning from the
+            # checkpoint dir internally; it doesn't take an explicit
+            # ``--conditioning-encoder`` flag.  Output lives at
+            # ``{checkpoint-dir}/best_model.pt``.
             cmd=py
             + [
                 "training/train_slm.py",
@@ -435,12 +451,12 @@ def _build_all_stages(args: argparse.Namespace) -> list[Stage]:
                 "configs/default.yaml",
                 "--epochs",
                 str(args.slm_epochs),
-                "--conditioning-encoder",
-                "checkpoints/encoder/tcn_v1.pt",
-                "--output",
-                "checkpoints/slm/slm_v1.pt",
+                "--data-dir",
+                "data/dialogue",
+                "--checkpoint-dir",
+                "checkpoints/slm",
             ],
-            produces=[REPO_ROOT / "checkpoints" / "slm" / "slm_v1.pt"],
+            produces=[REPO_ROOT / "checkpoints" / "slm" / "best_model.pt"],
             eta_seed_s=3000.0,
             skip_if=lambda a: a.mode == "fast",
             category="train",
@@ -455,16 +471,18 @@ def _build_all_stages(args: argparse.Namespace) -> list[Stage]:
         Stage(
             name="evaluate",
             description="Perplexity + conditioning sensitivity + latency",
+            # ``evaluate.py`` reads one SLM checkpoint via
+            # ``--checkpoint`` and writes JSON via ``--output``.
             cmd=py
             + [
                 "training/evaluate.py",
                 "--config",
                 "configs/default.yaml",
-                "--slm",
-                "checkpoints/slm/slm_v1.pt",
-                "--encoder",
-                "checkpoints/encoder/tcn_v1.pt",
-                "--out",
+                "--checkpoint",
+                "checkpoints/slm/best_model.pt",
+                "--data-dir",
+                "data/dialogue",
+                "--output",
                 "reports/evaluation.json",
             ],
             produces=[REPORTS_DIR / "evaluation.json"],
@@ -477,12 +495,19 @@ def _build_all_stages(args: argparse.Namespace) -> list[Stage]:
         Stage(
             name="eval-conditioning",
             description="Cross-attention conditioning-sensitivity evaluation",
+            # The canonical CLI lives at
+            # ``scripts/benchmarks/evaluate_conditioning.py`` —
+            # ``i3.eval.conditioning_sensitivity`` is a library module,
+            # not a runnable ``__main__``.
             cmd=py
             + [
-                "-m",
-                "i3.eval.conditioning_sensitivity",
+                "scripts/benchmarks/evaluate_conditioning.py",
+                "--checkpoint",
+                "checkpoints/slm/best_model.pt",
                 "--out",
                 "reports/conditioning_sensitivity.json",
+                "--markdown",
+                "reports/conditioning_sensitivity.md",
             ],
             produces=[REPORTS_DIR / "conditioning_sensitivity.json"],
             eta_seed_s=60.0,
@@ -577,7 +602,14 @@ def _build_all_stages(args: argparse.Namespace) -> list[Stage]:
         Stage(
             name="redteam",
             description="55-attack red-team harness",
-            cmd=py + ["scripts/verification/redteam_harness.py"],
+            cmd=py
+            + [
+                "scripts/security/run_redteam.py",
+                "--out",
+                "reports/redteam.json",
+                "--out-md",
+                "reports/redteam.md",
+            ],
             eta_seed_s=45.0,
             optional=True,
             skip_if=lambda a: a.mode != "full",
@@ -623,10 +655,19 @@ def _build_all_stages(args: argparse.Namespace) -> list[Stage]:
         Stage(
             name="onnx-export",
             description="Export TCN + SLM to ONNX",
+            # ``onnx_export.py`` needs an explicit ``--checkpoint`` —
+            # point it at the encoder checkpoint produced by wave 4.
             cmd=(
                 ["make", "export-onnx"]
                 if _make_available()
-                else py + ["i3/encoder/onnx_export.py", "--output", "checkpoints/encoder/tcn.onnx"]
+                else py
+                + [
+                    "i3/encoder/onnx_export.py",
+                    "--checkpoint",
+                    "checkpoints/encoder/best_model.pt",
+                    "--output",
+                    "checkpoints/encoder/tcn.onnx",
+                ]
             ),
             produces=[REPO_ROOT / "checkpoints" / "encoder" / "tcn.onnx"],
             eta_seed_s=60.0,
@@ -638,10 +679,21 @@ def _build_all_stages(args: argparse.Namespace) -> list[Stage]:
         Stage(
             name="profile-edge",
             description="Edge-feasibility profiling report",
+            # Canonical CLI is under ``scripts/benchmarks/`` —
+            # ``i3/profiling/report.py`` is a library module.
             cmd=(
                 ["make", "profile-edge"]
                 if _make_available()
-                else py + ["i3/profiling/report.py"]
+                else py
+                + [
+                    "scripts/benchmarks/profile_edge.py",
+                    "--encoder",
+                    "checkpoints/encoder/best_model.pt",
+                    "--slm",
+                    "checkpoints/slm/best_model.pt",
+                    "--output",
+                    "reports/edge_profile.md",
+                ]
             ),
             eta_seed_s=30.0,
             optional=True,
