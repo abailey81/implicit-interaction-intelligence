@@ -62,9 +62,10 @@ these are the documents to read in priority order:
 | 5 minutes | + [`docs/huawei/jd_to_repo_map.md`](docs/huawei/jd_to_repo_map.md) — every JD bullet → file:line |
 | 15 minutes | + [`docs/huawei/feature_matrix.md`](docs/huawei/feature_matrix.md) — I³ vs Apple Intelligence / Pixel AI / Galaxy AI / Pangu / Qwen3.5 / DeepSeek-V4 / Gemma-4 / Kimi-K2.6 |
 | 30 minutes | + [`docs/huawei/design_brief.md`](docs/huawei/design_brief.md) (persona + interaction principle) and [`docs/huawei/finetune_artefact.md`](docs/huawei/finetune_artefact.md) (Qwen + Gemini fine-tune side-by-side) |
-| 60 minutes | + [`docs/huawei/iteration_log.md`](docs/huawei/iteration_log.md) (51-iter trajectory), [`docs/huawei/research_reading_list.md`](docs/huawei/research_reading_list.md) (15 papers 2024-2026), [`docs/huawei/forward_roadmap.md`](docs/huawei/forward_roadmap.md) (what I'd build next at HMI Lab) |
-| Onboarding (1 day) | [`docs/huawei/onboarding_a_teammate.md`](docs/huawei/onboarding_a_teammate.md) |
+| 60 minutes | + [`docs/huawei/iteration_log.md`](docs/huawei/iteration_log.md) (51-iter trajectory), [`docs/huawei/iter52_plus_roadmap.md`](docs/huawei/iter52_plus_roadmap.md) (iter 52-138 sweep + 86 commits), [`docs/huawei/research_reading_list.md`](docs/huawei/research_reading_list.md) (15 papers 2024-2026), [`docs/huawei/forward_roadmap.md`](docs/huawei/forward_roadmap.md) (what I'd build next at HMI Lab) |
+| Onboarding (1 day) | [`docs/huawei/onboarding_a_teammate.md`](docs/huawei/onboarding_a_teammate.md) + [`docs/huawei/recruiter_clarification_answers.md`](docs/huawei/recruiter_clarification_answers.md) |
 | The paper | [`docs/paper/I3_research_paper.md`](docs/paper/I3_research_paper.md) — 461 LOC with §6 Results (TCN clustering, SLM perplexity + KL ratio, router regret, Kirin 9000 → Smart Hanhan device-feasibility table) |
+| Latest live numbers | `make test-iter` → **640 / 640 + 1 skipped passed in 35.20 s.**  Trained Qwen LoRA: best_val_loss = 5.36 × 10⁻⁶; **eval: action_accuracy = 100 %, full_match = 100 %, macro F1 = 1.0** on 253 examples ([`reports/iter_test_sweep.md`](reports/iter_test_sweep.md), [`checkpoints/intent_eval/comparison_report.md`](checkpoints/intent_eval/comparison_report.md)). |
 
 ---
 
