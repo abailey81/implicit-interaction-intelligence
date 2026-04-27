@@ -81,6 +81,9 @@ class Dashboard {
 
     /** @private */
     _createAdaptationGauges(container) {
+        // Iter 51 phase 19: clear the skeleton placeholder rendered
+        // in the static HTML so the live gauges replace it cleanly.
+        container.innerHTML = '';
         const dims = [
             { key: 'cognitive_load', label: 'Cog. Load', cssClass: 'cognitive' },
             { key: 'formality',      label: 'Formality', cssClass: 'formality' },

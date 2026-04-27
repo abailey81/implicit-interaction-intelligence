@@ -496,7 +496,23 @@
                 <h2 class="section-title">Eight axes, continuously tuned.</h2>
                 <p class="section-sub">Each axis biases generation: cognitive load tightens phrasing, formality matches your tone, accessibility simplifies vocabulary when motor difficulty is detected.</p>
             </header>
-            <div class="gauge-container reveal-card"></div>
+            <div class="gauge-container reveal-card" id="adaptation-gauge">
+                <!-- Skeleton placeholder so the tab doesn't show as
+                     a blank card on first paint.  ``dashboard.js``
+                     clears this on the first ``state_update`` frame
+                     and renders the live gauges in its place. -->
+                <p class="gauge-skeleton-hint">Send a chat message to see the eight axes update in real time.</p>
+                <ul class="gauge-skeleton-list">
+                    <li><span class="gauge-skel-label">cognitive load</span><span class="gauge-skel-bar"></span></li>
+                    <li><span class="gauge-skel-label">formality</span><span class="gauge-skel-bar"></span></li>
+                    <li><span class="gauge-skel-label">verbosity</span><span class="gauge-skel-bar"></span></li>
+                    <li><span class="gauge-skel-label">emotionality</span><span class="gauge-skel-bar"></span></li>
+                    <li><span class="gauge-skel-label">directness</span><span class="gauge-skel-bar"></span></li>
+                    <li><span class="gauge-skel-label">emotional tone</span><span class="gauge-skel-bar"></span></li>
+                    <li><span class="gauge-skel-label">accessibility</span><span class="gauge-skel-bar"></span></li>
+                    <li><span class="gauge-skel-label">biometric</span><span class="gauge-skel-bar"></span></li>
+                </ul>
+            </div>
 
             <!-- Engagement summary cards -->
             <div class="section-head" style="margin-top: 80px;">
@@ -1392,6 +1408,10 @@
                 <div class="about-card reveal">
                     <div class="about-q">Q4. Edge deployment?</div>
                     <div class="about-a">ONNX export of the encoder (~0.4 MB), browser-side inference via WebGPU/WASM, edge-profile harness, byte/message/rate caps for wearable budgets.</div>
+                </div>
+                <div class="about-card reveal">
+                    <div class="about-q">Q5. Smart cascade?</div>
+                    <div class="about-a">Five-class scored router (greeting · cascade-meta · system-intro · world-chat · default-chat). Local SLM + retrieval first; Qwen LoRA for HMI commands; Gemini tags in only when the local arms can&rsquo;t ground the query. Per-arm routing scores visible on every reply.</div>
                 </div>
             </div>
 
