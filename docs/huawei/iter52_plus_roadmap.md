@@ -507,4 +507,35 @@ Total iter-52..121 test count: **575 / 575 green.**  69 commits
 stacked since iter 51.  *Qwen LoRA training complete with
 best_val_loss → 5.36e-06; intent-eval running.*
 
-## Iter 123 — *(next focus, picked when iter 122 commits)*
+## Iter 123 — CostTracker thread-safety (commit `3fc4549`)
+
+4 tests pin concurrent-record correctness (8 threads × 50 records,
+no lost increments) + singleton race-safety + atomic record + reset
+during record.
+
+## Iter 124 — HMAFIntent / HMAFResponse model contract (commit `a05a2bf`)
+
+9 tests pin the HMAF Pydantic models for HarmonyOS-aligned intent
+routing through agentic_core_runtime.
+
+## Iter 125 — SecureAggregator FedAvg + masking (commit `21b56a9`)
+
+8 tests pin pairwise-mask cancellation, sample-weighted aggregation,
+no-update / zero-examples / dropout error paths, generate_shared_seed.
+
+## Iter 126 — EWC continual-learning invariants (commit `03f3343`)
+
+8 tests pin construction validation + initial state + reset +
+state_dict round-trip for the Kirkpatrick 2017 EWC module.
+
+## Iter 127 — MAMLTrainer construction validation (commit `785182e`)
+
+6 tests pin Finn 2017 meta-learner constructor: positive lrs,
+non-zero inner_steps, FO-MAML toggle.
+
+## Iter 128 — Aggregate iter-122..127 sweep + Makefile + roadmap (this commit)
+
+Total iter-52..127 test count: **610 / 610 green.**  75 commits
+stacked since iter 51.
+
+## Iter 129 — *(next focus, picked when iter 128 commits)*
