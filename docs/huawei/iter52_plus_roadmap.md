@@ -409,4 +409,36 @@ emoji, sentence split).
 Total iter-52..102 test count: **462 / 462 green.**  51 commits
 stacked since iter 51.
 
-## Iter 104 — *(next focus, picked when iter 103 commits)*
+## Iter 104 — i3.edge.profiler helper invariants (commit `336b74a`)
+
+11 tests pin _count_unique_params (handles tied weights),
+_serialised_size_mb scaling, _to_dtype_copy, _percentile, EdgeReport
+to_dict round-trip.
+
+## Iter 105 — PipelineTraceCollector smoke (commit `cce2e84`)
+
+8 tests pin start_turn / stage / finalise / arrow / recent / per-turn
+stage cap.
+
+## Iter 106 — Cloud PromptBuilder assembly (commit `b8fd067`)
+
+7 tests pin system-prompt rendering: no leaked placeholders, base
+text preserved, accessibility / cognitive_load both influence the
+output, no PII injection.
+
+## Iter 107 — chat.js _appendSideChips contract (commit `0f93c5b`)
+
+4 static-grep tests pin the iter-51..62 chip rendering helper +
+metadata field consumption.
+
+## Iter 108 — CostTracker cached_tokens pricing (commit `0d7090a`)
+
+4 tests pin cache discount: full-cached < uncached, half-cached
+between extremes, zero tokens free, completion tokens billed.
+
+## Iter 109 — Aggregate iter-104..108 sweep + Makefile + roadmap (this commit)
+
+Total iter-52..108 test count: **496 / 496 green.**  57 commits
+stacked since iter 51.
+
+## Iter 110 — *(next focus, picked when iter 109 commits)*
