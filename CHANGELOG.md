@@ -5,6 +5,102 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026-04-27 evening] Iter 51 phases 8–18 — final demo-ready polish
+
+The full pre-deadline polish push.  Closes the cascade story with a
+context-aware multi-signal router, real actuator side-effects, and a
+text-only Simple-mode chat surface.  Top-of-tree on `origin/main`.
+
+### Smart routing — phases 8 → 16
+- **Phase 8 — Cascade smart fallback** (`i3/pipeline/engine.py`).
+  Added a `_gemini_chat_fallback` arm that fires when the local
+  retrieval arm can't ground the query.  New `cloud_chat` path
+  label.  System prompt forbids self-disclosure as Google / Gemini /
+  GPT / Claude — replies as "I³".
+- **Phase 9 — Smart Router** (`i3/pipeline/engine.py`).  Heuristic
+  query classifier with five route classes (greeting / cascade-meta /
+  system-intro / world-chat / default-chat).  Per-message
+  `route_decision` dict carrying arm + model + class + reason +
+  threshold, plumbed through `PipelineOutput` and the WS frame.
+- **Phase 10 — Three per-arm indicator chips** (`web/js/chat.js`).
+  Every reply shows on/off status of all three arms (SLM, Qwen,
+  Gemini) plus a "used: X" winner badge with full reason in tooltip.
+- **Phase 11 — `Used: X` winner badge polish**.
+- **Phase 12 — Compact pill style** (`web/css/huawei_tabs.css`).
+- **Phase 13 — UI declutter**.  Stack tab collapsed from 22 cards
+  to 8 + "Show all" toggle.  Identity Lock / Accessibility / Cloud
+  Consent gated to Advanced.  Inline meta declutter when chip row
+  is showing.
+- **Phase 14 — Greeting route + coref-aware cloud + relaxed prompt**.
+  Hand-written greeting replies (no LLM call).  Gemini chat fallback
+  receives the coref-resolved query.  System prompt loosened to
+  answer general knowledge.
+- **Phase 15 — Topic-consistency gate + Gemini history + visible
+  scores**.  Killed the "Huawei → London city facts" bug by
+  requiring the response to mention the same KG subject the query
+  did.  Gemini chat fallback now pulls last 4 (user, assistant)
+  pairs from session history.  Per-arm scores rendered inline in
+  chip text (`SLM·0.85 Qwen Gemini·0.10`).
+- **Phase 16 — Gemini IS the last resort.**  Removed the
+  `world_chat → cloud_chat` shortcut.  Now SLM + retrieval gets
+  the first shot on every chat turn; Gemini only fires when the
+  local arm genuinely can't ground.  Verified live: 11 / 12
+  routing decisions match expectation; the one outlier was the
+  test having a too-narrow expectation, not a regression.
+
+### Real actuator side-effects — phase 17
+- `server/websocket.py` — new `_fire_actuator_side_effects`
+  dispatcher.  Two frame types ride the existing WS connection:
+  `actuator_state` (immediate banner) + `actuator_event` (delayed
+  notification).
+- `set_timer` schedules an asyncio task at `duration_seconds` and
+  fires `timer_fired` when it elapses.  **Verified end-to-end:**
+  `set timer for 10 seconds` → 10 s later, gold pulse banner
+  reading "⏰ Your 10 sec timer is up." appears in chat.
+- `set_alarm` parses "7am" / "07:00" / "6pm" → schedules for that
+  wall-clock time.
+- `set_reminder` schedules with the reminder text.
+- `play_music` / `navigate` / `send_message` / `call` /
+  `control_device` — immediate banners with action-specific icons.
+- `cancel` tears down all pending timer/alarm/reminder tasks for
+  the user.
+- `web/js/chat.js` — `appendActuatorBanner` (calm blue) +
+  `appendActuatorEvent` (gold with 1.8 s pulse animation) renderers.
+
+### Text-only demo polish — phase 18
+- TTS speaker icon, microphone toggle, gaze-camera widget all
+  gated to Advanced mode.  Simple-mode chat is now strictly
+  text-in / text-out.
+- 5 suggestion chips rewritten so each click exercises a
+  different cascade arm:
+    "How do you adapt to me?"           → SLM + retrieval
+    "Set timer for 30 seconds"          → Qwen LoRA + actuator fires
+    "Tell me about Uzbekistan"          → Gemini (last resort)
+    "What is photosynthesis?"           → SLM + retrieval (KG hit)
+    "Navigate to Trafalgar Square"      → Qwen LoRA + actuator banner
+- Hero foot tagline rewritten to the cascade truth.
+- `docs/huawei/PRESENTER_CHEAT_SHEET.md` rewritten as a 10-min
+  click-through demo flow.
+
+### Top-of-tree commits in this push
+```
+b6282fb  ui(polish): text-only chat for Simple mode + demo-targeted suggestion chips
+a6ce8d2  feat(actuators): real side-effects for HMI commands — timers actually fire
+6f1db6b  feat(cascade): Gemini is now the LAST RESORT, not the first choice
+9cf7529  feat(cascade): context-aware routing — topic-consistency gate + Gemini history + visible scores
+260b6ef  feat(router): scored multi-signal Smart Router + greeting + coref-aware cloud
+521cd7b  ui(chat): minimalist routing chip row — smaller, cleaner, less overloaded
+ec94fa2  iter 51 phase 11: prominent "Used: X" winner badge at end of chip row
+4a34403  iter 51 phase 10: three per-arm indicator chips on every reply
+6672fba  iter 51 phase 9: Smart Router with transparent route_decision chip
+1ab2da2  iter 51 phase 8: smart cascade — Gemini chat fallback + retrieval grounding gate
+c2ab973  ui(polish): clean, structured, minimalist demo surface
+68e1e8d  fix(chat): forward route_decision through both response and response_done
+a250648  fix(chat): render side chips on streamed responses too
+```
+
+---
+
 ## [2026-04-27] Iter 51 phases 4–7 — cascade fallback, cedar 4.x, Simple-nav demo polish
 
 Final pre-deadline push. Locks the cascade end-to-end, fixes three real
