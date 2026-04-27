@@ -292,3 +292,15 @@
     margin: 4px 0;
 }
 .cascade-arm-card strong { color: #f0f0f0; }
+
+/* Iter 62 — per-cascade-arm chat-bubble chip styling */
+.message-chip.chip-arm {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    letter-spacing: 0.04em;
+    font-size: 11px;
+}
+.message-chip.chip-arm-a { color: #b0e6c0; border-color: #2c4a2c; }
+.message-chip.chip-arm-b { color: #f0c870; border-color: #4a3a1a; }
+.message-chip.chip-arm-c { color: #b0c8f0; border-color: #2a3a5a; }
+.message-chip.chip-arm-r { color: #d0a0e0; border-color: #4a2a5a; }
+.message-chip.chip-arm-t { color: #c8c8c8; border-color: #444; }

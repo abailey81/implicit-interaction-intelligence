@@ -1180,6 +1180,32 @@ class ChatInterface {
                 text: '◆ ' + ir.action,
             });
         }
+        // Iter 62: cascade-arm label so the user can see which arm
+        // served this turn (A=SLM, B=Qwen LoRA, C=Gemini cloud, T=tool).
+        if (metadata.response_path) {
+            const armMap = {
+                'slm': { label: 'A · SLM', cls: 'chip-arm-a' },
+                'tool:intent': { label: 'B · Qwen LoRA', cls: 'chip-arm-b' },
+                'cloud_llm': { label: 'C · cloud', cls: 'chip-arm-c' },
+                'retrieval': { label: 'R · retrieval', cls: 'chip-arm-r' },
+            };
+            const path = metadata.response_path;
+            let arm = armMap[path];
+            if (!arm && typeof path === 'string' && path.startsWith('tool:')) {
+                arm = { label: 'T · ' + path.replace('tool:', ''),
+                        cls: 'chip-arm-t' };
+            }
+            if (!arm && typeof path === 'string' && path.startsWith('retrieval')) {
+                arm = armMap['retrieval'];
+            }
+            if (arm) {
+                chips.push({
+                    cls: arm.cls + ' chip-arm',
+                    title: 'Cascade arm: ' + path,
+                    text: arm.label,
+                });
+            }
+        }
         if (!chips.length) return;
         const wrap = document.createElement('div');
         wrap.className = 'message-chips';
