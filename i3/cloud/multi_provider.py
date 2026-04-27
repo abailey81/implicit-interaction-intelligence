@@ -265,6 +265,19 @@ class MultiProviderClient:
                 )
                 self._breakers.record_success(p.provider_name)
                 self._stats.successes += 1
+                # Iter 88: bill the global CostTracker so /api/cost/report
+                # reflects every cloud call going through the chain.
+                # Best-effort: never block the result on telemetry.
+                try:
+                    from i3.cloud.cost_tracker import get_global_cost_tracker
+                    get_global_cost_tracker().record(
+                        provider=p.provider_name,
+                        model=getattr(result, "model", "") or "",
+                        usage=getattr(result, "usage", None),
+                        latency_ms=int(getattr(result, "latency_ms", 0) or 0),
+                    )
+                except Exception:  # pragma: no cover - never block on telemetry
+                    pass
                 return result
             except asyncio.TimeoutError as exc:
                 self._record_error(p, exc, errors)
