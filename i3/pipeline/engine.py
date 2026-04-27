@@ -5109,6 +5109,68 @@ class Pipeline:
                 if match is not None:
                     response_text, score = match
                     self._last_retrieval_score = float(score)
+                    # Iter 51 phase 8: subject-grounding gate.  The
+                    # retriever's cosine over the SLM embedding can
+                    # produce structurally-plausible matches that hit
+                    # the wrong topic (e.g. "tell me about uzbekistan"
+                    # → a Shakespeare blurb at score 0.97 because the
+                    # template matches).  Reject the retrieval when
+                    # NEITHER the query NOR the candidate response
+                    # mentions any subject the KG actually has — that
+                    # forces the cascade to fall through to the
+                    # Gemini-chat arm where the user gets a real
+                    # answer instead of confidently-wrong corpus
+                    # filler.  Kept narrow (substring check, not
+                    # embedding) so we don't reject legitimate matches
+                    # that happen to use synonyms.
+                    try:
+                        kg = getattr(self, "_knowledge_graph", None)
+                        if kg is None:
+                            from i3.dialogue.knowledge_graph import (
+                                KnowledgeGraph,
+                            )
+                            kg = KnowledgeGraph()
+                            self._knowledge_graph = kg
+                        kg_subjects = {
+                            t.subject.lower() for t in kg._triples
+                        }
+                        # Curated topics the I³ system can speak about
+                        # confidently outside the KG (system-introspection
+                        # answers + dialogue-corpus terms).  Without this
+                        # the grounding gate would reject "how do you
+                        # work?" (no KG subject in the query) and force
+                        # cloud_chat for what is actually a hand-curated
+                        # local answer.
+                        system_topics = {
+                            "i3", "i³", "transformer", "encoder",
+                            "tcn", "adaptation", "implicit", "interaction",
+                            "intelligence", "user-state", "user state",
+                            "biometric", "biometrics", "keystroke",
+                            "small language model", "slm", "on-device",
+                            "on device", "edge", "cascade", "intent",
+                            "lora", "qwen", "from-scratch", "from scratch",
+                            "cross-attention", "cross attention",
+                        }
+                        q_lc = (resolved_message or "").lower()
+                        r_lc = (response_text or "").lower()
+                        all_anchors = kg_subjects | system_topics
+                        in_query = any(s in q_lc for s in all_anchors)
+                        in_resp  = any(s in r_lc for s in all_anchors)
+                        if not in_query and not in_resp:
+                            logger.debug(
+                                "retrieval grounded: query/response "
+                                "mention no KG subject; demoting "
+                                "(score=%.2f) → cascade fallback",
+                                float(score),
+                            )
+                            self._last_retrieval_candidate = None
+                            match = None
+                            response_text = None
+                    except Exception:
+                        # Defensive: never block retrieval emission
+                        # when the grounding gate itself errors.
+                        pass
+                if match is not None:
                     # Tool routes (math solver, hostility refusal,
                     # entity facts) get tagged distinctly so the UI
                     # chip reads ``tool: math`` / ``tool: entity``
@@ -5502,6 +5564,30 @@ class Pipeline:
             logger.debug("Clarifier build failed; falling through to OOD.")
 
         # --- Out-of-distribution default ----------------------------------
+        # Iter 51 phase 8: smart cascade chat fallback to Gemini.
+        # If the local SLM + retrieval path can't produce a confident
+        # on-topic answer (we're about to fall to OOD), AND the user has
+        # a GEMINI_API_KEY configured, route the prompt to the cloud
+        # arm instead of dropping a "I don't know" canned ack.  Tagged
+        # with response_path="cloud_chat" so the dashboard chip
+        # distinguishes it from local SLM/retrieval.  Skipped silently
+        # when the key isn't set — preserves the offline / privacy
+        # default.  Sensitive-topic gating is still owned by the
+        # privacy override one layer up; we don't bypass it here.
+        from os import environ as _env_chat
+        if _env_chat.get("GEMINI_API_KEY"):
+            try:
+                cloud_text = await self._gemini_chat_fallback(message)
+                if cloud_text:
+                    self._last_response_path = "cloud_chat"
+                    logger.info(
+                        "cascade.chat: local arm OOD → gemini chat "
+                        "salvaged (%d chars)", len(cloud_text),
+                    )
+                    return cloud_text
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.debug("gemini chat fallback failed: %s", exc)
+
         # If neither retrieval nor generation produced anything useful,
         # tell the user honestly rather than emit a noisy template.  The
         # response acknowledges the edge-model's limited scope — which
@@ -6168,6 +6254,88 @@ class Pipeline:
                 "Fresh start whenever you're ready."
             )
         return None
+
+    async def _gemini_chat_fallback(self, message: str) -> str | None:
+        """Cloud chat arm of the cascade — fires only when the local
+        SLM + retrieval path can't produce a confident on-topic answer.
+
+        Lazy-loads a single :class:`GoogleProvider` and reuses it
+        across turns so we don't pay the SDK init cost every call.
+        Returns ``None`` on any failure (auth, rate-limit, transient)
+        so the caller falls through to the OOD ack instead of crashing
+        the turn.
+        """
+        provider = getattr(self, "_chat_provider_gemini", None)
+        if provider is None:
+            try:
+                from i3.cloud.providers.google import GoogleProvider
+                provider = GoogleProvider(
+                    model="gemini-2.5-flash",
+                    max_tokens=160,
+                    timeout=15.0,
+                )
+                self._chat_provider_gemini = provider
+            except Exception as exc:
+                logger.debug("gemini chat provider init failed: %s", exc)
+                return None
+
+        from i3.cloud.providers.base import (
+            ChatMessage,
+            CompletionRequest,
+        )
+
+        # System prompt deliberately frames this as the *cloud arm of
+        # an HMI cascade*, not a general-purpose assistant — keeps the
+        # tone consistent with the on-device SLM and discourages
+        # multi-paragraph essays that the chat UI would have to
+        # truncate anyway.
+        # I³-style cascade prompt.  We deliberately do NOT identify
+        # ourselves as Google / Gemini — when this arm fires the user
+        # is talking to "I³", and revealing the cloud provider would
+        # leak the cascade implementation in a way no recruiter or
+        # production user wants to see.  The "two sentence" cap keeps
+        # responses chat-bubble shaped and consistent with how the
+        # local arm replies.
+        system = (
+            "You are I³ (Implicit Interaction Intelligence), a small "
+            "on-device HMI assistant for a vehicle.  Reply directly to "
+            "the user, in TWO short sentences, plain prose. "
+            "STRICT RULES:\n"
+            " - Never say 'I am a large language model', 'I am an AI', "
+            "or identify yourself as Google / OpenAI / Gemini / GPT / "
+            "Claude / Anthropic.  You are I³.\n"
+            " - Never apologise, hedge, or mention training.  Just "
+            "answer.\n"
+            " - If the user is being rude, deflect with one calm "
+            "sentence and pivot back to what you can help with.\n"
+            " - If the user asks 'how do you work?' / 'what are you?' "
+            "describe the I³ stack: TCN encoder of typing biometrics, "
+            "8-dim user-state adaptation vector, cross-attention into "
+            "a from-scratch SLM, knowledge-graph retrieval, and a "
+            "cascade to a cloud arm only when the local arm can't be "
+            "confident.  Don't mention any specific cloud provider."
+        )
+        req = CompletionRequest(
+            messages=[ChatMessage(role="user", content=message)],
+            system=system,
+            temperature=0.2,
+            max_tokens=160,
+        )
+        try:
+            res = await provider.complete(req)
+        except Exception as exc:
+            logger.debug("gemini chat fallback complete() failed: %s", exc)
+            return None
+
+        text = (getattr(res, "text", "") or "").strip()
+        if not text:
+            return None
+        # Guard rail: keep the reply short to match the chat UI's
+        # rendering; truncate cleanly at sentence boundaries.
+        if len(text) > 400:
+            cut = text[:400].rsplit(".", 1)[0]
+            text = (cut + ".") if cut else text[:400]
+        return text
 
     def _build_ood_suggestions(
         self,
