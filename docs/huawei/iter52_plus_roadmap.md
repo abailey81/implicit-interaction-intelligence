@@ -538,4 +538,20 @@ non-zero inner_steps, FO-MAML toggle.
 Total iter-52..127 test count: **610 / 610 green.**  75 commits
 stacked since iter 51.
 
-## Iter 129 — *(next focus, picked when iter 128 commits)*
+## Iter 129 — adapt_with_log change-log emitter (commit `1f5ffc9`)
+
+6 tests pin the postprocess change-log that drives the per-bubble
+"adaptation rewrite" chip in the chat tab.
+
+## Iter 130 — CostTracker reset semantics (commit `f5ea452`)
+
+5 tests pin reset() / reset_global_cost_tracker() corner cases:
+idempotent, after-many-records, per-instance vs global isolation,
+singleton recreation, fresh-aggregate after reset.
+
+## Iter 131 — Aggregate iter-129..130 sweep + Makefile + roadmap (this commit)
+
+Total iter-52..130 test count: **621 / 621 green.**  78 commits
+stacked since iter 51.
+
+## Iter 132 — *(next focus, picked when iter 131 commits)*

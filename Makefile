@@ -260,8 +260,10 @@ test-iter: ## Iter 52-74 fast subset (cascade + multilingual + perf + health + p
 	    tests/test_agentic_core_models.py \
 	    tests/test_secure_aggregator.py \
 	    tests/test_ewc_invariants.py \
-	    tests/test_maml_construction.py
-	@printf "$(GREEN)✓ Iter 52-127 subset green$(RESET)\n"
+	    tests/test_maml_construction.py \
+	    tests/test_postprocess_adapt_with_log.py \
+	    tests/test_cost_tracker_reset_semantics.py
+	@printf "$(GREEN)✓ Iter 52-130 subset green$(RESET)\n"
 
 test-cascade: ## Cascade-only sweep (Qwen LoRA arm B + dashboard + chips + spans)
 	@printf "$(BLUE)▶ Running cascade-only sweep...$(RESET)\n"
