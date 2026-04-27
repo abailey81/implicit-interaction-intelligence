@@ -554,4 +554,31 @@ singleton recreation, fresh-aggregate after reset.
 Total iter-52..130 test count: **621 / 621 green.**  78 commits
 stacked since iter 51.
 
-## Iter 132 — *(next focus, picked when iter 131 commits)*
+## Iter 132 — intent dataset completion validity (commit `b13b549`)
+
+5 tests sweep all 5 050 train+val+test rows: completion JSON
+parses, action / params consistent across completion + output,
+no empty inputs, ≥ 5 actions ≥ 100 examples (stratification).
+
+## Iter 133 — HUAWEI_PITCH refresh (commit `5ed5ee4`)
+
+Top-of-pitch 60-second-skim block updated with iter-132 totals
+(626/626 tests, Qwen LoRA best_val_loss=5.36e-06, 80 commits stacked).
+
+## Iter 134 — AccessibilityModeState dataclass (commit `fd089d0`)
+
+5 tests pin the dataclass shipped on every WS frame for the
+accessibility-mode auto-switch (font scaling, TTS rate, sentence cap).
+
+## Iter 135 — BiometricMatch dataclass + WS shape (commit `1bc1c9b`)
+
+9 tests pin the BiometricMatch shipped under output.biometric for
+the Identity Lock chip; 14-key to_dict() schema + 5 documented
+states.
+
+## Iter 136 — Aggregate iter-132..135 sweep + Makefile + roadmap (this commit)
+
+Total iter-52..135 test count: **640 / 640 green.**  83 commits
+stacked since iter 51.
+
+## Iter 137 — *(next focus, picked when iter 136 commits)*
