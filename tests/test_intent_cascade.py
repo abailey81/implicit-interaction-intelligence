@@ -12,6 +12,10 @@ from __future__ import annotations
 
 import pytest
 
+from i3.intent.gemini_inference import (
+    _coerce_duration_seconds,
+    _normalize_slots,
+)
 from i3.pipeline.engine import Pipeline
 
 
@@ -35,6 +39,11 @@ def _bare_pipeline() -> Pipeline:
 @pytest.mark.parametrize("msg", [
     "set timer for 5 minutes",
     "set a 30 second timer",
+    # Phase 5: polite / OOD phrasings the gate should now accept.
+    "start a timer",
+    "start a five minute timer",
+    "could you start a five minute timer please",
+    "start an alarm for 7am",
     "play jazz",
     "play taylor swift",
     "skip this song",
@@ -207,3 +216,48 @@ def test_cascade_acks(action, params, must_contain):
     )
     assert out is not None
     assert must_contain.lower() in out.lower()
+
+
+# ---------------------------------------------------------------------------
+# 3. Gemini slot normalisation (Phase 5)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("raw,expected", [
+    ("5 minutes", 300),
+    ("30 seconds", 30),
+    ("1 hour", 3600),
+    ("1 hour 30 minutes", 5400),
+    ("2 hrs", 7200),
+    (300, 300),
+    ("300", 300),
+    ("0", None),
+    ("", None),
+    (None, None),
+    (True, None),
+])
+def test_coerce_duration_seconds(raw, expected):
+    assert _coerce_duration_seconds(raw) == expected
+
+
+@pytest.mark.parametrize("action,raw,expected", [
+    ("set_timer", {"duration": "5 minutes"}, {"duration_seconds": 300}),
+    ("set_timer", {"duration_seconds": 300}, {"duration_seconds": 300}),
+    ("set_timer", {"duration": "garbage"}, {}),
+    ("navigate", {"destination": "Trafalgar Square"},
+        {"location": "Trafalgar Square"}),
+    ("weather_query", {"city": "London"}, {"location": "London"}),
+    ("send_message", {"to": "Mum", "text": "on my way"},
+        {"recipient": "Mum", "message": "on my way"}),
+    ("call", {"name": "Dad", "video_call": "yes"},
+        {"recipient": "Dad", "video": True}),
+    ("call", {"recipient": "Dad", "video": False},
+        {"recipient": "Dad", "video": False}),
+    ("control_device", {"device_name": "lights", "on_off": "on"},
+        {"device": "lights", "state": "on"}),
+    ("set_reminder", {"what": "call mum", "at": "6pm"},
+        {"task": "call mum", "time": "6pm"}),
+    ("play_music", {"singer": "Adele"}, {"artist": "Adele"}),
+    ("cancel", {}, {}),
+])
+def test_normalize_slots(action, raw, expected):
+    assert _normalize_slots(action, raw) == expected

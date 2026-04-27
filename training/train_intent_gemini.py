@@ -89,8 +89,10 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--source-model",
-        default="models/gemini-2.5-flash-001",
-        help="Base model to tune from (must be a tunable model id)",
+        default="models/gemini-1.5-flash-001",
+        help="Base model to tune from (must be a tunable model id; "
+             "AI Studio supervised tuning is gated to the 1.5 line as "
+             "of 2026 — 2.5-flash is generate_content-only)",
     )
     parser.add_argument("--epochs", type=int, default=3)
     parser.add_argument(
@@ -188,61 +190,132 @@ def main() -> int:
         )
         return 1
 
+    # Detect which SDK is on the path.  The new ``google-genai`` package
+    # is the supported route as of 2026; the old ``google-generativeai``
+    # is deprecated and its ``create_tuned_model`` path is being retired.
+    sdk = None
     try:
-        import google.generativeai as genai
+        from google import genai as new_genai  # google-genai
+        sdk = "new"
     except ImportError:
-        print("[err] missing dep: pip install google-generativeai",
-              flush=True)
-        return 1
+        pass
+    if sdk is None:
+        try:
+            import google.generativeai as old_genai  # deprecated
+            sdk = "old"
+        except ImportError:
+            print(
+                "[err] neither google-genai nor google-generativeai installed.\n"
+                "  Recommended:  pip install google-genai",
+                flush=True,
+            )
+            return 1
 
-    genai.configure(api_key=args.api_key)
-
+    print(
+        f"[tune] using SDK: {'google-genai (new)' if sdk == 'new' else 'google-generativeai (deprecated)'}",
+        flush=True,
+    )
     print(
         f"[tune] starting AI Studio SFT on {args.source_model} "
         f"(epochs={args.epochs}, batch={args.batch_size}) ...",
         flush=True,
     )
-    operation = genai.create_tuned_model(
-        source_model=args.source_model,
-        training_data=train_examples,
-        id=args.display_name,
-        display_name=args.display_name,
-        epoch_count=args.epochs,
-        batch_size=args.batch_size,
-        learning_rate_multiplier=args.learning_rate_multiplier,
-    )
-    print(f"[tune] job submitted: {operation.metadata.name}", flush=True)
-
-    # Poll until done — AI Studio jobs typically finish in 20-90 min
-    # depending on epoch count + dataset size.
-    print("[poll] waiting for completion (Ctrl-C to detach; the job "
-          "continues running on Google's servers)...", flush=True)
-    last_print = 0.0
     started = time.time()
-    while not operation.done():
-        now = time.time()
-        if now - last_print >= 30:
-            elapsed = now - started
+
+    try:
+        if sdk == "new":
+            client = new_genai.Client(api_key=args.api_key)
+            from google.genai import types as gtypes
+            tuning_examples = [
+                gtypes.TuningExample(
+                    text_input=ex["text_input"],
+                    output=ex["output"],
+                )
+                for ex in train_examples
+            ]
+            tuning_dataset = gtypes.TuningDataset(examples=tuning_examples)
+            cfg = gtypes.CreateTuningJobConfig(
+                tuned_model_display_name=args.display_name,
+                epoch_count=args.epochs,
+                batch_size=args.batch_size,
+                learning_rate_multiplier=args.learning_rate_multiplier,
+            )
+            tuning_job = client.tunings.tune(
+                base_model=args.source_model,
+                training_dataset=tuning_dataset,
+                config=cfg,
+            )
+            print(f"[tune] job submitted: {tuning_job.name}", flush=True)
+            print("[poll] waiting for completion (Ctrl-C to detach; the job "
+                  "continues running on Google's servers)...", flush=True)
+            last_print = 0.0
+            while True:
+                state = str(getattr(tuning_job, "state", "")).upper()
+                if "SUCCEEDED" in state or "FAILED" in state or "STATE_SUCCEEDED" in state:
+                    break
+                now = time.time()
+                if now - last_print >= 30:
+                    elapsed = now - started
+                    print(
+                        f"[poll] state={state} elapsed={elapsed:.0f}s "
+                        f"(typical: 600-3600 s)",
+                        flush=True,
+                    )
+                    last_print = now
+                time.sleep(15)
+                tuning_job = client.tunings.get(name=tuning_job.name)
+            final_state = str(getattr(tuning_job, "state", "?"))
+            tuned_model_name = getattr(tuning_job, "tuned_model", None) or \
+                               getattr(tuning_job, "name", "?")
+        else:
+            old_genai.configure(api_key=args.api_key)
+            operation = old_genai.create_tuned_model(
+                source_model=args.source_model,
+                training_data=train_examples,
+                id=args.display_name,
+                display_name=args.display_name,
+                epoch_count=args.epochs,
+                batch_size=args.batch_size,
+                learning_rate_multiplier=args.learning_rate_multiplier,
+            )
+            print(f"[tune] job submitted: {operation.metadata.name}", flush=True)
+            print("[poll] waiting for completion ...", flush=True)
+            last_print = 0.0
+            while not operation.done():
+                now = time.time()
+                if now - last_print >= 30:
+                    print(f"[poll] elapsed={now-started:.0f}s", flush=True)
+                    last_print = now
+                time.sleep(15)
+                operation = old_genai.get_operation(operation.metadata.name)
+            tm = operation.result()
+            tuned_model_name = tm.name
+            final_state = str(tm.state)
+    except Exception as exc:
+        print(f"[err] tune failed: {type(exc).__name__}: {exc}", flush=True)
+        # Common 2026 failure: AI Studio dropped supervised tuning of
+        # 2.5-flash-001 from the public key tier.  Surface a helpful
+        # next step instead of just dying.
+        msg = str(exc).lower()
+        if "not tunable" in msg or "permission" in msg or "403" in msg:
             print(
-                f"[poll] still tuning ... elapsed={elapsed:.0f}s "
-                f"(typical: 1200-3600 s)",
+                "[hint] AI Studio's free-tier supervised tuning has migrated. "
+                "Try '--source-model models/gemini-1.5-flash-001' (legacy "
+                "tunable) or use Vertex AI for the 2.5 line.",
                 flush=True,
             )
-            last_print = now
-        time.sleep(15)
-        operation = genai.get_operation(operation.metadata.name)
+        return 2
 
-    tuned_model = operation.result()
-    print(f"[done] tuned model: {tuned_model.name}", flush=True)
-    print(f"[done] state: {tuned_model.state}", flush=True)
+    print(f"[done] tuned model: {tuned_model_name}", flush=True)
+    print(f"[done] state: {final_state}", flush=True)
     print(f"[done] elapsed: {time.time() - started:.0f}s", flush=True)
 
-    # Persist the tuned-model handle for the inference module.
     record = {
         **plan,
-        "tuned_model_name": tuned_model.name,
-        "state": str(tuned_model.state),
+        "tuned_model_name": str(tuned_model_name),
+        "state": str(final_state),
         "wall_time_s": round(time.time() - started, 1),
+        "sdk": "google-genai" if sdk == "new" else "google-generativeai",
     }
     with (OUT_DIR / "tuning_result.json").open("w", encoding="utf-8") as f:
         json.dump(record, f, indent=2)

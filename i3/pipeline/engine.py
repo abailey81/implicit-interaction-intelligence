@@ -1015,7 +1015,9 @@ class Pipeline:
     # Session management
     # ------------------------------------------------------------------
 
-    async def start_session(self, user_id: str) -> str:
+    async def start_session(
+        self, user_id: str, session_id: str | None = None,
+    ) -> str:
         """Start a new interaction session for the given user.
 
         Creates the per-user :class:`~src.user_model.model.UserModel` if
@@ -1025,13 +1027,21 @@ class Pipeline:
 
         Args:
             user_id: Unique user identifier.
+            session_id: Optional caller-supplied UUID — when the
+                WebSocket layer has already generated one for routing
+                messages it must pass it here so the diary `sessions`
+                row matches the id used in subsequent
+                ``log_exchange`` calls (otherwise FOREIGN KEY fails
+                silently).  If ``None``, a fresh UUID4 is allocated.
 
         Returns:
-            A new UUID4 session identifier.
+            The session identifier (echoed back when the caller supplied
+            one, or freshly generated otherwise).
         """
         self._ensure_initialized()
 
-        session_id = str(uuid.uuid4())
+        if not session_id:
+            session_id = str(uuid.uuid4())
         user_model = self._get_or_create_user_model(user_id)
         user_model.start_session()
 
@@ -5857,8 +5867,13 @@ class Pipeline:
     # don't pay the LoRA load cost on free-form chat.
     _INTENT_TRIGGER_PATTERNS: tuple = (
         re.compile(r"\b(set|start)\s+(?:a\s+)?(?:\d+\s+)?(?:minute|min|second|sec|hour|hr)\b", re.I),
-        re.compile(r"\b(?:set|create|new)\s+(?:a\s+)?timer\b", re.I),
-        re.compile(r"\b(?:set|create|new)\s+(?:an?\s+)?alarm\b", re.I),
+        # Iter 51 Phase 5: also tolerate "start ..." (polite phrasings
+        # like "start a timer" / "could you start a five minute timer
+        # please") and an optional adjective word ("a quick timer", "a
+        # five minute timer") between the verb and the noun.  Capped
+        # at three modifier words so we don't slurp whole sentences.
+        re.compile(r"\b(?:set|create|new|start)\s+(?:a\s+)?(?:\w+\s+){0,3}timer\b", re.I),
+        re.compile(r"\b(?:set|create|new|start)\s+(?:an?\s+)?(?:\w+\s+){0,3}alarm\b", re.I),
         re.compile(r"\bplay\s+(?:some\s+)?\w+", re.I),
         re.compile(r"\b(?:pause|resume|stop|skip|next|previous|prev)\s*(?:the\s+)?(?:song|music|track|video)?\b", re.I),
         re.compile(r"\b(?:turn|set)\s+(?:the\s+)?volume\s+(?:up|down|to|on|off)\b", re.I),
@@ -5944,6 +5959,45 @@ class Pipeline:
             self._last_intent_result = result.to_dict()
         except Exception:
             self._last_intent_result = None
+
+        # Smart cross-arm fallback: if Qwen returned "unsupported",
+        # invalid_action, or invalid_slots, try Gemini as a backup
+        # parser before falling through to chat.  Gemini is faster
+        # (~900 ms vs Qwen's 7 s) but optional (only fires when the
+        # primary parser couldn't produce a valid action).
+        # Skipped silently when GEMINI_API_KEY is unset.
+        from os import environ as _env
+        primary_failed = (
+            not getattr(result, "valid_action", False)
+            or not getattr(result, "valid_slots", False)
+            or getattr(result, "action", None) == "unsupported"
+        )
+        if primary_failed and _env.get("GEMINI_API_KEY"):
+            try:
+                with _otel_span("cascade.arm_b.gemini_backup"):
+                    backup_parser = getattr(
+                        self, "_intent_parser_gemini", None,
+                    )
+                    if backup_parser is None:
+                        from i3.intent.gemini_inference import GeminiIntentParser
+                        backup_parser = GeminiIntentParser()
+                        self._intent_parser_gemini = backup_parser
+                    backup = backup_parser.parse(message)
+                if (getattr(backup, "valid_action", False)
+                        and getattr(backup, "valid_slots", False)
+                        and backup.action != "unsupported"):
+                    # Record the backup as the authoritative result so
+                    # the dashboard shows the Gemini parse instead.
+                    backup.backend = "gemini-backup"
+                    self._last_intent_result = backup.to_dict()
+                    result = backup
+                    logger.info(
+                        "intent.cascade: qwen failed → gemini backup "
+                        "salvaged action=%s",
+                        getattr(backup, "action", "?"),
+                    )
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.debug("gemini backup parse failed: %s", exc)
 
         # Only short-circuit when the parser returned something usable.
         if not (getattr(result, "valid_action", False)

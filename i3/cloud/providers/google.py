@@ -70,10 +70,6 @@ class GoogleProvider:
     def _ensure_client(self) -> Any:
         if self._model is not None:
             return self._model
-        try:
-            import google.generativeai as genai  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(_INSTALL_HINT) from exc
 
         # Iter 51: accept either ``GOOGLE_API_KEY`` (Vertex/GCP) or the
         # AI-Studio-style ``GEMINI_API_KEY``.  We prefer the
@@ -88,10 +84,32 @@ class GoogleProvider:
                 "neither GEMINI_API_KEY nor GOOGLE_API_KEY is set",
                 provider=self.provider_name,
             )
-        if not self._configured:
-            genai.configure(api_key=api_key)
+
+        # Prefer the new ``google-genai`` SDK (the supported route for
+        # 2026+); fall back to the deprecated ``google-generativeai``
+        # only when the new package isn't installed.
+        try:
+            from google import genai as new_genai  # type: ignore[import-not-found]
+            self._client = new_genai.Client(api_key=api_key)
+            self._sdk = "new"
+            # The new SDK doesn't have a per-model handle — we call
+            # ``client.models.generate_content(model=...)`` directly.
+            # Store a sentinel so callers know ``_ensure_client`` ran.
+            self._model = self._client
             self._configured = True
-        self._model = genai.GenerativeModel(self._model_id)
+            return self._model
+        except ImportError:
+            pass
+
+        try:
+            import google.generativeai as old_genai  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(_INSTALL_HINT) from exc
+        if not self._configured:
+            old_genai.configure(api_key=api_key)
+            self._configured = True
+        self._sdk = "old"
+        self._model = old_genai.GenerativeModel(self._model_id)
         return self._model
 
     @staticmethod
@@ -136,14 +154,43 @@ class GoogleProvider:
 
         start = time.monotonic()
         try:
-            # google-generativeai's async client method; fall back to
-            # sync-in-thread if the SDK version lacks it.
-            if hasattr(model, "generate_content_async"):
+            if getattr(self, "_sdk", "old") == "new":
+                # google-genai (the supported SDK).  Different call
+                # surface — ``client.models.generate_content`` takes
+                # ``model=`` and a ``config=`` GenerateContentConfig.
+                from google.genai import types as gtypes
+                cfg_kwargs: dict = dict(
+                    temperature=generation_config["temperature"],
+                    max_output_tokens=generation_config["max_output_tokens"],
+                    stop_sequences=generation_config.get("stop_sequences"),
+                )
+                # Gemini 2.5 Flash spends an opaque chunk of the token
+                # budget on internal "thinking" before any output is
+                # emitted.  For chat we want every token visible, so
+                # disable thinking when the SDK supports the field.
+                try:
+                    cfg_kwargs["thinking_config"] = gtypes.ThinkingConfig(
+                        thinking_budget=0,
+                    )
+                except Exception:
+                    pass
+                cfg = gtypes.GenerateContentConfig(**cfg_kwargs)
+                # The new client is sync; run it off-loop so we don't
+                # block the event loop on the network round-trip.
+                response = await asyncio.to_thread(
+                    self._client.models.generate_content,
+                    model=self._model_id,
+                    contents=self._to_contents(request),
+                    config=cfg,
+                )
+            elif hasattr(model, "generate_content_async"):
+                # google-generativeai async path (legacy).
                 response = await model.generate_content_async(
                     self._to_contents(request),
                     generation_config=generation_config,
                 )
             else:
+                # google-generativeai sync path (legacy fallback).
                 response = await asyncio.to_thread(
                     model.generate_content,
                     self._to_contents(request),
@@ -172,7 +219,26 @@ class GoogleProvider:
             ) from exc
         latency_ms = int((time.monotonic() - start) * 1000.0)
 
-        text = getattr(response, "text", None) or ""
+        # ``response.text`` is a *property* on the new SDK that raises
+        # when the candidate has no text Part (safety filter, hit
+        # MAX_TOKENS before any content was emitted, etc.).  Drop to
+        # the underlying parts list when that happens.  Either way we
+        # never let this raise out of complete() — the chain treats an
+        # empty CompletionResult as a soft fallback.
+        text = ""
+        try:
+            text = getattr(response, "text", None) or ""
+        except Exception:
+            cands = getattr(response, "candidates", None) or []
+            for cand in cands:
+                content = getattr(cand, "content", None)
+                parts = getattr(content, "parts", None) or []
+                for p in parts:
+                    t = getattr(p, "text", None)
+                    if t:
+                        text += t
+                if text:
+                    break
         usage_meta = getattr(response, "usage_metadata", None)
         usage = TokenUsage(
             prompt_tokens=int(

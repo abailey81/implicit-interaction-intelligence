@@ -329,7 +329,11 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str) -> None:
     # SEC: Anything below this point must be safe to run in the finally
     # cleanup block, even if it failed half-way through.
     try:
-        await pipeline.start_session(user_id)
+        # FIX: pass our already-generated session_id so the diary
+        # ``sessions`` row matches the id used for subsequent
+        # ``log_exchange`` calls.  Without this, every chat turn
+        # silently raised sqlite3.IntegrityError (FOREIGN KEY).
+        await pipeline.start_session(user_id, session_id=session_id)
     except Exception as exc:
         logger.error(
             "Failed to start pipeline session for %s: %s",

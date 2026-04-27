@@ -161,6 +161,31 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         app.state.pipeline = pipeline
         app.state.config = config
         logger.info("I3 Pipeline initialized")
+
+        # Optional Qwen LoRA warmup — eliminates the ~30 s cold-start
+        # delay on the *first* HMI command turn.  Off by default so
+        # `pytest` and CI don't pay the load cost.  Operators turn it
+        # on in production with ``I3_PRELOAD_QWEN=1``.  Wrapped so a
+        # missing weights file or a transformers-version mismatch
+        # never blocks server startup — the chat path still works
+        # without it; only the first command will be slow.
+        if os.environ.get("I3_PRELOAD_QWEN", "").lower() in ("1", "true", "yes"):
+            try:
+                logger.info("Pre-loading Qwen LoRA intent parser…")
+                import time as _t
+                _t0 = _t.time()
+                from i3.intent.qwen_inference import QwenIntentParser
+                parser = QwenIntentParser()
+                parser._ensure_loaded()
+                pipeline._intent_parser_qwen = parser
+                logger.info(
+                    "Qwen LoRA pre-loaded in %.1fs", _t.time() - _t0,
+                )
+            except Exception as exc:  # pragma: no cover - opt-in path
+                logger.warning(
+                    "Qwen LoRA pre-load failed (%s); first command "
+                    "will pay the cold-start cost.", exc,
+                )
     except Exception:
         # SEC: initialisation failure must abort startup.  We tear down
         # any partially-built pipeline before re-raising so file handles
