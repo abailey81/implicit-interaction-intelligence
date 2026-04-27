@@ -204,15 +204,16 @@
                     <div id="typing-indicator" class="typing-indicator">
                         <span></span><span></span><span></span>
                     </div>
-                    <!-- Suggestion chips (apple26): tap-to-prefill seed
-                         queries that show the system at its best.  Hides
-                         itself once the user has sent any message. -->
+                    <!-- Suggestion chips: one per cascade arm, so a
+                         recruiter clicking through sees the full
+                         routing surface in five turns.  Hides itself
+                         once the user has sent any message. -->
                     <div id="suggestion-chips" class="suggestion-chips" role="list">
                         <button class="suggestion-chip" type="button" data-prompt="how do you adapt to me">How do you adapt to me?</button>
-                        <button class="suggestion-chip" type="button" data-prompt="what is implicit interaction">What is implicit interaction?</button>
-                        <button class="suggestion-chip" type="button" data-prompt="how do you handle privacy">How do you handle privacy?</button>
-                        <button class="suggestion-chip" type="button" data-prompt="what is your architecture">What is your architecture?</button>
-                        <button class="suggestion-chip" type="button" data-prompt="why did you build this">Why did you build this?</button>
+                        <button class="suggestion-chip" type="button" data-prompt="set timer for 30 seconds">Set timer for 30 seconds</button>
+                        <button class="suggestion-chip" type="button" data-prompt="tell me about uzbekistan">Tell me about Uzbekistan</button>
+                        <button class="suggestion-chip" type="button" data-prompt="what is photosynthesis">What is photosynthesis?</button>
+                        <button class="suggestion-chip" type="button" data-prompt="navigate to trafalgar square">Navigate to Trafalgar Square</button>
                     </div>
                     <div class="hero-input">
                         <div class="chat-input-wrap">
@@ -230,7 +231,7 @@
                     </div>
                 </div>
 
-                <p class="hero-foot reveal">Runs on this device. Cloud LLM is an opt-in fallback &mdash; flip the cloud toggle in the nav to enable it for high-complexity prompts.</p>
+                <p class="hero-foot reveal">Three-arm cascade. Local from-scratch SLM + retrieval first. Qwen LoRA for HMI commands. Gemini tags in only when the local arms can&rsquo;t ground the query.</p>
             </div>
 
             <!-- Off-DOM mount kept for legacy code that still queries

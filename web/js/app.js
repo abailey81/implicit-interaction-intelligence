@@ -618,45 +618,45 @@ class I3App {
             inputEl.addEventListener('keydown', onEnterDown);
         }
 
-        // Mount the voice-prosody mic toggle next to the send button.
-        // The monitor stays disabled until the user clicks; chat.js
-        // reads from ``this.voiceProsody`` on every send.
-        try {
-            if (typeof window !== 'undefined' &&
-                window.I3VoiceProsody &&
-                typeof window.I3VoiceProsody.mount === 'function') {
-                const wrap = inputEl ? inputEl.closest('.chat-input-wrap')
-                                     : null;
-                this.voiceProsody = window.I3VoiceProsody.mount({
-                    host: wrap || document.body,
-                    sendButton: sendBtn,
-                });
-                this.chat.setVoiceProsody(this.voiceProsody);
-            }
-        } catch (e) {
-            // Voice prosody is non-essential — never block chat init.
-            console.warn('[I3] Voice prosody mount failed:', e);
-        }
+        // Phase 17: voice-prosody mic + gaze-capture camera toggles
+        // are gated to Advanced mode.  The demo chat surface (Simple)
+        // is text-only — no audio, no video chrome — so the recruiter
+        // sees a clean conversation.  Toggling Advanced reveals the
+        // full multimodal stack again.
+        const _advanced = document.body.classList.contains('nav-mode-advanced');
 
-        // Mount the gaze-capture camera toggle (vision fine-tuning
-        // flagship).  Off by default; chat.js reads from
-        // ``this.gazeCapture`` on every send and attaches the
-        // aggregate gaze_features dict to the WS frame when enabled.
-        try {
-            if (typeof window !== 'undefined' &&
-                window.I3GazeCapture &&
-                typeof window.I3GazeCapture.mount === 'function') {
-                const wrap = inputEl ? inputEl.closest('.chat-input-wrap')
-                                     : null;
-                this.gazeCapture = window.I3GazeCapture.mount({
-                    host: wrap || document.body,
-                    sendButton: sendBtn,
-                });
-                this.chat.setGazeCapture(this.gazeCapture);
+        if (_advanced) {
+            try {
+                if (typeof window !== 'undefined' &&
+                    window.I3VoiceProsody &&
+                    typeof window.I3VoiceProsody.mount === 'function') {
+                    const wrap = inputEl ? inputEl.closest('.chat-input-wrap')
+                                         : null;
+                    this.voiceProsody = window.I3VoiceProsody.mount({
+                        host: wrap || document.body,
+                        sendButton: sendBtn,
+                    });
+                    this.chat.setVoiceProsody(this.voiceProsody);
+                }
+            } catch (e) {
+                console.warn('[I3] Voice prosody mount failed:', e);
             }
-        } catch (e) {
-            // Gaze capture is non-essential — never block chat init.
-            console.warn('[I3] Gaze capture mount failed:', e);
+
+            try {
+                if (typeof window !== 'undefined' &&
+                    window.I3GazeCapture &&
+                    typeof window.I3GazeCapture.mount === 'function') {
+                    const wrap = inputEl ? inputEl.closest('.chat-input-wrap')
+                                         : null;
+                    this.gazeCapture = window.I3GazeCapture.mount({
+                        host: wrap || document.body,
+                        sendButton: sendBtn,
+                    });
+                    this.chat.setGazeCapture(this.gazeCapture);
+                }
+            } catch (e) {
+                console.warn('[I3] Gaze capture mount failed:', e);
+            }
         }
 
         // Connection status bar

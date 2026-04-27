@@ -149,11 +149,11 @@ class ChatInterface {
             this._appendSideChips(msgEl, metadata);
         } catch (_e) { /* never let chip render kill the bubble */ }
 
-        // Per-bubble TTS button — apple21 cleanup moves the speaker
-        // out of the inline panel and into a small icon on each AI
-        // bubble (ChatGPT-style).  Only added once the response is
-        // finalised so we don't read the streaming-caret as text.
-        this._appendBubbleTts(msgEl, body);
+        // Per-bubble TTS button (phase 17: gated to Advanced mode
+        // only — the demo chat surface stays text-only and clean).
+        if (document.body.classList.contains('nav-mode-advanced')) {
+            this._appendBubbleTts(msgEl, body);
+        }
 
         this._streamState = null;
         this.messageCount++;
@@ -1122,7 +1122,9 @@ class ChatInterface {
         }
 
         // Per-bubble TTS — only on AI bubbles, never user bubbles.
-        if (safeSender === 'ai') {
+        // Phase 17: gated to Advanced mode so the demo chat is text-only.
+        if (safeSender === 'ai'
+                && document.body.classList.contains('nav-mode-advanced')) {
             this._appendBubbleTts(msgEl, body);
         }
 
