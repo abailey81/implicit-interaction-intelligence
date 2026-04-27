@@ -3136,6 +3136,20 @@ class Pipeline:
         if hasattr(self, "_last_intent_result"):
             self._last_intent_result = None
 
+        # Derive the structured route_decision from the path + score
+        # + smart-router classification.  Single source of truth so
+        # we don't have to instrument every emit point in the engine.
+        _path = getattr(self, "_last_response_path", "unknown")
+        _score = float(getattr(self, "_last_retrieval_score", 0.0))
+        _smart = getattr(self, "_last_smart_route", None)
+        _intent = getattr(self, "_last_intent_result", None) or {}
+        route_decision_dict = self._build_route_decision(
+            path=_path,
+            score=_score,
+            smart_route=_smart,
+            intent=_intent,
+        )
+        self._last_route_decision = route_decision_dict
         return PipelineOutput(
             response_text=response_text,
             route_chosen=route_chosen,
@@ -3151,6 +3165,7 @@ class Pipeline:
             baseline_established=bool(user_model.baseline_established),
             response_path=getattr(self, "_last_response_path", "unknown"),
             retrieval_score=float(getattr(self, "_last_retrieval_score", 0.0)),
+            route_decision=route_decision_dict,
             adaptation_changes=list(
                 getattr(self, "_last_adaptation_changes", []) or []
             ),
@@ -4892,6 +4907,37 @@ class Pipeline:
                 "Intent handler failed for %r", message[:40], exc_info=True,
             )
 
+        # ─── Iter 51 phase 9: Smart Router ───────────────────────────────
+        # Classify the message and route to the BEST arm explicitly,
+        # rather than letting it walk the whole local→cloud pipeline.
+        # Five route classes:
+        #   • command          → Qwen LoRA (already handled above)
+        #   • system_intro     → SLM + retrieval (curated I³ answers)
+        #   • world_chat       → cloud_chat (Gemini, I³ persona)
+        #   • cascade_meta     → cloud_chat (cascade self-introspection)
+        #   • default_chat     → SLM + retrieval, then cloud_chat fallback
+        # The router classification is logged and stashed on
+        # ``self._last_smart_route`` so the dashboard chip can show it.
+        try:
+            smart_route = self._smart_classify_query(message)
+            self._last_smart_route = smart_route
+            logger.info(
+                "smart_route: %s for %r",
+                smart_route, message[:60],
+            )
+            # For world_chat / cascade_meta, skip retrieval entirely
+            # and call cloud_chat directly — the local arms can't
+            # produce the correct content for these classes anyway.
+            if smart_route in ("world_chat", "cascade_meta"):
+                from os import environ as _env
+                if _env.get("GEMINI_API_KEY"):
+                    cloud_text = await self._gemini_chat_fallback(message)
+                    if cloud_text:
+                        self._last_response_path = "cloud_chat"
+                        return cloud_text
+        except Exception:  # pragma: no cover - defensive
+            logger.debug("Smart router failed for %r", message[:40], exc_info=True)
+
         # ---- Bare clarification templates (Phase 14, 2026-04-25) --------
         # When the user types an entity-less question shape (``who
         # founded?``, ``when did he live?``, ``what did she invent?``)
@@ -5109,20 +5155,19 @@ class Pipeline:
                 if match is not None:
                     response_text, score = match
                     self._last_retrieval_score = float(score)
-                    # Iter 51 phase 8: subject-grounding gate.  The
-                    # retriever's cosine over the SLM embedding can
-                    # produce structurally-plausible matches that hit
+                    # Iter 51 phase 9: STRICT subject-grounding gate.
+                    # The retriever's cosine over the SLM embedding
+                    # produces structurally-plausible matches that hit
                     # the wrong topic (e.g. "tell me about uzbekistan"
-                    # → a Shakespeare blurb at score 0.97 because the
-                    # template matches).  Reject the retrieval when
-                    # NEITHER the query NOR the candidate response
-                    # mentions any subject the KG actually has — that
-                    # forces the cascade to fall through to the
-                    # Gemini-chat arm where the user gets a real
-                    # answer instead of confidently-wrong corpus
-                    # filler.  Kept narrow (substring check, not
-                    # embedding) so we don't reject legitimate matches
-                    # that happen to use synonyms.
+                    # → a Shakespeare blurb at score 0.97; "use qwen
+                    # and gemini" → a Wikipedia entry mentioning
+                    # Google DeepMind).  We now demand that the
+                    # *query* mention a topic the system has grounding
+                    # for — not just the response — so cascade-meta
+                    # questions ("are you using gemini") that match
+                    # corpus rows mentioning Google fall through to
+                    # the cloud_chat arm where the I³ system prompt
+                    # produces an honest cascade-description answer.
                     try:
                         kg = getattr(self, "_knowledge_graph", None)
                         if kg is None:
@@ -5134,33 +5179,51 @@ class Pipeline:
                         kg_subjects = {
                             t.subject.lower() for t in kg._triples
                         }
-                        # Curated topics the I³ system can speak about
-                        # confidently outside the KG (system-introspection
-                        # answers + dialogue-corpus terms).  Without this
-                        # the grounding gate would reject "how do you
-                        # work?" (no KG subject in the query) and force
-                        # cloud_chat for what is actually a hand-curated
-                        # local answer.
+                        # Curated I³-system anchors.  Deliberately
+                        # exclude "qwen", "gemini", "lora", "intent" —
+                        # those appear in the dialogue corpus as
+                        # Wikipedia-style facts and should be answered
+                        # by cloud_chat (where the I³ system prompt
+                        # describes the cascade in I³'s own voice),
+                        # not by retrieval.
                         system_topics = {
                             "i3", "i³", "transformer", "encoder",
-                            "tcn", "adaptation", "implicit", "interaction",
+                            "tcn", "adaptation", "adapt",
+                            "implicit", "interaction",
                             "intelligence", "user-state", "user state",
                             "biometric", "biometrics", "keystroke",
-                            "small language model", "slm", "on-device",
-                            "on device", "edge", "cascade", "intent",
-                            "lora", "qwen", "from-scratch", "from scratch",
+                            "small language model", "on-device",
+                            "on device", "cascade",
+                            "from-scratch", "from scratch",
                             "cross-attention", "cross attention",
+                            "personalize", "personalise",
+                            "privacy", "privately",
                         }
                         q_lc = (resolved_message or "").lower()
-                        r_lc = (response_text or "").lower()
                         all_anchors = kg_subjects | system_topics
                         in_query = any(s in q_lc for s in all_anchors)
-                        in_resp  = any(s in r_lc for s in all_anchors)
-                        if not in_query and not in_resp:
+                        # Smart-router exemption: when the smart
+                        # classifier already labelled this query as
+                        # ``system_intro`` we WANT the curated I³
+                        # retrieval answer to fire even if no anchor
+                        # is in the query string ("how do you work?"
+                        # contains none of the anchor words but its
+                        # response is hand-curated).  Bypass the
+                        # strict gate in that case.
+                        smart_exempt = (
+                            getattr(self, "_last_smart_route", None)
+                            == "system_intro"
+                        )
+                        # Strict gate: the QUERY must mention a known
+                        # anchor.  We no longer accept response-only
+                        # mentions — those caused the "Google
+                        # DeepMind" leak via corpus byproduct text.
+                        if not in_query and not smart_exempt:
                             logger.debug(
-                                "retrieval grounded: query/response "
-                                "mention no KG subject; demoting "
-                                "(score=%.2f) → cascade fallback",
+                                "retrieval grounded (strict): query "
+                                "mentions no KG subject or system "
+                                "topic; demoting (score=%.2f) → "
+                                "cascade fallback",
                                 float(score),
                             )
                             self._last_retrieval_candidate = None
@@ -6255,6 +6318,240 @@ class Pipeline:
             )
         return None
 
+    # ─── Smart Router (iter 51 phase 9) ─────────────────────────────────
+
+    # Patterns that signal the user is asking I³ about *itself* — its
+    # cascade, its arms, its architecture, how it adapts.  Routed to
+    # SLM + retrieval where the curated answers live.
+    _SYSTEM_INTRO_PATTERNS: tuple = (
+        re.compile(r"\bhow\s+do\s+you\s+(?:work|adapt|learn|run|operate)\b", re.I),
+        re.compile(r"\b(?:what|who)\s+are\s+you\b", re.I),
+        re.compile(r"\bwhat\s+is\s+i\s*[3³]\b", re.I),
+        re.compile(r"\btell\s+me\s+about\s+(?:yourself|i\s*[3³]|your\s+(?:architecture|stack|system|cascade))\b", re.I),
+        re.compile(r"\b(?:your|the)\s+(?:architecture|stack|cascade|encoder|adapter|tcn|adaptation)\b", re.I),
+        re.compile(r"\bhow\s+does\s+(?:i\s*[3³]|the\s+system)\s+work\b", re.I),
+        re.compile(r"\bhow\s+do\s+you\s+(?:keep|stay|guarantee|protect)\s+(?:my\s+)?privacy\b", re.I),
+    )
+
+    # Patterns that signal the user is asking *about the cascade* —
+    # which arms / which model / why use Qwen / why use Gemini.
+    # These need an honest cascade-description answer that only the
+    # cloud arm with the I³ system prompt can produce.
+    _CASCADE_META_PATTERNS: tuple = (
+        re.compile(r"\b(?:why|how)\s+(?:are|do)\s+you\s+(?:use|using|not\s+using)\s+(?:qwen|gemini|cloud|llm)\b", re.I),
+        re.compile(r"\b(?:use|using|enable)\s+(?:qwen|gemini|cloud|llm)\b", re.I),
+        re.compile(r"\bwhat\s+(?:arms|models|backends)\s+do\s+you\s+(?:have|use)\b", re.I),
+        re.compile(r"\bwhich\s+model\s+(?:are|is)\s+you\s+using\b", re.I),
+        re.compile(r"\bare\s+you\s+(?:using|on)\s+(?:gemini|qwen|gpt|claude|cloud|llm)\b", re.I),
+    )
+
+    # Patterns that signal a world-knowledge / open chat question.
+    # These get routed to cloud_chat (Gemini) because the local KG only
+    # has 31 subjects and the SLM is too weak for free-form chat.
+    _WORLD_CHAT_PATTERNS: tuple = (
+        re.compile(r"^\s*(?:tell\s+me\s+about|describe|what\s+is|what\s+are|who\s+(?:is|was)|where\s+(?:is|are)|when\s+(?:is|was|did)|why\s+(?:is|did|do)|how\s+(?:is|are|did|does)|explain|define)\b", re.I),
+    )
+
+    def _smart_classify_query(self, message: str) -> str:
+        """Heuristic query classifier for the Smart Router.
+
+        Returns one of:
+          ``command`` (caller already handled), ``system_intro``,
+          ``cascade_meta``, ``world_chat``, ``default_chat``.
+
+        The router runs *after* the regex command gate has rejected
+        the message, so this method never sees a structured HMI
+        command.  It's pure heuristic — no model calls.
+
+        Precision discipline:
+        1. Cascade-meta is checked first (high specificity).
+        2. System-intro is checked next (curated answers).
+        3. World-chat fires only when the query has a question shape
+           AND does NOT mention a known KG subject — if the KG has
+           grounding for the subject, we defer to retrieval.
+        4. Anything else is default_chat (SLM+retrieval, cloud
+           fallback).
+        """
+        msg = (message or "").strip().lower()
+        if not msg:
+            return "default_chat"
+        # 1. Cascade-meta first (subset of system_intro but needs cloud_chat).
+        for pat in self._CASCADE_META_PATTERNS:
+            if pat.search(msg):
+                return "cascade_meta"
+        # 2. System introspection — curated retrieval answers.
+        for pat in self._SYSTEM_INTRO_PATTERNS:
+            if pat.search(msg):
+                return "system_intro"
+        # 3. World chat — open-question shape AND no KG subject in query.
+        is_question_shape = any(
+            pat.search(msg) for pat in self._WORLD_CHAT_PATTERNS
+        )
+        if is_question_shape:
+            # Defer to retrieval when the query mentions ANY anchor
+            # we have grounding for — KG subjects (curated triple
+            # content) OR system-introspection topics like
+            # "transformer", "encoder", "tcn", "adaptation".  E.g.
+            # "what is photosynthesis" → default_chat → retrieval; and
+            # "what is a transformer" → default_chat → retrieval (the
+            # system_topics anchor catches it even though
+            # "transformer" isn't a KG subject).
+            try:
+                kg = getattr(self, "_knowledge_graph", None)
+                if kg is None:
+                    from i3.dialogue.knowledge_graph import (
+                        KnowledgeGraph,
+                    )
+                    kg = KnowledgeGraph()
+                    self._knowledge_graph = kg
+                kg_subjects = {t.subject.lower() for t in kg._triples}
+                local_anchors = kg_subjects | {
+                    "transformer", "encoder", "tcn", "adaptation",
+                    "biometric", "biometrics", "keystroke",
+                    "interaction", "intelligence", "i3", "i³",
+                }
+                if any(s in msg for s in local_anchors):
+                    return "default_chat"
+            except Exception:
+                pass
+            return "world_chat"
+        return "default_chat"
+
+    def _build_route_decision(
+        self,
+        *,
+        path: str,
+        score: float,
+        smart_route: str | None,
+        intent: dict,
+    ) -> dict:
+        """Compose a structured ``route_decision`` for the chip.
+
+        The chip needs (a) which arm answered, (b) which model, (c)
+        why this arm was chosen, and (d) the threshold the engine
+        compared against.  We derive all four from the engine's
+        already-captured state — no extra instrumentation needed.
+        """
+        # Default
+        arm = "unknown"
+        model = "—"
+        reason = ""
+        threshold = ""
+        cls = smart_route or "default_chat"
+
+        if path == "tool:intent":
+            backend = (intent.get("backend") or "qwen-lora").lower()
+            if "gemini" in backend:
+                arm = "gemini-backup"
+                model = "Gemini 2.5 Flash"
+                reason = (
+                    "HMI command pattern matched and the local Qwen "
+                    "LoRA primary parser flunked (invalid action / "
+                    "slots / unsupported); cloud backup salvaged a "
+                    "schema-valid intent."
+                )
+                threshold = "primary.valid_slots=False ⇒ try Gemini"
+            else:
+                arm = "qwen-lora"
+                model = "Qwen3-1.7B + LoRA (DoRA r16, val_loss 5.4e-6)"
+                reason = (
+                    "HMI command pattern matched and the local Qwen "
+                    "LoRA primary parser returned a schema-valid "
+                    "JSON intent."
+                )
+                threshold = "primary.valid_action ∧ primary.valid_slots"
+            cls = "command"
+        elif path == "cloud_chat":
+            arm = "gemini-chat"
+            model = "Gemini 2.5 Flash"
+            if cls == "cascade_meta":
+                reason = (
+                    "Smart router classified the query as "
+                    "cascade-meta (asking about which arms I use); "
+                    "only the cloud arm with the I³ system prompt "
+                    "can answer this honestly."
+                )
+                threshold = "smart_route ∈ {cascade_meta, world_chat}"
+            elif cls == "world_chat":
+                reason = (
+                    "Smart router classified the query as world-chat "
+                    "(open question with no KG / system anchor); the "
+                    "local 31-subject KG can't ground it, so route "
+                    "directly to the cloud arm."
+                )
+                threshold = "smart_route == world_chat"
+            else:
+                reason = (
+                    "Local SLM + retrieval couldn't produce a "
+                    "confident on-topic answer (grounding gate "
+                    "demoted retrieval); cloud chat fallback fired."
+                )
+                threshold = "OOD branch ⇒ cloud fallback"
+        elif path in ("retrieval", "retrieval_consistent",
+                      "retrieval_borderline", "explain_decomposed"):
+            arm = "slm+retrieval"
+            model = (
+                "AdaptiveTransformerV2 (204M, 12L×12H, MoE+ACT) "
+                "+ KG retrieval"
+            )
+            reason = (
+                "Local arm: query mentions a KG subject or system "
+                "topic, so the from-scratch SLM + 974k-triple "
+                "retrieval layer produced a curated, on-device "
+                "answer."
+            )
+            threshold = f"retrieval_score {score:.2f} ≥ 0.85"
+        elif path == "slm":
+            arm = "slm"
+            model = "AdaptiveTransformerV2 (204M, 12L×12H, MoE+ACT)"
+            reason = (
+                "Local arm: from-scratch SLM generated a draft that "
+                "passed the on-topic critic; no retrieval anchor "
+                "was needed."
+            )
+            threshold = "self-critique score ≥ 0.65"
+        elif path == "tool:name":
+            arm = "diary"
+            model = "Personal-fact diary (Fernet-encrypted SQLite)"
+            reason = (
+                "Fact-statement / fact-recall pattern matched; "
+                "answered from the on-device encrypted diary, no "
+                "LLM in the loop."
+            )
+            threshold = "regex name pattern matched"
+            cls = "fact"
+        elif path == "tool:refuse" or path == "tool:hostility":
+            arm = "hostility-guard"
+            model = "Rule-based deflection"
+            reason = (
+                "Hostility / abuse pattern matched; deflected with "
+                "a calm canned reply, no LLM call."
+            )
+            threshold = "hostility regex matched"
+            cls = "hostility"
+        elif path.startswith("tool:"):
+            arm = path.replace("tool:", "tool/")
+            model = "Hand-written tool (no LLM)"
+            reason = "Deterministic tool path matched."
+            cls = path.replace("tool:", "")
+        elif path == "ood":
+            arm = "ood"
+            model = "Canned OOD ack"
+            reason = (
+                "All cascade arms (Qwen, retrieval, SLM, cloud "
+                "chat) declined to produce a confident answer."
+            )
+            threshold = "all arms failed → safe fallback"
+        return {
+            "arm": arm,
+            "model": model,
+            "query_class": cls,
+            "reason": reason,
+            "threshold": threshold,
+            "path": path,
+            "score": round(score, 3),
+        }
+
     async def _gemini_chat_fallback(self, message: str) -> str | None:
         """Cloud chat arm of the cascade — fires only when the local
         SLM + retrieval path can't produce a confident on-topic answer.
@@ -6309,11 +6606,16 @@ class Pipeline:
             " - If the user is being rude, deflect with one calm "
             "sentence and pivot back to what you can help with.\n"
             " - If the user asks 'how do you work?' / 'what are you?' "
-            "describe the I³ stack: TCN encoder of typing biometrics, "
-            "8-dim user-state adaptation vector, cross-attention into "
-            "a from-scratch SLM, knowledge-graph retrieval, and a "
-            "cascade to a cloud arm only when the local arm can't be "
-            "confident.  Don't mention any specific cloud provider."
+            "/ 'what arms do you have?' / 'why are you using qwen / "
+            "gemini' / 'use qwen' / 'use gemini' — describe the I³ "
+            "cascade: a from-scratch SLM and knowledge-graph "
+            "retrieval handle chat and the system's own questions; "
+            "a Qwen-LoRA intent parser handles HMI commands like "
+            "set_timer or play_music; a cloud arm fires only when "
+            "the local arms can't be confident.  Speak about the "
+            "cascade from I³'s perspective ('I have a Qwen LoRA "
+            "intent parser', 'I fall over to a cloud arm'), and do "
+            "not name the specific cloud provider."
         )
         req = CompletionRequest(
             messages=[ChatMessage(role="user", content=message)],

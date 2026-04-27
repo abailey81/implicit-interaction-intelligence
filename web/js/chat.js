@@ -1180,14 +1180,56 @@ class ChatInterface {
                 text: '◆ ' + ir.action,
             });
         }
-        // Iter 62: cascade-arm label so the user can see which arm
-        // served this turn (A=SLM, B=Qwen LoRA, C=Gemini cloud, T=tool).
-        if (metadata.response_path) {
+        // Iter 51 phase 9: rich routing-decision chip.  When the
+        // engine attached ``route_decision`` we show arm + model
+        // inline, with reason + threshold in the tooltip — so the
+        // user (and recruiters watching the demo) can see EXACTLY
+        // which arm answered and why.
+        const rd = metadata.route_decision;
+        if (rd && typeof rd === 'object' && rd.arm) {
+            const armClassMap = {
+                'slm':              'chip-arm-a',
+                'slm+retrieval':    'chip-arm-r',
+                'qwen-lora':        'chip-arm-b',
+                'gemini-backup':    'chip-arm-b',
+                'gemini-chat':      'chip-arm-c',
+                'diary':            'chip-arm-t',
+                'hostility-guard':  'chip-arm-t',
+                'ood':              'chip-arm-t',
+            };
+            const armPrefixMap = {
+                'slm':              'A · from-scratch SLM',
+                'slm+retrieval':    'A · from-scratch SLM + retrieval',
+                'qwen-lora':        'B · Qwen 1.7B + LoRA',
+                'gemini-backup':    'B → C · Qwen flunked → Gemini',
+                'gemini-chat':      'C · Gemini 2.5 Flash (cloud)',
+                'diary':            'T · diary (encrypted)',
+                'hostility-guard':  'T · hostility guard',
+                'ood':              'T · safe fallback',
+            };
+            const cls = armClassMap[rd.arm] || 'chip-arm-t';
+            const label = armPrefixMap[rd.arm] || ('· ' + rd.arm);
+            const tip = [
+                'arm: ' + rd.arm,
+                'model: ' + (rd.model || '—'),
+                'class: ' + (rd.query_class || '—'),
+                'reason: ' + (rd.reason || '—'),
+                'threshold: ' + (rd.threshold || '—'),
+            ].join('\n');
+            chips.push({
+                cls: cls + ' chip-arm chip-route',
+                title: tip,
+                text: label,
+            });
+        } else if (metadata.response_path) {
+            // Legacy fallback (kept until every server ships
+            // route_decision).  Same minimal arm chip as before.
             const armMap = {
-                'slm': { label: 'A · SLM', cls: 'chip-arm-a' },
-                'tool:intent': { label: 'B · Qwen LoRA', cls: 'chip-arm-b' },
-                'cloud_llm': { label: 'C · cloud', cls: 'chip-arm-c' },
-                'retrieval': { label: 'R · retrieval', cls: 'chip-arm-r' },
+                'slm':         { label: 'A · SLM',          cls: 'chip-arm-a' },
+                'tool:intent': { label: 'B · Qwen LoRA',    cls: 'chip-arm-b' },
+                'cloud_chat':  { label: 'C · Gemini cloud', cls: 'chip-arm-c' },
+                'cloud_llm':   { label: 'C · cloud',        cls: 'chip-arm-c' },
+                'retrieval':   { label: 'R · retrieval',    cls: 'chip-arm-r' },
             };
             const path = metadata.response_path;
             let arm = armMap[path];

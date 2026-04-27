@@ -948,6 +948,12 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str) -> None:
                         "timestamp": time.time(),
                         "response_path": getattr(output, "response_path", "unknown"),
                         "retrieval_score": getattr(output, "retrieval_score", 0.0),
+                        # Iter 51 phase 9: structured routing decision
+                        # so the chip can show arm + model + reason +
+                        # threshold without inspecting any other field.
+                        "route_decision": getattr(
+                            output, "route_decision", {}
+                        ) or {},
                         "adaptation_changes": list(
                             getattr(output, "adaptation_changes", []) or []
                         ),
@@ -1010,6 +1016,12 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str) -> None:
                         "timestamp": time.time(),
                         "response_path": getattr(output, "response_path", "unknown"),
                         "retrieval_score": getattr(output, "retrieval_score", 0.0),
+                        # Iter 51 phase 9: structured routing decision
+                        # so the chip can show arm + model + reason +
+                        # threshold without inspecting any other field.
+                        "route_decision": getattr(
+                            output, "route_decision", {}
+                        ) or {},
                         "adaptation_changes": list(
                             getattr(output, "adaptation_changes", []) or []
                         ),

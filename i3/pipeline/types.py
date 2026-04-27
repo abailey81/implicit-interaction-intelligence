@@ -169,6 +169,23 @@ class PipelineOutput:
     # shows this as a "confidence" chip next to the reply.
     retrieval_score: float = 0.0
 
+    # Iter 51 phase 9: structured routing decision so the chip can
+    # show the user EXACTLY which arm answered and why.
+    # Shape::
+    #     {
+    #         "arm":         "slm+retrieval" | "qwen-lora" |
+    #                        "gemini-backup" | "gemini-chat" |
+    #                        "diary" | "hostility-guard" | "ood",
+    #         "model":       "AdaptiveTransformerV2 (204M)" / etc.,
+    #         "query_class": "command" | "system_intro" |
+    #                        "cascade_meta" | "world_chat" |
+    #                        "default_chat" | "fact" | "hostility",
+    #         "reason":      one-sentence human explanation,
+    #         "threshold":   "retrieval_score 0.92 ≥ 0.85",
+    #     }
+    # Empty dict means the pipeline didn't tag the decision.
+    route_decision: dict = field(default_factory=dict)
+
     # Per-axis adaptation rewrites applied to the visible response.
     # Each entry is ``{"axis": ..., "value": ..., "change": ...}`` —
     # e.g. ``{"axis": "formality", "value": "0.74",
