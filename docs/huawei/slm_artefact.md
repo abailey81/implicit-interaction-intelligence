@@ -18,7 +18,7 @@
 | Training corpus | **974 k pairs** assembled from curated dialogue + JD-relevant overlays |
 | Hardware | RTX 4050 Laptop, 6.44 GB VRAM, mixed-precision bf16 + grad checkpointing |
 | Wall-time | ~85 minutes per checkpoint window (committed best is at step 18 000) |
-| Best validation loss | **4.99** (perplexity ≈ 147) — recorded in the checkpoint blob's `best_eval_loss` field |
+| Best validation loss | **4.987** (perplexity ≈ 147) — recorded in the checkpoint blob's `best_eval_loss` field |
 | Training metrics | full curve at [`scripts/measure_edge.py`](../../scripts/measure_edge.py) plus the per-step log emitted by [`i3/slm/train_v2.py`](../../i3/slm/train_v2.py) |
 | Eval reproducibility | [`training/eval_slm_v2.py`](../../training/eval_slm_v2.py) — re-tokenises a 200-pair holdout from the curated overlay using the v2 BPE; produces JSON + Markdown reports under `reports/slm_v2_eval.*` |
 | Inference quantisation | INT8 PTQ (per-tensor + per-channel) via the hand-rolled quantiser at [`i3/encoder/quantize.py`](../../i3/encoder/quantize.py) |
@@ -59,9 +59,9 @@ The v2 model is configured by `AdaptiveTransformerV2Config`:
 | `n_layers` | 12 | Deep enough to learn dialogue structure, shallow enough for ACT to halt early on simple turns |
 | `n_heads` | 12 | 64-D per head |
 | `d_ff` | 3072 | Standard 4 × d_model |
-| `n_experts` (MoE) | 4 | Sparse routing — 1 expert active per token |
-| `vocab_size` | 32 000 | Byte-level BPE coverage of 974 k training pairs |
-| `max_seq_len` | 1024 | Multi-turn dialogue context window |
+| `n_experts` (MoE) | 2 | Sparse routing — 1 expert active per token |
+| `vocab_size` | 32 000 | Byte-level BPE coverage of 977 k training pairs |
+| `max_seq_len` | 512 | Multi-turn dialogue context window |
 | `dropout` | 0.1 | Standard transformer regularisation |
 
 Cross-attention conditioning shapes:
@@ -158,35 +158,38 @@ It rebuilds a 200-pair holdout from the curated overlay using the v2
 BPE tokenizer (the pre-built `data/dialogue/val.pt` is incompatible
 because it was tokenised with the v1 SimpleTokenizer's 30 k vocab).
 
-### 4.1 Latest run (`reports/slm_v2_eval.json`, 2026-04-27, CPU)
+### 4.1 Latest run (`reports/slm_v2_eval.json`, 2026-04-28, CPU)
 
 | Metric | Value |
 |---|---|
-| Cross-entropy (held-out, BPE-tokenised, 200 curated overlay pairs) | **7.42** |
-| Perplexity | **1 674.8** |
-| Top-1 next-token accuracy | **10.24 %** |
-| Tokens evaluated | **13 228** |
-| Wall-time | **38.3 s** (CPU, RTX 4050 Laptop class) |
-| Throughput | **345 tokens/s** (CPU) |
+| Cross-entropy (held-out, BPE-tokenised, **n=500** pairs sampled from the full 977 k corpus) | **7.4531** |
+| Perplexity (stress-test) | **1 725.3** |
+| Top-1 next-token accuracy | **10.27 %** |
+| Tokens evaluated | **33 909** |
+| Wall-time | **84.3 s** (CPU) |
+| Throughput | **402 tokens/s** (CPU) |
 | n_params | **204.41 M** (d_model 768, 12 layers, 12 heads, vocab 32 000) |
 
 | Position quartile | tokens | loss | ppl |
 |---|---|---|---|
-| Q1 (tokens 0-31) | 5 795 | 7.28 | 1 457 |
-| Q2 (tokens 32-63) | 4 585 | 7.64 | 2 084 |
-| Q3 (tokens 64-95) | 2 502 | 7.40 | 1 634 |
-| Q4 (tokens 96-126) | 346 | 7.04 | 1 146 |
+| Q1 (tokens 0-31)  | 14 551 | 7.3435 | 1 546.0 |
+| Q2 (tokens 32-63) | 11 603 | 7.6513 | 2 103.3 |
+| Q3 (tokens 64-95) |  6 584 | 7.3983 | 1 633.2 |
+| Q4 (tokens 96-126)|  1 171 | 7.1615 | 1 288.8 |
 
-**Calibration note.** The 1 675 perplexity above is measured on the
-*curated overlay* (558 hand-checked Q&A pairs), which is a stricter,
-narrower distribution than the 974 k training corpus. The
-*best_eval_loss recorded in the checkpoint blob during training* is
-**4.99 (perplexity ≈ 147)** — this is the number to compare against
-public small-LM benchmarks because it was measured on a held-out
-sample of the *same* distribution as training. The eval script
-re-tokenises a fresh holdout from the curated overlay (which the
-trainer never saw at full coverage), so it is a more conservative
-"can it generalise to clean Q&A" probe.
+**Calibration note.** The 1 725 perplexity above is the **stress-test**
+number — measured on a 500-pair sample drawn (seed 17) from the *full
+977 k corpus*, scoring all non-PAD tokens (history + response).  The
+model was trained on a 300 k subset of that corpus with response-token
+loss only.  Two compounding harshness factors widen the gap from the
+training-time eval: distribution shift (most pairs in this report's
+val set were never seen at training time) and all-token loss
+(history-token positions are scored too, including the first
+unconditioned position).  The *best_eval_loss recorded in the
+checkpoint blob during training* is **4.987 (perplexity ≈ 147)** —
+this is the headline number to compare against public small-LM
+benchmarks, because it was measured on a held-out sample of the
+*same* distribution as training and scored response tokens only.
 
 The Q4 perplexity being lower than Q1-Q3 reflects shorter sequences
 and language-modelling tail-warmup behaviour rather than late-token
@@ -197,7 +200,7 @@ eval script.
 
 | Metric | Value | Where |
 |---|---|---|
-| Best-eval-loss recorded in checkpoint blob | **4.99** (perplexity ≈ 147) | `best_model.pt` `best_eval_loss` field |
+| Best-eval-loss recorded in checkpoint blob | **4.987** (perplexity ≈ 147) | `best_model.pt` `best_eval_loss` field |
 | Step at which the best was reached | **18 000** | training log |
 | Val cohort | random sample drawn during training | trainer's `eval_pairs=200` |
 

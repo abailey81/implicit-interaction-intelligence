@@ -169,7 +169,7 @@ def main() -> int:
         try:
             with triples_path.open(encoding="utf-8") as f:
                 n_pairs = len(json.load(f))
-            if not _check("corpus pairs ~ 974 000", 974000, n_pairs, tolerance=5000):
+            if not _check("corpus pairs = 977 332", 977332, n_pairs, tolerance=100):
                 fails.append("corpus size")
         except Exception as exc:
             print(f"  [SKIP] corpus parse failed: {exc}")

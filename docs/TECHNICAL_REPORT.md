@@ -30,8 +30,8 @@ implemented from scratch in PyTorch with zero HuggingFace
 dependencies. End-to-end latency on a CPU-only laptop is 612 ms p50
 for a 16-token greedy decode at 110 MB int8 footprint; the edge
 profile, conversational coherence audit (110 scenarios, 2.4 % bad
-rate), and SLM training curve (eval perplexity 407 → 148 over 16 k
-steps) are reported on real measurements.
+rate), and SLM training-time eval loss (`best_eval_loss = 4.987`,
+perplexity ≈ 147 at step 18 000) are reported on real measurements.
 
 ---
 
@@ -66,7 +66,7 @@ We present a complete vertical slice of such a system. The
 contributions are:
 
 - A **204 M-parameter custom decoder transformer** trained from
-  scratch on 974,610 dialogue pairs with mixture-of-experts (Shazeer
+  scratch on 977,332 dialogue pairs with mixture-of-experts (Shazeer
   et al., 2017), adaptive computation time (Graves, 2016), and
   per-layer cross-attention conditioning on an 8-axis adaptation
   vector. Zero HuggingFace dependencies in the inference path.
@@ -516,7 +516,8 @@ The wearable target requires distillation; this is in §8.
 | Parameters | 204 M |
 | bf16 training memory peak | 3.15 GB (with grad checkpoint + 8-bit AdamW) |
 | Wall-clock for 2 epochs of 300 k subsampled corpus on RTX 4050 Laptop | 18-22 h |
-| Eval perplexity (start → best so far) | 407 → 148 over 16 k steps |
+| Best eval loss (training-time, response-only) | **4.987** → perplexity ≈ **147** at step **18 000** |
+| Stress-test perplexity (n=500 from full corpus, all-token loss) | **1 725.3** (`reports/slm_v2_eval.md`) |
 
 ### 6.2 Conversational coherence
 
@@ -540,20 +541,21 @@ shadowed by intervening unrelated turns.
 ### 6.3 SLM training curve
 
 Training v2 with bf16 + 8-bit AdamW + gradient checkpointing on the
-300 k-pair sub-sample at batch=4 × grad-accum=8 (effective batch 32),
-LR 3e-4 with 2 % linear warmup:
+300 k-pair sub-sample, base LR 3e-4 with linear warmup over 372 steps,
+cosine decay to 1e-6 over 18 624 max-steps (`config.lr_scheduler` in
+`checkpoints/slm_v2/best_model.pt`).
 
-| Step | Eval perplexity |
-|---|---|
-| 0 | 407.0 |
-| 1 500 | 312.5 |
-| 4 000 | 246.1 |
-| 8 000 | 192.4 |
-| 12 000 | 165.0 |
-| **16 000** | **148.2** |
+| Quantity | Value | Source |
+|---|---|---|
+| Best `eval_loss` | **4.987** | `best_model.pt → best_eval_loss` |
+| Best step | **18 000** | `best_model.pt → step` |
+| Perplexity (response-token, same-distribution) | **≈ 147** (exp 4.987) | derived |
+| Perplexity (stress-test, full-corpus, all-token loss) | **≈ 1 725** | `reports/slm_v2_eval.md` |
 
-Loss curve is monotonic, no obvious overfit yet at 16 k steps. The
-auxiliary losses (MoE load-balance + ACT ponder) sit at ~0.05 each
+Run `python scripts/verify_numbers.py` to confirm both numbers against
+the artefact on disk.
+
+The auxiliary losses (MoE load-balance + ACT ponder) sit at ~0.05 each
 with the 0.01 weighting, well-behaved.
 
 ### 6.4 Adaptation faithfulness
@@ -575,7 +577,7 @@ load-bearing mechanism, not a decorative input.
 
 We are honest about what this system is *not*:
 
-1. **Small corpus.** The 974,610-pair dialogue corpus is large
+1. **Small corpus.** The 977,332-pair dialogue corpus is large
    relative to the model size but tiny relative to a foundation
    model's pretraining set. Generations on out-of-domain prompts
    (technical Q&A on long-tail subjects) are visibly weaker than a
