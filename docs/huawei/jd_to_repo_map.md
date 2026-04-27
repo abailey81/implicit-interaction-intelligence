@@ -42,7 +42,7 @@
 | Custom ML pipelines | [`scripts/run_everything.py`](../../scripts/run_everything.py) — 21-stage wave-based DAG, ~10 min cold-start to running stack |
 | Small language models (SLMs), from-scratch | [`i3/slm/model.py`](../../i3/slm/model.py) — `AdaptiveTransformerV2`, 204 M params, MoE+ACT, custom byte-level BPE |
 | Built on top of foundational models | 11 cloud-provider clients in [`i3/cloud/providers/`](../../i3/cloud/providers/) — Anthropic, OpenAI, Azure, Bedrock, Cohere, Google, Huawei Pangu, LiteLLM, Mistral, Ollama, OpenRouter |
-| Plus: tuned-on-foundational artefact | [`training/train_intent_lora.py`](../../training/train_intent_lora.py) — Qwen3.5-2B + DoRA LoRA fine-tune for HMI command-intent |
+| Plus: tuned-on-foundational artefact | [`training/train_intent_lora.py`](../../training/train_intent_lora.py) — Qwen3-1.7B + DoRA LoRA fine-tune for HMI command-intent (script defaults to Qwen3.5-2B and falls back to Qwen3-1.7B since transformers 4.57 doesn't yet recognise the 3.5 model_type) |
 
 ---
 
@@ -62,7 +62,7 @@
 | Sub-claim | Repo evidence |
 |---|---|
 | **Build SLM from scratch** | [`i3/slm/model.py`](../../i3/slm/model.py), [`i3/slm/blocks.py`](../../i3/slm/blocks.py), [`i3/slm/attention.py`](../../i3/slm/attention.py), [`training/train_v2.py`](../../training/train_v2.py) |
-| **Fine-tune SLM** (open-weight, on-device) | [`training/train_intent_lora.py`](../../training/train_intent_lora.py) — Qwen3.5-2B + LoRA; rank-16 with DoRA + NEFTune + cosine warm restarts + 8-bit AdamW |
+| **Fine-tune SLM** (open-weight, on-device) | [`training/train_intent_lora.py`](../../training/train_intent_lora.py) — Qwen3-1.7B + LoRA; rank-16 with DoRA + NEFTune + cosine warm restarts + 8-bit AdamW |
 | **Fine-tune SLM** (closed-weight, cloud) | [`training/train_intent_gemini.py`](../../training/train_intent_gemini.py) — Gemini 2.5 Flash via AI Studio supervised tuning |
 | Traditional ML | [`i3/router/bandit.py`](../../i3/router/bandit.py) — LinUCB + Beta-Bernoulli Thompson sampling, written from scratch |
 | Apps leveraging foundational LLMs | [`i3/cloud/multi_provider.py`](../../i3/cloud/multi_provider.py) — failover/fanout across the 11 providers above; [`i3/cloud/postprocess.py`](../../i3/cloud/postprocess.py); [`i3/router/preference_learning.py`](../../i3/router/preference_learning.py) — DPO + active learning for cloud-vs-local routing |
@@ -151,7 +151,7 @@
 | Sub-claim | Repo evidence |
 |---|---|
 | **Build from scratch** | Every load-bearing model in I3 is hand-rolled in tensor-only PyTorch or numpy.  Stack panel reports `"hf_dependencies": 0` live (`/api/stack`).  Files: [`i3/slm/model.py`](../../i3/slm/model.py), [`i3/encoder/tcn.py`](../../i3/encoder/tcn.py), [`i3/router/bandit.py`](../../i3/router/bandit.py), [`i3/safety/classifier.py`](../../i3/safety/classifier.py), [`i3/affect/state_classifier.py`](../../i3/affect/state_classifier.py), [`i3/multimodal/prosody.py`](../../i3/multimodal/prosody.py), [`i3/multimodal/gaze_classifier.py`](../../i3/multimodal/gaze_classifier.py) (1014 LOC vision + 8-feature facial-affect) |
-| **Adapt / fine-tune pre-trained** (LLMs) | [`training/train_intent_lora.py`](../../training/train_intent_lora.py) — Qwen3.5-2B + LoRA (DoRA + NEFTune + cosine warm restarts + 8-bit AdamW), 5050-row HMI command-intent dataset with adversarials, per-step val-loss eval + best-checkpoint saving |
+| **Adapt / fine-tune pre-trained** (LLMs) | [`training/train_intent_lora.py`](../../training/train_intent_lora.py) — Qwen3-1.7B + LoRA (DoRA + NEFTune + cosine warm restarts + 8-bit AdamW), 5050-row HMI command-intent dataset with adversarials, per-step val-loss eval + best-checkpoint saving |
 | **Adapt / fine-tune pre-trained** (cloud) | [`training/train_intent_gemini.py`](../../training/train_intent_gemini.py) — Gemini 2.5 Flash AI Studio supervised tuning |
 | **Adapt / fine-tune pre-trained** (vision) | [`i3/multimodal/vision.py`](../../i3/multimodal/vision.py) wraps MediaPipe Face Mesh (Kartynnik 2019) for 8 facial-affect features; [`i3/multimodal/gaze_classifier.py`](../../i3/multimodal/gaze_classifier.py) (1014 LOC) |
 

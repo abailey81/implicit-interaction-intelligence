@@ -134,7 +134,7 @@ is a 204 M-parameter decoder with `d_model=768`, 12 layers, 12 heads,
 `d_ff=3072`, MoE-FFN with 2 experts, ACT halting, per-layer cross-
 attention onto an 8-dim adaptation vector and 64-dim user-state
 embedding, trained with bf16 + 8-bit AdamW + gradient checkpointing on
-a 974,610-pair dialogue corpus collected from six public sources. No
+a 977,332-pair dialogue corpus collected from six public sources. No
 distillation from a foundation model. No "just fine-tune Phi-3." From
 scratch end to end.
 
@@ -151,12 +151,15 @@ animation.
 
 ### 4. It actually fits on edge
 
-Measured (CPU, no GPU): **53 M v1 SLM = 110 MB int8, 612 ms p50** for
-a 32-prompt → 16-token greedy decode. The TCN encoder is 0.4 MB int8,
-3.7 ms p50. ONNX export of the encoder ships in the repo. Browser-side
-inference path via `onnxruntime-web` with WebGPU/WASM detection.
-[`reports/edge_profile.md`](reports/edge_profile.md) is generated from
-real measurements, not estimates.
+Measured (CPU, no GPU). The TCN encoder is shipped as **162.2 KB
+INT8 ONNX** ([`web/models/encoder_int8.onnx`](web/models/encoder_int8.onnx)) —
+−63 % vs the 441.4 KB FP32 export, parity MAE 0.00055 — and runs
+in-browser via `onnxruntime-web` (WebGPU + WASM fallback) at p50 460 µs
+(2 176 enc/s).  The v2 SLM (204 M params) is profiled at ~200 MB INT8
+budget; the v1 SLM (53 M params, kept as a draft-model candidate)
+measures **110.2 MB int8 / 612 ms p50** for a 32-prompt → 16-token
+greedy decode.  Live numbers: [`reports/edge_profile_2026-04-28.md`](reports/edge_profile_2026-04-28.md)
+(latest); [`reports/edge_profile.md`](reports/edge_profile.md) (older v1 baseline).
 
 ### 5. Privacy is a property of the architecture, not a policy
 
@@ -338,20 +341,24 @@ The corpus is assembled from six public dialogue sources:
 
 | Source | Pairs | License |
 |---|---|---|
-| Cornell Movie-Dialogs | 207 k | research-friendly |
+| Cornell Movie-Dialogs | 206 k | research-friendly |
 | SQuAD 1.1 | 87 k | CC BY-SA 4.0 |
-| DailyDialog (ACL Anthology mirror) | 90 k | non-commercial research |
-| PersonaChat (`convai2_fix_723.tgz`) | 131 k | non-commercial research |
-| WikiText-103 (Stephen Merity CDN) | 245 k | CC BY-SA 4.0 |
-| OpenSubtitles slice (OPUS bucket) | 499 k | redistribution-friendly |
-| **Total unique pairs** | **974 610** | |
+| DailyDialog (ACL Anthology mirror) | 81 k | non-commercial research |
+| PersonaChat (`convai2_fix_723.tgz`) | 128 k | non-commercial research |
+| WikiText-103 (Stephen Merity CDN) | 242 k | CC BY-SA 4.0 |
+| OpenSubtitles slice (OPUS bucket) | 227 k | redistribution-friendly |
+| Curated overlay (HMI / agentic prompts) | 6 k | original |
+| **Total unique pairs** | **977 332** | |
+
+Counts are read directly from `data/processed/dialogue/triples.json`
+(grouped by `source` field).
 
 Build it locally:
 
 ```bash
 poetry run python -m training.prepare_dialogue \
     --output data/processed/dialogue/triples.json \
-    --max-pairs 974610
+    --max-pairs 977332
 ```
 
 Train the encoder:
@@ -416,7 +423,7 @@ These numbers are emitted by [`scripts/measure_edge.py`](scripts/measure_edge.py
 [`i3/edge/profiler.py`](i3/edge/profiler.py) on the same machine that
 serves the demo. They update on every benchmark run.
 
-### v1 SLM (53 M, currently loaded by default)
+### v1 SLM (53 M, legacy — superseded by v2 at iter 51, kept as a draft-model candidate for speculative decoding)
 
 | Metric | Value |
 |---|---|
@@ -428,15 +435,15 @@ serves the demo. They update on every benchmark run.
 | TCN encoder (10 × 32 window, CPU) | p50 **3.68 ms**, p95 4.71 ms |
 | Peak process RSS | 1311 MB |
 
-### v2 SLM (204 M, MoE + ACT, training overnight)
+### v2 SLM (204 M, MoE + ACT, default-loaded since iter 51 / 2026-04-25)
 
 | Metric | Value |
 |---|---|
 | Parameters | ~204 M (`d_model=768`, 12 layers, 12 heads, 2 experts) |
 | Vocab | 32 000 (byte-level BPE, from scratch) |
-| Training corpus | 974,610 unique pairs (Cornell + SQuAD + DailyDialog + PersonaChat + WikiText-103 + OpenSubtitles slice) |
+| Training corpus | 977,332 unique pairs (Cornell + SQuAD + DailyDialog + PersonaChat + WikiText-103 + OpenSubtitles slice + curated overlay), 300 k subset trained on |
 | Training shape | bf16 + 8-bit AdamW + grad checkpoint on RTX 4050 Laptop (6.4 GB) |
-| Eval perplexity | 407 → 148 over 16 k steps (best so far) |
+| Best `eval_loss` | **4.987** (perplexity ≈ **147**) at step **18 000**, response-token-only, same-distribution holdout — recorded in `checkpoints/slm_v2/best_model.pt` `best_eval_loss` field. Stress-test (full-corpus + history-token loss, n=500) lands at perplexity ≈ **1 725** — see `reports/slm_v2_eval.md` for the two-number framing. |
 | Aux losses | MoE load-balance (Shazeer 2017) + ACT ponder (Graves 2016), 0.01 each |
 
 ### Conversational coherence
