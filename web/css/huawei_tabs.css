@@ -181,7 +181,8 @@
 .message-chips {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    align-items: center;
+    gap: 5px;
     margin-top: 6px;
 }
 
@@ -305,41 +306,43 @@
 .message-chip.chip-arm-r { color: #d0a0e0; border-color: #4a2a5a; }
 .message-chip.chip-arm-t { color: #c8c8c8; border-color: #444; }
 
-/* Iter 51 phase 10 — three per-arm indicator chips so every reply
-   shows the on/off state of all three cascade arms (SLM, Qwen,
-   Gemini) instead of just the winner.  ``chip-arm-on`` is bright
-   colour-coded; ``chip-arm-off`` is desaturated grey so the eye
-   immediately spots which arm fired. */
+/* Iter 51 phase 12 — minimalist routing chip row.  Three small
+   per-arm indicators (SLM / Qwen / Gemini) coloured-or-dimmed
+   depending on which fired, plus one quiet "used: X" badge at the
+   end.  All chips share a small monospace pill style so the row
+   reads as a single, structured caption rather than five competing
+   widgets. */
 .message-chip.chip-arm-indicator {
     font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    letter-spacing: 0.03em;
-    font-size: 10.5px;
-    padding-left: 8px;
-    padding-right: 8px;
-}
-.message-chip.chip-arm-indicator.chip-arm-off {
-    color: #6a6a6a;
-    border-color: #2a2a2a;
-    opacity: 0.55;
-}
-.message-chip.chip-arm-indicator.chip-arm-slm.chip-arm-on    { color: #b0e6c0; border-color: #2c6a3c; background: rgba(44,106,60,0.08); }
-.message-chip.chip-arm-indicator.chip-arm-qwen.chip-arm-on   { color: #f0c870; border-color: #6a4a1a; background: rgba(106,74,26,0.08); }
-.message-chip.chip-arm-indicator.chip-arm-gemini.chip-arm-on { color: #b0c8f0; border-color: #2a4a8a; background: rgba(42,74,138,0.08); }
-
-/* Iter 51 phase 11 — prominent "Used: X" winner badge at the end of
-   the chip row.  Slightly larger, bolder, with a tinted background
-   so the eye lands on it immediately even without reading the row.
-   Per-arm colour echoes the indicator chips so the visual ties
-   together. */
-.message-chip.chip-used {
-    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    font-size: 11.5px;
-    font-weight: 600;
     letter-spacing: 0.02em;
-    padding: 3px 10px;
+    font-size: 9.5px;
+    padding: 1px 6px;
+    line-height: 1.4;
     border-radius: 999px;
 }
-.message-chip.chip-used-slm    { color: #d4f4dc; border-color: #3a7a4a; background: rgba(58,122,74,0.18); }
-.message-chip.chip-used-qwen   { color: #ffd97f; border-color: #7a5a1a; background: rgba(122,90,26,0.20); }
-.message-chip.chip-used-gemini { color: #cfe0ff; border-color: #3858a0; background: rgba(56,88,160,0.18); }
-.message-chip.chip-used-tool   { color: #d8d8d8; border-color: #555;    background: rgba(255,255,255,0.04); }
+.message-chip.chip-arm-indicator.chip-arm-off {
+    color: #5a5a5a;
+    border-color: #1f1f1f;
+    background: transparent;
+    opacity: 0.45;
+}
+.message-chip.chip-arm-indicator.chip-arm-slm.chip-arm-on    { color: #b0e6c0; border-color: #2c5a3c; background: rgba(44,90,60,0.10); }
+.message-chip.chip-arm-indicator.chip-arm-qwen.chip-arm-on   { color: #f0c870; border-color: #5a3e18; background: rgba(90,62,24,0.10); }
+.message-chip.chip-arm-indicator.chip-arm-gemini.chip-arm-on { color: #b0c8f0; border-color: #2a3e7a; background: rgba(42,62,122,0.10); }
+
+/* "used: X" winner badge — same small monospace as the indicators
+   so the row stays a tight, uniform caption.  Tinted background by
+   arm to colour-tie to the indicator that's lit. */
+.message-chip.chip-used {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 9.5px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    padding: 1px 7px;
+    line-height: 1.4;
+    border-radius: 999px;
+}
+.message-chip.chip-used-slm    { color: #cfeed7; border-color: #3a6a4a; background: rgba(58,106,74,0.14); }
+.message-chip.chip-used-qwen   { color: #ffd07a; border-color: #6a4a1a; background: rgba(106,74,26,0.14); }
+.message-chip.chip-used-gemini { color: #cfe0ff; border-color: #38528a; background: rgba(56,82,138,0.14); }
+.message-chip.chip-used-tool   { color: #c8c8c8; border-color: #444;    background: rgba(255,255,255,0.03); }

@@ -1189,33 +1189,32 @@ class ChatInterface {
                 text: '◆ ' + ir.action,
             });
         }
-        // Iter 51 phase 10: per-arm indicator chips.  Show all THREE
-        // arms (200M from-scratch SLM, Qwen 1.7B+LoRA, Gemini cloud)
-        // on every message, lit green when fired and grey when not,
-        // so the recruiter watches the cascade light up in real time
-        // rather than guessing from a single winner chip.
+        // Iter 51 phase 12: compact per-arm indicator chips.  Three
+        // tight pills — SLM, Qwen, Gemini — coloured when fired,
+        // dimmed when not.  No oversized bullet glyphs; the colour
+        // itself signals state.
         const rd0 = metadata.route_decision;
         if (rd0 && typeof rd0 === 'object' && rd0.arms_used) {
             const arms = rd0.arms_used;
             const tipBase = (label, used) =>
-                used ? `${label}: USED on this turn` : `${label}: not used on this turn`;
+                used ? `${label}: used on this turn` : `${label}: idle`;
             chips.push({
                 cls: 'chip-arm chip-arm-indicator chip-arm-slm '
                      + (arms.slm ? 'chip-arm-on' : 'chip-arm-off'),
                 title: tipBase('SLM (204M from-scratch transformer + retrieval)', arms.slm),
-                text: (arms.slm ? '● ' : '○ ') + 'SLM 204M',
+                text: 'SLM',
             });
             chips.push({
                 cls: 'chip-arm chip-arm-indicator chip-arm-qwen '
                      + (arms.qwen ? 'chip-arm-on' : 'chip-arm-off'),
                 title: tipBase('Qwen 1.7B + LoRA intent parser', arms.qwen),
-                text: (arms.qwen ? '● ' : '○ ') + 'Qwen 1.7B',
+                text: 'Qwen',
             });
             chips.push({
                 cls: 'chip-arm chip-arm-indicator chip-arm-gemini '
                      + (arms.gemini ? 'chip-arm-on' : 'chip-arm-off'),
                 title: tipBase('Gemini 2.5 Flash (cloud)', arms.gemini),
-                text: (arms.gemini ? '● ' : '○ ') + 'Gemini 2.5',
+                text: 'Gemini',
             });
         }
         // Iter 51 phase 11: prominent "Used: X" badge at the end of
@@ -1225,14 +1224,14 @@ class ChatInterface {
         // Flash" / etc. without having to interpret the bullet colours.
         if (rd0 && typeof rd0 === 'object' && rd0.arm) {
             const usedLabelMap = {
-                'slm':              'Used: from-scratch SLM (204M)',
-                'slm+retrieval':    'Used: from-scratch SLM + retrieval',
-                'qwen-lora':        'Used: Qwen 1.7B + LoRA',
-                'gemini-backup':    'Used: Qwen → Gemini (backup)',
-                'gemini-chat':      'Used: Gemini 2.5 Flash (cloud)',
-                'diary':            'Used: encrypted diary (no LLM)',
-                'hostility-guard':  'Used: hostility guard (no LLM)',
-                'ood':              'Used: safe fallback (no LLM)',
+                'slm':              'used: SLM',
+                'slm+retrieval':    'used: SLM + retrieval',
+                'qwen-lora':        'used: Qwen LoRA',
+                'gemini-backup':    'used: Qwen → Gemini',
+                'gemini-chat':      'used: Gemini',
+                'diary':            'used: diary',
+                'hostility-guard':  'used: guard',
+                'ood':              'used: fallback',
             };
             const usedClassMap = {
                 'slm':              'chip-used-slm',
