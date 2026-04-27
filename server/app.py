@@ -175,11 +175,19 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 import time as _t
                 _t0 = _t.time()
                 from i3.intent.qwen_inference import QwenIntentParser
-                parser = QwenIntentParser()
+                # Iter 51 phase 7: ``I3_QWEN_DEVICE`` overrides device
+                # autodetection (default: CUDA if available, else CPU).
+                # Set to "cpu" on a tight 6 GB laptop GPU where the
+                # SLM v2 + Qwen 1.7 B can't both fit.  CPU adds ~6 s
+                # per intent call but the cascade still works and the
+                # cloud Gemini-backup arm catches anything Qwen flunks.
+                qwen_device = os.environ.get("I3_QWEN_DEVICE") or None
+                parser = QwenIntentParser(device=qwen_device)
                 parser._ensure_loaded()
                 pipeline._intent_parser_qwen = parser
                 logger.info(
-                    "Qwen LoRA pre-loaded in %.1fs", _t.time() - _t0,
+                    "Qwen LoRA pre-loaded in %.1fs (device=%s)",
+                    _t.time() - _t0, qwen_device or "auto",
                 )
             except Exception as exc:  # pragma: no cover - opt-in path
                 logger.warning(

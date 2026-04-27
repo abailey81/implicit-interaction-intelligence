@@ -215,6 +215,53 @@ a:hover { text-decoration: underline; }
     flex-shrink: 0;
 }
 
+/* ─── Iter 51 phase 7: Simple / Advanced nav mode switch ─── */
+
+.nav-mode-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.78);
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: all 0.18s var(--ease);
+}
+.nav-mode-toggle:hover {
+    background: rgba(255, 255, 255, 0.10);
+    color: #fff;
+}
+.nav-mode-toggle .nav-mode-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+    transition: background 0.2s var(--ease);
+}
+.nav-mode-toggle.is-advanced .nav-mode-dot {
+    background: var(--blue);
+}
+.nav-mode-toggle.is-advanced {
+    background: rgba(0, 122, 255, 0.10);
+    border-color: rgba(0, 122, 255, 0.35);
+    color: #fff;
+}
+
+/* When the body is NOT in advanced mode, hide the 16 advanced nav
+   entries (4 single tabs + 3 dropdown groups).  We default-hide via
+   :not(.nav-mode-advanced) so the very first paint already shows the
+   simple set — no flash of overloaded nav before JS runs. */
+body:not(.nav-mode-advanced) .nav-link.nav-advanced,
+body:not(.nav-mode-advanced) .nav-group.nav-advanced {
+    display: none !important;
+}
+
 .pipeline-ribbon {
     display: inline-flex;
     align-items: center;

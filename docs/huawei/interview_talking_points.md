@@ -20,20 +20,25 @@ If you only say one sentence all interview, say that one.
 
 Memorise this cold. Deliver it conversationally, not as a recitation.
 
-> "I³ — Implicit Interaction Intelligence — is a seven-layer on-device
-> personalisation stack. It learns the user from *how* they type — the
-> rhythm of their keystrokes, how varied their word choice is, how their
-> session drifts over time — never from what they explicitly say about
-> themselves. It compresses that into a 64-dim user-state embedding via a
-> 50 KB TCN encoder, turns that into an 8-dim adaptation vector, and
-> conditions a 6.3 M-parameter custom SLM via per-layer cross-attention at
-> every token position. A contextual Thompson sampling bandit learns
-> local-vs-cloud routing per user, per message, with a privacy override
-> that forces local routing on sensitive topics. The whole thing fits 7 MB
-> quantised and runs at 170 ms on a laptop CPU — comfortably on a Kirin
-> 9000 phone, tight-but-viable on a Kirin A2 watch, encoder-only on a
-> Smart Hanhan companion. And it's HMAF-compatible: each of the
-> adaptation dimensions surfaces as a composable HMAF capability."
+> "I³ — Implicit Interaction Intelligence — is an on-device
+> personalisation stack with three language-model arms. It learns the
+> user from *how* they type — keystroke rhythm, word-choice variety,
+> session drift — never from what they explicitly say about themselves.
+> It compresses that into a 64-dim user-state embedding via a 50 KB TCN
+> encoder, turns that into an 8-dim adaptation vector, and conditions a
+> **204 M-parameter from-scratch custom transformer** (the chat arm —
+> 12 layers, 12 heads, MoE + ACT, BPE 32 k vocab) via cross-attention
+> at every token position. A second arm — **Qwen 1.7 B + LoRA** — is
+> the deterministic JSON intent parser for vehicle commands
+> (`set_timer`, `play_music`, `navigate`, …) with `val_loss = 5.4×10⁻⁶`
+> on a 4 545 / 252 split. A third optional arm — **Gemini 2.5 Flash via
+> Google AI Studio** — is the OOD-command safety net; when Qwen flunks
+> a phrasing the cascade routes to Gemini and a slot-normaliser maps
+> the result back to the canonical schema. A contextual Thompson
+> sampling bandit learns local-vs-cloud routing per user, per message,
+> with a privacy override that forces local on sensitive topics. The
+> from-scratch chat arm is the differentiator; the cascade is what
+> makes the demo robust to phrasings nobody trained for."
 
 Beats to hit: implicit-first, structural conditioning, edge-feasible,
 HMAF-native, privacy-by-architecture. In that order.
@@ -49,7 +54,8 @@ HMAF-native, privacy-by-architecture. In that order.
 | **3. User model** | "Three timescales: instant, session (α=0.3), long-term (α=0.1). Welford online statistics for numerical stability. Z-scores against the long-term baseline drive the deviation signal." |
 | **4. Adaptation** | "Four adapters: cognitive load, style mirror, emotional tone, accessibility. Produces an 8-dim vector that conditions everything downstream." |
 | **5. Routing** | "Contextual Thompson sampling. Bayesian logistic regression per arm, Laplace-approximated posterior, Newton-Raphson MAP refit. 12-dim context. Privacy override vetoes the bandit on sensitive topics." |
-| **6a. Local SLM** | "6.3 M parameters, 4-layer Pre-LN transformer with self-attention + cross-attention + FFN per block. Word-level tokenizer, 8 K vocab, weight-tied output." |
+| **6a. Local SLM (chat arm)** | "204 M parameters, 12-layer × 12-head Pre-LN transformer with self-attention + cross-attention + FFN per block, MoE (2 experts) + ACT halting, BPE 32 K vocab, weight-tied output. From-scratch — no Llama / Qwen base." |
+| **6b. Intent parser (LoRA arm)** | "Qwen3-1.7B + LoRA (DoRA rank 16, NEFTune α=5, 8-bit AdamW, cosine warm restarts), val_loss 5.4×10⁻⁶. Deterministic JSON output validated against `ACTION_SLOTS`. The cascade calls this on commands; mis-parses fall through to Gemini." |
 | **6b. Cloud LLM** | "Anthropic Claude with dynamically constructed system prompts from the `AdaptationVector`. Payload sanitised before the HTTPS call." |
 | **7. Diary** | "Metadata-only logging: adaptation vectors, latencies, rewards, topic keywords via TF-IDF. No raw text ever persisted. Fernet-wrapped SQLite." |
 

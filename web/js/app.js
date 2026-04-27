@@ -1358,7 +1358,49 @@ async function populateStackPanel() {
     } catch (e) { /* panel is decorative; swallow */ }
 }
 
+// ─── Iter 51 phase 7: Simple / Advanced nav mode switch ───
+// Default = Simple (5 tabs visible: Chat / Stack / State / Adaptation /
+// About).  Click toggles to Advanced (all 21 tabs).  Persists in
+// localStorage under "i3.nav-mode".  We read + apply the saved mode
+// *before* DOMContentLoaded so the initial paint already matches.
+function applyNavMode(mode) {
+    const advanced = mode === 'advanced';
+    document.body.classList.toggle('nav-mode-advanced', advanced);
+    const btn = document.getElementById('nav-mode-toggle');
+    if (btn) {
+        btn.classList.toggle('is-advanced', advanced);
+        btn.setAttribute('aria-pressed', advanced ? 'true' : 'false');
+        const lbl = btn.querySelector('.nav-mode-label');
+        if (lbl) lbl.textContent = advanced ? 'Advanced' : 'Simple';
+    }
+}
+
+(function initNavMode() {
+    let mode = 'simple';
+    try {
+        mode = localStorage.getItem('i3.nav-mode') === 'advanced' ? 'advanced' : 'simple';
+    } catch (e) { /* localStorage may be disabled */ }
+    // Apply on the body class as soon as the body exists (CSS already
+    // hides .nav-advanced when body lacks .nav-mode-advanced).
+    if (document.body) {
+        applyNavMode(mode);
+    } else {
+        document.addEventListener('DOMContentLoaded', () => applyNavMode(mode), { once: true });
+    }
+})();
+
 document.addEventListener('DOMContentLoaded', () => {
     window.app = new I3App();
     populateStackPanel();
+
+    const navModeBtn = document.getElementById('nav-mode-toggle');
+    if (navModeBtn) {
+        navModeBtn.addEventListener('click', () => {
+            const next = document.body.classList.contains('nav-mode-advanced')
+                ? 'simple'
+                : 'advanced';
+            try { localStorage.setItem('i3.nav-mode', next); } catch (e) {}
+            applyNavMode(next);
+        });
+    }
 });

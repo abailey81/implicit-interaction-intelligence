@@ -45,15 +45,20 @@
                 <a href="#stack"       class="nav-link" data-tab="stack"       role="tab">Stack</a>
                 <a href="#state"       class="nav-link" data-tab="state"       role="tab">State</a>
                 <a href="#adaptation"  class="nav-link" data-tab="adaptation"  role="tab">Adaptation</a>
-                <a href="#routing"     class="nav-link" data-tab="routing"     role="tab">Routing</a>
-                <a href="#privacy"     class="nav-link" data-tab="privacy"     role="tab">Privacy</a>
-                <a href="#profile"     class="nav-link" data-tab="profile"     role="tab">Profile</a>
-                <a href="#edge"        class="nav-link" data-tab="edge"        role="tab">Edge</a>
+                <!-- Iter 51 phase 7: tabs below this line collapse behind
+                     the Simple/Advanced switch.  Default mode is Simple
+                     (5 tabs) so the 30-min demo nav doesn't overload a
+                     first-time viewer; click "Advanced" in the trailing
+                     toolbar to reveal the full subsystem map. -->
+                <a href="#routing"     class="nav-link nav-advanced" data-tab="routing"     role="tab">Routing</a>
+                <a href="#privacy"     class="nav-link nav-advanced" data-tab="privacy"     role="tab">Privacy</a>
+                <a href="#profile"     class="nav-link nav-advanced" data-tab="profile"     role="tab">Profile</a>
+                <a href="#edge"        class="nav-link nav-advanced" data-tab="edge"        role="tab">Edge</a>
                 <!-- Lab dropdown: Flow / Benchmarks / Playground are grouped
                      under one nav entry to declutter the top bar.  The
                      dropdown panel opens on hover or focus; clicking any
                      item routes to that tab via the existing hash router. -->
-                <div class="nav-group" data-group="lab">
+                <div class="nav-group nav-advanced" data-group="lab">
                     <button type="button" class="nav-link nav-group-trigger" aria-haspopup="true" aria-expanded="false" data-group="lab">
                         Lab<span class="nav-group-caret" aria-hidden="true">&#x25BE;</span>
                     </button>
@@ -64,7 +69,7 @@
                     </div>
                 </div>
                 <!-- Docs dropdown: Design / References grouped. -->
-                <div class="nav-group" data-group="docs">
+                <div class="nav-group nav-advanced" data-group="docs">
                     <button type="button" class="nav-link nav-group-trigger" aria-haspopup="true" aria-expanded="false" data-group="docs">
                         Docs<span class="nav-group-caret" aria-hidden="true">&#x25BE;</span>
                     </button>
@@ -78,7 +83,7 @@
                      Fine-tune Comparison / Personal Facts / Multimodal /
                      Research Notes / JD Map.  Each is a recruiter-
                      facing surface that proves a JD bullet. -->
-                <div class="nav-group" data-group="huawei">
+                <div class="nav-group nav-advanced" data-group="huawei">
                     <button type="button" class="nav-link nav-group-trigger" aria-haspopup="true" aria-expanded="false" data-group="huawei">
                         Huawei<span class="nav-group-caret" aria-hidden="true">&#x25BE;</span>
                     </button>
@@ -95,6 +100,19 @@
                 <a href="#about"       class="nav-link" data-tab="about"       role="tab">About</a>
             </nav>
             <div class="nav-trailing">
+                <!-- Iter 51 phase 7: Simple / Advanced nav switch.  Default
+                     is "Simple" so a recruiter walking up to the dashboard
+                     sees just five tabs (Chat / Stack / State / Adaptation
+                     / About) — the demo path.  Toggling to "Advanced"
+                     reveals the full 21-tab subsystem map.  State persists
+                     in localStorage under "i3.nav-mode". -->
+                <button type="button" class="nav-mode-toggle" id="nav-mode-toggle"
+                        title="Toggle Simple / Advanced nav (Simple = 5 tabs, Advanced = full subsystem map)"
+                        aria-label="Toggle simple or advanced navigation"
+                        aria-pressed="false">
+                    <span class="nav-mode-dot" aria-hidden="true"></span>
+                    <span class="nav-mode-label">Simple</span>
+                </button>
                 <div class="pipeline-ribbon" id="pipeline-ribbon">
                     <span class="pipe-dot" data-stage="encoder"></span>
                     <span class="pipe-dot" data-stage="adapt"></span>
