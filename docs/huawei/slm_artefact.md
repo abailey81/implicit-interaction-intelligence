@@ -201,6 +201,22 @@ eval script.
 | Step at which the best was reached | **18 000** | training log |
 | Val cohort | random sample drawn during training | trainer's `eval_pairs=200` |
 
+### 4.3 Companion fine-tune-of-pre-trained leg (iter 138 update)
+
+Independent of the SLM, the iter-51 → iter-138 work also shipped a
+**Qwen3-1.7B + LoRA** intent parser with 100 % action accuracy on
+its 253-example test set.  The two artefacts complement each other:
+
+| Path | What it does | Latest metric |
+|---|---|---|
+| **Custom SLM v2** (this doc) | Free-form conversational generation conditioned on the user-state vector + adaptation axes | `best_eval_loss = 4.99` (training-time) |
+| **Qwen LoRA intent parser** | Structured-output HMI command parsing (timer / music / smart-home / call / etc.) | `action_accuracy = 100 %`, `full_match = 100 %` |
+
+The custom SLM closes the JD's *"build SLMs without relying on heavy
+open-source frameworks"* clarification question; the Qwen LoRA closes
+the *"adapt or fine-tune pre-trained models"* required bullet.  Full
+fine-tune comparison in [`finetune_artefact.md`](finetune_artefact.md).
+
 The fact that the cross-entropy from the eval script and the
 `best_eval_loss` stored in the checkpoint match (within tokenisation
 noise) is the integrity check that the loaded weights are the
