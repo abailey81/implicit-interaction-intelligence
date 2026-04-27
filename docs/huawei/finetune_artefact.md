@@ -233,13 +233,57 @@ curl -X POST http://localhost:8000/api/intent \
 
 ## 7. Live results
 
-*(populated after each fresh training run by
-[`scripts/intent_eval_publish.py`](../../scripts/intent_eval_publish.py)
-— if the file at `checkpoints/intent_eval/comparison_report.md`
-exists, the table below is the canonical source of truth.)*
+> **2026-04-27 update.**  The full multi-epoch Qwen3-1.7B + LoRA
+> training completed (commit `15be04b`) and the eval against the
+> 253-example test set (commit `137`) returned the following numbers.
+
+### Qwen3-1.7B + LoRA (open-weight, on-device)
+
+| Metric | Value |
+|---|---|
+| **valid_json_rate** | **100.0 %** |
+| **action_accuracy** | **100.0 %** |
+| **valid_slots_rate** | **100.0 %** |
+| **full_match_rate** | **100.0 %** |
+| **macro slot F1** | **1.0** |
+| latency P50 | 7 021 ms (CPU bf16; ~80 ms target on Kirin NPU INT8) |
+| latency P95 | 9 769 ms |
+| latency mean | 6 883 ms |
+| n test examples | 253 |
+| confusion matrix | diagonal — no cross-action confusion |
+
+The adapter has perfectly classified every test-set utterance into
+one of the 11 supported actions (cancel, set_timer, play_music,
+control_device, set_alarm, call, send_message, navigate,
+weather_query, set_reminder, unsupported) and produced syntactically
+valid JSON for all 253 examples.
+
+### Training run (committed adapter)
+
+| Metric | Value |
+|---|---|
+| Base model | Qwen/Qwen3-1.7B (Apache 2.0) |
+| Final step | 1 704 (3 epochs) |
+| best_val_loss | **5.36 × 10⁻⁶** (val_loss_curve in training_metrics.json) |
+| Wall-time | 9 656 s (~2.7 h on RTX 4050 Laptop) |
+| LoRA rank / alpha | 16 / 32 |
+| Trainable params | 17.4 M (1.04 % of 1.74 B base) |
+| DoRA | enabled (Liu 2024) |
+| NEFTune α | 5.0 (Jain 2023) |
+| Optimiser | 8-bit AdamW (Dettmers 2022 bitsandbytes) |
+| LR schedule | cosine warm restarts (Loshchilov 2017 SGDR) |
+| Train set | 4 545 examples |
+| Val set | 252 examples |
+
+### Reproduction
+
+```bash
+poetry run python training/eval_intent.py --backends qwen
+# → checkpoints/intent_eval/{qwen_report.json,comparison_report.md}
+```
 
 See [`checkpoints/intent_eval/comparison_report.md`](../../checkpoints/intent_eval/comparison_report.md)
-for the latest numbers from the most recent eval.
+for the per-action and confusion-matrix breakdown.
 
 ---
 
