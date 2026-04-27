@@ -1418,4 +1418,21 @@ document.addEventListener('DOMContentLoaded', () => {
             applyNavMode(next);
         });
     }
+
+    // Iter 51 phase 13: Stack-tab "Show all 22 subsystems" toggle.
+    // Default: collapsed (CSS hides cards 9-22); click expands the
+    // grid and updates the button label.  Pure DOM, no persistence
+    // — recruiter-mode visitors should always start with the small
+    // visible set, expansion is their explicit choice per session.
+    const stackToggle = document.getElementById('stack-grid-toggle');
+    const stackGrid = document.getElementById('stack-subsystem-grid');
+    if (stackToggle && stackGrid) {
+        stackToggle.addEventListener('click', () => {
+            const expanded = stackGrid.classList.toggle('show-all');
+            stackToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+            stackToggle.textContent = expanded
+                ? 'Show fewer subsystems'
+                : 'Show all 22 subsystems';
+        });
+    }
 });

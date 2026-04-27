@@ -95,6 +95,36 @@
     margin: 0;
 }
 
+/* Iter 51 phase 13: collapse the Stack tab subsystem grid to its
+   first 8 cards by default; an explicit toggle reveals the rest.
+   Keeps the demo scannable on a 30-min walkthrough while preserving
+   full breadth for anyone who explicitly asks for it. */
+#stack-subsystem-grid:not(.show-all) > .huawei-card:nth-child(n+9) {
+    display: none;
+}
+.stack-grid-toggle {
+    appearance: none;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.85);
+    font-family: var(--font-body, ui-sans-serif, system-ui);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    padding: 6px 14px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background-color 0.18s ease, border-color 0.18s ease;
+}
+.stack-grid-toggle:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.22);
+}
+.stack-grid-toggle[aria-expanded="true"] {
+    background: rgba(0, 122, 255, 0.10);
+    border-color: rgba(0, 122, 255, 0.35);
+}
+
 .huawei-grid .huawei-card h3 {
     margin: 0 0 8px 0;
     font-size: 15px;

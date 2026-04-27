@@ -124,7 +124,7 @@
                      Cites Monrose & Rubin (1997) and Killourhy & Maxion
                      (2009).  Click opens a popover with re-register /
                      force-register / view-profile actions. -->
-                <button type="button" class="identity-lock unregistered" id="identity-lock"
+                <button type="button" class="identity-lock unregistered nav-advanced-widget" id="identity-lock"
                         title="Typing biometric authentication (Monrose & Rubin 1997, Killourhy & Maxion 2009)"
                         aria-label="Typing biometric Identity Lock" aria-haspopup="true" aria-expanded="false">
                     <span class="lock-icon" aria-hidden="true">&#x1F512;</span>
@@ -143,14 +143,14 @@
                     <button type="button" class="lock-action" data-action="profile" role="menuitem">View profile</button>
                 </div>
                 <span class="state-badge warming-up" id="state-badge" title="User-state classifier — live label">—</span>
-                <button type="button" class="access-toggle" id="access-toggle"
+                <button type="button" class="access-toggle nav-advanced-widget" id="access-toggle"
                         title="Toggle accessibility mode (auto-engages on sustained motor-difficulty signals)"
                         aria-label="Toggle accessibility mode" aria-pressed="false">A</button>
                 <!-- Cloud-route consent toggle.  Default OFF; click flips
                      /api/routing/cloud-consent/{user_id}.  When ON, the
                      pill turns blue and the text shows the live remaining
                      budget pulled from the privacy_budget snapshot. -->
-                <button type="button" class="cloud-consent off" id="cloud-consent-toggle"
+                <button type="button" class="cloud-consent off nav-advanced-widget" id="cloud-consent-toggle"
                         title="Cloud LLM route consent (opt-in fallback when the bandit picks cloud)"
                         aria-label="Toggle cloud LLM route" aria-pressed="false">
                     <span class="cloud-icon" aria-hidden="true">&#9729;</span>
@@ -289,9 +289,9 @@
                  ML stack" without forcing the reader to grep the repo.
                  ───────────────────────────────────────────────────── -->
             <header class="section-head reveal" style="margin-top: 96px;">
-                <p class="eyebrow">Subsystem map · iter 51-140</p>
+                <p class="eyebrow">Subsystem map</p>
                 <h2 class="section-title">22 subsystems, one repo.</h2>
-                <p class="section-sub">Each card lists the module, line count, runtime status, and the paper or standard it implements. Links jump to the source. <strong>Latest live numbers:</strong> 88 commits stacked since iter 51, 640 / 640 + 1 skipped tests green via <code>make test-iter</code>, trained Qwen LoRA at <code>action_accuracy = 100 %</code> on 253 test examples.</p>
+                <p class="section-sub">Each card lists the module, line count, runtime status, and the paper or standard it implements. Links jump to the source.</p>
             </header>
             <div class="huawei-grid reveal" id="stack-subsystem-grid">
                 <article class="huawei-card">
@@ -426,6 +426,18 @@
                     <p>Coordinates SLM + cloud + tools per-turn. Hybrid Multi-Agent Framework backbone for the HarmonyOS-aligned roadmap.</p>
                     <p><a href="i3/huawei/agentic_core_runtime.py">i3/huawei/agentic_core_runtime.py</a></p>
                 </article>
+            </div>
+            <!-- Iter 51 phase 13: collapse the 22-card grid by default
+                 (CSS shows only the first 8) and surface a toggle to
+                 reveal the rest.  Keeps the demo Stack tab scannable
+                 while preserving the full breadth for anyone who
+                 clicks through. -->
+            <div class="reveal" style="margin-top: 16px; text-align: center;">
+                <button type="button" id="stack-grid-toggle" class="stack-grid-toggle"
+                        aria-expanded="false"
+                        aria-controls="stack-subsystem-grid">
+                    Show all 22 subsystems
+                </button>
             </div>
         </section>
 

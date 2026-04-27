@@ -176,6 +176,16 @@ class ChatInterface {
      */
     _attachMeta(body, metadata) {
         if (!metadata) return;
+        // Iter 51 phase 13: when the new ``route_decision`` chip row
+        // is going to render below the bubble, the inline meta no
+        // longer needs to show route / response_path / retrieval
+        // confidence / adaptation rewrites — those duplicate what
+        // the chips already say and make the bubble look overloaded.
+        // We keep latency + critique + safety + affect-shift +
+        // co-reference because those carry orthogonal information.
+        const hasRouteChip = metadata.route_decision
+            && typeof metadata.route_decision === 'object'
+            && metadata.route_decision.arm;
         const hasAffectShift = metadata.affect_shift
             && metadata.affect_shift.detected;
         const hasCritique = metadata.critique
@@ -200,7 +210,7 @@ class ChatInterface {
         const meta = document.createElement('div');
         meta.className = 'message-meta';
 
-        if (metadata.route) {
+        if (metadata.route && !hasRouteChip) {
             const routeStr = String(metadata.route).toLowerCase();
             const routeBadge = document.createElement('span');
             const isEdge = routeStr.includes('local')
@@ -208,9 +218,6 @@ class ChatInterface {
                 || routeStr.includes('slm');
             routeBadge.classList.add('meta-badge');
             routeBadge.classList.add(isEdge ? 'edge' : 'cloud');
-            // Re-skin as the new orange/green "route" chip with a
-            // tooltip pulled from the routing_decision dict so the
-            // user can see exactly why this turn was routed where.
             routeBadge.classList.add(
                 isEdge ? 'meta-badge-edge-route' : 'meta-badge-cloud-route'
             );
@@ -250,7 +257,7 @@ class ChatInterface {
             }
         }
 
-        if (metadata.response_path) {
+        if (metadata.response_path && !hasRouteChip) {
             const pathStr = String(metadata.response_path).toLowerCase();
             const pathBadge = document.createElement('span');
             pathBadge.classList.add('meta-badge');
@@ -302,19 +309,28 @@ class ChatInterface {
             }
         }
 
+        // Iter 51 phase 13: collapse the per-axis adaptation_changes
+        // into a single summary chip ("↻ 3 axes adapted") with the
+        // full breakdown in the tooltip.  The previous loop produced
+        // up to 8 separate chips per bubble which dominated the
+        // message-meta row; this stays informative while keeping the
+        // visual surface tight.
         if (Array.isArray(metadata.adaptation_changes)
             && metadata.adaptation_changes.length) {
-            for (const ch of metadata.adaptation_changes) {
-                if (!ch || typeof ch !== 'object') continue;
+            const changes = metadata.adaptation_changes
+                .filter(ch => ch && typeof ch === 'object');
+            if (changes.length) {
                 const adaptBadge = document.createElement('span');
                 adaptBadge.className = 'meta-badge meta-badge-adapt';
-                const axis = String(ch.axis || '').replace(/_/g, ' ');
-                const change = String(ch.change || '');
-                const val = ch.value !== undefined ? String(ch.value) : '';
-                adaptBadge.textContent = val
-                    ? `${axis} ${val} · ${change}`
-                    : `${axis} · ${change}`;
-                adaptBadge.title = `Adaptation rewrite triggered by ${axis} = ${val}`;
+                adaptBadge.textContent = changes.length === 1
+                    ? `↻ ${String(changes[0].axis || '').replace(/_/g, ' ')}`
+                    : `↻ ${changes.length} axes adapted`;
+                adaptBadge.title = changes.map(ch => {
+                    const axis = String(ch.axis || '').replace(/_/g, ' ');
+                    const change = String(ch.change || '');
+                    const val = ch.value !== undefined ? String(ch.value) : '';
+                    return val ? `${axis} ${val} · ${change}` : `${axis} · ${change}`;
+                }).join('\n');
                 meta.appendChild(adaptBadge);
             }
         }
@@ -1298,7 +1314,14 @@ class ChatInterface {
             span.textContent = chip.text;
             wrap.appendChild(span);
         });
-        msgEl.appendChild(wrap);
+        // Iter 51 phase 13: append the chip row to the message *body*
+        // (the column that already holds the bubble text + meta) so
+        // it stacks vertically below the text.  Previously appended
+        // to ``msgEl`` (the flex row), which made the row sit next
+        // to the 28 px round TTS speaker button, looking like the
+        // speaker overlaid / collided with the chips.
+        const body = msgEl.querySelector('.message-body');
+        (body || msgEl).appendChild(wrap);
     }
 
     _appendBubbleTts(msgEl, body) {

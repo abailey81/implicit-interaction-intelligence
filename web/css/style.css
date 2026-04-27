@@ -262,6 +262,16 @@ body:not(.nav-mode-advanced) .nav-group.nav-advanced {
     display: none !important;
 }
 
+/* Iter 51 phase 13: also hide the trailing widgets that don't earn
+   their place in a 30-min recruiter demo (typing-biometric Identity
+   Lock, accessibility A toggle, cloud-consent toggle) in Simple
+   mode.  The Simple/Advanced toggle, pipeline-ribbon, and live
+   state-badge stay visible because they're either part of the pitch
+   (state-badge) or the toggle itself. */
+body:not(.nav-mode-advanced) .nav-advanced-widget {
+    display: none !important;
+}
+
 .pipeline-ribbon {
     display: inline-flex;
     align-items: center;
