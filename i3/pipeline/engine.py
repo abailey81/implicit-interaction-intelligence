@@ -4925,13 +4925,25 @@ class Pipeline:
                 "smart_route: %s for %r",
                 smart_route, message[:60],
             )
+            # Greetings short-circuit to a deterministic local reply.
+            # No LLM call at all — keeps "hello" off the cloud arm
+            # and gives the demo a snappy on-device opener.
+            if smart_route == "greeting":
+                self._last_response_path = "tool:greeting"
+                return self._greeting_reply(message)
             # For world_chat / cascade_meta, skip retrieval entirely
             # and call cloud_chat directly — the local arms can't
             # produce the correct content for these classes anyway.
             if smart_route in ("world_chat", "cascade_meta"):
                 from os import environ as _env
                 if _env.get("GEMINI_API_KEY"):
-                    cloud_text = await self._gemini_chat_fallback(message)
+                    # Iter 51 phase 14: use the COREF-RESOLVED message
+                    # so a follow-up like "where are they located?"
+                    # gets sent to Gemini as "where is huawei located?".
+                    # ``query_for_retrieval`` already holds the resolved
+                    # form built upstream by the coref module.
+                    qry = (query_for_retrieval or message)
+                    cloud_text = await self._gemini_chat_fallback(qry)
                     if cloud_text:
                         self._last_response_path = "cloud_chat"
                         return cloud_text
@@ -5640,7 +5652,12 @@ class Pipeline:
         from os import environ as _env_chat
         if _env_chat.get("GEMINI_API_KEY"):
             try:
-                cloud_text = await self._gemini_chat_fallback(message)
+                # Iter 51 phase 14: pass the COREF-RESOLVED query to
+                # the cloud arm so a follow-up like "where are they
+                # located?" reaches Gemini as "where is huawei
+                # located?" instead of the unresolved pronoun.
+                cloud_qry = (query_for_retrieval or message)
+                cloud_text = await self._gemini_chat_fallback(cloud_qry)
                 if cloud_text:
                     self._last_response_path = "cloud_chat"
                     logger.info(
@@ -6352,70 +6369,133 @@ class Pipeline:
         re.compile(r"^\s*(?:tell\s+me\s+about|describe|what\s+is|what\s+are|who\s+(?:is|was)|where\s+(?:is|are)|when\s+(?:is|was|did)|why\s+(?:is|did|do)|how\s+(?:is|are|did|does)|explain|define)\b", re.I),
     )
 
+    # Patterns that signal a short greeting / chitchat opener.  Routed
+    # to a local hand-written reply — no LLM call at all.  Keeps
+    # "hello" off the cloud arm where it doesn't belong.
+    _GREETING_PATTERNS: tuple = (
+        re.compile(r"^\s*(?:hi|hello|hey|howdy|yo|hiya|hola|sup|good\s+(?:morning|afternoon|evening|day))\s*[!.\?]*\s*$", re.I),
+        re.compile(r"^\s*(?:what'?s\s+up|how'?s\s+it\s+going|how\s+are\s+(?:you|things))\s*\??\s*$", re.I),
+        re.compile(r"^\s*(?:thanks?|thank\s+you|thx|ty|cheers|appreciate\s+it)\s*[!.\?]*\s*$", re.I),
+    )
+
     def _smart_classify_query(self, message: str) -> str:
-        """Heuristic query classifier for the Smart Router.
+        """Smart Router — multi-signal scored classifier.
 
-        Returns one of:
-          ``command`` (caller already handled), ``system_intro``,
-          ``cascade_meta``, ``world_chat``, ``default_chat``.
+        Computes a confidence score in ``[0, 1]`` for every route
+        class (``greeting`` / ``cascade_meta`` / ``system_intro`` /
+        ``world_chat`` / ``default_chat``), picks the highest, and
+        stashes the FULL score dict on ``self._last_smart_scores``
+        so the chip tooltip can surface every arm's confidence.
 
-        The router runs *after* the regex command gate has rejected
-        the message, so this method never sees a structured HMI
-        command.  It's pure heuristic — no model calls.
+        Signals (deterministic, no model calls):
+            • greeting / chitchat regex match
+            • cascade-meta regex match
+            • system-intro regex match
+            • world-question shape (tell me about / what is / …)
+            • KG-subject anchor in query
+            • system-topic anchor in query (transformer / tcn / …)
 
-        Precision discipline:
-        1. Cascade-meta is checked first (high specificity).
-        2. System-intro is checked next (curated answers).
-        3. World-chat fires only when the query has a question shape
-           AND does NOT mention a known KG subject — if the KG has
-           grounding for the subject, we defer to retrieval.
-        4. Anything else is default_chat (SLM+retrieval, cloud
-           fallback).
+        The combination rules:
+            1. Greetings short-circuit at 0.99 (never compete).
+            2. Question-shape + local anchor → boost default_chat,
+               demote world_chat (curated retrieval beats cloud).
+            3. Question-shape + no anchor → boost world_chat to
+               0.92 (cloud arm is the right answer).
+            4. Non-question, non-meta input gets default_chat 0.50.
+        """
+        scores = self._smart_score_arms(message)
+        self._last_smart_scores = scores
+        return max(scores, key=scores.get)
+
+    def _smart_score_arms(self, message: str) -> dict:
+        """Compute the per-route-class confidence dict.
+
+        Public surface for tests + the route_decision builder.
+        Never mutates ``self`` — the caller is responsible for
+        stashing on ``_last_smart_scores`` if it wants to expose
+        the scores.
         """
         msg = (message or "").strip().lower()
+        scores: dict[str, float] = {
+            "greeting":     0.0,
+            "cascade_meta": 0.0,
+            "system_intro": 0.0,
+            "world_chat":   0.0,
+            "default_chat": 0.05,
+        }
         if not msg:
-            return "default_chat"
-        # 1. Cascade-meta first (subset of system_intro but needs cloud_chat).
+            return scores
+
+        # Signal: greeting.
+        for pat in self._GREETING_PATTERNS:
+            if pat.search(msg):
+                scores["greeting"] = 0.99
+                return scores  # short-circuit
+
+        # Signal: cascade-meta.
         for pat in self._CASCADE_META_PATTERNS:
             if pat.search(msg):
-                return "cascade_meta"
-        # 2. System introspection — curated retrieval answers.
+                scores["cascade_meta"] = 0.95
+
+        # Signal: system-intro.
         for pat in self._SYSTEM_INTRO_PATTERNS:
             if pat.search(msg):
-                return "system_intro"
-        # 3. World chat — open-question shape AND no KG subject in query.
+                scores["system_intro"] = 0.90
+
+        # Signal: world-question shape.
         is_question_shape = any(
             pat.search(msg) for pat in self._WORLD_CHAT_PATTERNS
         )
         if is_question_shape:
-            # Defer to retrieval when the query mentions ANY anchor
-            # we have grounding for — KG subjects (curated triple
-            # content) OR system-introspection topics like
-            # "transformer", "encoder", "tcn", "adaptation".  E.g.
-            # "what is photosynthesis" → default_chat → retrieval; and
-            # "what is a transformer" → default_chat → retrieval (the
-            # system_topics anchor catches it even though
-            # "transformer" isn't a KG subject).
-            try:
-                kg = getattr(self, "_knowledge_graph", None)
-                if kg is None:
-                    from i3.dialogue.knowledge_graph import (
-                        KnowledgeGraph,
-                    )
-                    kg = KnowledgeGraph()
-                    self._knowledge_graph = kg
-                kg_subjects = {t.subject.lower() for t in kg._triples}
-                local_anchors = kg_subjects | {
-                    "transformer", "encoder", "tcn", "adaptation",
-                    "biometric", "biometrics", "keystroke",
-                    "interaction", "intelligence", "i3", "i³",
-                }
-                if any(s in msg for s in local_anchors):
-                    return "default_chat"
-            except Exception:
-                pass
-            return "world_chat"
-        return "default_chat"
+            scores["world_chat"] = 0.75
+
+        # Signal: KG / system-topic anchor in query.
+        kg_anchor_hit = False
+        sys_anchor_hit = False
+        try:
+            kg = getattr(self, "_knowledge_graph", None)
+            if kg is None:
+                from i3.dialogue.knowledge_graph import KnowledgeGraph
+                kg = KnowledgeGraph()
+                self._knowledge_graph = kg
+            kg_subjects = {t.subject.lower() for t in kg._triples}
+            sys_topics = {
+                "transformer", "encoder", "tcn", "adaptation",
+                "biometric", "biometrics", "keystroke",
+                "interaction", "intelligence", "i3", "i³",
+            }
+            kg_anchor_hit = any(s in msg for s in kg_subjects)
+            sys_anchor_hit = any(s in msg for s in sys_topics)
+        except Exception:
+            pass
+
+        # Combination rules.
+        if is_question_shape and (kg_anchor_hit or sys_anchor_hit):
+            scores["world_chat"] = max(scores["world_chat"] - 0.50, 0.10)
+            scores["default_chat"] = max(scores["default_chat"], 0.85)
+        if is_question_shape and not (kg_anchor_hit or sys_anchor_hit):
+            scores["world_chat"] = max(scores["world_chat"], 0.92)
+        if not is_question_shape \
+                and scores["cascade_meta"] == 0.0 \
+                and scores["system_intro"] == 0.0:
+            scores["default_chat"] = max(scores["default_chat"], 0.50)
+
+        return scores
+
+    def _greeting_reply(self, message: str) -> str:
+        """Deterministic local reply for short greetings / chitchat.
+
+        No LLM call.  Picks one of three openers based on the
+        greeting shape (greet / catch-up / thanks) so repeated
+        "hi"s don't all return identical text.  All three are
+        I³-flavoured + one-sentence + invite the next turn.
+        """
+        msg = (message or "").strip().lower()
+        if any(t in msg for t in ("thank", "thx", " ty", "cheers", "appreciate")):
+            return "Anytime. What's next?"
+        if any(t in msg for t in ("how are", "how's it", "what's up", "whats up")):
+            return "All systems on-device and ready. What can I help with?"
+        return "Hi. What can I help with?"
 
     def _build_route_decision(
         self,
@@ -6520,6 +6600,17 @@ class Pipeline:
             )
             threshold = "regex name pattern matched"
             cls = "fact"
+        elif path == "tool:greeting":
+            arm = "greeting"
+            model = "Hand-written deterministic reply (no LLM)"
+            reason = (
+                "Short greeting / chitchat pattern matched "
+                "('hello', 'hi', 'thanks', 'how are you'); served "
+                "from a hand-written local opener — no cloud arm "
+                "needed for this kind of turn."
+            )
+            threshold = "greeting regex matched"
+            cls = "greeting"
         elif path == "tool:refuse" or path == "tool:hostility":
             arm = "hostility-guard"
             model = "Rule-based deflection"
@@ -6549,6 +6640,15 @@ class Pipeline:
         slm_used    = arm in ("slm", "slm+retrieval")
         qwen_used   = arm in ("qwen-lora", "gemini-backup")
         gemini_used = arm in ("gemini-backup", "gemini-chat")
+        # Smart-router multi-signal confidence scores.  When the
+        # router ran, we stashed every route class's score on
+        # ``_last_smart_scores``.  Surface them in the chip tooltip
+        # so the recruiter sees WHY this arm won — e.g. "world_chat
+        # 0.92 vs default_chat 0.05 because question-shape and no
+        # KG anchor".
+        smart_scores = dict(
+            getattr(self, "_last_smart_scores", {}) or {}
+        )
         return {
             "arm": arm,
             "model": model,
@@ -6561,6 +6661,9 @@ class Pipeline:
                 "slm":    slm_used,
                 "qwen":   qwen_used,
                 "gemini": gemini_used,
+            },
+            "smart_scores": {
+                k: round(float(v), 3) for k, v in smart_scores.items()
             },
         }
 
@@ -6607,14 +6710,19 @@ class Pipeline:
         # local arm replies.
         system = (
             "You are I³ (Implicit Interaction Intelligence), a small "
-            "on-device HMI assistant for a vehicle.  Reply directly to "
-            "the user, in TWO short sentences, plain prose. "
+            "on-device assistant.  Your home is a vehicle HMI but you "
+            "answer general-knowledge questions too — countries, "
+            "people, science, software, history.  Reply directly, in "
+            "TWO short sentences, plain prose.\n\n"
             "STRICT RULES:\n"
             " - Never say 'I am a large language model', 'I am an AI', "
             "or identify yourself as Google / OpenAI / Gemini / GPT / "
             "Claude / Anthropic.  You are I³.\n"
             " - Never apologise, hedge, or mention training.  Just "
-            "answer.\n"
+            "answer the question that was asked.\n"
+            " - Don't refuse a non-vehicle question by saying 'I help "
+            "with vehicle functions' — answer it.  Vehicle context is "
+            "the home but not the only domain.\n"
             " - If the user is being rude, deflect with one calm "
             "sentence and pivot back to what you can help with.\n"
             " - If the user asks 'how do you work?' / 'what are you?' "

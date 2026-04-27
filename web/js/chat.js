@@ -1247,6 +1247,7 @@ class ChatInterface {
                 'gemini-chat':      'used: Gemini',
                 'diary':            'used: diary',
                 'hostility-guard':  'used: guard',
+                'greeting':         'used: local',
                 'ood':              'used: fallback',
             };
             const usedClassMap = {
@@ -1257,17 +1258,33 @@ class ChatInterface {
                 'gemini-chat':      'chip-used-gemini',
                 'diary':            'chip-used-tool',
                 'hostility-guard':  'chip-used-tool',
+                'greeting':         'chip-used-tool',
                 'ood':              'chip-used-tool',
             };
             const usedLabel = usedLabelMap[rd0.arm] || ('Used: ' + rd0.arm);
             const usedCls   = usedClassMap[rd0.arm] || 'chip-used-tool';
-            const usedTip = [
+            const usedTipLines = [
                 'arm: ' + rd0.arm,
                 'model: ' + (rd0.model || '—'),
                 'class: ' + (rd0.query_class || '—'),
                 'reason: ' + (rd0.reason || '—'),
                 'threshold: ' + (rd0.threshold || '—'),
-            ].join('\n');
+            ];
+            // Smart-router per-class confidence scores (the multi-
+            // signal scorer behind the routing decision).  Renders
+            // as a sorted list so the highest-scoring class is
+            // visually first in the tooltip.
+            if (rd0.smart_scores && typeof rd0.smart_scores === 'object') {
+                const ranked = Object.entries(rd0.smart_scores)
+                    .sort(function (a, b) { return b[1] - a[1]; })
+                    .map(function (kv) {
+                        return '  ' + kv[0].padEnd(13)
+                             + (Number(kv[1]).toFixed(2));
+                    })
+                    .join('\n');
+                usedTipLines.push('scores:\n' + ranked);
+            }
+            const usedTip = usedTipLines.join('\n');
             chips.push({
                 cls: 'chip-used ' + usedCls,
                 title: usedTip,
