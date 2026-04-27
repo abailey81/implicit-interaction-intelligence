@@ -109,4 +109,98 @@ IntentResult on the WS state_update so the dashboard renders it.
 
 ---
 
-## Iter 53 — *(next focus, picked when iter 52 commits)*
+## Iter 53 — Edge Profile dashboard renders cascade_arms (commit `e57c77f`)
+
+**Focus.** Wire the iter-52 `cascade_arms` block (`/api/profiling/report`)
+into the dashboard's Edge Profile tab so the reviewer can see the
+3-arm cascade structure visually, not just in the JSON.
+
+**Outcome.** `web/js/huawei_tabs.js#renderEdgeProfile` now appends a
+3-card grid (one per arm) below the existing component table; each
+card shows P50 latency, memory delta, and when the arm fires.
+
+## Iter 54 — Promote deep emulator + add cascade-profiling tests (commit `0de7c46`)
+
+**Focus.** Move `D:/tmp/deep_real_user_emulation.py` into
+`scripts/deep_real_user_emulation.py` so reviewers can run it without
+the scratchpad path; add 7 fast tests pinning the
+`/api/profiling/report` shape contract.
+
+## Iter 55 — Per-arm rolling latency tracker + dashboard ribbon (commit `418ff11`)
+
+**Focus.** Static profile (iter 51) tells the reviewer what the
+budget *says*; iter 55 adds the matching live measurement.
+`Pipeline._cascade_arm_latencies` (deque maxlen 200 per arm),
+`Pipeline.cascade_arm_stats()`, `GET /api/cascade/stats`, and the
+Edge Profile tab now appends a "Live cascade-arm latency" table
+beneath the static cards.
+
+## Iter 56 — Deep system-health endpoint (commit `a7ae791`)
+
+**Focus.** Single-page snapshot of every subsystem.
+`GET /api/health/deep` returns SLM v2 (checkpoint present, params,
+best_eval_loss), encoder, intent (Qwen adapter + Gemini key set as
+boolean — never the value), cloud (registered providers), privacy
+(encryption key set, budget loaded), cascade (live counters),
+profiling (top-line edge numbers), checkpoint disk inventory.
+
+## Iter 57 — Multilingual + adversarial robustness tests (commit `9943d7b`)
+
+**Focus.** Prove the pre-SLM layers survive non-Latin scripts.  27
+tests covering BPE round-trip on French / Spanish / Japanese /
+Chinese / Korean / Arabic / Hebrew / Russian / Greek / Hindi /
+emoji / Zalgo, plus intent-gate / PII / sensitivity-classifier
+robustness on multilingual input.
+
+## Iter 58 — SLM v2 perf-regression guard tests (commit `28bf6ce`)
+
+**Focus.** 4 tests load the v2 checkpoint and assert: param count in
+194-215 M (±5 % drift), vocab matches BPE, single forward < 6 s on
+CPU, output shape `(batch, seq, vocab)`.
+
+## Iter 59 — Redteam batch eval (commit `10ab1e3`)
+
+**Focus.** Third eval harness alongside `eval_intent.py` and
+`eval_slm_v2.py`.  `training/eval_redteam.py` runs the 55-attack
+`ATTACK_CORPUS` through the safety classifier; baseline block
+recall = 0.028 (honest — surfaces the prompt-injection vs
+harm-content threat-model gap).
+
+## Iter 60 — Privacy-budget circuit-breaker tests (commit `1f705b9`)
+
+**Focus.** 7 tests pin PrivacyBudget invariants: default consent
+OFF, per-session call + byte budgets exhaust correctly, reset
+clears bucket, per-user isolation.
+
+## Iter 61 — PipelineOutput contract tests (commit `33c5bf5`)
+
+**Focus.** 26 tests pin the WS frame schema (10 required + 22
+optional fields), defaults sanity-checked, iter-51 fields
+(safety_caveat, personal_facts, intent_result) explicitly verified.
+
+## Iter 62 — Per-cascade-arm chat-bubble chip (commit `e87713b`)
+
+**Focus.** `web/js/chat.js#_appendSideChips` now also emits an
+arm-label chip derived from `metadata.response_path`: `A · SLM`,
+`B · Qwen LoRA`, `C · cloud`, `R · retrieval`, `T · <tool>`.
+
+## Iter 63 — Cloud MultiProviderClient tests (commit `fa78d99`)
+
+**Focus.** 8 tests pin the fallback-chain behaviour: short-circuit
+on success, fall-back on failure, exception when all fail, circuit
+breaker opens after threshold, AuthError treated as terminal,
+stats() reporting, input validation, idempotent close().
+
+## Iter 64 — BPE tokenizer corner-case tests (commit `b97e5b5`)
+
+**Focus.** 13 tests pin tokenizer behaviour: empty / whitespace /
+single-byte / control char / emoji surrogate pairs / leading-trailing
+whitespace preservation / 9 000-char round-trip / BOS+EOS injection /
+distinct special IDs / idempotent double encode.
+
+## Iter 65 — Aggregate CHANGELOG + roadmap refresh (this commit)
+
+**Focus.** Document iter 53-64 in CHANGELOG and this roadmap so the
+reviewer can read the trajectory in one place.
+
+## Iter 66 — *(next focus, picked when iter 65 commits)*

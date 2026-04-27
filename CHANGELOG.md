@@ -253,6 +253,58 @@ mis-firing on the correct answer "what is 2 plus 2 → 4.").
 
 ### Added
 
+- **Iter 52-64 (2026-04-27) — open-ended improvement loop, all spheres.**
+
+  After iter 51 closed the JD's required bullets, the user asked for a
+  rolling improvement loop covering "absolutely everything".  Thirteen
+  iterations shipped in this batch, each a single-PR-sized change with
+  CHANGELOG / memory note / commit / green test suite.  Highlights:
+
+  - **iter 52** (`ae27d65`) — wired the Qwen LoRA + Gemini fine-tune
+    artefacts into the *live* chat pipeline as a real cascade.  New
+    `_INTENT_TRIGGER_PATTERNS` regex gate + `_maybe_handle_intent_command()`
+    helper short-circuits HMI command-shaped utterances through the
+    Qwen3-1.7B + LoRA + DoRA + NEFTune parser before falling through
+    to the SLM.  Edge profiling report now ships `cascade_arms` block
+    (A=SLM / B=Qwen LoRA / C=Gemini cloud).
+  - **iter 53** (`e57c77f`) — Edge Profile dashboard tab renders
+    the cascade-arm cards under the static component table.
+  - **iter 54** (`0de7c46`) — promoted `scripts/deep_real_user_emulation.py`
+    into the repo + 7 new profiling-cascade tests.
+  - **iter 55** (`418ff11`) — `Pipeline._cascade_arm_latencies` rolling
+    deque + `Pipeline.cascade_arm_stats()` + `GET /api/cascade/stats` +
+    dashboard live latency table beneath the static cards.
+  - **iter 56** (`a7ae791`) — `GET /api/health/deep` deep system-health
+    snapshot covering SLM v2 / encoder / intent / cloud router /
+    privacy / cascade / profiling / checkpoint disk inventory.
+  - **iter 57** (`9943d7b`) — multilingual + adversarial robustness
+    tests (CJK, RTL, emoji, code-switching, Zalgo) for BPE / intent
+    gate / PII sanitiser / sensitivity classifier; 27/27 green.
+  - **iter 58** (`28bf6ce`) — SLM v2 perf-regression guard tests
+    (param count drift, vocab match, forward latency, output shape).
+  - **iter 59** (`10ab1e3`) — `training/eval_redteam.py` + reports
+    against the 55-attack `ATTACK_CORPUS`; honest baseline of safety-
+    classifier block recall (0.028 — surfaces the prompt-injection
+    vs harm-content threat-model gap honestly).
+  - **iter 60** (`1f705b9`) — privacy-budget circuit-breaker tests
+    pinning consent default OFF + per-session call/byte budgets +
+    per-user isolation + reset behaviour.
+  - **iter 61** (`33c5bf5`) — PipelineOutput contract tests pinning
+    the WS frame schema (10 required + 22 optional fields).
+  - **iter 62** (`e87713b`) — chat bubbles now render a per-cascade-arm
+    chip (A · SLM, B · Qwen LoRA, C · cloud, R · retrieval, T · <name>)
+    so the user sees which arm served each turn.
+  - **iter 63** (`fa78d99`) — MultiProviderClient fail-fast + circuit-
+    breaker + AuthError-terminal-for-provider tests.
+  - **iter 64** (`b97e5b5`) — BPE tokenizer corner-case tests (empty
+    string, whitespace, control chars, surrogate-pair emoji,
+    9 000-char input, BOS/EOS injection, idempotency under double
+    encode).
+
+  Aggregate test count for iter 52-64: **153 / 153 green** in 4.85 s
+  (cascade + multilingual + perf + health + privacy + contract +
+  multi-provider + BPE-corner).
+
 - **Iter 51 (2026-04-27) — JD-required gap closure: fine-tune
   pre-trained models + 9 docs/huawei/ deliverables + dashboard
   expansion + extensive real-user emulation.**
