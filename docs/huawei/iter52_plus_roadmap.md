@@ -288,4 +288,55 @@ ephemeral-key fallback, and invalid-key rejection.
 
 Total iter-52..80 test count: **295 / 295 green in 5.49 s.**
 
-## Iter 82 — *(next focus, picked when iter 81 commits)*
+## Iter 82 — PrivacyBudget snapshot WS-shape regression (commit `988baf8`)
+
+6 tests pin the 11-key snapshot.to_dict() schema (totals, max,
+remaining, consent, redactions, last_call_ts).
+
+## Iter 83 — TopicSensitivityDetector category coverage (commit `6cda02f`)
+
+16 tests across confidential / abuse_safety / medical_records;
+benign turns at min_score; iter-51 inflection fix verified
+("sexually assaulted" / "raped" / "molested" all flagged ≥ 0.90).
+
+## Iter 84 — DiaryStore session-lifecycle round-trip (commit `446d464`)
+
+8 tests against a temp SQLite db: create_session → log_exchange →
+get_session_exchanges → end_session → get_user_sessions; plus
+user_facts set/get/forget round-trip (iter-50 contract).
+
+## Iter 85 — Dashboard HTML nav-link contract (commit `aa052d8`)
+
+7 tests assert every nav-link's data-tab has a matching tab-panel id,
+the iter-51 Huawei tabs are present, the Stack subsystem grid is
+present, and required CSS / JS files are referenced.
+
+## Iter 86 — FastAPI app smoke + route inventory (commit `fbe9d15`)
+
+8 passing + 1 skipped: TestClient verifies /api/health, /api/intent,
+/api/intent/status, /api/profiling/report, /api/cascade/stats,
+/api/health/deep, /api/cost/report all registered + return 200.
+
+## Iter 87 — Pipeline._stated_facts cache invariants (commit `0c1e4b8`)
+
+6 tests pin per-(user, session) tuple-keyed cache isolation,
+setdefault identity, lazy intent parser init, classifier fallback.
+
+## Iter 88 — Wire CostTracker into MultiProviderClient (commit `ceb676a`)
+
+Successful cloud calls through the chain now bill the global
+CostTracker.  4 new tests + 13 regression-suite tests green.
+/api/cost/report finally reflects real activity.
+
+## Iter 89 — ContextualThompsonBandit invariants (commit `a859bdf`)
+
+13 tests pin construction validation, select_arm + update behaviour,
+Beta-Bernoulli fallback, NaN/inf safety on extreme contexts, and
+out-of-range arm robustness.
+
+## Iter 90 — Aggregate sweep + Makefile + roadmap refresh (this commit)
+
+Total iter-52..89 test count: **363 passed + 1 skipped in 9.11 s.**
+38 commits stacked since iter 51.
+
+## Iter 91 — *(next focus, picked when iter 90 commits)*
