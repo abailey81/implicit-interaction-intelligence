@@ -325,3 +325,21 @@
 .message-chip.chip-arm-indicator.chip-arm-slm.chip-arm-on    { color: #b0e6c0; border-color: #2c6a3c; background: rgba(44,106,60,0.08); }
 .message-chip.chip-arm-indicator.chip-arm-qwen.chip-arm-on   { color: #f0c870; border-color: #6a4a1a; background: rgba(106,74,26,0.08); }
 .message-chip.chip-arm-indicator.chip-arm-gemini.chip-arm-on { color: #b0c8f0; border-color: #2a4a8a; background: rgba(42,74,138,0.08); }
+
+/* Iter 51 phase 11 — prominent "Used: X" winner badge at the end of
+   the chip row.  Slightly larger, bolder, with a tinted background
+   so the eye lands on it immediately even without reading the row.
+   Per-arm colour echoes the indicator chips so the visual ties
+   together. */
+.message-chip.chip-used {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 3px 10px;
+    border-radius: 999px;
+}
+.message-chip.chip-used-slm    { color: #d4f4dc; border-color: #3a7a4a; background: rgba(58,122,74,0.18); }
+.message-chip.chip-used-qwen   { color: #ffd97f; border-color: #7a5a1a; background: rgba(122,90,26,0.20); }
+.message-chip.chip-used-gemini { color: #cfe0ff; border-color: #3858a0; background: rgba(56,88,160,0.18); }
+.message-chip.chip-used-tool   { color: #d8d8d8; border-color: #555;    background: rgba(255,255,255,0.04); }

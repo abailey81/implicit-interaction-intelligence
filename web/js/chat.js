@@ -1209,48 +1209,51 @@ class ChatInterface {
                 text: (arms.gemini ? '● ' : '○ ') + 'Gemini 2.5',
             });
         }
-        // Iter 51 phase 9: rich routing-decision chip.  When the
-        // engine attached ``route_decision`` we show arm + model
-        // inline, with reason + threshold in the tooltip — so the
-        // user (and recruiters watching the demo) can see EXACTLY
-        // which arm answered and why.
-        const rd = metadata.route_decision;
-        if (rd && typeof rd === 'object' && rd.arm) {
-            const armClassMap = {
-                'slm':              'chip-arm-a',
-                'slm+retrieval':    'chip-arm-r',
-                'qwen-lora':        'chip-arm-b',
-                'gemini-backup':    'chip-arm-b',
-                'gemini-chat':      'chip-arm-c',
-                'diary':            'chip-arm-t',
-                'hostility-guard':  'chip-arm-t',
-                'ood':              'chip-arm-t',
+        // Iter 51 phase 11: prominent "Used: X" badge at the end of
+        // the chip row.  The three indicator chips above show the
+        // on/off state; this badge names the winner explicitly so
+        // the recruiter sees "Used: Qwen LoRA" / "Used: Gemini 2.5
+        // Flash" / etc. without having to interpret the bullet colours.
+        if (rd0 && typeof rd0 === 'object' && rd0.arm) {
+            const usedLabelMap = {
+                'slm':              'Used: from-scratch SLM (204M)',
+                'slm+retrieval':    'Used: from-scratch SLM + retrieval',
+                'qwen-lora':        'Used: Qwen 1.7B + LoRA',
+                'gemini-backup':    'Used: Qwen → Gemini (backup)',
+                'gemini-chat':      'Used: Gemini 2.5 Flash (cloud)',
+                'diary':            'Used: encrypted diary (no LLM)',
+                'hostility-guard':  'Used: hostility guard (no LLM)',
+                'ood':              'Used: safe fallback (no LLM)',
             };
-            const armPrefixMap = {
-                'slm':              'A · from-scratch SLM',
-                'slm+retrieval':    'A · from-scratch SLM + retrieval',
-                'qwen-lora':        'B · Qwen 1.7B + LoRA',
-                'gemini-backup':    'B → C · Qwen flunked → Gemini',
-                'gemini-chat':      'C · Gemini 2.5 Flash (cloud)',
-                'diary':            'T · diary (encrypted)',
-                'hostility-guard':  'T · hostility guard',
-                'ood':              'T · safe fallback',
+            const usedClassMap = {
+                'slm':              'chip-used-slm',
+                'slm+retrieval':    'chip-used-slm',
+                'qwen-lora':        'chip-used-qwen',
+                'gemini-backup':    'chip-used-gemini',
+                'gemini-chat':      'chip-used-gemini',
+                'diary':            'chip-used-tool',
+                'hostility-guard':  'chip-used-tool',
+                'ood':              'chip-used-tool',
             };
-            const cls = armClassMap[rd.arm] || 'chip-arm-t';
-            const label = armPrefixMap[rd.arm] || ('· ' + rd.arm);
-            const tip = [
-                'arm: ' + rd.arm,
-                'model: ' + (rd.model || '—'),
-                'class: ' + (rd.query_class || '—'),
-                'reason: ' + (rd.reason || '—'),
-                'threshold: ' + (rd.threshold || '—'),
+            const usedLabel = usedLabelMap[rd0.arm] || ('Used: ' + rd0.arm);
+            const usedCls   = usedClassMap[rd0.arm] || 'chip-used-tool';
+            const usedTip = [
+                'arm: ' + rd0.arm,
+                'model: ' + (rd0.model || '—'),
+                'class: ' + (rd0.query_class || '—'),
+                'reason: ' + (rd0.reason || '—'),
+                'threshold: ' + (rd0.threshold || '—'),
             ].join('\n');
             chips.push({
-                cls: cls + ' chip-arm chip-route',
-                title: tip,
-                text: label,
+                cls: 'chip-used ' + usedCls,
+                title: usedTip,
+                text: usedLabel,
             });
-        } else if (metadata.response_path) {
+        }
+
+        // Legacy ``response_path``-only fallback (kept for any client
+        // that hasn't received a route_decision yet).
+        if (!rd0 && metadata.response_path) {
             // Legacy fallback (kept until every server ships
             // route_decision).  Same minimal arm chip as before.
             const armMap = {
