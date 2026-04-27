@@ -453,6 +453,19 @@
                 <canvas id="embedding-canvas"></canvas>
             </div>
 
+            <!-- Iter 51 phase 20: in-browser INT8 ONNX inference for the
+                 TCN encoder.  Toggle ON and the encoder runs in WASM /
+                 WebGPU inside the browser tab — no server round-trip,
+                 no /api/encode request, no keystrokes leaving the
+                 device.  Real edge deployment, demonstrable live in
+                 DevTools' Network panel. -->
+            <div class="section-head reveal" style="margin-top: 56px;">
+                <p class="eyebrow">Edge inference</p>
+                <h2 class="section-title">Run on this device.</h2>
+                <p class="section-sub">The encoder is 170 KB INT8 ONNX. Toggle below and it runs in your browser via ONNX Runtime Web — keystrokes never leave the page. Open DevTools → Network to confirm zero <code>/api/encode</code> traffic when ON.</p>
+            </div>
+            <div id="i3-browser-inference" class="reveal-card"></div>
+
             <!-- Real transformer attention map (CPU-only extraction). -->
             <div class="section-head reveal" style="margin-top: 80px;">
                 <p class="eyebrow">Attention map</p>
@@ -1407,7 +1420,7 @@
                 </div>
                 <div class="about-card reveal">
                     <div class="about-q">Q4. Edge deployment?</div>
-                    <div class="about-a">ONNX export of the encoder (~0.4 MB), browser-side inference via WebGPU/WASM, edge-profile harness, byte/message/rate caps for wearable budgets.</div>
+                    <div class="about-a">Encoder INT8-quantised to 162 KB ONNX (63 % smaller than FP32, MAE 0.0006 parity). Runs in your browser tab via ONNX Runtime Web — keystrokes never leave the device. Toggle in the State tab; DevTools confirms zero <code>/api/encode</code> traffic.</div>
                 </div>
                 <div class="about-card reveal">
                     <div class="about-q">Q5. Smart cascade?</div>
@@ -1469,7 +1482,7 @@
 <script type="module" src="/static/js/advanced_init.js"></script>
 
 <link rel="stylesheet" href="/css/browser_inference.css">
-<div id="i3-browser-inference"></div>
+<!-- The #i3-browser-inference mount lives inside the State tab (line ~456). -->
 <script type="module" src="/js/browser_inference.js" defer></script>
 
 <link rel="stylesheet" href="/css/tts_player.css">

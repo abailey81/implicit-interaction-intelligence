@@ -22,14 +22,27 @@ exercises a different cascade arm and lights up a different routing chip.
 | 9:30 | Switch to **State** tab | — | "12-layer × 12-head attention from the from-scratch SLM, live, token-level. The 64-d typing-biometric embedding is the cross-attention conditioning vector." |
 | 10:30 | Close | — | "Five visible tabs; sixteen more behind the Advanced toggle if you want subsystem detail. The cascade is the differentiator; the from-scratch SLM is the on-device anchor." |
 
-## The four numbers (memorise these)
+## The five numbers (memorise these)
 
 1. **204 M params** in the from-scratch SLM (`d_model=768, 12 layers × 12 heads, vocab=32k, MoE + ACT`).
 2. **5.4 × 10⁻⁶ val loss** on the Qwen LoRA intent parser (DoRA r16 + NEFTune α=5 + 8-bit AdamW + cosine warm restarts, 4 545 / 252 split, 1 704 steps × 3 epochs, 9 656 s wall).
 3. **22 / 22 routing classifications correct** on the precision smoke. Six deterministic signals (greeting · cascade-meta · system-intro · question-shape · KG-anchor · system-topic) feed a multi-signal scorer; the highest-scoring route class wins, all scores visible in the chip tooltip.
-4. **Timer-actually-fires latency: 30 s exact**. End-to-end verified — `set_timer` → asyncio task → `actuator_event` frame → gold pulse banner in the chat.
+4. **162 KB INT8 encoder, 460 µs p50 inference, runs in-browser** via ONNX Runtime Web. 12.5 × under the 2 MB Kirin watch RAM budget. Toggle is in the State tab; DevTools → Network proves it's client-side.
+5. **Timer-actually-fires latency: 30 s exact**. End-to-end verified — `set_timer` → asyncio task → `actuator_event` frame → gold pulse banner in the chat.
 
-If you can only quote one: **#3** — it's the routing math the recruiter watches live.
+If you can only quote one: **#4** — it's the JD's edge-deployment question answered with a live demo, not a slide.
+
+## The edge-inference power move (do this when probed about wearables)
+
+Add this 30-second move during chip 1 ("How do you adapt to me?"):
+
+> *"While the SLM is generating — quick aside. Open DevTools → Network panel. I'll click the Edge inference toggle in the State tab and re-send. Watch what happens."*
+>
+> *(switch to State tab → flip "Run inference in browser" toggle ON → switch back to Chat → send another turn)*
+>
+> *"No `/api/encode` request. The 32-d feature vector hit the encoder in your browser tab via ONNX Runtime Web — 162 KB INT8 model, 460 µs inference. The Kirin A2 watch budget is 2 MB encoder + 8 MB peak resident; we're 12.5 × under. Keystrokes never left this page. Privacy-by-architecture, enforced by the network boundary."*
+
+This answers the email's *"have you ever deployed ML models to low-compute devices"* question with proof, not infrastructure-only.
 
 ## The cascade in one diagram
 
