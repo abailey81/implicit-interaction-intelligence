@@ -169,7 +169,7 @@ audit: security-check ## Alias for security-check
 #  Testing
 # ═════════════════════════════════════════════════════════════════════════
 
-.PHONY: test test-cov test-fast test-security test-parallel
+.PHONY: test test-cov test-fast test-security test-parallel test-iter test-cascade
 
 test: ## Run pytest with verbose output
 	@printf "$(BLUE)▶ Running test suite...$(RESET)\n"
@@ -195,6 +195,37 @@ test-parallel: ## Run tests in parallel with pytest-xdist
 	@printf "$(BLUE)▶ Running tests in parallel...$(RESET)\n"
 	$(PYTEST) -n auto tests/
 	@printf "$(GREEN)✓ Parallel tests complete$(RESET)\n"
+
+test-iter: ## Iter 52-74 fast subset (cascade + multilingual + perf + health + privacy + contract + multi-provider + BPE-corner + observability + cost-tracker + multimodal + engagement + KG + PII + critic + adaptation + TCN)
+	@printf "$(BLUE)▶ Running iter 52-74 fast subset...$(RESET)\n"
+	$(PYTEST) -q --no-header --tb=no \
+	    tests/test_intent_cascade.py \
+	    tests/test_profiling_cascade.py \
+	    tests/test_health_deep.py \
+	    tests/test_multilingual_robustness.py \
+	    tests/test_slm_perf_guard.py \
+	    tests/test_privacy_budget_circuit.py \
+	    tests/test_pipeline_output_contract.py \
+	    tests/test_cloud_multi_provider.py \
+	    tests/test_bpe_corner_cases.py \
+	    tests/test_observability_spans.py \
+	    tests/test_cost_tracker_global.py \
+	    tests/test_multimodal_validators.py \
+	    tests/test_engagement_signal.py \
+	    tests/test_knowledge_graph_dedupe.py \
+	    tests/test_pii_sanitizer_coverage.py \
+	    tests/test_self_critic.py \
+	    tests/test_adaptation_vector.py \
+	    tests/test_tcn_invariants.py
+	@printf "$(GREEN)✓ Iter 52-74 subset green$(RESET)\n"
+
+test-cascade: ## Cascade-only sweep (Qwen LoRA arm B + dashboard + chips + spans)
+	@printf "$(BLUE)▶ Running cascade-only sweep...$(RESET)\n"
+	$(PYTEST) -q --no-header --tb=no \
+	    tests/test_intent_cascade.py \
+	    tests/test_profiling_cascade.py \
+	    tests/test_observability_spans.py
+	@printf "$(GREEN)✓ Cascade tests green$(RESET)\n"
 
 # ═════════════════════════════════════════════════════════════════════════
 #  Data & Training
