@@ -16,45 +16,83 @@
 
 ---
 
-## Table of Contents
+## Priority legend
 
-- [Part 0 — How to read this document](#part-0--how-to-read-this-document)
-- [Part 1 — The 60-second elevator pitch](#part-1--the-60-second-elevator-pitch)
-- [Part 2 — The Huawei interview context](#part-2--the-huawei-interview-context)
-- [Part 3 — Foundational concepts (the primer)](#part-3--foundational-concepts-the-primer)
-- [Part 4 — The architecture, top-down](#part-4--the-architecture-top-down)
-- [Part 5 — Component deep-dive](#part-5--component-deep-dive)
-  - [5.1 The from-scratch SLM v2](#51-the-from-scratch-slm-v2)
-  - [5.2 The Qwen LoRA intent parser](#52-the-qwen-lora-intent-parser)
-  - [5.3 The Gemini cloud arm](#53-the-gemini-cloud-arm)
-  - [5.4 The TCN encoder + adaptation vector](#54-the-tcn-encoder--adaptation-vector)
-  - [5.5 The smart router](#55-the-smart-router)
-  - [5.6 The 14-stage pipeline](#56-the-14-stage-pipeline)
-  - [5.7 Edge deployment (INT8 ONNX + browser inference)](#57-edge-deployment)
-  - [5.8 Identity Lock (typing biometrics)](#58-identity-lock)
-  - [5.9 Privacy architecture](#59-privacy-architecture)
-  - [5.10 Real actuators](#510-real-actuators)
-  - [5.11 The Knowledge Graph + retrieval](#511-the-knowledge-graph--retrieval)
-- [Part 6 — Numbers, locked source-of-truth](#part-6--numbers-locked-source-of-truth)
-- [Part 7 — The live demo (what you'll show on screen)](#part-7--the-live-demo)
-- [Part 8 — Open problems and honest gaps](#part-8--open-problems-and-honest-gaps)
-- [Part 9 — Q&A bank](#part-9--qa-bank)
-  - [9.1 The recruiter's five pre-screen questions](#91-the-recruiters-five-pre-screen-questions)
-  - [9.2 Architecture Q&A](#92-architecture-qa)
-  - [9.3 SLM-specific Q&A](#93-slm-specific-qa)
-  - [9.4 Fine-tuning Q&A (Qwen LoRA)](#94-fine-tuning-qa-qwen-lora)
-  - [9.5 Edge deployment Q&A](#95-edge-deployment-qa)
-  - [9.6 HCI / UX Q&A](#96-hci--ux-qa)
-  - [9.7 Privacy / safety Q&A](#97-privacy--safety-qa)
-  - [9.8 Honest-gaps / pushback Q&A](#98-honest-gaps--pushback-qa)
-  - [9.9 Behavioural / fit Q&A](#99-behavioural--fit-qa)
-  - [9.10 Curveball Q&A](#910-curveball-qa)
-- [Part 10 — Glossary](#part-10--glossary)
-- [Part 11 — Reference appendix](#part-11--reference-appendix)
+Every section, subsection, and Q&A in this guide carries a priority
+tag. Use it to triage your reading time.
+
+| Tag | Meaning | When to read |
+|---|---|---|
+| **[P0 — CRITICAL]** | Must memorise; will be quoted nearly verbatim in the interview. | Always. |
+| **[P1 — HIGH]** | Strongly should know; high probability of coming up. | Always, if you have ≥ 90 min total prep. |
+| **[P2 — MEDIUM]** | Good to know; depends on the interviewer's angle. | If you have ≥ 3 h, or if it matches the interviewer's known interests. |
+| **[P3 — REFERENCE]** | Only look up if asked or if you blank. | Don't pre-read; jump-to during the call. |
+
+**Triage by available time.**
+
+- **30 minutes the morning of** → read every **P0** section and nothing
+  else. Confirms the elevator pitch, the locked numbers, the demo
+  flow, the recruiter's five questions, and the morning checklist.
+- **90 minutes (recommended)** → every **P0 + P1**. You now also know
+  the architecture, the open problems, the most likely Q&A banks, and
+  the interview-day playbook.
+- **3+ hours (gold standard)** → everything. P2 covers the foundational
+  concepts, ML fundamentals, whiteboard scenarios, and hard-moment
+  recovery scripts. P3 is glossary + reference and you only consult
+  it when needed.
+
+**One rule.** If you have to skip something P0, **don't go to the
+interview.** Reschedule if you can. The P0 set is non-negotiable.
 
 ---
 
-## Part 0 — How to read this document
+## Table of Contents
+
+- [Part 0 — How to read this document](#part-0--how-to-read-this-document) **[P3]**
+- [Part 1 — The 60-second elevator pitch](#part-1--the-60-second-elevator-pitch) **[P0]**
+- [Part 2 — The Huawei interview context](#part-2--the-huawei-interview-context) **[P1]**
+- [Part 3 — Foundational concepts (the primer)](#part-3--foundational-concepts-the-primer) **[P2 / P1 if new to ML]**
+- [Part 4 — The architecture, top-down](#part-4--the-architecture-top-down) **[P1]**
+- [Part 5 — Component deep-dive](#part-5--component-deep-dive)
+  - [5.1 The from-scratch SLM v2](#51-the-from-scratch-slm-v2) **[P1]**
+  - [5.2 The Qwen LoRA intent parser](#52-the-qwen-lora-intent-parser) **[P1]**
+  - [5.3 The Gemini cloud arm](#53-the-gemini-cloud-arm) **[P2]**
+  - [5.4 The TCN encoder + adaptation vector](#54-the-tcn-encoder--adaptation-vector) **[P1]**
+  - [5.5 The smart router](#55-the-smart-router) **[P1]**
+  - [5.6 The 14-stage pipeline](#56-the-14-stage-pipeline) **[P2]**
+  - [5.7 Edge deployment (INT8 ONNX + browser inference)](#57-edge-deployment) **[P0]**
+  - [5.8 Identity Lock (typing biometrics)](#58-identity-lock) **[P2]**
+  - [5.9 Privacy architecture](#59-privacy-architecture) **[P1]**
+  - [5.10 Real actuators](#510-real-actuators) **[P2]**
+  - [5.11 The Knowledge Graph + retrieval](#511-the-knowledge-graph--retrieval) **[P2]**
+- [Part 6 — Numbers, locked source-of-truth](#part-6--numbers-locked-source-of-truth) **[P0]**
+- [Part 7 — The live demo (what you'll show on screen)](#part-7--the-live-demo) **[P0]**
+- [Part 8 — Open problems and honest gaps](#part-8--open-problems-and-honest-gaps) **[P1]**
+- [Part 9 — Q&A bank](#part-9--qa-bank)
+  - [9.1 The recruiter's five pre-screen questions](#91-the-recruiters-five-pre-screen-questions) **[P0]**
+  - [9.2 Architecture Q&A](#92-architecture-qa) **[P1]**
+  - [9.3 SLM-specific Q&A](#93-slm-specific-qa) **[P1]**
+  - [9.4 Fine-tuning Q&A (Qwen LoRA)](#94-fine-tuning-qa-qwen-lora) **[P1]**
+  - [9.5 Edge deployment Q&A](#95-edge-deployment-qa) **[P0]**
+  - [9.6 HCI / UX Q&A](#96-hci--ux-qa) **[P1]**
+  - [9.7 Privacy / safety Q&A](#97-privacy--safety-qa) **[P2]**
+  - [9.8 Honest-gaps / pushback Q&A](#98-honest-gaps--pushback-qa) **[P0]**
+  - [9.9 Behavioural / fit Q&A](#99-behavioural--fit-qa) **[P1]**
+  - [9.10 Curveball Q&A](#910-curveball-qa) **[P2]**
+- [Part 10 — Glossary](#part-10--glossary) **[P3]**
+- [Part 11 — Reference appendix](#part-11--reference-appendix) **[P0/P3 mixed]**
+- [Part 12 — Interview-day playbook](#part-12--interview-day-playbook) **[P1]**
+- [Part 13 — Questions YOU should ask THEM](#part-13--questions-you-should-ask-them) **[P1]**
+- [Part 14 — ML fundamentals you should be able to discuss](#part-14--ml-fundamentals-you-should-be-able-to-discuss) **[P2]**
+- [Part 15 — Whiteboard / coding scenarios](#part-15--whiteboard--coding-scenarios) **[P2]**
+- [Part 16 — How to handle the hard moments](#part-16--how-to-handle-the-hard-moments) **[P2]**
+- [Part 17 — Logistics, salary, visa](#part-17--logistics-salary-visa) **[P3]**
+- [Part 18 — The final morning checklist](#part-18--the-final-morning-checklist) **[P0]**
+- [Part 19 — One last thing](#part-19--one-last-thing) **[P3]**
+
+---
+
+## Part 0 — How to read this document **[P3 — REFERENCE]**
 
 You can read this in three modes:
 
@@ -83,7 +121,7 @@ I would do about it" (see Part 8).
 
 ---
 
-## Part 1 — The 60-second elevator pitch
+## Part 1 — The 60-second elevator pitch **[P0 — CRITICAL]**
 
 > "I³ — Implicit Interaction Intelligence — is an on-device assistant
 > that adapts to **how** the user types, not what they declare about
@@ -115,7 +153,7 @@ disk, all verified by `scripts/verify_numbers.py`.
 
 ---
 
-## Part 2 — The Huawei interview context
+## Part 2 — The Huawei interview context **[P1 — HIGH]**
 
 ### 2.1 The role
 
@@ -215,7 +253,7 @@ from talking to *showing*.
 
 ---
 
-## Part 3 — Foundational concepts (the primer)
+## Part 3 — Foundational concepts (the primer) **[P2 — MEDIUM]** *(promote to P1 if you are new to ML)*
 
 This part assumes nothing. If you already know what a transformer is,
 skim. If you don't, read carefully — these are the building blocks of
@@ -698,7 +736,7 @@ SecureEnclave (open problem).
 
 ---
 
-## Part 4 — The architecture, top-down
+## Part 4 — The architecture, top-down **[P1 — HIGH]**
 
 ### 4.1 The 14-stage pipeline
 
@@ -828,9 +866,9 @@ is *load-bearing*, not decorative.
 
 ---
 
-## Part 5 — Component deep-dive
+## Part 5 — Component deep-dive **[P1 — HIGH overall; subsections vary]**
 
-### 5.1 The from-scratch SLM v2
+### 5.1 The from-scratch SLM v2 **[P1 — HIGH]**
 
 **File.** `i3/slm/adaptive_transformer_v2.py` (≈ 900 LOC).
 
@@ -911,7 +949,7 @@ cascade falls back to retrieval or Gemini. The architecture is
 *data-bound* at this scale — open problem #2 is the full-corpus
 retrain.
 
-### 5.2 The Qwen LoRA intent parser
+### 5.2 The Qwen LoRA intent parser **[P1 — HIGH]**
 
 **File.** `training/train_intent_lora.py` + `checkpoints/intent_lora/qwen3.5-2b/`.
 
@@ -966,7 +1004,7 @@ fine-tune was also trained for direct comparison
 validator at 100%; the comparison report is in
 `checkpoints/intent_eval/comparison_report.md`.
 
-### 5.3 The Gemini cloud arm
+### 5.3 The Gemini cloud arm **[P2 — MEDIUM]**
 
 **File.** `i3/pipeline/engine.py` `_gemini_chat_fallback`.
 
@@ -998,7 +1036,7 @@ Even with consent, two hard gates run before dispatch:
 routing on sensitive topics — financial, medical, etc. — as a
 last-line block.
 
-### 5.4 The TCN encoder + adaptation vector
+### 5.4 The TCN encoder + adaptation vector **[P1 — HIGH]**
 
 **File.** `i3/encoder/tcn.py` + `i3/encoder/blocks.py` + `i3/adaptation/`.
 
@@ -1059,7 +1097,7 @@ applied as a post-processing rewrite at stage 13 — the same vector
 biases token generation *and* surface adjustments like
 contractions / sentence splits.
 
-### 5.5 The smart router
+### 5.5 The smart router **[P1 — HIGH]**
 
 **File.** `i3/pipeline/engine.py` `_smart_score_arms`.
 
@@ -1091,7 +1129,7 @@ wins. If no signal fires strongly, the default is `default_chat`.
 checks that the router classifies known examples correctly. Current
 score: 22 / 22 PASS.
 
-### 5.6 The 14-stage pipeline
+### 5.6 The 14-stage pipeline **[P2 — MEDIUM]**
 
 This is `i3/pipeline/engine.py`'s entry-point method — an ≈ 8 000-LOC
 Python class that does the full per-turn lifecycle. Each stage emits
@@ -1146,7 +1184,7 @@ Every stage logs into a per-turn trace dict that the Flow tab
 animates. The trace shows real timings + data shapes, not synthetic
 animation.
 
-### 5.7 Edge deployment
+### 5.7 Edge deployment **[P0 — CRITICAL]** *(this is the JD's headline question)*
 
 **Today's claim.** The TCN encoder is INT8-quantised to **162.2 KB
 ONNX** and runs in the user's browser tab via ONNX Runtime Web.
@@ -1184,7 +1222,7 @@ export would be ~780 MB and INT8 would be ~200 MB, which fits a
 Kirin 9000-class NPU but exceeds the 8 MB RAM cap on a Kirin A2
 watch. Distillation to a 10–20 M student is open problem #1.
 
-### 5.8 Identity Lock
+### 5.8 Identity Lock **[P2 — MEDIUM]**
 
 **File.** `i3/biometric/keystroke_auth.py` (≈ 991 LOC).
 
@@ -1215,7 +1253,7 @@ and the colour shifts to amber, surfacing the drift to the user.
 work), Killourhy & Maxion 2009 (the standard CMU keystroke benchmark
 dataset).
 
-### 5.9 Privacy architecture
+### 5.9 Privacy architecture **[P1 — HIGH]**
 
 I³'s privacy story is *architectural*, not policy-based. Five layers:
 
@@ -1249,7 +1287,7 @@ policy that codifies the routing rules: "no cloud route on financial
 or medical topics", "no diary write without consent". Enforced by
 the cedarpy library at every routing decision.
 
-### 5.10 Real actuators
+### 5.10 Real actuators **[P2 — MEDIUM]** *(P1 if asked specifically about HMI dispatch)*
 
 **File.** `server/websocket.py` `_fire_actuator_side_effects`.
 
@@ -1272,7 +1310,7 @@ text ("OK, I've set a timer for 30 seconds"). I³ actually *does*
 the thing — the timer fires whether the user navigates away from
 the page or not. The cascade isn't acks; it has side effects.
 
-### 5.11 The Knowledge Graph + retrieval
+### 5.11 The Knowledge Graph + retrieval **[P2 — MEDIUM]**
 
 **Files.** `i3/dialogue/knowledge_graph.py` + `i3/slm/retrieval.py`.
 
@@ -1301,7 +1339,7 @@ is *tiered* knowledge access.
 
 ---
 
-## Part 6 — Numbers, locked source-of-truth
+## Part 6 — Numbers, locked source-of-truth **[P0 — CRITICAL]**
 
 Every number in this section is verified by `python scripts/verify_numbers.py`.
 If you re-run it and it fails, the docs need updating; if it passes,
@@ -1404,7 +1442,7 @@ pre-flight check.
 
 ---
 
-## Part 7 — The live demo
+## Part 7 — The live demo **[P0 — CRITICAL]**
 
 This is the 10-minute walk-through you'll give. Designed for `Simple`
 nav (5 tabs visible), with `Advanced` toggle hidden by default.
@@ -1473,7 +1511,7 @@ This single move is your strongest edge-deployment evidence.
 
 ---
 
-## Part 8 — Open problems and honest gaps
+## Part 8 — Open problems and honest gaps **[P1 — HIGH]**
 
 Six PR-shaped open problems, framed as items I'd hand a teammate on
 day one. Each has constraints, acceptance criteria, and a rough
@@ -1561,7 +1599,7 @@ constraints explicit, validation criteria pre-registered.
 
 ---
 
-## Part 9 — Q&A bank
+## Part 9 — Q&A bank **[P0/P1 overall — see each sub-bank]**
 
 This is the meat of your interview prep. Three tiers of question:
 likely (you'll definitely hear something close to these), possible
@@ -1571,7 +1609,7 @@ For each question, the answer is a *script* — read it through, then
 internalise the *beats*, then deliver in your own words. Do **not**
 recite verbatim; the words give you the shape.
 
-### 9.1 The recruiter's five pre-screen questions
+### 9.1 The recruiter's five pre-screen questions **[P0 — CRITICAL]** *(these will be asked verbatim)*
 
 #### Q1. *"Beyond using existing libraries, have you had experience creating traditional ML models from scratch?"*
 
@@ -1647,7 +1685,7 @@ recite verbatim; the words give you the shape.
 > repo map. Outside this project, the relevant CV bullets are…
 > [insert your own CV bullets here].
 
-### 9.2 Architecture Q&A
+### 9.2 Architecture Q&A **[P1 — HIGH]**
 
 #### Q. *"Why three arms — isn't that just complexity?"*
 
@@ -1743,7 +1781,7 @@ recite verbatim; the words give you the shape.
 > `default_chat`. The validation is a 22-case precision smoke that
 > runs on every commit.
 
-### 9.3 SLM-specific Q&A
+### 9.3 SLM-specific Q&A **[P1 — HIGH]**
 
 #### Q. *"Why is the SLM perplexity so high?"*
 
@@ -1836,7 +1874,7 @@ recite verbatim; the words give you the shape.
 > retrain (open problem #2) targets coherent multi-clause responses
 > as an explicit acceptance criterion.
 
-### 9.4 Fine-tuning Q&A (Qwen LoRA)
+### 9.4 Fine-tuning Q&A (Qwen LoRA) **[P1 — HIGH]**
 
 #### Q. *"Why fine-tune Qwen instead of building the intent parser from scratch?"*
 
@@ -1912,7 +1950,7 @@ recite verbatim; the words give you the shape.
 > gap, but it's known-good practice and adds zero inference-time
 > cost.
 
-### 9.5 Edge deployment Q&A
+### 9.5 Edge deployment Q&A **[P0 — CRITICAL]** *(JD's flagship question)*
 
 #### Q. *"What's the actual edge story — the SLM hasn't shipped to a watch."*
 
@@ -1980,7 +2018,7 @@ recite verbatim; the words give you the shape.
 > generation to a paired phone (typical wearable architecture) and
 > only run the encoder on the watch.
 
-### 9.6 HCI / UX Q&A
+### 9.6 HCI / UX Q&A **[P1 — HIGH]** *(HMI Lab cares strongly about this)*
 
 #### Q. *"Why implicit signals over explicit declarations?"*
 
@@ -2055,7 +2093,7 @@ recite verbatim; the words give you the shape.
 > ONNX runtime state — which a chat library would abstract away.
 > The custom UI is in `web/`, ~3 000 LOC of vanilla JS + CSS.
 
-### 9.7 Privacy / safety Q&A
+### 9.7 Privacy / safety Q&A **[P2 — MEDIUM]**
 
 #### Q. *"What's your privacy story in one sentence?"*
 
@@ -2112,7 +2150,7 @@ recite verbatim; the words give you the shape.
 > action at the policy layer. The cedarpy library evaluates the
 > policy against the action context at every routing decision.
 
-### 9.8 Honest-gaps / pushback Q&A
+### 9.8 Honest-gaps / pushback Q&A **[P0 — CRITICAL]** *(this is what separates strong from average candidates)*
 
 #### Q. *"You said it's edge-deployable, but the SLM hasn't shipped to a watch."*
 
@@ -2191,7 +2229,7 @@ recite verbatim; the words give you the shape.
 > the 88-commit history is dense but every message is one-paragraph,
 > which is the team-readable bar.
 
-### 9.9 Behavioural / fit Q&A
+### 9.9 Behavioural / fit Q&A **[P1 — HIGH]**
 
 #### Q. *"Why Huawei specifically?"*
 
@@ -2251,7 +2289,7 @@ recite verbatim; the words give you the shape.
 > validation harness I didn't build. With more time I'd do both
 > and A/B them.
 
-### 9.10 Curveball Q&A
+### 9.10 Curveball Q&A **[P2 — MEDIUM]** *(low base-rate but high impact when they hit)*
 
 #### Q. *"What's the biggest weakness in your safety story?"*
 
@@ -2373,7 +2411,7 @@ recite verbatim; the words give you the shape.
 
 ---
 
-## Part 10 — Glossary
+## Part 10 — Glossary **[P3 — REFERENCE]**
 
 Quick-reference table. Every term used in this document; if you
 forget what something means mid-interview, this is where to look.
@@ -2440,9 +2478,9 @@ forget what something means mid-interview, this is where to look.
 
 ---
 
-## Part 11 — Reference appendix
+## Part 11 — Reference appendix **[P0/P3 mixed — see subsections]**
 
-### 11.1 Key file paths to memorise
+### 11.1 Key file paths to memorise **[P1 — HIGH]**
 
 If asked "where is X?", point at these:
 
@@ -2472,7 +2510,7 @@ If asked "where is X?", point at these:
 | The eval report | `reports/slm_v2_eval.md` |
 | The edge profile | `reports/edge_profile_2026-04-28.md` |
 
-### 11.2 Key papers to know
+### 11.2 Key papers to know **[P3 — REFERENCE]** *(memorise the headline 5; the rest are look-up)*
 
 If asked "what's the reference for X?", these are the citations.
 
@@ -2509,7 +2547,7 @@ If asked "what's the reference for X?", these are the citations.
 | Dimensional affect | Russell 2003 — *"Core Affect and the Psychological Construction of Emotion"* |
 | Weight tying | Press & Wolf 2017 — *"Using the Output Embedding to Improve Language Models"* |
 
-### 11.3 Five things to remember if you forget everything else
+### 11.3 Five things to remember if you forget everything else **[P0 — CRITICAL]** *(memorise verbatim)*
 
 1. **204 M parameters** in the from-scratch SLM (`d_model=768`, 12L
    × 12H, MoE-2 + ACT, BPE 32 k vocab, max_seq_len 512, step 18 000,
@@ -2531,7 +2569,7 @@ If asked "what's the reference for X?", these are the citations.
 If you can only quote one: **#4** — it's the JD's edge-deployment
 question answered with a live demo, not a slide.
 
-### 11.4 Pre-flight check (run this morning of)
+### 11.4 Pre-flight check (run this morning of) **[P0 — CRITICAL]**
 
 ```bash
 python scripts/verify_numbers.py
@@ -2545,9 +2583,9 @@ the call.
 
 ---
 
-## Part 12 — Interview-day playbook
+## Part 12 — Interview-day playbook **[P1 — HIGH]**
 
-### 12.1 The night before
+### 12.1 The night before **[P1 — HIGH]**
 
 - **Re-read Parts 1, 6, 7, 9.1, and 11.3** of this document. That's
   the elevator pitch, the locked numbers, the demo flow, the
@@ -2568,7 +2606,7 @@ the call.
 - **Sleep at a normal time.** Caffeine the morning of, not the
   night before.
 
-### 12.2 The morning of
+### 12.2 The morning of **[P0 — CRITICAL]**
 
 - **45 minutes before:** wake up, breakfast, shower. Don't check
   email — anything new is a distraction.
@@ -2587,7 +2625,7 @@ the call.
 - **2 minutes before:** stand up, stretch, take three slow breaths.
   Your goal is to walk into the call energetic, not jittery.
 
-### 12.3 The opening 60 seconds
+### 12.3 The opening 60 seconds **[P0 — CRITICAL]**
 
 The first impression is set in the first sentence. You will either:
 
@@ -2607,7 +2645,7 @@ If they say "go ahead with the pitch", deliver the Part 1 elevator
 pitch verbatim. If they say "let's do questions first", say "great"
 and let them lead.
 
-### 12.4 Pacing rules (the core ones)
+### 12.4 Pacing rules (the core ones) **[P1 — HIGH]**
 
 - **Speak slower than feels natural.** Anxious people speed up.
   Silence between sentences is fine. The interviewer is taking
@@ -2623,7 +2661,7 @@ and let them lead.
   stronger move than "and then theoretically…". You have a running
   system; use it.
 
-### 12.5 The structural-answer template
+### 12.5 The structural-answer template **[P1 — HIGH]** *(use this for every technical answer)*
 
 Use this template for every technical question:
 
@@ -2666,7 +2704,7 @@ Five specific things to do during the call:
 5. **Smile when they smile.** Mirroring, in moderation, builds
    rapport.
 
-### 12.7 What to do if you blank
+### 12.7 What to do if you blank **[P1 — HIGH]** *(have these scripts ready)*
 
 It will happen. Have a recovery script ready.
 
@@ -2721,7 +2759,7 @@ Curiosity + ability-to-learn beats pretending.
 
 ---
 
-## Part 13 — Questions YOU should ask THEM
+## Part 13 — Questions YOU should ask THEM **[P1 — HIGH]**
 
 The interview always ends with "any questions for us?". This is not
 optional — having no questions signals disinterest. Have 5–7
@@ -2778,7 +2816,7 @@ Tier 3 — about the trajectory:
 - *"What do you like most about working here?"* — too soft;
   interviewers can usually tell when you're filling time.
 
-### 13.3 The closing question (the one that lands)
+### 13.3 The closing question (the one that lands) **[P0 — CRITICAL]** *(memorise this exact question)*
 
 Save this for last:
 
@@ -2796,7 +2834,7 @@ positive signal. If they raise a concern, address it directly.
 
 ---
 
-## Part 14 — ML fundamentals you should be able to discuss
+## Part 14 — ML fundamentals you should be able to discuss **[P2 — MEDIUM]** *(promote to P1 if you expect a pop-quiz)*
 
 You will get pop-quiz questions on basic ML. These aren't I³-specific
 — they're the substrate. Be ready to whiteboard or talk through.
@@ -3068,7 +3106,7 @@ forgetting earlier patterns. Tested in `tests/test_ewc.py`.
 
 ---
 
-## Part 15 — Whiteboard / coding scenarios
+## Part 15 — Whiteboard / coding scenarios **[P2 — MEDIUM]** *(only if asked to whiteboard)*
 
 These aren't I³-specific. The interviewer might hand you a marker
 or a shared editor. Be ready to walk through.
@@ -3258,7 +3296,7 @@ event channel.
 
 ---
 
-## Part 16 — How to handle the hard moments
+## Part 16 — How to handle the hard moments **[P2 — MEDIUM]** *(read once; recall only if a hard moment hits)*
 
 ### 16.1 They challenge a number
 
@@ -3391,7 +3429,7 @@ you answer the actual question.
 
 ---
 
-## Part 17 — Logistics, salary, visa
+## Part 17 — Logistics, salary, visa **[P3 — REFERENCE]** *(usually HR conversation, not technical)*
 
 These typically come up in HR conversations, not the technical
 interview, but be ready in case.
@@ -3469,7 +3507,7 @@ that might come up in a check; if asked directly, be honest.
 
 ---
 
-## Part 18 — The final morning checklist
+## Part 18 — The final morning checklist **[P0 — CRITICAL]**
 
 Print this, or have it visible during the call.
 
@@ -3492,7 +3530,7 @@ Print this, or have it visible during the call.
 
 ---
 
-## Part 19 — One last thing
+## Part 19 — One last thing **[P3 — REFERENCE]** *(read once for mindset; not material)*
 
 The interview is a conversation, not an exam. The interviewer is a
 person who wants to find a colleague they'd enjoy working with. They
