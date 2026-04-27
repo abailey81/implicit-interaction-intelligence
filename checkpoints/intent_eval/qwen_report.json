@@ -1,0 +1,49 @@
+{
+  "backend": "qwen3.5-2b-lora",
+  "n_examples": 253,
+  "valid_json_rate": 1.0,
+  "action_accuracy": 1.0,
+  "valid_slots_rate": 1.0,
+  "full_match_rate": 1.0,
+  "macro_slot_f1": 1.0,
+  "latency_p50_ms": 7020.949363708496,
+  "latency_p95_ms": 9768.569946289062,
+  "latency_mean_ms": 6883.195025176399,
+  "confusion_matrix": {
+    "cancel": {
+      "cancel": 25
+    },
+    "set_timer": {
+      "set_timer": 21
+    },
+    "play_music": {
+      "play_music": 22
+    },
+    "control_device": {
+      "control_device": 23
+    },
+    "set_alarm": {
+      "set_alarm": 26
+    },
+    "call": {
+      "call": 31
+    },
+    "set_reminder": {
+      "set_reminder": 28
+    },
+    "navigate": {
+      "navigate": 21
+    },
+    "send_message": {
+      "send_message": 27
+    },
+    "weather_query": {
+      "weather_query": 28
+    },
+    "unsupported": {
+      "unsupported": 1
+    }
+  },
+  "n_errors": 0,
+  "errors": []
+}
