@@ -271,9 +271,9 @@
                  ML stack" without forcing the reader to grep the repo.
                  ───────────────────────────────────────────────────── -->
             <header class="section-head reveal" style="margin-top: 96px;">
-                <p class="eyebrow">Iter 51 · Subsystem map</p>
+                <p class="eyebrow">Subsystem map · iter 51-140</p>
                 <h2 class="section-title">22 subsystems, one repo.</h2>
-                <p class="section-sub">Each card lists the module, line count, runtime status, and the paper or standard it implements. Links jump to the source.</p>
+                <p class="section-sub">Each card lists the module, line count, runtime status, and the paper or standard it implements. Links jump to the source. <strong>Latest live numbers:</strong> 88 commits stacked since iter 51, 640 / 640 + 1 skipped tests green via <code>make test-iter</code>, trained Qwen LoRA at <code>action_accuracy = 100 %</code> on 253 test examples.</p>
             </header>
             <div class="huawei-grid reveal" id="stack-subsystem-grid">
                 <article class="huawei-card">
@@ -290,8 +290,8 @@
                 </article>
                 <article class="huawei-card">
                     <h3>📡 TCN encoder</h3>
-                    <p><strong>1,606 LOC</strong> · <span class="huawei-status-pill ok">live</span></p>
-                    <p>Dilated temporal-convolution stack (Bai 2018) over the keystroke stream → 64-D user-state vector. Triplet-loss trained, INT8 quantised, ONNX-exportable.</p>
+                    <p><strong>164 LOC</strong> (tcn.py; 1,606 LOC across whole <code>i3/encoder/</code>) · <span class="huawei-status-pill ok">live</span></p>
+                    <p>Dilated temporal-convolution stack (Bai 2018) over the keystroke stream → 64-D L2-normalised user-state embedding. Triplet-loss trained, INT8 quantised, ONNX-exportable.</p>
                     <p><a href="i3/encoder/tcn.py">i3/encoder/tcn.py</a></p>
                 </article>
                 <article class="huawei-card">
@@ -1190,12 +1190,12 @@
             </div>
         </section>
 
-        <!-- ═══════════════════════ HUAWEI: INTENT TAB (iter 51) ═══════════════════════ -->
+        <!-- ═══════════════════════ HUAWEI: INTENT TAB ═══════════════════════ -->
         <section class="tab-panel" id="tab-intent" data-tab="intent" role="tabpanel" hidden>
             <header class="section-head reveal">
-                <p class="eyebrow">Huawei · iter 51</p>
+                <p class="eyebrow">Huawei · cascade arm B</p>
                 <h2 class="section-title">Intent — Qwen3 + LoRA structured output.</h2>
-                <p class="section-sub">Live HMI command-intent parsing via the iter-51 fine-tuned LoRA adapter on Qwen3-1.7B (open weights, on-device). Closes the JD bullet "fine-tune pre-trained models". Read <a href="docs/huawei/finetune_artefact.md">finetune_artefact.md</a>.</p>
+                <p class="section-sub">Live HMI command-intent parsing via the fine-tuned LoRA adapter on Qwen3-1.7B (open weights, on-device). Closes the JD bullet "fine-tune pre-trained models". <strong>Trained iter 118 · evaluated iter 137:</strong> action_accuracy = <strong>100 %</strong>, full_match = <strong>100 %</strong>, macro F1 = <strong>1.0</strong> on 253 test examples (best_val_loss = 5.36 × 10⁻⁶ over 1 704 steps × 3 epochs with DoRA + NEFTune + 8-bit AdamW + cosine warm restarts). Read <a href="docs/huawei/finetune_artefact.md">finetune_artefact.md</a>.</p>
             </header>
             <div class="huawei-card reveal">
                 <div class="huawei-card-row">
@@ -1218,24 +1218,24 @@
             </div>
         </section>
 
-        <!-- ═══════════════════════ HUAWEI: EDGE PROFILE TAB (iter 51) ═══════════════════════ -->
+        <!-- ═══════════════════════ HUAWEI: EDGE PROFILE TAB ═══════════════════════ -->
         <section class="tab-panel" id="tab-edge-profile" data-tab="edge-profile" role="tabpanel" hidden>
             <header class="section-head reveal">
-                <p class="eyebrow">Huawei · iter 51</p>
-                <h2 class="section-title">Edge profile — fits Kirin 9000 in 56 ms P50.</h2>
-                <p class="section-sub">Per-component latency + memory budget. Closes recruiter screening Q4 (edge deployment).  Source: <a href="docs/paper/I3_research_paper.md">paper §6.4</a>; live data via <code>/api/profiling/report</code>.</p>
+                <p class="eyebrow">Huawei · edge feasibility</p>
+                <h2 class="section-title">Edge profile — fits Kirin 9000 in 55.7 ms P50.</h2>
+                <p class="section-sub">Per-component latency + memory budget pulled live from <code>/api/profiling/report</code>. Three cascade-arm cards underneath show how arms B (Qwen LoRA) and C (Gemini cloud) sit relative to arm A's baseline; below them, a rolling p50 / p95 table from <code>/api/cascade/stats</code> shows what the running server actually measured. Closes recruiter screening Q4 (edge deployment). Source: <a href="docs/paper/I3_research_paper.md">paper §6.4</a>.</p>
             </header>
             <div id="edge-profile-render" class="huawei-card reveal">
                 <em>Loading edge profile from <code>/api/profiling/report</code>…</em>
             </div>
         </section>
 
-        <!-- ═══════════════════════ HUAWEI: FINE-TUNE COMPARISON TAB (iter 51) ═══════════════════════ -->
+        <!-- ═══════════════════════ HUAWEI: FINE-TUNE COMPARISON TAB ═══════════════════════ -->
         <section class="tab-panel" id="tab-finetune" data-tab="finetune" role="tabpanel" hidden>
             <header class="section-head reveal">
-                <p class="eyebrow">Huawei · iter 51</p>
+                <p class="eyebrow">Huawei · open-weight vs cloud</p>
                 <h2 class="section-title">Fine-tune comparison — Qwen on-device vs Gemini cloud.</h2>
-                <p class="section-sub">Same dataset (5050 HMI command-intent examples), same eval, two different fine-tunes. Open vs closed weights, edge vs cloud, free vs paid.</p>
+                <p class="section-sub">Same 5 050-example HMI command-intent dataset, same 253-example eval, two parallel fine-tunes. Open vs closed weights, edge vs cloud, free vs paid. <strong>Qwen LoRA result (iter 137):</strong> action_accuracy = <strong>100 %</strong>, full_match = <strong>100 %</strong>, macro F1 = <strong>1.0</strong>; best_val_loss = 5.36 × 10⁻⁶ over 1 704 steps × 3 epochs. Gemini path is wired and dataset-translated; live tune pending API key authorisation.</p>
             </header>
             <div id="finetune-comparison" class="huawei-card reveal">
                 <em>Loading comparison from <code>/api/intent/status</code>…</em>
@@ -1246,12 +1246,12 @@
             </div>
         </section>
 
-        <!-- ═══════════════════════ HUAWEI: PERSONAL FACTS TAB (iter 51) ═══════════════════════ -->
+        <!-- ═══════════════════════ HUAWEI: PERSONAL FACTS TAB ═══════════════════════ -->
         <section class="tab-panel" id="tab-facts" data-tab="facts" role="tabpanel" hidden>
             <header class="section-head reveal">
-                <p class="eyebrow">Huawei · iter 51</p>
+                <p class="eyebrow">Huawei · cross-session memory</p>
                 <h2 class="section-title">Personal facts — cross-session encrypted memory.</h2>
-                <p class="section-sub">Iter 50 added Fernet-encrypted SQLite-backed personal-fact storage. Slots: name, favourite colour, occupation, location, hobby, age, pet. Wipe with one utterance: "forget my facts".</p>
+                <p class="section-sub">Fernet-encrypted SQLite-backed personal-fact storage (added iter 50, verified 4/4 by <code>cross_session_test.py</code>). Slots: name, favourite colour, occupation, location, hobby, age, pet, language. Live signals stream over WebSocket; one-utterance wipe via "forget my facts".</p>
             </header>
             <div class="huawei-card reveal">
                 <h3>Stored facts (this session)</h3>
@@ -1272,12 +1272,12 @@
             </div>
         </section>
 
-        <!-- ═══════════════════════ HUAWEI: MULTIMODAL TAB (iter 51) ═══════════════════════ -->
+        <!-- ═══════════════════════ HUAWEI: MULTIMODAL TAB ═══════════════════════ -->
         <section class="tab-panel" id="tab-multimodal" data-tab="multimodal" role="tabpanel" hidden>
             <header class="section-head reveal">
-                <p class="eyebrow">Huawei · iter 51</p>
-                <h2 class="section-title">Multimodal — 5 input channels.</h2>
-                <p class="section-sub">Vision + voice + keystroke + PPG/HRV + touch all feed the same TCN encoder. Closes the JD bullet "multimodal models".</p>
+                <p class="eyebrow">Huawei · 6 input channels</p>
+                <h2 class="section-title">Multimodal — 6 input channels into the same TCN.</h2>
+                <p class="section-sub">Vision + voice prosody + keystroke + PPG/HRV + touch + gaze classifier all feed the same TCN encoder. Closes the JD bullet "multimodal models". Browser-side validators (<code>i3.multimodal.validate_prosody_payload</code>, <code>validate_gaze_payload</code>) clamp out-of-range / NaN payloads at the WS edge — covered by 11 contract tests.</p>
             </header>
             <div class="huawei-grid reveal">
                 <div class="huawei-card">
@@ -1313,24 +1313,24 @@
             </div>
         </section>
 
-        <!-- ═══════════════════════ HUAWEI: RESEARCH NOTES TAB (iter 51) ═══════════════════════ -->
+        <!-- ═══════════════════════ HUAWEI: RESEARCH NOTES TAB ═══════════════════════ -->
         <section class="tab-panel" id="tab-research" data-tab="research" role="tabpanel" hidden>
             <header class="section-head reveal">
-                <p class="eyebrow">Huawei · iter 51</p>
+                <p class="eyebrow">Huawei · paper-trail</p>
                 <h2 class="section-title">Research reading list — what I³ stands on.</h2>
-                <p class="section-sub">15+ papers (2017–2026), each cited with where I³ uses or extends it.  Closes the JD bullet "stay up to date with the latest research".  Full list at <a href="docs/huawei/research_reading_list.md">research_reading_list.md</a>.</p>
+                <p class="section-sub">15+ papers (2017–2026), each cited with where I³ uses or extends it. Closes the JD bullet "stay up to date with the latest research". Full list at <a href="docs/huawei/research_reading_list.md">research_reading_list.md</a>.</p>
             </header>
             <div class="huawei-grid reveal" id="research-grid">
                 <em>Select papers from <a href="docs/huawei/research_reading_list.md">the full list</a>.</em>
             </div>
         </section>
 
-        <!-- ═══════════════════════ HUAWEI: JD MAP TAB (iter 51) ═══════════════════════ -->
+        <!-- ═══════════════════════ HUAWEI: JD MAP TAB ═══════════════════════ -->
         <section class="tab-panel" id="tab-jdmap" data-tab="jdmap" role="tabpanel" hidden>
             <header class="section-head reveal">
-                <p class="eyebrow">Huawei · iter 51</p>
+                <p class="eyebrow">Huawei · JD coverage</p>
                 <h2 class="section-title">JD → repo map.</h2>
-                <p class="section-sub">Every JD bullet mapped to the exact file, class, function, or test that satisfies it.  Live render of <a href="docs/huawei/jd_to_repo_map.md">jd_to_repo_map.md</a>.</p>
+                <p class="section-sub">Every JD bullet mapped to the exact file, class, function, or test that satisfies it. Live render of <a href="docs/huawei/jd_to_repo_map.md">jd_to_repo_map.md</a>; recruiter clarification answers in <a href="docs/huawei/recruiter_clarification_answers.md">recruiter_clarification_answers.md</a>.</p>
             </header>
             <div id="jdmap-render" class="huawei-card reveal">
                 <em>Loading <code>docs/huawei/jd_to_repo_map.md</code>…</em>
