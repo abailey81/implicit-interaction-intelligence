@@ -387,4 +387,26 @@ completion column.
 Total iter-52..98 test count: **433 passed + 1 skipped in 9.04 s.**
 47 commits stacked since iter 51.
 
-## Iter 100 — *(milestone — next focus picked when iter 99 commits)*
+## Iter 100 — MILESTONE: Pipeline._dedupe_sentences regression (commit `093b848`)
+
+8 tests pin the iter-51 sentence-level Jaccard ≥ 0.6 dedupe behaviour
+that catches retrieval-then-SLM and KG-overview duplications.  Marks
+49 stacked commits since iter 51.
+
+## Iter 101 — ResponsePostProcessor invariants (commit `e08d2a9`)
+
+8 tests pin the cloud-LLM postprocess pipeline (length / accessibility
+/ non-empty guarantee / idempotency).
+
+## Iter 102 — LinguisticAnalyzer feature extraction (commit `cb77ce8`)
+
+13 tests pin the 12+ linguistic features that flow into the user-state
+TCN encoder (TTR, Flesch-Kincaid, formality, sentiment, syllables,
+emoji, sentence split).
+
+## Iter 103 — Aggregate iter-100..102 sweep + Makefile + roadmap (this commit)
+
+Total iter-52..102 test count: **462 / 462 green.**  51 commits
+stacked since iter 51.
+
+## Iter 104 — *(next focus, picked when iter 103 commits)*
