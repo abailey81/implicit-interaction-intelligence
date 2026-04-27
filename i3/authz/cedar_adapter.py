@@ -270,6 +270,12 @@ class CedarAuthorizer:
         }
 
         entity_list: list[Any] = list(entities or self._fallback_entities(principal, resource))
+        # cedarpy 4.x rejects the old-style ``{"__entity": {...}}``
+        # wrapper used in pre-4 Cedar JSON; entity refs in attrs must
+        # now be bare ``{"type": ..., "id": ...}`` records.  Normalise
+        # both shapes so callers (and gold-test fixtures) keep working
+        # without a hand-edit pass over every entity payload.
+        entity_list = [self._normalize_entity(e) for e in entity_list]
 
         try:
             raw: Any = cedarpy.is_authorized(  # type: ignore[union-attr]
@@ -289,6 +295,40 @@ class CedarAuthorizer:
         return self._parse_decision(raw)
 
     # -- Internals ---------------------------------------------------------
+
+    @classmethod
+    def _normalize_entity(cls, entity: Any) -> Any:
+        """Strip pre-4 ``__entity`` wrappers from entity attribute refs.
+
+        cedarpy 4.x expects entity references inside ``attrs`` to be
+        bare ``{"type": ..., "id": ...}`` records.  Older Cedar JSON
+        encoded them as ``{"__entity": {"type": ..., "id": ...}}``.
+        We unwrap any occurrence we find so both shapes flow through.
+        """
+        if not isinstance(entity, dict):
+            return entity
+        out = dict(entity)
+        attrs = out.get("attrs")
+        if isinstance(attrs, dict):
+            out["attrs"] = {k: cls._unwrap_entity_ref(v) for k, v in attrs.items()}
+        return out
+
+    @classmethod
+    def _unwrap_entity_ref(cls, val: Any) -> Any:
+        if isinstance(val, dict):
+            inner = val.get("__entity")
+            if (
+                isinstance(inner, dict)
+                and "type" in inner
+                and "id" in inner
+                and len(val) == 1
+            ):
+                return {"type": inner["type"], "id": inner["id"]}
+            # recurse for nested records / sets
+            return {k: cls._unwrap_entity_ref(v) for k, v in val.items()}
+        if isinstance(val, list):
+            return [cls._unwrap_entity_ref(v) for v in val]
+        return val
 
     @staticmethod
     def _format_uid(ref: EntityRef) -> str:
@@ -331,18 +371,25 @@ class CedarAuthorizer:
         cedarpy returns a dict or object across versions; we handle both.
         """
 
-        # Dict-shaped response (common in 4.x).
+        # Dict-shaped response (older cedarpy 3.x JSON path).
         if isinstance(raw, dict):
             decision_str: str = str(raw.get("decision", "")).lower()
             policies: Sequence[Any] = raw.get("diagnostics", {}).get("reason", []) or []
             errors: Sequence[Any] = raw.get("diagnostics", {}).get("errors", []) or []
-        else:  # pragma: no cover - object-shaped response
-            decision_str = str(getattr(raw, "decision", "")).lower()
+        else:
+            # cedarpy 4.x AuthzResult: ``raw.decision`` is a Decision
+            # enum whose ``str()`` is ``"Decision.Allow"`` (qualified
+            # by the class name).  Use ``.name`` so the string is
+            # plain ``"Allow"`` regardless of cedarpy version.
+            dec = getattr(raw, "decision", None)
+            decision_str = str(getattr(dec, "name", dec) or "").lower()
             diagnostics: Any = getattr(raw, "diagnostics", None)
             policies = getattr(diagnostics, "reason", []) if diagnostics else []
             errors = getattr(diagnostics, "errors", []) if diagnostics else []
 
-        allowed: bool = decision_str == "allow"
+        # cedarpy 4.x decisions: "allow" or "deny".  Some 3.x bindings
+        # used "permit"; accept both for forward/backward compatibility.
+        allowed: bool = decision_str in ("allow", "permit")
         return AuthzDecision(
             allowed=allowed,
             determining_policies=tuple(str(p) for p in policies),

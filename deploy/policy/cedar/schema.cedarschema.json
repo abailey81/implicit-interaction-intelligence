@@ -10,7 +10,7 @@
                 }
             },
             "Admin": {
-                "memberOfTypes": [],
+                "memberOfTypes": ["Admin"],
                 "shape": {
                     "type": "Record",
                     "attributes": {
