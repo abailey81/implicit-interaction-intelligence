@@ -366,6 +366,16 @@ style: |
 
 <div class="meta">Tamer Atesyakar · Huawei R&D UK · 29 April 2026</div>
 
+<!--
+SLIDE 1 — COVER · Time: 0:00–0:30 (30 s)
+Cumulative: 0:30 / 30:00
+
+Beats:
+- After interviewer intros, deliver the framing line from PRESENTATION_SCRIPT §S1.
+- Do NOT read the slide title aloud. Click through.
+- Goal: signal calm, prepared, structured.
+-->
+
 ---
 
 # What if the assistant adapted to *how* you typed?
@@ -375,6 +385,16 @@ Most chat assistants treat each prompt as the only signal of intent. But typing 
 I³ is a working prototype of an assistant that reads those signals **on-device** and adapts its generation accordingly.
 
 <div class="source">SOURCE — README.md · docs/huawei/hci_design_brief.md</div>
+
+<!--
+SLIDE 2 — THESIS · Time: 0:30–1:30 (1 min)
+Cumulative: 1:30 / 30:00
+
+Beats:
+- Frame the implicit-vs-explicit distinction up front.
+- Do not name the cascade yet — that's slide 5.
+- Land on "on-device" with emphasis. That's the through-line.
+-->
 
 ---
 
@@ -402,12 +422,31 @@ One repository. Three language-model arms. Stitched together by a multi-signal s
 
 <div class="source">SOURCE — scripts/verify_numbers.py · 22 / 22 PASS · 2026-04-28</div>
 
+<!--
+SLIDE 3 — PROJECT AT A GLANCE · Time: 1:30–3:00 (1 min 30 s)
+Cumulative: 3:00 / 30:00
+
+Beats:
+- Three numbers, three sentences. Don't expand here — these get full
+  treatment on slides 9, 10, 12.
+- The phrase "one repository, three arms" is the framing for §1.
+- Mention the verifier line if asked about provenance — otherwise skip.
+-->
+
 ---
 
 <!-- _class: divider -->
 
 <div class="number">01</div>
 <div class="label">The cascade</div>
+
+<!--
+SLIDE 4 — DIVIDER 01 · Time: 3:00–3:05 (5 s)
+Cumulative: 3:05 / 30:00
+
+Beats:
+- Click through. No words. Visual rest.
+-->
 
 ---
 
@@ -439,6 +478,19 @@ One repository. Three language-model arms. Stitched together by a multi-signal s
 <div class="arm-row"><strong>Fires when.</strong> Local arms can't ground.</div>
 </div>
 
+<!--
+SLIDE 5 — THREE ARMS · Time: 3:05–5:05 (2 min)
+Cumulative: 5:05 / 30:00
+
+Beats:
+- Walk left-to-right: SLM, Qwen, Gemini.
+- Anchor with: "Each arm has a different role and a different cost-quality
+  trade-off."
+- Critical line: "Cheapest arm that can give a confident, schema-valid,
+  on-topic answer wins."
+- Do NOT read every cell of the table. Hit one beat per arm.
+-->
+
 ---
 
 # `route_decision` ships on every reply
@@ -463,6 +515,18 @@ Six deterministic signals → five route classes → highest-scoring class wins.
 
 <div class="source">SOURCE — i3/pipeline/engine.py · _smart_score_arms</div>
 
+<!--
+SLIDE 6 — ROUTE_DECISION · Time: 5:05–7:05 (2 min)
+Cumulative: 7:05 / 30:00
+
+Beats:
+- Walk through the dict top-to-bottom.
+- Emphasise: "Every reply ships this — the user can hover the chip and
+  see the routing math."
+- Reference Lee & See 2004 (calibrated trust) once briefly.
+- 22/22 precision smoke is the validation.
+-->
+
 ---
 
 <!-- _class: diagram-anchor -->
@@ -479,12 +543,29 @@ intake  →  coref  →  encode (TCN)  →  adapt (8-axis)
 
 <div class="takeaway">Every reply animates this 14-stage pipeline live in the Flow tab.</div>
 
+<!--
+SLIDE 7 — 14-STAGE PIPELINE · Time: 7:05–8:35 (1 min 30 s)
+Cumulative: 8:35 / 30:00
+
+Beats:
+- Don't read all 14 stages aloud. Group them: perception (1-4), generation
+  (5-11), post-processing (12-14).
+- "The Flow tab animates this on every reply with real timings, not
+  synthetic animation."
+- TRANSITION to slide 8: "That's the cascade as a runtime. Now the two
+  halves of how each arm was actually built."
+-->
+
 ---
 
 <!-- _class: divider -->
 
 <div class="number">02</div>
 <div class="label">From-scratch and fine-tuned, side by side</div>
+
+<!--
+SLIDE 8 — DIVIDER 02 · Time: 8:35–8:40 (5 s)
+-->
 
 ---
 
@@ -514,6 +595,23 @@ intake  →  coref  →  encode (TCN)  →  adapt (8-axis)
 </div>
 
 <div class="source">SOURCE — checkpoints/slm_v2/best_model.pt · reports/slm_v2_eval.md</div>
+
+<!--
+SLIDE 9 — SLM V2 ARCHITECTURE + RESULT · Time: 8:40–11:40 (3 min)
+Cumulative: 11:40 / 30:00
+
+Beats:
+- Hit the architecture beats: 12 layers, 12 heads, 768 d_model, MoE-2 + ACT.
+- Cross-attention conditioning: "the user-state vector is consumed by the
+  same gradient-flowing mechanism that consumes content."
+- 0 HF deps in the generation path.
+- TWO perplexity numbers — pre-empt the question:
+    * 147 = training-time, response-only, same-distribution (the headline).
+    * 1 725 = stress-test, full-corpus sample, all-token loss (conservative).
+  Both real. The 147 is the apples-to-apples number versus published SLMs.
+- Honest framing: data-bound at this scale, not epoch-bound. Open
+  problem #2 is the full-corpus retrain.
+-->
 
 ---
 
@@ -557,12 +655,31 @@ intake  →  coref  →  encode (TCN)  →  adapt (8-axis)
 
 </div>
 
+<!--
+SLIDE 10 — QWEN LORA RECIPE + RESULT · Time: 11:40–14:10 (2 min 30 s)
+Cumulative: 14:10 / 30:00
+
+Beats:
+- Hit the recipe beats: DoRA, NEFTune α=5, 8-bit AdamW, cosine warm restarts.
+- Mention bf16 + grad checkpoint + LoRA fits 1.7B on the 6 GB laptop GPU.
+- Result: 100% on 253 held-out test examples.
+- Be precise about val_loss: 5.36e-6 is unusual because the task is highly
+  structured (small action vocab). Quote the test accuracy as the
+  production-grade number.
+- TRANSITION to slide 11: "Both halves close the JD's both/and bullet.
+  The third pillar is edge."
+-->
+
 ---
 
 <!-- _class: divider -->
 
 <div class="number">03</div>
 <div class="label">The edge</div>
+
+<!--
+SLIDE 11 — DIVIDER 03 · Time: 14:10–14:15 (5 s)
+-->
 
 ---
 
@@ -573,12 +690,34 @@ intake  →  coref  →  encode (TCN)  →  adapt (8-axis)
 
 <div class="footer">441.4 KB → 162.2 KB · −63.25 % size · MAE 0.000548 vs FP32 · p50 460 µs · 2 176 enc/s · 12.5 × under the Kirin A2 watch's 2 MB encoder budget · DevTools shows zero /api/encode requests when the toggle is on</div>
 
+<!--
+SLIDE 12 — 162 KB ENCODER (HERO) · Time: 14:15–17:15 (3 min)
+Cumulative: 17:15 / 30:00
+
+Beats:
+- This is the JD's edge-deployment money slide.
+- Read the 162 KB number. Pause. Let it land.
+- Walk through the footer left-to-right: size reduction, parity, latency,
+  watch-budget headroom.
+- DEMO MOMENT (if you brought your laptop): "Quick switch — I'd like to
+  show this live, two minutes." Switch projection. Show DevTools (zero
+  /api/encode), show the actuator firing. Switch back.
+- Honest framing: "encoder ships today; the 204 M SLM does not yet —
+  that's open problem #1, blocked on a Kirin dev kit."
+- TRANSITION to slide 13: "But why does edge matter at all? That's the
+  HCI argument."
+-->
+
 ---
 
 <!-- _class: divider -->
 
 <div class="number">04</div>
 <div class="label">The HCI argument</div>
+
+<!--
+SLIDE 13 — DIVIDER 04 · Time: 17:15–17:20 (5 s)
+-->
 
 ---
 
@@ -614,6 +753,20 @@ No real user study yet. n = 20 within-subjects validation is open problem #5.
 
 </div>
 
+<!--
+SLIDE 14 — HCI ARGUMENT · Time: 17:20–19:20 (2 min)
+Cumulative: 19:20 / 30:00
+
+Beats:
+- "Cognitive bandwidth is scarce in the contexts HMI Lab cares about:
+  vehicles, wearables, accessibility users."
+- Reading state from typing rhythm = zero additional work for the user.
+- Three references — each gets one sentence.
+- CALL OUT THE GAP: no real user study yet. n=20 is open problem #5.
+  Surfacing the gap proactively is the move.
+- TRANSITION to slide 15: "Solo project. Honest list of what's open."
+-->
+
 ---
 
 <!-- _class: inverted -->
@@ -631,6 +784,23 @@ No real user study yet. n = 20 within-subjects validation is open problem #5.
 
 *Solo project. Honest list. This is how I'd work in HMI Lab — scope tight, constraints explicit, validation criteria pre-registered.*
 
+<!--
+SLIDE 15 — OPEN PROBLEMS + CLOSE · Time: 19:20–21:20 (2 min)
+Cumulative: 21:20 / 30:00 (with ~9 min slack for transitions, demo
+interactions, and mid-presentation questions)
+
+Beats:
+- Land here. Inverted slide signals "the meta-reflection on the project,
+  not the project itself".
+- Read the six items briefly: 1 week, 30 h GPU, 2 weeks, 3 days, 3 weeks,
+  4 hours.
+- Closing line (verbatim): "Solo project. Honest list. This is how I'd
+  work in HMI Lab — scope tight, constraints explicit, validation
+  criteria pre-registered."
+- Pause. Sit back slightly. Click to slide 16. They'll start the Q&A
+  block.
+-->
+
 ---
 
 <!-- _class: closing -->
@@ -638,3 +808,13 @@ No real user study yet. n = 20 within-subjects validation is open problem #5.
 # Questions?
 
 <div class="repo">github.com/abailey81/implicit-interaction-intelligence</div>
+
+<!--
+SLIDE 16 — CLOSING · Held during Tech Q&A (10 min) and onwards.
+- Don't speak when this slide lands. Wait for the first question.
+- The Tech Q&A block is dedicated time: 10 minutes.
+- After Tech Q&A: behavioural Q&A (10 min), then role overview (5 min),
+  then candidate Q&A (5 min) — see PRESENTATION_SCRIPT and
+  INTERVIEW_QA_RAPID for the answers.
+-->
+
