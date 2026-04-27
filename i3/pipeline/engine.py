@@ -4943,7 +4943,11 @@ class Pipeline:
                     # ``query_for_retrieval`` already holds the resolved
                     # form built upstream by the coref module.
                     qry = (query_for_retrieval or message)
-                    cloud_text = await self._gemini_chat_fallback(qry)
+                    cloud_text = await self._gemini_chat_fallback(
+                        qry,
+                        user_id=user_id,
+                        session_id=session_id,
+                    )
                     if cloud_text:
                         self._last_response_path = "cloud_chat"
                         return cloud_text
@@ -5212,24 +5216,31 @@ class Pipeline:
                             "privacy", "privately",
                         }
                         q_lc = (resolved_message or "").lower()
+                        r_lc = (response_text or "").lower()
                         all_anchors = kg_subjects | system_topics
                         in_query = any(s in q_lc for s in all_anchors)
-                        # Smart-router exemption: when the smart
-                        # classifier already labelled this query as
-                        # ``system_intro`` we WANT the curated I³
-                        # retrieval answer to fire even if no anchor
-                        # is in the query string ("how do you work?"
-                        # contains none of the anchor words but its
-                        # response is hand-curated).  Bypass the
-                        # strict gate in that case.
+                        # Smart-router exemption.
                         smart_exempt = (
                             getattr(self, "_last_smart_route", None)
                             == "system_intro"
                         )
-                        # Strict gate: the QUERY must mention a known
-                        # anchor.  We no longer accept response-only
-                        # mentions — those caused the "Google
-                        # DeepMind" leak via corpus byproduct text.
+                        # Phase 15: TOPIC-CONSISTENCY gate.  When the
+                        # query mentions one or more KG subjects, we
+                        # demand at least ONE of those subjects also
+                        # appear in the response.  This kills the
+                        # bug where "what about huawei's london
+                        # office?" returned a generic London-the-city
+                        # blurb at score 0.93 — the retriever's
+                        # cosine matched on "London" but the response
+                        # didn't mention "huawei" anywhere.
+                        kg_in_query = [
+                            s for s in kg_subjects if s in q_lc
+                        ]
+                        topic_inconsistent = False
+                        if kg_in_query:
+                            topic_inconsistent = not any(
+                                s in r_lc for s in kg_in_query
+                            )
                         if not in_query and not smart_exempt:
                             logger.debug(
                                 "retrieval grounded (strict): query "
@@ -5237,6 +5248,17 @@ class Pipeline:
                                 "topic; demoting (score=%.2f) → "
                                 "cascade fallback",
                                 float(score),
+                            )
+                            self._last_retrieval_candidate = None
+                            match = None
+                            response_text = None
+                        elif topic_inconsistent and not smart_exempt:
+                            logger.info(
+                                "retrieval topic-inconsistent: query "
+                                "mentions %s but response does not; "
+                                "demoting (score=%.2f) → cascade "
+                                "fallback",
+                                kg_in_query, float(score),
                             )
                             self._last_retrieval_candidate = None
                             match = None
@@ -5657,7 +5679,11 @@ class Pipeline:
                 # located?" reaches Gemini as "where is huawei
                 # located?" instead of the unresolved pronoun.
                 cloud_qry = (query_for_retrieval or message)
-                cloud_text = await self._gemini_chat_fallback(cloud_qry)
+                cloud_text = await self._gemini_chat_fallback(
+                    cloud_qry,
+                    user_id=user_id,
+                    session_id=session_id,
+                )
                 if cloud_text:
                     self._last_response_path = "cloud_chat"
                     logger.info(
@@ -6667,7 +6693,13 @@ class Pipeline:
             },
         }
 
-    async def _gemini_chat_fallback(self, message: str) -> str | None:
+    async def _gemini_chat_fallback(
+        self,
+        message: str,
+        *,
+        user_id: str = "",
+        session_id: str = "",
+    ) -> str | None:
         """Cloud chat arm of the cascade — fires only when the local
         SLM + retrieval path can't produce a confident on-topic answer.
 
@@ -6676,6 +6708,13 @@ class Pipeline:
         Returns ``None`` on any failure (auth, rate-limit, transient)
         so the caller falls through to the OOD ack instead of crashing
         the turn.
+
+        When ``user_id``/``session_id`` are provided the engine pulls
+        the last 4 (user, assistant) pairs from the session-history
+        store and feeds them to Gemini as a conversation prefix.  This
+        lets follow-ups like "what about their london office?" reach
+        Gemini with the prior turn's "tell me about huawei" context
+        intact, instead of being treated as a stand-alone question.
         """
         provider = getattr(self, "_chat_provider_gemini", None)
         if provider is None:
@@ -6737,8 +6776,24 @@ class Pipeline:
             "intent parser', 'I fall over to a cloud arm'), and do "
             "not name the specific cloud provider."
         )
+        # Phase 15: pull the last 4 (user, assistant) turns from the
+        # session-history store and prepend them as ChatMessages so
+        # follow-ups inherit context.  Trimmed conservatively (4
+        # pairs / 8 messages) to keep latency low and the prompt
+        # within Gemini's 2.5-flash context budget.
+        msgs: list[Any] = []
+        try:
+            history_pairs = self._get_history_pairs(user_id, session_id)
+            for u, a in history_pairs[-4:]:
+                if u:
+                    msgs.append(ChatMessage(role="user", content=u))
+                if a:
+                    msgs.append(ChatMessage(role="assistant", content=a))
+        except Exception:
+            pass
+        msgs.append(ChatMessage(role="user", content=message))
         req = CompletionRequest(
-            messages=[ChatMessage(role="user", content=message)],
+            messages=msgs,
             system=system,
             temperature=0.2,
             max_tokens=160,

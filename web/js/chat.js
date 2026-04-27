@@ -1205,32 +1205,56 @@ class ChatInterface {
                 text: '◆ ' + ir.action,
             });
         }
-        // Iter 51 phase 12: compact per-arm indicator chips.  Three
+        // Iter 51 phase 15: per-arm indicator chips with the smart-
+        // router score appended inline (so the recruiter sees the
+        // routing math without hovering for the tooltip).  Three
         // tight pills — SLM, Qwen, Gemini — coloured when fired,
-        // dimmed when not.  No oversized bullet glyphs; the colour
-        // itself signals state.
+        // dimmed when not.  Each shows "<arm>·<score>" where score
+        // is the per-arm confidence from the multi-signal router.
         const rd0 = metadata.route_decision;
         if (rd0 && typeof rd0 === 'object' && rd0.arms_used) {
             const arms = rd0.arms_used;
-            const tipBase = (label, used) =>
-                used ? `${label}: used on this turn` : `${label}: idle`;
+            const ss = rd0.smart_scores || {};
+            // Map per-class scores onto per-arm scores so the chip
+            // shows what the user actually cares about.  Greeting
+            // and tool routes display "—" since they aren't an LLM
+            // arm at all.
+            const slmScore = Math.max(
+                Number(ss.system_intro || 0),
+                Number(ss.default_chat || 0)
+            );
+            const qwenScore = Number(rd0.path === 'tool:intent' ? 1.0 : 0.0);
+            const geminiScore = Math.max(
+                Number(ss.cascade_meta || 0),
+                Number(ss.world_chat || 0)
+            );
+            const fmt = (s) => Number.isFinite(s) && s > 0
+                ? '·' + s.toFixed(2)
+                : '';
+            const tipBase = (label, used, score) => {
+                const head = used ? `${label}: used on this turn`
+                                  : `${label}: idle`;
+                const sc = (Number.isFinite(score) && score > 0)
+                    ? `\nrouter score: ${score.toFixed(3)}` : '';
+                return head + sc;
+            };
             chips.push({
                 cls: 'chip-arm chip-arm-indicator chip-arm-slm '
                      + (arms.slm ? 'chip-arm-on' : 'chip-arm-off'),
-                title: tipBase('SLM (204M from-scratch transformer + retrieval)', arms.slm),
-                text: 'SLM',
+                title: tipBase('SLM (204M from-scratch transformer + retrieval)', arms.slm, slmScore),
+                text: 'SLM' + fmt(slmScore),
             });
             chips.push({
                 cls: 'chip-arm chip-arm-indicator chip-arm-qwen '
                      + (arms.qwen ? 'chip-arm-on' : 'chip-arm-off'),
-                title: tipBase('Qwen 1.7B + LoRA intent parser', arms.qwen),
-                text: 'Qwen',
+                title: tipBase('Qwen 1.7B + LoRA intent parser', arms.qwen, qwenScore),
+                text: 'Qwen' + fmt(qwenScore),
             });
             chips.push({
                 cls: 'chip-arm chip-arm-indicator chip-arm-gemini '
                      + (arms.gemini ? 'chip-arm-on' : 'chip-arm-off'),
-                title: tipBase('Gemini 2.5 Flash (cloud)', arms.gemini),
-                text: 'Gemini',
+                title: tipBase('Gemini 2.5 Flash (cloud)', arms.gemini, geminiScore),
+                text: 'Gemini' + fmt(geminiScore),
             });
         }
         // Iter 51 phase 11: prominent "Used: X" badge at the end of
