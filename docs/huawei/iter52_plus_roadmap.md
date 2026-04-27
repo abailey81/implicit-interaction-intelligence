@@ -471,4 +471,40 @@ routes on via isinstance().
 Total iter-52..114 test count: **542 / 542 green.**  63 commits
 stacked since iter 51.
 
-## Iter 116 — *(next focus, picked when iter 115 commits)*
+## Iter 116 — TokenUsage / ChatMessage / CompletionResult contract (commit `1d050e3`)
+
+10 tests pin the pydantic-frozen base dataclasses every cloud
+provider adapter shares.
+
+## Iter 117 — ExplainPlan + SubAnswer dataclass contract (commit `218bbd6`)
+
+6 tests pin the multi-step explain decomposition data structures
+shipped under output.explain_plan.
+
+## Iter 118 — StageRecord invariants + multi-epoch Qwen LoRA training metrics (commit `15be04b`)
+
+6 StageRecord tests + the **trained Qwen3-1.7B + LoRA** adapter
+artefact: 1 704 steps × 3 epochs × DoRA + 8-bit AdamW + NEFTune,
+**best_val_loss = 5.36e-06**, 9 656 s wall.
+
+## Iter 119 — Run training/eval_intent.py against trained adapter (in progress)
+
+Eval triggered against the now-trained adapter; results pending.
+
+## Iter 120 — KGRelation dataclass invariants (commit `1c58ffb`)
+
+6 tests pin frozen dataclass + value equality + hashability for
+the KG triple type.
+
+## Iter 121 — cascade-classifier full path coverage (commit `b729fb2`)
+
+5 tests sweep iter-55's _classify_cascade_arm across every
+documented response_path string the engine emits.
+
+## Iter 122 — Aggregate iter-116..121 sweep + Makefile + roadmap (this commit)
+
+Total iter-52..121 test count: **575 / 575 green.**  69 commits
+stacked since iter 51.  *Qwen LoRA training complete with
+best_val_loss → 5.36e-06; intent-eval running.*
+
+## Iter 123 — *(next focus, picked when iter 122 commits)*
