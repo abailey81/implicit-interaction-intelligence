@@ -6542,6 +6542,13 @@ class Pipeline:
                 "chat) declined to produce a confident answer."
             )
             threshold = "all arms failed → safe fallback"
+        # Per-arm "did this arm fire on this turn?" booleans so the
+        # chat UI can show three indicator chips (SLM / Qwen / Gemini)
+        # per message — recruiter sees the cascade light up in real
+        # time, not just the winner.
+        slm_used    = arm in ("slm", "slm+retrieval")
+        qwen_used   = arm in ("qwen-lora", "gemini-backup")
+        gemini_used = arm in ("gemini-backup", "gemini-chat")
         return {
             "arm": arm,
             "model": model,
@@ -6550,6 +6557,11 @@ class Pipeline:
             "threshold": threshold,
             "path": path,
             "score": round(score, 3),
+            "arms_used": {
+                "slm":    slm_used,
+                "qwen":   qwen_used,
+                "gemini": gemini_used,
+            },
         }
 
     async def _gemini_chat_fallback(self, message: str) -> str | None:

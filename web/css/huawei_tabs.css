@@ -304,3 +304,24 @@
 .message-chip.chip-arm-c { color: #b0c8f0; border-color: #2a3a5a; }
 .message-chip.chip-arm-r { color: #d0a0e0; border-color: #4a2a5a; }
 .message-chip.chip-arm-t { color: #c8c8c8; border-color: #444; }
+
+/* Iter 51 phase 10 — three per-arm indicator chips so every reply
+   shows the on/off state of all three cascade arms (SLM, Qwen,
+   Gemini) instead of just the winner.  ``chip-arm-on`` is bright
+   colour-coded; ``chip-arm-off`` is desaturated grey so the eye
+   immediately spots which arm fired. */
+.message-chip.chip-arm-indicator {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    letter-spacing: 0.03em;
+    font-size: 10.5px;
+    padding-left: 8px;
+    padding-right: 8px;
+}
+.message-chip.chip-arm-indicator.chip-arm-off {
+    color: #6a6a6a;
+    border-color: #2a2a2a;
+    opacity: 0.55;
+}
+.message-chip.chip-arm-indicator.chip-arm-slm.chip-arm-on    { color: #b0e6c0; border-color: #2c6a3c; background: rgba(44,106,60,0.08); }
+.message-chip.chip-arm-indicator.chip-arm-qwen.chip-arm-on   { color: #f0c870; border-color: #6a4a1a; background: rgba(106,74,26,0.08); }
+.message-chip.chip-arm-indicator.chip-arm-gemini.chip-arm-on { color: #b0c8f0; border-color: #2a4a8a; background: rgba(42,74,138,0.08); }
