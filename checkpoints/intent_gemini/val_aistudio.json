@@ -1,0 +1,1010 @@
+[
+  {
+    "text_input": "give me a three minutes timer",
+    "output": "{\"action\":\"set_timer\",\"params\":{\"duration_seconds\":180}}"
+  },
+  {
+    "text_input": "i need to book a haircut this weekend",
+    "output": "{\"action\":\"set_reminder\",\"params\":{\"task\":\"book a haircut\",\"when\":\"this weekend\"}}"
+  },
+  {
+    "text_input": "set a reminder to pay the council tax",
+    "output": "{\"action\":\"set_reminder\",\"params\":{\"task\":\"pay the council tax\"}}"
+  },
+  {
+    "text_input": "could you set a a minute timer for me",
+    "output": "{\"action\":\"set_timer\",\"params\":{\"duration_seconds\":60}}"
+  },
+  {
+    "text_input": "bedroom light off",
+    "output": "{\"action\":\"control_device\",\"params\":{\"device\":\"bedroom light\",\"state\":\"off\"}}"
+  },
+  {
+    "text_input": "directions to the nearest pharmacy",
+    "output": "{\"action\":\"navigate\",\"params\":{\"location\":\"the nearest pharmacy\"}}"
+  },
+  {
+    "text_input": "play Drake on spotify",
+    "output": "{\"action\":\"play_music\",\"params\":{\"artist\":\"Drake\"}}"
+  },
+  {
+    "text_input": "call my sister",
+    "output": "{\"action\":\"call\",\"params\":{\"recipient\":\"my sister\",\"video\":false}}"
+  },
+  {
+    "text_input": "wake me in a quarter of an hour",
+    "output": "{\"action\":\"set_timer\",\"params\":{\"duration_seconds\":900}}"
+  },
+  {
+    "text_input": "play k-pop on spotify",
+    "output": "{\"action\":\"play_music\",\"params\":{\"genre\":\"k-pop\"}}"
+  },
+  {
+    "text_input": "navigate to Hyde Park",
+    "output": "{\"action\":\"navigate\",\"params\":{\"location\":\"Hyde Park\"}}"
+  },
+  {
+    "text_input": "take me to the train station",
+    "output": "{\"action\":\"navigate\",\"params\":{\"location\":\"the train station\"}}"
+  },
+  {
+    "text_input": "remind me to pay the council tax",
+    "output": "{\"action\":\"set_reminder\",\"params\":{\"task\":\"pay the council tax\"}}"
+  },
+  {
+    "text_input": "ignore that last one",
+    "output": "{\"action\":\"cancel\",\"params\":{}}"
+  },
+  {
+    "text_input": "navigate to home",
+    "output": "{\"action\":\"navigate\",\"params\":{\"location\":\"home\"}}"
+  },
+  {
+    "text_input": "i need to be up by noon",
+    "output": "{\"action\":\"set_alarm\",\"params\":{\"time\":\"noon\"}}"
+  },
+  {
+    "text_input": "garage door off",
+    "output": "{\"action\":\"control_device\",\"params\":{\"device\":\"garage door\",\"state\":\"off\"}}"
+  },
+  {
+    "text_input": "i need to get to Mum's house",
+    "output": "{\"action\":\"navigate\",\"params\":{\"location\":\"Mum's house\"}}"
+  },
+  {
+    "text_input": "what's the weather in the office",
+    "output": "{\"action\":\"weather_query\",\"params\":{\"location\":\"the office\"}}"
+  },
+  {
+    "text_input": "alarm at 0700",
+    "output": "{\"action\":\"set_alarm\",\"params\":{\"time\":\"0700\"}}"
+  },
+  {
+    "text_input": "ring my sister",
+    "output": "{\"action\":\"call\",\"params\":{\"recipient\":\"my sister\",\"video\":false}}"
+  },
+  {
+    "text_input": "umm so basically text Mum that I'll be late",
+    "output": "{\"action\":\"send_message\",\"params\":{\"recipient\":\"Mum\",\"message\":\"I'll be late\"}}"
+  },
+  {
+    "text_input": "facetime Mike",
+    "output": "{\"action\":\"call\",\"params\":{\"recipient\":\"Mike\",\"video\":true}}"
+  },
+  {
+    "text_input": "switch off the heating",
+    "output": "{\"action\":\"control_device\",\"params\":{\"device\":\"heating\",\"state\":\"off\"}}"
+  },
+  {
+    "text_input": "give Sam a call",
+    "output": "{\"action\":\"call\",\"params\":{\"recipient\":\"Sam\",\"video\":false}}"
+  },
+  {
+    "text_input": "ping me in 15 minutes",
+    "output": "{\"action\":\"set_timer\",\"params\":{\"duration_seconds\":900}}"
+  },
+  {
+    "text_input": "is it going to rain today",
+    "output": "{\"action\":\"weather_query\",\"params\":{}}"
+  },
+  {
+    "text_input": "switch off the heating",
+    "output": "{\"action\":\"control_device\",\"params\":{\"device\":\"heating\",\"state\":\"off\"}}"
+  },
+  {
+    "text_input": "message Wei: the meeting is moved to 4pm",
+    "output": "{\"action\":\"send_message\",\"params\":{\"recipient\":\"Wei\",\"message\":\"the meeting is moved to 4pm\"}}"
+  },
+  {
+    "text_input": "call my brother",
+    "output": "{\"action\":\"call\",\"params\":{\"recipient\":\"my brother\",\"video\":false}}"
+  },
+  {
+    "text_input": "alarm for 6pm",
+    "output": "{\"action\":\"set_alarm\",\"params\":{\"time\":\"6pm\"}}"
+  },
+  {
+    "text_input": "message Priya: what time should I arrive",
+    "output": "{\"action\":\"send_message\",\"params\":{\"recipient\":\"Priya\",\"message\":\"what time should I arrive\"}}"
+  },
+  {
+    "text_input": "stop",
+    "output": "{\"action\":\"cancel\",\"params\":{}}"
+  },
+  {
+    "text_input": "garage door off",
+    "output": "{\"action\":\"control_device\",\"params\":{\"device\":\"garage door\",\"state\":\"off\"}}"
+  },
+  {
+    "text_input": "text my brother thanks for today",
+    "output": "{\"action\":\"send_message\",\"params\":{\"recipient\":\"my brother\",\"message\":\"thanks for today\"}}"
+  },
+  {
+    "text_input": "i need to check the laundry at lunchtime",
+    "output": "{\"action\":\"set_reminder\",\"params\":{\"task\":\"check the laundry\",\"when\":\"at lunchtime\"}}"
+  },
+  {
+    "text_input": "wake me in 15 minutes",
+    "output": "{\"action\":\"set_timer\",\"params\":{\"duration_seconds\":900}}"
+  },
+  {
+    "text_input": "dim the garage door",
+    "output": "{\"action\":\"control_device\",\"params\":{\"device\":\"garage door\",\"state\":\"dim\"}}"
+  },
+  {
+    "text_input": "i need to get to Heathrow",
+    "output": "{\"action\":\"navigate\",\"params\":{\"location\":\"Heathrow\"}}"
+  },
+  {
+    "text_input": "what's the weather",
+    "output": "{\"action\":\"weather_query\",\"params\":{}}"
+  },
+  {
+    "text_input": "brighten the coffee machine",
+    "output": "{\"action\":\"control_device\",\"params\":{\"device\":\"coffee machine\",\"state\":\"brighten\"}}"
+  },
+  {
+    "text_input": "dial Charlie",
+    "output": "{\"action\":\"call\",\"params\":{\"recipient\":\"Charlie\",\"video\":false}}"
+  },
+  {
+    "text_input": "would you be so kind as to ring my mother",
+    "output": "{\"action\":\"call\",\"params\":{\"recipient\":\"my mother\",\"video\":false}}"
+  },
+  {
+    "text_input": "queue up some pop",
+    "output": "{\"action\":\"play_music\",\"params\":{\"genre\":\"pop\"}}"
+  },
+  {
+    "text_input": "give me a 90 seconds timer",
+    "output": "{\"action\":\"set_timer\",\"params\":{\"duration_seconds\":90}}"
+  },
+  {
+    "text_input": "facetime Priya",
+    "output": "{\"action\":\"call\",\"params\":{\"recipient\":\"Priya\",\"video\":true}}"
+  },
+  {
+    "text_input": "stop",
+    "output": "{\"action\":\"cancel\",\"params\":{}}"
+  },
+  {
+    "text_input": "switch off the kettle",
+    "output": "{\"action\":\"control_device\",\"params\":{\"device\":\"kettle\",\"state\":\"off\"}}"
+  },
+  {
+    "text_input": "do a backflip",
+    "output": "{\"action\":\"unsupported\",\"params\":{}}"
+  },
+  {
+    "text_input": "turn on the kettle",
+    "output": "{\"action\":\"control_device\",\"params\":{\"device\":\"kettle\",\"state\":\"on\"}}"
+  },
+  {
+    "text_input": "set a reminder to post the parcel",
+    "output": "{\"action\":\"set_reminder\",\"params\":{\"task\":\"post the parcel\"}}"
+  },
+  {
+    "text_input": "send Mum a message: what time should I arrive",
+    "output": "{\"action\":\"send_message\",\"params\":{\"recipient\":\"Mum\",\"message\":\"what time should I arrive\"}}"
+  },
+  {
+    "text_input": "set the tv to 70 percent",
+    "output": "{\"action\":\"control_device\",\"params\":{\"device\":\"tv\",\"value\":\"70 percent\"}}"
+  },
+  {
+    "text_input": "facetime Mike",
+    "output": "{\"action\":\"call\",\"params\":{\"recipient\":\"Mike\",\"video\":true}}"
+  },
+  {
+    "text_input": "give me a three minutes timer",
+    "output": "{\"action\":\"set_timer\",\"params\":{\"duration_seconds\":180}}"
+  },
+  {
+    "text_input": "turn off the air conditioning",
+    "output": "{\"action\":\"control_device\",\"params\":{\"device\":\"air conditioning\",\"state\":\"off\"}}"
+  },
+  {
+    "text_input": "cancel my reminder",
+    "output": "{\"action\":\"cancel\",\"params\":{}}"
+  },
+  {
+    "text_input": "take me to Pret",
+    "output": "{\"action\":\"navigate\",\"params\":{\"location\":\"Pret\"}}"
+  },
+  {
+    "text_input": "wake me up at 0700 please",
+    "output": "{\"action\":\"set_alarm\",\"params\":{\"time\":\"0700\"}}"
+  },
+  {
+    "text_input": "i need a a quarter of an hour timer",
+    "output": "{\"action\":\"set_timer\",\"params\":{\"duration_seconds\":900}}"
+  },
+  {
+    "text_input": "drop Mike a line: got the train, see you at 7",
+    "output": "{\"action\":\"send_message\",\"params\":{\"recipient\":\"Mike\",\"message\":\"got the train, see you at 7\"}}"
+  },
+  {
+    "text_input": "i need to be up by twenty past eight",
+    "output": "{\"action\":\"set_alarm\",\"params\":{\"time\":\"twenty past eight\"}}"
+  },
+  {
+    "text_input": "i want to listen to k-pop",
+    "output": "{\"action\":\"play_music\",\"params\":{\"genre\":\"k-pop\"}}"
+  },
+  {
+    "text_input": "wake me at 7:30am",
+    "output": "{\"action\":\"set_alarm\",\"params\":{\"time\":\"7:30am\"}}"
+  },
+  {
+    "text_input": "remind me at 10pm sharp",
+    "output": "{\"action\":\"set_alarm\",\"params\":{\"time\":\"10pm\"}}"
+  },
+  {
+    "text_input": "alarm for 0700",
+    "output": "{\"action\":\"set_alarm\",\"params\":{\"time\":\"0700\"}}"
+  },
+  {
+    "text_input": "what's the weather in Cambridge",
+    "output": "{\"action\":\"weather_query\",\"params\":{\"location\":\"Cambridge\"}}"
+  },
+  {
+    "text_input": "dial Wei",
+    "output": "{\"action\":\"call\",\"params\":{\"recipient\":\"Wei\",\"video\":false}}"
+  },
+  {
+    "text_input": "will it rain tomorrow",
+    "output": "{\"action\":\"weather_query\",\"params\":{}}"
+  },
+  {
+    "text_input": "alarm at 1830",
+    "output": "{\"action\":\"set_alarm\",\"params\":{\"time\":\"1830\"}}"
+  },
+  {
+    "text_input": "weather in Mum's house",
+    "output": "{\"action\":\"weather_query\",\"params\":{\"location\":\"Mum's house\"}}"
+  },
+  {
+    "text_input": "throw on some ambient",
+    "output": "{\"action\":\"play_music\",\"params\":{\"genre\":\"ambient\"}}"
+  },
+  {
+    "text_input": "brighten the living room lights",
+    "output": "{\"action\":\"control_device\",\"params\":{\"device\":\"living room lights\",\"state\":\"brighten\"}}"
+  },
+  {
+    "text_input": "remind me to book a haircut",
+    "output": "{\"action\":\"set_reminder\",\"params\":{\"task\":\"book a haircut\"}}"
+  },
+  {
+    "text_input": "navigate to Camden Market",
+    "output": "{\"action\":\"navigate\",\"params\":{\"location\":\"Camden Market\"}}"
+  },
+  {
+    "text_input": "find me a route to Mum's house",
+    "output": "{\"action\":\"navigate\",\"params\":{\"location\":\"Mum's house\"}}"
+  },
+  {
+    "text_input": "switch off the tv",
+    "output": "{\"action\":\"control_device\",\"params\":{\"device\":\"tv\",\"state\":\"off\"}}"
+  },
+  {
+    "text_input": "set a reminder to submit the report",
+    "output": "{\"action\":\"set_reminder\",\"params\":{\"task\":\"submit the report\"}}"
+  },
+  {
+    "text_input": "what's the weather in the train station",
+    "output": "{\"action\":\"weather_query\",\"params\":{\"location\":\"the train station\"}}"
+  },
+  {
+    "text_input": "don't let me forget to pay the council tax",
+    "output": "{\"action\":\"set_reminder\",\"params\":{\"task\":\"pay the council tax\"}}"
+  },
+  {
+    "text_input": "ping James with happy birthday",
+    "output": "{\"action\":\"send_message\",\"params\":{\"recipient\":\"James\",\"message\":\"happy birthday\"}}"
+  },
+  {
+    "text_input": "remind me to pay the council tax at 7:30am",
+    "output": "{\"action\":\"set_reminder\",\"params\":{\"time\":\"7:30am\",\"task\":\"pay the council tax\"}}"
+  },
+  {
+    "text_input": "video call my brother",
+    "output": "{\"action\":\"call\",\"params\":{\"recipient\":\"my brother\",\"video\":true}}"
+  },
+  {
+    "text_input": "find me a route to Edinburgh",
+    "output": "{\"action\":\"navigate\",\"params\":{\"location\":\"Edinburgh\"}}"
+  },
+  {
+    "text_input": "call my sister",
+    "output": "{\"action\":\"call\",\"params\":{\"recipient\":\"my sister\",\"video\":false}}"
+  },
+  {
+    "text_input": "i need a 45 minutes timer",
+    "output": "{\"action\":\"set_timer\",\"params\":{\"duration_seconds\":2700}}"
+  },
+  {
+    "text_input": "navigate to Manchester",
+    "output": "{\"action\":\"navigate\",\"params\":{\"location\":\"Manchester\"}}"
+  },
+  {
+    "text_input": "ring Charlie",
+    "output": "{\"action\":\"call\",\"params\":{\"recipient\":\"Charlie\",\"video\":false}}"
+  },
+  {
+    "text_input": "ping Jordan with I'm on my way",
+    "output": "{\"action\":\"send_message\",\"params\":{\"recipient\":\"Jordan\",\"message\":\"I'm on my way\"}}"
+  },
+  {
+    "text_input": "message Dad: got the train, see you at 7",
+    "output": "{\"action\":\"send_message\",\"params\":{\"recipient\":\"Dad\",\"message\":\"got the train, see you at 7\"}}"
+  },
+  {
+    "text_input": "message the boss: see you soon",
+    "output": "{\"action\":\"send_message\",\"params\":{\"recipient\":\"the boss\",\"message\":\"see you soon\"}}"
+  },
+  {
+    "text_input": "switch off the living room lights",
+    "output": "{\"action\":\"control_device\",\"params\":{\"device\":\"living room lights\",\"state\":\"off\"}}"
+  },
+  {
+    "text_input": "give me a a quarter of an hour timer",
+    "output": "{\"action\":\"set_timer\",\"params\":{\"duration_seconds\":900}}"
+  },
+  {
+    "text_input": "cancel the timer",
+    "output": "{\"action\":\"cancel\",\"params\":{}}"
+  },
+  {
+    "text_input": "ping Ahmed with can you call me back",
+    "output": "{\"action\":\"send_message\",\"params\":{\"recipient\":\"Ahmed\",\"message\":\"can you call me back\"}}"
+  },
+  {
+    "text_input": "i need to take my medication this weekend",
+    "output": "{\"action\":\"set_reminder\",\"params\":{\"task\":\"take my medication\",\"when\":\"this weekend\"}}"
+  },
+  {
+    "text_input": "dial Sarah",
+    "output": "{\"action\":\"call\",\"params\":{\"recipient\":\"Sarah\",\"video\":false}}"
+  },
+  {
+    "text_input": "nevermind",
+    "output": "{\"action\":\"cancel\",\"params\":{}}"
+  },
+  {
+    "text_input": "brighten the lights",
+    "output": "{\"action\":\"control_device\",\"params\":{\"device\":\"lights\",\"state\":\"brighten\"}}"
+  },
+  {
+    "text_input": "weather in Mum's house",
+    "output": "{\"action\":\"weather_query\",\"params\":{\"location\":\"Mum's house\"}}"
+  },
+  {
+    "text_input": "forget it",
+    "output": "{\"action\":\"cancel\",\"params\":{}}"
+  },
+  {
+    "text_input": "video call James",
+    "output": "{\"action\":\"call\",\"params\":{\"recipient\":\"James\",\"video\":true}}"
+  },
+  {
+    "text_input": "what's tomorrow's weather",
+    "output": "{\"action\":\"weather_query\",\"params\":{}}"
+  },
+  {
+    "text_input": "tell Ahmed the meeting is moved to 4pm",
+    "output": "{\"action\":\"send_message\",\"params\":{\"recipient\":\"Ahmed\",\"message\":\"the meeting is moved to 4pm\"}}"
+  },
+  {
+    "text_input": "start a 90 seconds timer",
+    "output": "{\"action\":\"set_timer\",\"params\":{\"duration_seconds\":90}}"
+  },
+  {
+    "text_input": "scrap that",
+    "output": "{\"action\":\"cancel\",\"params\":{}}"
+  },
+  {
+    "text_input": "route me to the closest coffee shop",
+    "output": "{\"action\":\"navigate\",\"params\":{\"location\":\"the closest coffee shop\"}}"
+  },
+  {
+    "text_input": "cancel that",
+    "output": "{\"action\":\"cancel\",\"params\":{}}"
+  },
+  {
+    "text_input": "navigate to Pret",
+    "output": "{\"action\":\"navigate\",\"params\":{\"location\":\"Pret\"}}"
+  },
+  {
+    "text_input": "what's the temperature",
+    "output": "{\"action\":\"weather_query\",\"params\":{}}"
+  },
+  {
+    "text_input": "fan on",
+    "output": "{\"action\":\"control_device\",\"params\":{\"device\":\"fan\",\"state\":\"on\"}}"
+  },
+  {
+    "text_input": "i need to be up by noon",
+    "output": "{\"action\":\"set_alarm\",\"params\":{\"time\":\"noon\"}}"
+  },
+  {
+    "text_input": "brighten the heating",
+    "output": "{\"action\":\"control_device\",\"params\":{\"device\":\"heating\",\"state\":\"brighten\"}}"
+  },
+  {
+    "text_input": "what's the weather like",
+    "output": "{\"action\":\"weather_query\",\"params\":{}}"
+  },
+  {
+    "text_input": "turn on the garage door",
+    "output": "{\"action\":\"control_device\",\"params\":{\"device\":\"garage door\",\"state\":\"on\"}}"
+  },
+  {
+    "text_input": "drop Mum a line: let's grab coffee tomorrow",
+    "output": "{\"action\":\"send_message\",\"params\":{\"recipient\":\"Mum\",\"message\":\"let's grab coffee tomorrow\"}}"
+  },
+  {
+    "text_input": "cancel the alarm",
+    "output": "{\"action\":\"cancel\",\"params\":{}}"
+  },
+  {
+    "text_input": "alarm for 8am",
+    "output": "{\"action\":\"set_alarm\",\"params\":{\"time\":\"8am\"}}"
+  },
+  {
+    "text_input": "give my flatmate a call",
+    "output": "{\"action\":\"call\",\"params\":{\"recipient\":\"my flatmate\",\"video\":false}}"
+  },
+  {
+    "text_input": "play rock on spotify",
+    "output": "{\"action\":\"play_music\",\"params\":{\"genre\":\"rock\"}}"
+  },
+  {
+    "text_input": "give Charlie a call",
+    "output": "{\"action\":\"call\",\"params\":{\"recipient\":\"Charlie\",\"video\":false}}"
+  },
+  {
+    "text_input": "set the alarm to midnight",
+    "output": "{\"action\":\"set_alarm\",\"params\":{\"time\":\"midnight\"}}"
+  },
+  {
+    "text_input": "remind me in twenty minutes",
+    "output": "{\"action\":\"set_timer\",\"params\":{\"duration_seconds\":1200}}"
+  },
+  {
+    "text_input": "navigate to Camden Market",
+    "output": "{\"action\":\"navigate\",\"params\":{\"location\":\"Camden Market\"}}"
+  },
+  {
+    "text_input": "queue up some metal",
+    "output": "{\"action\":\"play_music\",\"params\":{\"genre\":\"metal\"}}"
+  },
+  {
+    "text_input": "send a message to my partner saying see you soon",
+    "output": "{\"action\":\"send_message\",\"params\":{\"recipient\":\"my partner\",\"message\":\"see you soon\"}}"
+  },
+  {
+    "text_input": "route me to the British Museum",
+    "output": "{\"action\":\"navigate\",\"params\":{\"location\":\"the British Museum\"}}"
+  },
+  {
+    "text_input": "what's the weather like",
+    "output": "{\"action\":\"weather_query\",\"params\":{}}"
+  },
+  {
+    "text_input": "do i need an umbrella",
+    "output": "{\"action\":\"weather_query\",\"params\":{}}"
+  },
+  {
+    "text_input": "alarm for 7am",
+    "output": "{\"action\":\"set_alarm\",\"params\":{\"time\":\"7am\"}}"
+  },
+  {
+    "text_input": "weather in Manchester",
+    "output": "{\"action\":\"weather_query\",\"params\":{\"location\":\"Manchester\"}}"
+  },
+  {
+    "text_input": "wake me up at quarter to nine please",
+    "output": "{\"action\":\"set_alarm\",\"params\":{\"time\":\"quarter to nine\"}}"
+  },
+  {
+    "text_input": "call my sister",
+    "output": "{\"action\":\"call\",\"params\":{\"recipient\":\"my sister\",\"video\":false}}"
+  },
+  {
+    "text_input": "set the fan to high",
+    "output": "{\"action\":\"control_device\",\"params\":{\"device\":\"fan\",\"value\":\"high\"}}"
+  },
+  {
+    "text_input": "alarm for 1830",
+    "output": "{\"action\":\"set_alarm\",\"params\":{\"time\":\"1830\"}}"
+  },
+  {
+    "text_input": "dim the garage door",
+    "output": "{\"action\":\"control_device\",\"params\":{\"device\":\"garage door\",\"state\":\"dim\"}}"
+  },
+  {
+    "text_input": "let the boss know the meeting is moved to 4pm",
+    "output": "{\"action\":\"send_message\",\"params\":{\"recipient\":\"the boss\",\"message\":\"the meeting is moved to 4pm\"}}"
+  },
+  {
+    "text_input": "navigate to Heathrow",
+    "output": "{\"action\":\"navigate\",\"params\":{\"location\":\"Heathrow\"}}"
+  },
+  {
+    "text_input": "i need to be up by 2100",
+    "output": "{\"action\":\"set_alarm\",\"params\":{\"time\":\"2100\"}}"
+  },
+  {
+    "text_input": "how do i get to Edinburgh",
+    "output": "{\"action\":\"navigate\",\"params\":{\"location\":\"Edinburgh\"}}"
+  },
+  {
+    "text_input": "remind me in a minute",
+    "output": "{\"action\":\"set_timer\",\"params\":{\"duration_seconds\":60}}"
+  },
+  {
+    "text_input": "facetime Alex",
+    "output": "{\"action\":\"call\",\"params\":{\"recipient\":\"Alex\",\"video\":true}}"
+  },
+  {
+    "text_input": "cancel the timer",
+    "output": "{\"action\":\"cancel\",\"params\":{}}"
+  },
+  {
+    "text_input": "what's the weather",
+    "output": "{\"action\":\"weather_query\",\"params\":{}}"
+  },
+  {
+    "text_input": "tell James let's grab coffee tomorrow",
+    "output": "{\"action\":\"send_message\",\"params\":{\"recipient\":\"James\",\"message\":\"let's grab coffee tomorrow\"}}"
+  },
+  {
+    "text_input": "ring Mum",
+    "output": "{\"action\":\"call\",\"params\":{\"recipient\":\"Mum\",\"video\":false}}"
+  },
+  {
+    "text_input": "send a message to Sam saying the meeting is moved to 4pm",
+    "output": "{\"action\":\"send_message\",\"params\":{\"recipient\":\"Sam\",\"message\":\"the meeting is moved to 4pm\"}}"
+  },
+  {
+    "text_input": "set the bedroom light to max",
+    "output": "{\"action\":\"control_device\",\"params\":{\"device\":\"bedroom light\",\"value\":\"max\"}}"
+  },
+  {
+    "text_input": "stop",
+    "output": "{\"action\":\"cancel\",\"params\":{}}"
+  },
+  {
+    "text_input": "could you call my sister",
+    "output": "{\"action\":\"call\",\"params\":{\"recipient\":\"my sister\",\"video\":false}}"
+  },
+  {
+    "text_input": "put on reggae",
+    "output": "{\"action\":\"play_music\",\"params\":{\"genre\":\"reggae\"}}"
+  },
+  {
+    "text_input": "how do i get to the office",
+    "output": "{\"action\":\"navigate\",\"params\":{\"location\":\"the office\"}}"
+  },
+  {
+    "text_input": "set an alarm for midnight",
+    "output": "{\"action\":\"set_alarm\",\"params\":{\"time\":\"midnight\"}}"
+  },
+  {
+    "text_input": "put on country",
+    "output": "{\"action\":\"play_music\",\"params\":{\"genre\":\"country\"}}"
+  },
+  {
+    "text_input": "dim the coffee machine",
+    "output": "{\"action\":\"control_device\",\"params\":{\"device\":\"coffee machine\",\"state\":\"dim\"}}"
+  },
+  {
+    "text_input": "drop Mike a line: pick up milk on the way home",
+    "output": "{\"action\":\"send_message\",\"params\":{\"recipient\":\"Mike\",\"message\":\"pick up milk on the way home\"}}"
+  },
+  {
+    "text_input": "ring my flatmate",
+    "output": "{\"action\":\"call\",\"params\":{\"recipient\":\"my flatmate\",\"video\":false}}"
+  },
+  {
+    "text_input": "i need to get to Greenwich Observatory",
+    "output": "{\"action\":\"navigate\",\"params\":{\"location\":\"Greenwich Observatory\"}}"
+  },
+  {
+    "text_input": "set an alarm for half past seven",
+    "output": "{\"action\":\"set_alarm\",\"params\":{\"time\":\"half past seven\"}}"
+  },
+  {
+    "text_input": "make sure i call the dentist in an hour",
+    "output": "{\"action\":\"set_reminder\",\"params\":{\"task\":\"call the dentist\",\"when\":\"in an hour\"}}"
+  },
+  {
+    "text_input": "dial Ahmed",
+    "output": "{\"action\":\"call\",\"params\":{\"recipient\":\"Ahmed\",\"video\":false}}"
+  },
+  {
+    "text_input": "ping Priya with see you soon",
+    "output": "{\"action\":\"send_message\",\"params\":{\"recipient\":\"Priya\",\"message\":\"see you soon\"}}"
+  },
+  {
+    "text_input": "could you call Mum",
+    "output": "{\"action\":\"call\",\"params\":{\"recipient\":\"Mum\",\"video\":false}}"
+  },
+  {
+    "text_input": "take me to the British Museum",
+    "output": "{\"action\":\"navigate\",\"params\":{\"location\":\"the British Museum\"}}"
+  },
+  {
+    "text_input": "i need to get to home",
+    "output": "{\"action\":\"navigate\",\"params\":{\"location\":\"home\"}}"
+  },
+  {
+    "text_input": "nevermind",
+    "output": "{\"action\":\"cancel\",\"params\":{}}"
+  },
+  {
+    "text_input": "remind me at 6pm sharp",
+    "output": "{\"action\":\"set_alarm\",\"params\":{\"time\":\"6pm\"}}"
+  },
+  {
+    "text_input": "give Charlie a call",
+    "output": "{\"action\":\"call\",\"params\":{\"recipient\":\"Charlie\",\"video\":false}}"
+  },
+  {
+    "text_input": "send my sister a message: what time should I arrive",
+    "output": "{\"action\":\"send_message\",\"params\":{\"recipient\":\"my sister\",\"message\":\"what time should I arrive\"}}"
+  },
+  {
+    "text_input": "i need to get to Tesco",
+    "output": "{\"action\":\"navigate\",\"params\":{\"location\":\"Tesco\"}}"
+  },
+  {
+    "text_input": "is it going to rain today",
+    "output": "{\"action\":\"weather_query\",\"params\":{}}"
+  },
+  {
+    "text_input": "play folk",
+    "output": "{\"action\":\"play_music\",\"params\":{\"genre\":\"folk\"}}"
+  },
+  {
+    "text_input": "cancel the timer",
+    "output": "{\"action\":\"cancel\",\"params\":{}}"
+  },
+  {
+    "text_input": "send the boss a message: got the train, see you at 7",
+    "output": "{\"action\":\"send_message\",\"params\":{\"recipient\":\"the boss\",\"message\":\"got the train, see you at 7\"}}"
+  },
+  {
+    "text_input": "throw on some afrobeat",
+    "output": "{\"action\":\"play_music\",\"params\":{\"genre\":\"afrobeat\"}}"
+  },
+  {
+    "text_input": "route me to Sarah's place",
+    "output": "{\"action\":\"navigate\",\"params\":{\"location\":\"Sarah's place\"}}"
+  },
+  {
+    "text_input": "message Dad: happy birthday",
+    "output": "{\"action\":\"send_message\",\"params\":{\"recipient\":\"Dad\",\"message\":\"happy birthday\"}}"
+  },
+  {
+    "text_input": "queue up some pop",
+    "output": "{\"action\":\"play_music\",\"params\":{\"genre\":\"pop\"}}"
+  },
+  {
+    "text_input": "set timer two hours",
+    "output": "{\"action\":\"set_timer\",\"params\":{\"duration_seconds\":7200}}"
+  },
+  {
+    "text_input": "play folk on spotify",
+    "output": "{\"action\":\"play_music\",\"params\":{\"genre\":\"folk\"}}"
+  },
+  {
+    "text_input": "could you set a half an hour timer for me",
+    "output": "{\"action\":\"set_timer\",\"params\":{\"duration_seconds\":1800}}"
+  },
+  {
+    "text_input": "i need to be up by 10pm",
+    "output": "{\"action\":\"set_alarm\",\"params\":{\"time\":\"10pm\"}}"
+  },
+  {
+    "text_input": "queue up some k-pop",
+    "output": "{\"action\":\"play_music\",\"params\":{\"genre\":\"k-pop\"}}"
+  },
+  {
+    "text_input": "turn on the thermostat",
+    "output": "{\"action\":\"control_device\",\"params\":{\"device\":\"thermostat\",\"state\":\"on\"}}"
+  },
+  {
+    "text_input": "nevermind",
+    "output": "{\"action\":\"cancel\",\"params\":{}}"
+  },
+  {
+    "text_input": "what's tomorrow's weather",
+    "output": "{\"action\":\"weather_query\",\"params\":{}}"
+  },
+  {
+    "text_input": "switch on the kitchen light",
+    "output": "{\"action\":\"control_device\",\"params\":{\"device\":\"kitchen light\",\"state\":\"on\"}}"
+  },
+  {
+    "text_input": "weather in the British Museum",
+    "output": "{\"action\":\"weather_query\",\"params\":{\"location\":\"the British Museum\"}}"
+  },
+  {
+    "text_input": "brighten the garage door",
+    "output": "{\"action\":\"control_device\",\"params\":{\"device\":\"garage door\",\"state\":\"brighten\"}}"
+  },
+  {
+    "text_input": "cancel my reminder",
+    "output": "{\"action\":\"cancel\",\"params\":{}}"
+  },
+  {
+    "text_input": "let Jordan know happy birthday",
+    "output": "{\"action\":\"send_message\",\"params\":{\"recipient\":\"Jordan\",\"message\":\"happy birthday\"}}"
+  },
+  {
+    "text_input": "remind me to submit the report",
+    "output": "{\"action\":\"set_reminder\",\"params\":{\"task\":\"submit the report\"}}"
+  },
+  {
+    "text_input": "switch off the living room lights",
+    "output": "{\"action\":\"control_device\",\"params\":{\"device\":\"living room lights\",\"state\":\"off\"}}"
+  },
+  {
+    "text_input": "how do i get to Heathrow",
+    "output": "{\"action\":\"navigate\",\"params\":{\"location\":\"Heathrow\"}}"
+  },
+  {
+    "text_input": "fan on",
+    "output": "{\"action\":\"control_device\",\"params\":{\"device\":\"fan\",\"state\":\"on\"}}"
+  },
+  {
+    "text_input": "wake me in 90 seconds",
+    "output": "{\"action\":\"set_timer\",\"params\":{\"duration_seconds\":90}}"
+  },
+  {
+    "text_input": "route me to Camden Market",
+    "output": "{\"action\":\"navigate\",\"params\":{\"location\":\"Camden Market\"}}"
+  },
+  {
+    "text_input": "navigate to Pret",
+    "output": "{\"action\":\"navigate\",\"params\":{\"location\":\"Pret\"}}"
+  },
+  {
+    "text_input": "set timer 10 minutes",
+    "output": "{\"action\":\"set_timer\",\"params\":{\"duration_seconds\":600}}"
+  },
+  {
+    "text_input": "could you call Alex",
+    "output": "{\"action\":\"call\",\"params\":{\"recipient\":\"Alex\",\"video\":false}}"
+  },
+  {
+    "text_input": "tell Emily running 10 minutes behind",
+    "output": "{\"action\":\"send_message\",\"params\":{\"recipient\":\"Emily\",\"message\":\"running 10 minutes behind\"}}"
+  },
+  {
+    "text_input": "living room lights off",
+    "output": "{\"action\":\"control_device\",\"params\":{\"device\":\"living room lights\",\"state\":\"off\"}}"
+  },
+  {
+    "text_input": "what's tomorrow's weather",
+    "output": "{\"action\":\"weather_query\",\"params\":{}}"
+  },
+  {
+    "text_input": "take me to Sarah's place",
+    "output": "{\"action\":\"navigate\",\"params\":{\"location\":\"Sarah's place\"}}"
+  },
+  {
+    "text_input": "turn off the tv",
+    "output": "{\"action\":\"control_device\",\"params\":{\"device\":\"tv\",\"state\":\"off\"}}"
+  },
+  {
+    "text_input": "ping my flatmate with let's grab coffee tomorrow",
+    "output": "{\"action\":\"send_message\",\"params\":{\"recipient\":\"my flatmate\",\"message\":\"let's grab coffee tomorrow\"}}"
+  },
+  {
+    "text_input": "set an alarm for 7:30am",
+    "output": "{\"action\":\"set_alarm\",\"params\":{\"time\":\"7:30am\"}}"
+  },
+  {
+    "text_input": "could you set a 45 minutes timer for me",
+    "output": "{\"action\":\"set_timer\",\"params\":{\"duration_seconds\":2700}}"
+  },
+  {
+    "text_input": "take me to Cambridge",
+    "output": "{\"action\":\"navigate\",\"params\":{\"location\":\"Cambridge\"}}"
+  },
+  {
+    "text_input": "stop",
+    "output": "{\"action\":\"cancel\",\"params\":{}}"
+  },
+  {
+    "text_input": "i need to be up by twenty past eight",
+    "output": "{\"action\":\"set_alarm\",\"params\":{\"time\":\"twenty past eight\"}}"
+  },
+  {
+    "text_input": "drop Priya a line: is everything ok",
+    "output": "{\"action\":\"send_message\",\"params\":{\"recipient\":\"Priya\",\"message\":\"is everything ok\"}}"
+  },
+  {
+    "text_input": "queue up some folk",
+    "output": "{\"action\":\"play_music\",\"params\":{\"genre\":\"folk\"}}"
+  },
+  {
+    "text_input": "scrap that",
+    "output": "{\"action\":\"cancel\",\"params\":{}}"
+  },
+  {
+    "text_input": "send Jordan a message: running 10 minutes behind",
+    "output": "{\"action\":\"send_message\",\"params\":{\"recipient\":\"Jordan\",\"message\":\"running 10 minutes behind\"}}"
+  },
+  {
+    "text_input": "give me a 90 seconds timer",
+    "output": "{\"action\":\"set_timer\",\"params\":{\"duration_seconds\":90}}"
+  },
+  {
+    "text_input": "let my partner know thanks for today",
+    "output": "{\"action\":\"send_message\",\"params\":{\"recipient\":\"my partner\",\"message\":\"thanks for today\"}}"
+  },
+  {
+    "text_input": "what's tomorrow's weather",
+    "output": "{\"action\":\"weather_query\",\"params\":{}}"
+  },
+  {
+    "text_input": "set a reminder to feed the cat",
+    "output": "{\"action\":\"set_reminder\",\"params\":{\"task\":\"feed the cat\"}}"
+  },
+  {
+    "text_input": "cancel the alarm",
+    "output": "{\"action\":\"cancel\",\"params\":{}}"
+  },
+  {
+    "text_input": "start a a minute timer",
+    "output": "{\"action\":\"set_timer\",\"params\":{\"duration_seconds\":60}}"
+  },
+  {
+    "text_input": "message Alex: thanks for today",
+    "output": "{\"action\":\"send_message\",\"params\":{\"recipient\":\"Alex\",\"message\":\"thanks for today\"}}"
+  },
+  {
+    "text_input": "send Sarah a message: I'll be late",
+    "output": "{\"action\":\"send_message\",\"params\":{\"recipient\":\"Sarah\",\"message\":\"I'll be late\"}}"
+  },
+  {
+    "text_input": "cancel the alarm",
+    "output": "{\"action\":\"cancel\",\"params\":{}}"
+  },
+  {
+    "text_input": "play jazz on spotify",
+    "output": "{\"action\":\"play_music\",\"params\":{\"genre\":\"jazz\"}}"
+  },
+  {
+    "text_input": "message the boss: can you call me back",
+    "output": "{\"action\":\"send_message\",\"params\":{\"recipient\":\"the boss\",\"message\":\"can you call me back\"}}"
+  },
+  {
+    "text_input": "dim the bedroom light",
+    "output": "{\"action\":\"control_device\",\"params\":{\"device\":\"bedroom light\",\"state\":\"dim\"}}"
+  },
+  {
+    "text_input": "turn on the garage door",
+    "output": "{\"action\":\"control_device\",\"params\":{\"device\":\"garage door\",\"state\":\"on\"}}"
+  },
+  {
+    "text_input": "alarm for 6pm",
+    "output": "{\"action\":\"set_alarm\",\"params\":{\"time\":\"6pm\"}}"
+  },
+  {
+    "text_input": "forget it",
+    "output": "{\"action\":\"cancel\",\"params\":{}}"
+  },
+  {
+    "text_input": "thermostat off",
+    "output": "{\"action\":\"control_device\",\"params\":{\"device\":\"thermostat\",\"state\":\"off\"}}"
+  },
+  {
+    "text_input": "turn on the bedroom light",
+    "output": "{\"action\":\"control_device\",\"params\":{\"device\":\"bedroom light\",\"state\":\"on\"}}"
+  },
+  {
+    "text_input": "ignore that last one",
+    "output": "{\"action\":\"cancel\",\"params\":{}}"
+  },
+  {
+    "text_input": "cancel my reminder",
+    "output": "{\"action\":\"cancel\",\"params\":{}}"
+  },
+  {
+    "text_input": "give me a 45 minutes timer",
+    "output": "{\"action\":\"set_timer\",\"params\":{\"duration_seconds\":2700}}"
+  },
+  {
+    "text_input": "could you call my partner",
+    "output": "{\"action\":\"call\",\"params\":{\"recipient\":\"my partner\",\"video\":false}}"
+  },
+  {
+    "text_input": "queue up some soul",
+    "output": "{\"action\":\"play_music\",\"params\":{\"genre\":\"soul\"}}"
+  },
+  {
+    "text_input": "set the coffee machine to low",
+    "output": "{\"action\":\"control_device\",\"params\":{\"device\":\"coffee machine\",\"value\":\"low\"}}"
+  },
+  {
+    "text_input": "wake me up at 10pm please",
+    "output": "{\"action\":\"set_alarm\",\"params\":{\"time\":\"10pm\"}}"
+  },
+  {
+    "text_input": "what's the weather in the train station",
+    "output": "{\"action\":\"weather_query\",\"params\":{\"location\":\"the train station\"}}"
+  },
+  {
+    "text_input": "i need to be up by 8am",
+    "output": "{\"action\":\"set_alarm\",\"params\":{\"time\":\"8am\"}}"
+  },
+  {
+    "text_input": "ping Ahmed with can you call me back",
+    "output": "{\"action\":\"send_message\",\"params\":{\"recipient\":\"Ahmed\",\"message\":\"can you call me back\"}}"
+  },
+  {
+    "text_input": "nevermind",
+    "output": "{\"action\":\"cancel\",\"params\":{}}"
+  },
+  {
+    "text_input": "i need to get to St Pancras",
+    "output": "{\"action\":\"navigate\",\"params\":{\"location\":\"St Pancras\"}}"
+  },
+  {
+    "text_input": "remind me to review Sarah's PR at noon",
+    "output": "{\"action\":\"set_reminder\",\"params\":{\"time\":\"noon\",\"task\":\"review Sarah's PR\"}}"
+  },
+  {
+    "text_input": "remind me to pay the council tax at 8am",
+    "output": "{\"action\":\"set_reminder\",\"params\":{\"time\":\"8am\",\"task\":\"pay the council tax\"}}"
+  },
+  {
+    "text_input": "facetime my partner",
+    "output": "{\"action\":\"call\",\"params\":{\"recipient\":\"my partner\",\"video\":true}}"
+  },
+  {
+    "text_input": "ping Alex with I'll be late",
+    "output": "{\"action\":\"send_message\",\"params\":{\"recipient\":\"Alex\",\"message\":\"I'll be late\"}}"
+  },
+  {
+    "text_input": "wake me at 5:30pm",
+    "output": "{\"action\":\"set_alarm\",\"params\":{\"time\":\"5:30pm\"}}"
+  },
+  {
+    "text_input": "take me to Edinburgh",
+    "output": "{\"action\":\"navigate\",\"params\":{\"location\":\"Edinburgh\"}}"
+  },
+  {
+    "text_input": "set a reminder to post the parcel",
+    "output": "{\"action\":\"set_reminder\",\"params\":{\"task\":\"post the parcel\"}}"
+  },
+  {
+    "text_input": "cancel my reminder",
+    "output": "{\"action\":\"cancel\",\"params\":{}}"
+  }
+]

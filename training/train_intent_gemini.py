@@ -45,6 +45,29 @@ OUT_DIR = REPO_ROOT / "checkpoints" / "intent_gemini"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
+def _load_dotenv(env_path: Path = REPO_ROOT / ".env") -> None:
+    """Auto-load ``.env`` so callers don't need to ``set`` the key by hand.
+
+    Iter 51: GEMINI_API_KEY can live in the project's gitignored
+    ``.env`` file.  We read it line-by-line (no python-dotenv dep) and
+    only set vars that are not already in the environment.
+    """
+    if not env_path.exists():
+        return
+    try:
+        for line in env_path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            k, v = line.split("=", 1)
+            os.environ.setdefault(k.strip(), v.strip())
+    except Exception:
+        pass
+
+
+_load_dotenv()
+
+
 def _to_aistudio_examples(src: Path) -> list[dict]:
     """Translate our SFT JSONL into AI Studio's tuning format.
 

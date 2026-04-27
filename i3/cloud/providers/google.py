@@ -75,10 +75,17 @@ class GoogleProvider:
         except ImportError as exc:
             raise ImportError(_INSTALL_HINT) from exc
 
-        api_key = os.environ.get("GOOGLE_API_KEY", "")
+        # Iter 51: accept either ``GOOGLE_API_KEY`` (Vertex/GCP) or the
+        # AI-Studio-style ``GEMINI_API_KEY``.  We prefer the
+        # AI-Studio key when both are set since AI Studio is the
+        # cheaper, key-only path most internship demos use.
+        api_key = (
+            os.environ.get("GEMINI_API_KEY", "")
+            or os.environ.get("GOOGLE_API_KEY", "")
+        )
         if not api_key:
             raise AuthError(
-                "GOOGLE_API_KEY is not set",
+                "neither GEMINI_API_KEY nor GOOGLE_API_KEY is set",
                 provider=self.provider_name,
             )
         if not self._configured:

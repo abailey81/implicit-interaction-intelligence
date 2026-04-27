@@ -1,0 +1,44 @@
+{
+  "n_examples": 200,
+  "n_batches_evaluated": 50,
+  "seq_len": 127,
+  "tokens_evaluated": 13228,
+  "cross_entropy": 7.4235,
+  "perplexity": 1674.841,
+  "top1_accuracy": 0.1024,
+  "bucket_perplexity": [
+    {
+      "quartile": 1,
+      "loss": 7.284,
+      "ppl": 1456.84,
+      "tokens": 5795
+    },
+    {
+      "quartile": 2,
+      "loss": 7.6418,
+      "ppl": 2083.562,
+      "tokens": 4585
+    },
+    {
+      "quartile": 3,
+      "loss": 7.3988,
+      "ppl": 1633.983,
+      "tokens": 2502
+    },
+    {
+      "quartile": 4,
+      "loss": 7.044,
+      "ppl": 1145.996,
+      "tokens": 346
+    }
+  ],
+  "wall_time_s": 38.3,
+  "throughput_tok_per_s": 345.2,
+  "n_params_millions": 204.41,
+  "d_model": 768,
+  "n_layers": 12,
+  "n_heads": 12,
+  "vocab_size": 32000,
+  "device": "cpu",
+  "checkpoint": "D:\\implicit-interaction-intelligence\\checkpoints\\slm_v2\\best_model.pt"
+}

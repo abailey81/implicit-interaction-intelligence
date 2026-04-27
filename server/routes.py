@@ -671,6 +671,8 @@ _PROFILING_ALLOWED_FIELDS = frozenset(
         "fits_budget",
         "budget_ms",
         "device_class",
+        # Iter 51: per-arm cascade summary (A/B/C SLM/Qwen-LoRA/Gemini)
+        "cascade_arms",
     }
 )
 

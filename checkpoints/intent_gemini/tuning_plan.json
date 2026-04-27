@@ -1,0 +1,16 @@
+{
+  "source_model": "models/gemini-2.5-flash-001",
+  "epochs": 3,
+  "batch_size": 4,
+  "learning_rate_multiplier": 1.0,
+  "display_name": "i3-intent-20260427-051457",
+  "n_train": 4545,
+  "n_val": 252,
+  "avg_chars_in": 24.1,
+  "avg_chars_out": 58.7,
+  "estimated_total_chars": 1128420,
+  "estimated_cost_usd_low": 1.128,
+  "estimated_cost_usd_high": 1.693,
+  "dry_run": true,
+  "timestamp": "2026-04-27T00:14:58Z"
+}
