@@ -140,6 +140,15 @@ class ChatInterface {
         // identical to a non-streamed one once complete.
         this._attachMeta(body, metadata);
 
+        // Iter 51 phase 11: streamed responses (token frames +
+        // response_done) used to skip the side-chip row entirely
+        // because ``finaliseStreaming`` only called ``_attachMeta``.
+        // The three per-arm indicator chips + "Used: X" winner badge
+        // now render here too, mirroring the addMessage path.
+        try {
+            this._appendSideChips(msgEl, metadata);
+        } catch (_e) { /* never let chip render kill the bubble */ }
+
         // Per-bubble TTS button — apple21 cleanup moves the speaker
         // out of the inline panel and into a small icon on each AI
         // bubble (ChatGPT-style).  Only added once the response is
