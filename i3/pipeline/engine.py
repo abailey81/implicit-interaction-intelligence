@@ -4931,17 +4931,22 @@ class Pipeline:
             if smart_route == "greeting":
                 self._last_response_path = "tool:greeting"
                 return self._greeting_reply(message)
-            # For world_chat / cascade_meta, skip retrieval entirely
-            # and call cloud_chat directly — the local arms can't
-            # produce the correct content for these classes anyway.
-            if smart_route in ("world_chat", "cascade_meta"):
+            # Phase 16: GEMINI IS THE LAST RESORT.
+            # We used to short-circuit world_chat → cloud_chat directly,
+            # which made Gemini the *first* choice on most chat turns.
+            # That's wrong: the local SLM + 974k-triple retrieval should
+            # ALWAYS get the first shot — the topic-consistency gate
+            # demotes wrong-topic matches and the OOD branch's cloud
+            # fallback then fires.  Net: Gemini now only "tags in" when
+            # the local arm genuinely can't ground the query.
+            #
+            # cascade_meta is the ONLY exception: questions about which
+            # arm is being used can't be answered by retrieval (we'd
+            # leak Wikipedia-style facts about Google DeepMind), so
+            # those still go straight to the I³-prompted cloud arm.
+            if smart_route == "cascade_meta":
                 from os import environ as _env
                 if _env.get("GEMINI_API_KEY"):
-                    # Iter 51 phase 14: use the COREF-RESOLVED message
-                    # so a follow-up like "where are they located?"
-                    # gets sent to Gemini as "where is huawei located?".
-                    # ``query_for_retrieval`` already holds the resolved
-                    # form built upstream by the coref module.
                     qry = (query_for_retrieval or message)
                     cloud_text = await self._gemini_chat_fallback(
                         qry,
@@ -4951,6 +4956,10 @@ class Pipeline:
                     if cloud_text:
                         self._last_response_path = "cloud_chat"
                         return cloud_text
+            # All other classes (system_intro, world_chat, default_chat)
+            # fall through to the SLM + retrieval path below.  Gemini
+            # only fires from the OOD branch if no local arm can
+            # produce a confident, on-topic answer.
         except Exception:  # pragma: no cover - defensive
             logger.debug("Smart router failed for %r", message[:40], exc_info=True)
 
