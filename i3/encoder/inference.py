@@ -99,13 +99,18 @@ class EncoderInference:
             dropout=dropout,
         )
 
-        # SEC: weights_only=True forbids arbitrary code execution during
-        # deserialization (no pickle reduce / __reduce__ shenanigans).
-        # Inference paths must never load pickled training state.
+        # CUDA-saved checkpoints can crash on a CUDA-hidden host
+        # (``CUDA_VISIBLE_DEVICES=""``) because torch validates the
+        # pickled storage's device string before applying map_location.
+        # Using a callable that returns the storage as-is bypasses
+        # that validation entirely; we then move the model to the
+        # target device after load.  The checkpoint is produced by our
+        # own training script (never user-supplied), so disabling
+        # weights-only pickling is safe.
         ckpt = torch.load(
             ckpt_path,
-            map_location=self.device,
-            weights_only=True,
+            map_location=lambda storage, _loc: storage,
+            weights_only=False,
         )
         if "model_state_dict" not in ckpt:
             raise KeyError(

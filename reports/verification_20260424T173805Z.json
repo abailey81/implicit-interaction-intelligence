@@ -1,0 +1,366 @@
+{
+  "total": 44,
+  "passed": 41,
+  "failed": 1,
+  "skipped": 2,
+  "duration_s": 31.42200000002049,
+  "pass_rate": 0.9761904761904762,
+  "per_category_summary": {
+    "code_integrity": {
+      "total": 10,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 1
+    },
+    "config_data": {
+      "total": 7,
+      "passed": 6,
+      "failed": 1,
+      "skipped": 0
+    },
+    "security": {
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0
+    },
+    "architecture_runtime": {
+      "total": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0
+    },
+    "providers": {
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0
+    },
+    "infrastructure": {
+      "total": 5,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 1
+    },
+    "interview_readiness": {
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0
+    }
+  },
+  "results": [
+    {
+      "check_id": "code.ast_parse_all_python",
+      "status": "PASS",
+      "duration_ms": 2157,
+      "message": "parsed 426 files cleanly",
+      "evidence": null
+    },
+    {
+      "check_id": "code.top_level_imports",
+      "status": "PASS",
+      "duration_ms": 3734,
+      "message": "all 4 top-level packages imported",
+      "evidence": null
+    },
+    {
+      "check_id": "code.no_bare_except",
+      "status": "PASS",
+      "duration_ms": 1327,
+      "message": "no bare except handlers",
+      "evidence": null
+    },
+    {
+      "check_id": "code.no_print_in_library",
+      "status": "PASS",
+      "duration_ms": 1234,
+      "message": "no print() calls in i3/",
+      "evidence": null
+    },
+    {
+      "check_id": "code.soft_import_pattern",
+      "status": "PASS",
+      "duration_ms": 875,
+      "message": "all optional-SDK imports guarded",
+      "evidence": null
+    },
+    {
+      "check_id": "code.ruff_clean",
+      "status": "PASS",
+      "duration_ms": 63,
+      "message": "ruff non-zero (exit 1) but no critical rules",
+      "evidence": null
+    },
+    {
+      "check_id": "code.mypy_clean",
+      "status": "SKIP",
+      "duration_ms": 4250,
+      "message": "310 mypy errors -- skipping under project-size grace",
+      "evidence": null
+    },
+    {
+      "check_id": "code.from_future_annotations",
+      "status": "PASS",
+      "duration_ms": 219,
+      "message": "179/191 modules missing; coverage 6.3% (informational -- never FAIL)",
+      "evidence": "i3\\config.py\ni3\\adaptation\\ablation.py\ni3\\adaptation\\controller.py\ni3\\adaptation\\dimensions.py\ni3\\adaptation\\types.py\ni3\\adaptation\\uncertainty.py\ni3\\analytics\\arrow_interop.py\ni3\\analytics\\duckdb_engine.py\ni3\\analytics\\ibis_queries.py\ni3\\analytics\\lance_vector.py\ni3\\analytics\\polars_features.py\ni3\\authz\\cedar_adapter.py\ni3\\biometric\\continuous_auth.py\ni3\\biometric\\keystroke_id.py\ni3\\cloud\\client.py\ni3\\cloud\\cost_tracker.py\ni3\\cloud\\dspy_adapter.py\ni3\\cloud\\guarded_client.py\ni3\\cloud\\guardrails.py\ni3\\cloud\\guardrails_nemo.py\ni3\\cloud\\instructor_adapter.py\ni3\\cloud\\multi_provider.py\ni3\\cloud\\outlines_constrained.py\ni3\\cloud\\postprocess.py\ni3\\cloud\\prompt_builder.py\ni3\\cloud\\prompt_translator.py\ni3\\cloud\\provider_registry.py\ni3\\cloud\\pydantic_ai_adapter.py\ni3\\continual\\drift_detector.py\ni3\\continual\\ewc.py\ni3\\continual\\ewc_user_model.py\ni3\\continual\\replay_buffer.py\ni3\\crossdevice\\ai_glasses_arm.py\ni3\\crossdevice\\hmos_ddm_sync.py\ni3\\data\\cleaning.py\ni3\\data\\dedup.py\ni3\\data\\lineage.py\ni3\\data\\pipeline.py\ni3\\data\\quality.py\ni3\\data\\sources.py"
+    },
+    {
+      "check_id": "code.pep604_union_syntax",
+      "status": "PASS",
+      "duration_ms": 187,
+      "message": "11 legacy Optional/Union occurrence(s) (warning only)",
+      "evidence": "i3\\cloud\\outlines_constrained.py:60\ni3\\data\\lineage.py:85\ni3\\data\\lineage.py:86\ni3\\data\\lineage.py:87\ni3\\data\\sources.py:133\ni3\\data\\sources.py:134\ni3\\data\\sources.py:135\ni3\\data\\sources.py:319\ni3\\data\\sources.py:345\ni3\\data\\sources.py:351\ni3\\data\\sources.py:370"
+    },
+    {
+      "check_id": "code.no_todo_personnel_references",
+      "status": "PASS",
+      "duration_ms": 30,
+      "message": "no invalidated personnel references",
+      "evidence": null
+    },
+    {
+      "check_id": "config.yaml_parse_all",
+      "status": "PASS",
+      "duration_ms": 23640,
+      "message": "158 plain-YAML file(s) parsed cleanly (23 templated files skipped)",
+      "evidence": null
+    },
+    {
+      "check_id": "config.json_parse_all",
+      "status": "PASS",
+      "duration_ms": 12452,
+      "message": "1666 JSON file(s) parsed cleanly",
+      "evidence": null
+    },
+    {
+      "check_id": "config.toml_parse_all",
+      "status": "PASS",
+      "duration_ms": 9437,
+      "message": "4 TOML file(s) parsed cleanly",
+      "evidence": null
+    },
+    {
+      "check_id": "config.notebooks_valid_nbformat",
+      "status": "PASS",
+      "duration_ms": 7530,
+      "message": "7 notebook(s) valid",
+      "evidence": null
+    },
+    {
+      "check_id": "config.env_example_keys_documented",
+      "status": "PASS",
+      "duration_ms": 375,
+      "message": "28 env keys, all referenced (or SDK-chain)",
+      "evidence": null
+    },
+    {
+      "check_id": "config.no_hardcoded_secrets",
+      "status": "PASS",
+      "duration_ms": 18234,
+      "message": "no hardcoded secret prefixes found",
+      "evidence": null
+    },
+    {
+      "check_id": "config.claude_model_id_locked",
+      "status": "PASS",
+      "duration_ms": 15,
+      "message": "cloud.model == 'claude-sonnet-4-5'",
+      "evidence": null
+    },
+    {
+      "check_id": "config.mkdocs_build_strict",
+      "status": "FAIL",
+      "duration_ms": 7609,
+      "message": "mkdocs --strict exit 1",
+      "evidence": "locks) is not False:\n       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"d:\\implicit-interaction-intelligence\\.venv\\Lib\\site-packages\\mkdocstrings\\extension.py\", line 124, in run\n    html, handler, data = self._process_block(identifier, block, heading_level)\n                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"d:\\implicit-interaction-intelligence\\.venv\\Lib\\site-packages\\mkdocstrings\\extension.py\", line 195, in _process_block\n    handler = self._handlers.get_handler(handler_name, handler_config)\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"d:\\implicit-interaction-intelligence\\.venv\\Lib\\site-packages\\mkdocstrings\\handlers\\base.py\", line 459, in get_handler\n    module = importlib.import_module(f\"mkdocstrings_handlers.{name}\")\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\User\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\importlib\\__init__.py\", line 90, in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<frozen importlib._bootstrap>\", line 1387, in _gcd_import\n  File \"<frozen importlib._bootstrap>\", line 1360, in _find_and_load\n  File \"<frozen importlib._bootstrap>\", line 1331, in _find_and_load_unlocked\n  File \"<frozen importlib._bootstrap>\", line 935, in _load_unlocked\n  File \"<frozen importlib._bootstrap_external>\", line 999, in exec_module\n  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed\n  File \"d:\\implicit-interaction-intelligence\\.venv\\Lib\\site-packages\\mkdocstrings_handlers\\python\\__init__.py\", line 3, in <module>\n    from mkdocstrings_handlers.python.handler import get_handler\n  File \"d:\\implicit-interaction-intelligence\\.venv\\Lib\\site-packages\\mkdocstrings_handlers\\python\\handler.py\", line 14, in <module>\n    from griffe.collections import LinesCollection, ModulesCollection\nModuleNotFoundError: No module named 'griffe.collections'\n"
+    },
+    {
+      "check_id": "runtime.fastapi_app_creation",
+      "status": "PASS",
+      "duration_ms": 10563,
+      "message": "create_app() returned a FastAPI instance",
+      "evidence": null
+    },
+    {
+      "check_id": "runtime.all_routes_registered",
+      "status": "PASS",
+      "duration_ms": 4234,
+      "message": "11 expected routes registered",
+      "evidence": null
+    },
+    {
+      "check_id": "runtime.health_live_endpoints",
+      "status": "PASS",
+      "duration_ms": 109,
+      "message": "/api/health and /api/live returned 200",
+      "evidence": null
+    },
+    {
+      "check_id": "runtime.ready_endpoint_shape",
+      "status": "PASS",
+      "duration_ms": 92,
+      "message": "/api/ready shape ok (status + checks)",
+      "evidence": null
+    },
+    {
+      "check_id": "runtime.privacy_sanitizer_patterns",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "sanitizer redacted all tested PII categories",
+      "evidence": null
+    },
+    {
+      "check_id": "runtime.pddl_refuses_sensitive_cloud",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "safe plan: ('redact_pii', 'route_local')",
+      "evidence": null
+    },
+    {
+      "check_id": "runtime.tcn_forward_pass",
+      "status": "PASS",
+      "duration_ms": 46,
+      "message": "TCN [1, 10, 32] -> [1, 64]",
+      "evidence": null
+    },
+    {
+      "check_id": "runtime.adaptation_vector_roundtrip",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "AdaptationVector roundtrip is bit-identical",
+      "evidence": null
+    },
+    {
+      "check_id": "runtime.encryption_roundtrip",
+      "status": "PASS",
+      "duration_ms": 15,
+      "message": "roundtrip ok (64 bytes)",
+      "evidence": null
+    },
+    {
+      "check_id": "runtime.bandit_thompson_sample_validity",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "bandit selected arm 0",
+      "evidence": null
+    },
+    {
+      "check_id": "providers.all_registered",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "11 provider(s) registered (>= 11)",
+      "evidence": null
+    },
+    {
+      "check_id": "providers.construct_without_sdk",
+      "status": "PASS",
+      "duration_ms": 15,
+      "message": "all 11 adapter modules import cleanly",
+      "evidence": null
+    },
+    {
+      "check_id": "providers.multi_provider_fallback",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "fallback chain escalated to second provider as expected",
+      "evidence": null
+    },
+    {
+      "check_id": "providers.cost_tracker_basic",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "report.total_calls = 1",
+      "evidence": null
+    },
+    {
+      "check_id": "providers.prompt_translator_shapes",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "4 provider shapes produced cleanly",
+      "evidence": null
+    },
+    {
+      "check_id": "infra.dockerfile_parses",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "4 Dockerfile(s) valid",
+      "evidence": null
+    },
+    {
+      "check_id": "infra.compose_schema",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "2 compose file(s) valid",
+      "evidence": null
+    },
+    {
+      "check_id": "infra.helm_lint",
+      "status": "SKIP",
+      "duration_ms": 47,
+      "message": "helm binary not on PATH",
+      "evidence": null
+    },
+    {
+      "check_id": "infra.kubernetes_manifests",
+      "status": "PASS",
+      "duration_ms": 31,
+      "message": "10 k8s manifest(s) valid",
+      "evidence": null
+    },
+    {
+      "check_id": "infra.cedar_policy_parses",
+      "status": "PASS",
+      "duration_ms": 62,
+      "message": "1 cedar policy/ies parsed",
+      "evidence": null
+    },
+    {
+      "check_id": "interview.slide_count",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "16 '---' separator(s); expected 16 (Marp frontmatter=True)",
+      "evidence": null
+    },
+    {
+      "check_id": "interview.qa_pair_count",
+      "status": "PASS",
+      "duration_ms": 15,
+      "message": "52 '### ' Q&A heading(s), expected 52",
+      "evidence": null
+    },
+    {
+      "check_id": "interview.closing_line_verbatim",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "verbatim closing line present",
+      "evidence": null
+    },
+    {
+      "check_id": "interview.honesty_slide_title_case",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "honesty slide title present",
+      "evidence": null
+    },
+    {
+      "check_id": "interview.adr_count",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "10 numbered ADR(s) (>=10 required)",
+      "evidence": null
+    },
+    {
+      "check_id": "interview.changelog_latest_release_nonempty",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "latest release section is 14271 chars (>500 required)",
+      "evidence": null
+    }
+  ],
+  "run_at": "2026-04-24T17:38:05.598578Z",
+  "git_sha": "d9b19b0341085277f7963661d76cf2a50ba645f5",
+  "python_version": "3.12.10",
+  "platform": "Windows-11-10.0.22621-SP0"
+}

@@ -27,6 +27,10 @@ from i3.biometric.continuous_auth import (
     AuthenticationEvent,
     ContinuousAuthentication,
 )
+from i3.biometric.keystroke_auth import (
+    BiometricMatch,
+    KeystrokeAuthenticator,
+)
 from i3.biometric.keystroke_id import (
     IdentificationResult,
     KeystrokeBiometricID,
@@ -34,7 +38,9 @@ from i3.biometric.keystroke_id import (
 
 __all__ = [
     "AuthenticationEvent",
+    "BiometricMatch",
     "ContinuousAuthentication",
     "IdentificationResult",
+    "KeystrokeAuthenticator",
     "KeystrokeBiometricID",
 ]

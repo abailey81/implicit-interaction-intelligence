@@ -1,44 +1,43 @@
 /**
- * preference_panel.js  --  I3 active-preference A/B prompt panel.
+ * preference_panel.js  --  I3 floating "How am I doing?" toast.
  *
- * Periodically polls `/api/preference/query/{user_id}` to ask the user
- * for an A/B preference.  The backend's ActivePreferenceSelector decides
- * whether the current turn is "informative enough" to warrant a query;
- * when `should_query` is true the panel renders a side-by-side prompt
- * and POSTs the user's choice back to `/api/preference/record`.
+ * apple21 cleanup (2026-04-25): the inline A/B preference card has been
+ * relocated to a small floating toast in the bottom-right corner so the
+ * chat tab can be JUST chat.  Behaviour:
  *
- * The panel appears at most once every `COOLDOWN_MS` (default 30 s) and
- * soft-fails silently — if the endpoint is absent (older servers) the
- * panel simply never shows.  This mirrors the behaviour of
- * `explain_panel.js` and `browser_inference.js`.
+ *   - Shows only after the user has received ≥5 AI messages this session
+ *     (driven by the `i3:ai-message-landed` CustomEvent dispatched from
+ *     chat.js).
+ *   - Polls `/api/preference/query/{user_id}` to ask whether the current
+ *     turn is "informative enough" to warrant an A/B query; renders
+ *     only if `should_query` is true.
+ *   - Sticks to the bottom-right corner with a subtle drop-shadow,
+ *     dismissible by an explicit ✕ button.
+ *   - Dismissals are persisted in `localStorage['i3:pref-dismissed']`
+ *     for 24 hours; once dismissed it won't show again until then or
+ *     until the user explicitly invokes it (future work).
+ *   - Cooldown of 60 s between toast appearances inside one session.
+ *
+ * Soft-fails silently if the preference endpoint is absent.
  */
 
 const FETCH_TIMEOUT_MS = 6000;
-const POLL_INTERVAL_MS = 20000;
-const COOLDOWN_MS = 30000;
+const POLL_INTERVAL_MS = 30000;          // 30 s — check after each new chat
+const COOLDOWN_MS = 60000;               // 60 s between toast appearances
+const DISMISS_TTL_MS = 24 * 60 * 60 * 1000;
+const MIN_AI_MESSAGES = 5;
 const USER_ID = 'demo';
 const QUERY_ENDPOINT = '/api/preference/query/';
 const RECORD_ENDPOINT = '/api/preference/record';
 const MAX_STR_LEN = 400;
+const DISMISS_KEY = 'i3:pref-dismissed';
 
-/**
- * Coerce an arbitrary value to a length-capped string.
- * @param {unknown} v
- * @param {number} max
- * @returns {string}
- */
 function safeStr(v, max = MAX_STR_LEN) {
     if (v === null || v === undefined) return '';
     const s = String(v);
     return s.length > max ? s.slice(0, max) : s;
 }
 
-/**
- * GET JSON with a hard AbortController timeout.
- * @param {string} url
- * @param {number} ms
- * @returns {Promise<object>}
- */
 async function getWithTimeout(url, ms = FETCH_TIMEOUT_MS) {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), ms);
@@ -55,13 +54,6 @@ async function getWithTimeout(url, ms = FETCH_TIMEOUT_MS) {
     }
 }
 
-/**
- * POST JSON with a hard timeout.
- * @param {string} url
- * @param {object} body
- * @param {number} ms
- * @returns {Promise<object>}
- */
 async function postWithTimeout(url, body, ms = FETCH_TIMEOUT_MS) {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), ms);
@@ -80,129 +72,161 @@ async function postWithTimeout(url, body, ms = FETCH_TIMEOUT_MS) {
     }
 }
 
+function isDismissed() {
+    try {
+        const raw = localStorage.getItem(DISMISS_KEY);
+        if (!raw) return false;
+        const ts = Number(raw);
+        if (!Number.isFinite(ts)) return false;
+        return Date.now() - ts < DISMISS_TTL_MS;
+    } catch (_e) {
+        return false;
+    }
+}
+
+function markDismissed() {
+    try {
+        localStorage.setItem(DISMISS_KEY, String(Date.now()));
+    } catch (_e) { /* ignore */ }
+}
+
 /**
- * Render the A/B card and return a dismiss handle.
- * @param {HTMLElement} root
- * @param {object} query
- * @param {(winner: string) => Promise<void>} onChoose
+ * Build and inject the toast into the global root.
+ * Returns a {dismiss} handle.
  */
-function renderCard(root, query, onChoose) {
-    const card = document.createElement('section');
-    card.className = 'i3-preference-card';
-    card.setAttribute('role', 'dialog');
-    card.setAttribute('aria-label', 'Preference prompt');
+function renderToast(root, query, onChoose, onDismiss) {
+    const toast = document.createElement('section');
+    toast.className = 'i3-preference-toast';
+    toast.setAttribute('role', 'dialog');
+    toast.setAttribute('aria-label', 'Quick preference check');
 
+    const header = document.createElement('div');
+    header.className = 'i3-preference-toast-head';
     const title = document.createElement('div');
-    title.className = 'i3-preference-title';
-    title.textContent = 'Which response feels more natural for how you are typing right now?';
-    card.appendChild(title);
+    title.className = 'i3-preference-toast-title';
+    title.textContent = 'How am I doing?';
+    const dismissBtn = document.createElement('button');
+    dismissBtn.type = 'button';
+    dismissBtn.className = 'i3-preference-toast-dismiss';
+    dismissBtn.setAttribute('aria-label', 'Dismiss preference prompt');
+    dismissBtn.textContent = '✕';
+    dismissBtn.addEventListener('click', () => {
+        markDismissed();
+        if (typeof onDismiss === 'function') onDismiss();
+    });
+    header.appendChild(title);
+    header.appendChild(dismissBtn);
+    toast.appendChild(header);
 
-    const prompt = document.createElement('div');
-    prompt.className = 'i3-preference-prompt';
-    prompt.textContent = safeStr(query.prompt, 300);
-    card.appendChild(prompt);
+    const sub = document.createElement('div');
+    sub.className = 'i3-preference-toast-sub';
+    sub.textContent = 'Which response feels more natural for how you’re typing right now?';
+    toast.appendChild(sub);
 
     const grid = document.createElement('div');
-    grid.className = 'i3-preference-grid';
-
-    const mkOption = (label, text, winnerCode) => {
+    grid.className = 'i3-preference-toast-grid';
+    const mkOption = (label, text, code) => {
         const btn = document.createElement('button');
         btn.type = 'button';
-        btn.className = 'i3-preference-option';
+        btn.className = 'i3-preference-toast-option';
         btn.setAttribute('aria-label', `Choose ${label}`);
         const hd = document.createElement('div');
-        hd.className = 'i3-preference-option-label';
+        hd.className = 'i3-preference-toast-option-label';
         hd.textContent = label;
         const bd = document.createElement('div');
-        bd.className = 'i3-preference-option-text';
-        bd.textContent = safeStr(text, 500);
+        bd.className = 'i3-preference-toast-option-text';
+        bd.textContent = safeStr(text, 220);
         btn.appendChild(hd);
         btn.appendChild(bd);
         btn.addEventListener('click', () => {
-            onChoose(winnerCode).catch(() => {
-                /* swallow — soft-fail */
-            });
+            onChoose(code).catch(() => { /* swallow */ });
         });
         return btn;
     };
+    grid.appendChild(mkOption('A', query.response_a, 'a'));
+    grid.appendChild(mkOption('B', query.response_b, 'b'));
+    toast.appendChild(grid);
 
-    grid.appendChild(mkOption('Response A', query.response_a, 'a'));
-    grid.appendChild(mkOption('Response B', query.response_b, 'b'));
-    card.appendChild(grid);
-
-    const tieRow = document.createElement('div');
-    tieRow.className = 'i3-preference-tie-row';
-    const tieBtn = document.createElement('button');
-    tieBtn.type = 'button';
-    tieBtn.className = 'i3-preference-tie';
-    tieBtn.textContent = 'Both feel equivalent';
-    tieBtn.addEventListener('click', () => {
-        onChoose('tie').catch(() => {
-            /* swallow */
-        });
+    const tieRow = document.createElement('button');
+    tieRow.type = 'button';
+    tieRow.className = 'i3-preference-toast-tie';
+    tieRow.textContent = 'Both feel equivalent';
+    tieRow.addEventListener('click', () => {
+        onChoose('tie').catch(() => { /* swallow */ });
     });
-    tieRow.appendChild(tieBtn);
-    card.appendChild(tieRow);
+    toast.appendChild(tieRow);
 
-    const footer = document.createElement('div');
-    footer.className = 'i3-preference-footer';
-    const ig = Number(query.information_gain) || 0;
-    footer.textContent = `Info gain ${ig.toFixed(3)} — ${safeStr(query.reason, 120)}`;
-    card.appendChild(footer);
-
-    root.appendChild(card);
+    root.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add('is-visible'));
     return {
         dismiss: () => {
-            if (card.parentNode) card.parentNode.removeChild(card);
+            toast.classList.remove('is-visible');
+            setTimeout(() => {
+                if (toast.parentNode) toast.parentNode.removeChild(toast);
+            }, 280);
         },
     };
 }
 
-/**
- * Top-level panel state — one active card at a time.
- */
-class PreferencePanel {
-    /**
-     * @param {HTMLElement} root
-     */
+class PreferenceToast {
     constructor(root) {
         this.root = root;
         this.activeHandle = null;
         this.lastShown = 0;
-        this.timer = null;
+        this.aiMessageCount = 0;
+        this.checking = false;
+
+        // Listen for AI messages landing in the chat — only check the
+        // server once we have ≥MIN_AI_MESSAGES.
+        window.addEventListener('i3:ai-message-landed', (ev) => {
+            const c = ev && ev.detail && ev.detail.messageCount;
+            if (Number.isFinite(c)) this.aiMessageCount = c;
+            // Wait briefly for the trace + post-processing to settle.
+            setTimeout(() => this.maybeCheck(), 1200);
+        });
     }
 
-    start() {
-        // Stagger the first poll so we don't race explain_panel/tts init.
-        setTimeout(() => this.tick(), 5000);
-        this.timer = setInterval(() => this.tick(), POLL_INTERVAL_MS);
-    }
-
-    async tick() {
+    async maybeCheck() {
         if (this.activeHandle) return;
+        if (this.aiMessageCount < MIN_AI_MESSAGES) return;
         if (Date.now() - this.lastShown < COOLDOWN_MS) return;
+        if (isDismissed()) return;
+        if (this.checking) return;
+        this.checking = true;
         try {
-            const q = await getWithTimeout(QUERY_ENDPOINT + encodeURIComponent(USER_ID));
+            const q = await getWithTimeout(
+                QUERY_ENDPOINT + encodeURIComponent(USER_ID)
+            );
             if (!q || !q.should_query) return;
             this.show(q);
         } catch (e) {
-            // Endpoint absent or error — soft-fail.
             try {
-                console.debug('[I3] preference panel poll failed:', e && e.message);
-            } catch (_ignored) {
-                /* noop */
-            }
+                console.debug('[I3] preference toast poll failed:', e && e.message);
+            } catch (_ignored) { /* noop */ }
+        } finally {
+            this.checking = false;
         }
     }
 
     show(query) {
         this.lastShown = Date.now();
-        this.activeHandle = renderCard(this.root, query, (winner) => this.submit(query, winner));
+        this.activeHandle = renderToast(
+            this.root,
+            query,
+            (winner) => this.submit(query, winner),
+            () => {
+                if (this.activeHandle) {
+                    this.activeHandle.dismiss();
+                    this.activeHandle = null;
+                }
+            },
+        );
     }
 
     async submit(query, winner) {
+        let resp = null;
         try {
-            await postWithTimeout(RECORD_ENDPOINT, {
+            resp = await postWithTimeout(RECORD_ENDPOINT, {
                 user_id: USER_ID,
                 prompt: safeStr(query.prompt, 2000) || 'unknown',
                 response_a: safeStr(query.response_a, 2000) || 'A',
@@ -210,46 +234,75 @@ class PreferencePanel {
                 winner: winner,
                 context: Array.isArray(query.context) ? query.context : [],
                 response_a_features: Array.isArray(query.response_a_features)
-                    ? query.response_a_features
-                    : [],
+                    ? query.response_a_features : [],
                 response_b_features: Array.isArray(query.response_b_features)
-                    ? query.response_b_features
-                    : [],
+                    ? query.response_b_features : [],
             });
         } catch (e) {
             try {
                 console.debug('[I3] preference record failed:', e && e.message);
-            } catch (_ignored) {
-                /* noop */
-            }
+            } catch (_ignored) { /* noop */ }
         } finally {
             if (this.activeHandle) {
                 this.activeHandle.dismiss();
                 this.activeHandle = null;
             }
         }
+        try {
+            if (resp && resp.personalisation) {
+                showPersonalisationToast(resp.personalisation);
+            }
+        } catch (e) {
+            try {
+                console.debug('[I3] personalisation toast failed:', e && e.message);
+            } catch (_ignored) { /* noop */ }
+        }
     }
 }
 
-/**
- * Bootstrap the panel — silently returns when the mount point is absent.
- */
+function showPersonalisationToast(update) {
+    const direction = String(update.direction || 'unknown');
+    const delta = Number(update.delta || 0);
+    const n = Number(update.n_updates_total || 0);
+    const sign = delta >= 0 ? '+' : '';
+    const toast = document.createElement('div');
+    toast.className = 'lora-update-toast';
+    toast.setAttribute('role', 'status');
+    toast.setAttribute('aria-live', 'polite');
+    const icon = document.createElement('span');
+    icon.className = 'lora-update-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.textContent = '\u{1F9E0}';
+    const text = document.createElement('span');
+    text.className = 'lora-update-text';
+    text.textContent = `Personalisation updated · ${direction} ${sign}${delta.toFixed(3)}`;
+    const meta = document.createElement('span');
+    meta.className = 'lora-update-meta';
+    meta.textContent = `N=${n} total updates · drift bounded`;
+    toast.appendChild(icon);
+    toast.appendChild(text);
+    toast.appendChild(meta);
+    document.body.appendChild(toast);
+    requestAnimationFrame(() => {
+        toast.classList.add('lora-update-toast-visible');
+    });
+    setTimeout(() => {
+        toast.classList.remove('lora-update-toast-visible');
+        setTimeout(() => {
+            if (toast.parentNode) toast.parentNode.removeChild(toast);
+        }, 400);
+    }, 4000);
+}
+
 function bootstrap() {
-    const root = document.getElementById('i3-advanced-panels');
+    const root = document.getElementById('i3-preference-toast-root');
     if (!root) return;
-    const host = document.createElement('div');
-    host.id = 'i3-preference-panel';
-    host.className = 'i3-preference-host';
-    root.appendChild(host);
     try {
-        const panel = new PreferencePanel(host);
-        panel.start();
+        new PreferenceToast(root);
     } catch (e) {
         try {
-            console.warn('[I3] preference panel init failed:', e && e.message);
-        } catch (_ignored) {
-            /* noop */
-        }
+            console.warn('[I3] preference toast init failed:', e && e.message);
+        } catch (_ignored) { /* noop */ }
     }
 }
 
@@ -259,4 +312,4 @@ if (document.readyState === 'loading') {
     bootstrap();
 }
 
-export { PreferencePanel };
+export { PreferenceToast };

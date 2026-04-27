@@ -13,15 +13,15 @@
 
 :root {
     --i3-accent: #e94560;
-    --i3-accent-soft: rgba(233, 69, 96, 0.12);
-    --i3-verified: #2ecc71;
-    --i3-verified-soft: rgba(46, 204, 113, 0.18);
-    --i3-surface: rgba(26, 26, 46, 0.92);
-    --i3-surface-2: rgba(22, 33, 62, 0.94);
-    --i3-border: rgba(233, 69, 96, 0.35);
-    --i3-muted: rgba(255, 255, 255, 0.65);
-    --i3-text: #f5f5fa;
-    --i3-radius: 10px;
+    --i3-accent-soft: rgba(233, 69, 96, 0.10);
+    --i3-verified: #30d158;
+    --i3-verified-soft: rgba(48, 209, 88, 0.14);
+    --i3-surface: rgba(16, 18, 26, 0.72);
+    --i3-surface-2: rgba(22, 25, 36, 0.78);
+    --i3-border: rgba(255, 255, 255, 0.10);
+    --i3-muted: rgba(240, 243, 248, 0.56);
+    --i3-text: #f2f3f7;
+    --i3-radius: 12px;
 }
 
 /* ── Floating container anchor ─────────────────────────────────── */
@@ -130,11 +130,13 @@
     border: 1px solid var(--i3-border);
     border-radius: var(--i3-radius);
     color: var(--i3-text);
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', 'Segoe UI', Roboto, sans-serif;
     font-size: 12px;
-    padding: 10px 12px;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
-    backdrop-filter: blur(6px);
+    padding: 11px 13px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.32), 0 2px 4px rgba(0, 0, 0, 0.25);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    letter-spacing: -0.003em;
 }
 
 .i3-metrics-header {
@@ -146,11 +148,11 @@
 }
 
 .i3-metrics-title {
-    font-weight: 600;
-    letter-spacing: 0.2px;
-    color: var(--i3-accent);
+    font-weight: 650;
+    letter-spacing: 0.14em;
+    color: var(--i3-muted);
     text-transform: uppercase;
-    font-size: 11px;
+    font-size: 9.5px;
 }
 
 /* ── Verified pill ─────────────────────────────────────────────── */

@@ -175,6 +175,23 @@ class DiaryStore:
                     ON sessions(user_id);
                 CREATE INDEX IF NOT EXISTS idx_exchanges_session
                     ON exchanges(session_id);
+
+                -- SEC: user_facts persists declared personal-context
+                -- across sessions (name, favourite colour, occupation,
+                -- location, hobby, age, pet).  Values are stored
+                -- Fernet-encrypted at rest when an encryptor is
+                -- configured (matching the embedding-encryption
+                -- model).  The user controls it: a future "forget my
+                -- facts" tool wipes the row.  Iter 50 (2026-04-26).
+                CREATE TABLE IF NOT EXISTS user_facts (
+                    user_id     TEXT NOT NULL,
+                    slot        TEXT NOT NULL,
+                    value_blob  BLOB NOT NULL,
+                    updated_at  TIMESTAMP NOT NULL,
+                    PRIMARY KEY (user_id, slot)
+                );
+                CREATE INDEX IF NOT EXISTS idx_user_facts_user
+                    ON user_facts(user_id);
             """)
         await db.commit()
         self._initialized = True
@@ -698,3 +715,112 @@ class DiaryStore:
                     entry["topics"] = json.loads(entry["topics"])
                 entries.append(entry)
             return entries
+
+    # ------------------------------------------------------------------
+    # User-facts (cross-session personal-context memory) — Iter 50
+    # ------------------------------------------------------------------
+    # SEC: stored values are Fernet-encrypted when an encryptor is
+    # configured, matching the embedding-encryption model.  When no
+    # encryptor is set, values are stored plaintext but still in a
+    # versioned envelope (first byte = 0x00 plaintext, 0x01 Fernet)
+    # so the read path is uniform.
+
+    @staticmethod
+    def _encode_fact_value(
+        value: str, encryptor: "ModelEncryptor | None",
+    ) -> bytes:
+        """Encode a fact value string as a versioned envelope BLOB."""
+        raw = value.encode("utf-8")
+        if encryptor is None:
+            return bytes([_ENC_VERSION_PLAINTEXT]) + raw
+        return bytes([_ENC_VERSION_FERNET_V1]) + encryptor.encrypt(raw)
+
+    @staticmethod
+    def _decode_fact_value(
+        blob: bytes, encryptor: "ModelEncryptor | None",
+    ) -> str | None:
+        """Decode a fact value BLOB.  Returns None on any decode error."""
+        if not blob:
+            return None
+        version = blob[0]
+        payload = blob[1:]
+        try:
+            if version == _ENC_VERSION_PLAINTEXT:
+                return payload.decode("utf-8")
+            if version == _ENC_VERSION_FERNET_V1:
+                if encryptor is None:
+                    return None
+                return encryptor.decrypt(payload).decode("utf-8")
+        except Exception:  # pragma: no cover — defensive decode
+            return None
+        return None
+
+    async def set_user_fact(
+        self,
+        user_id: str,
+        slot: str,
+        value: str,
+    ) -> None:
+        """Persist a single (user_id, slot) → value row.  Upsert."""
+        if not user_id or not slot or not value:
+            return
+        await self.initialize()
+        encoded = self._encode_fact_value(value, self._encryptor)
+        async with self._conn() as db:
+            await db.execute(
+                """
+                INSERT INTO user_facts (user_id, slot, value_blob, updated_at)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(user_id, slot) DO UPDATE
+                SET value_blob = excluded.value_blob,
+                    updated_at = excluded.updated_at
+                """,
+                (user_id, slot, encoded),
+            )
+            await db.commit()
+
+    async def get_user_facts(self, user_id: str) -> dict[str, str]:
+        """Return all stored facts for a user as ``{slot: value}``."""
+        if not user_id:
+            return {}
+        await self.initialize()
+        async with self._conn() as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute(
+                "SELECT slot, value_blob FROM user_facts WHERE user_id = ?",
+                (user_id,),
+            )
+            rows = await cursor.fetchall()
+        out: dict[str, str] = {}
+        for row in rows:
+            decoded = self._decode_fact_value(
+                bytes(row["value_blob"]), self._encryptor,
+            )
+            if decoded:
+                out[row["slot"]] = decoded
+        return out
+
+    async def forget_user_facts(
+        self, user_id: str, slot: str | None = None,
+    ) -> int:
+        """Delete user facts.  Single slot when provided, else all.
+
+        Returns the number of rows deleted.  Used by the "forget my
+        facts" tool — the user controls retention.
+        """
+        if not user_id:
+            return 0
+        await self.initialize()
+        async with self._conn() as db:
+            if slot:
+                cursor = await db.execute(
+                    "DELETE FROM user_facts WHERE user_id = ? AND slot = ?",
+                    (user_id, slot),
+                )
+            else:
+                cursor = await db.execute(
+                    "DELETE FROM user_facts WHERE user_id = ?",
+                    (user_id,),
+                )
+            await db.commit()
+            return cursor.rowcount or 0

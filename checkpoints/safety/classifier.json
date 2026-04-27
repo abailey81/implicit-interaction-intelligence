@@ -1,0 +1,12 @@
+{
+  "vocab_size": 256,
+  "n_classes": 4,
+  "labels": [
+    "safe",
+    "medical",
+    "harmful",
+    "illegal"
+  ],
+  "max_len": 256,
+  "n_parameters": 47620
+}

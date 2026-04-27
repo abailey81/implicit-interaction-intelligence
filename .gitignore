@@ -205,3 +205,12 @@ temp/
 
 # ─── Internal / local-only scratch notes (kept out of the public repo) ───
 .internal/
+
+# Iter 51 — guard against pip-output stray files at repo root
+/0.[0-9]*
+/1.[0-9]*
+.claude/
+
+# SQLite WAL / SHM companion files (the .db is already ignored)
+*.db-shm
+*.db-wal

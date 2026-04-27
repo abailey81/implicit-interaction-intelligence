@@ -404,9 +404,19 @@ async def explain_adaptation(request: Request) -> JSONResponse:
 
     feature_window = window if window is not None else _synthetic_feature_window()
 
+    # The encoder may live on CUDA; the synthetic / cached feature
+    # window can be on CPU.  Move it onto the encoder's device before
+    # MC-Dropout so the matmul doesn't blow up with a device mismatch.
+    try:
+        encoder_device = next(estimator._encoder.parameters()).device
+        if feature_window.device != encoder_device:
+            feature_window = feature_window.to(encoder_device)
+    except (StopIteration, AttributeError):
+        pass
+
     try:
         uncertain = estimator.estimate(feature_window)
-    except (ValueError, TypeError) as exc:
+    except (ValueError, TypeError, RuntimeError) as exc:
         logger.debug("explain: estimation failed: %s", exc)
         payload = _build_fallback_payload(body.user_id, body.confidence_threshold)
         _CACHE.set(body.user_id, payload)
@@ -417,13 +427,18 @@ async def explain_adaptation(request: Request) -> JSONResponse:
         target_delta=0.2,
     )
     mean_vec = uncertain.mean_vector()
+    # The surrogate mapping_fn is a tiny CPU-resident nn.Linear; pull
+    # the feature window back to CPU before feeding it to the
+    # counterfactual search so we don't trip a device-mismatch RuntimeError.
+    cf_window = feature_window.detach().cpu() if feature_window.is_cuda else feature_window
+    cf_adapt = mean_vec.to_tensor().detach().cpu()
     try:
         cfs = explainer.explain(
-            feature_window=feature_window,
-            adaptation=mean_vec.to_tensor(),
+            feature_window=cf_window,
+            adaptation=cf_adapt,
             k=body.top_k,
         )
-    except (ValueError, TypeError) as exc:
+    except (ValueError, TypeError, RuntimeError) as exc:
         logger.debug("explain: counterfactual failure: %s", exc)
         cfs = []
 

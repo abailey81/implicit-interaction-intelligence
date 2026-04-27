@@ -20,36 +20,61 @@ class Dashboard {
 
     /**
      * Build all dashboard sections.
-     * @param {HTMLElement} container
+     *
+     * The Apple-style redesign moved each dashboard panel out of a
+     * shared ``#dashboard`` wrapper and into top-level ``<section
+     * id="adaptation">``, ``<section id="routing">``, and so on.  We
+     * therefore look up containers either inside *container* (legacy
+     * layout) or at document root by id (current layout) and bind to
+     * whichever is found first.
+     * @param {HTMLElement|null} container  Optional legacy wrapper.
      */
     init(container) {
-        // --- Adaptation section ---
-        const adaptSection = container.querySelector('.dash-section.adaptation');
-        if (adaptSection) {
-            const gaugeContainer = adaptSection.querySelector('.gauge-container');
-            if (gaugeContainer) {
-                this._createAdaptationGauges(gaugeContainer);
+        const queryFirst = (selectors) => {
+            for (const sel of selectors) {
+                const node = (container && container.querySelector(sel))
+                    || document.querySelector(sel);
+                if (node) return node;
             }
-        }
+            return null;
+        };
 
-        // --- Routing section ---
-        const routeSection = container.querySelector('.dash-section.routing');
-        if (routeSection) {
-            const gaugeContainer = routeSection.querySelector('.gauge-container');
-            if (gaugeContainer) {
-                this._createRoutingGauges(gaugeContainer);
-            }
-            this.routingDecision = routeSection.querySelector('.routing-decision');
-        }
+        // --- Adaptation gauges ---
+        const adaptGauges = queryFirst([
+            '.dash-section.adaptation .gauge-container',
+            '#tab-adaptation .gauge-container',
+            '#adaptation .gauge-container',
+            'section#adaptation .gauge-container',
+        ]);
+        if (adaptGauges) this._createAdaptationGauges(adaptGauges);
 
-        // --- Engagement section ---
-        const engSection = container.querySelector('.dash-section.engagement');
-        if (engSection) {
+        // --- Routing gauges + decision chip ---
+        const routeGauges = queryFirst([
+            '.dash-section.routing .gauge-container',
+            '#tab-routing .gauge-container',
+            '#routing .gauge-container',
+            'section#routing .gauge-container',
+        ]);
+        if (routeGauges) this._createRoutingGauges(routeGauges);
+        this.routingDecision = queryFirst([
+            '.dash-section.routing .routing-decision',
+            '#tab-routing .routing-decision',
+            '#routing .routing-decision',
+            'section#routing .routing-decision',
+            '.routing-decision',
+        ]);
+
+        // --- Engagement cards ---
+        const engRoot = queryFirst([
+            '.dash-section.engagement',
+            '.engagement-grid',
+        ]);
+        if (engRoot) {
             this.engagementCards = {
-                score: engSection.querySelector('[data-metric="score"] .card-value'),
-                deviation: engSection.querySelector('[data-metric="deviation"] .card-value'),
-                messages: engSection.querySelector('[data-metric="messages"] .card-value'),
-                baseline: engSection.querySelector('[data-metric="baseline"] .card-value'),
+                score:     engRoot.querySelector('[data-metric="score"] .card-value'),
+                deviation: engRoot.querySelector('[data-metric="deviation"] .card-value'),
+                messages:  engRoot.querySelector('[data-metric="messages"] .card-value'),
+                baseline:  engRoot.querySelector('[data-metric="baseline"] .card-value'),
             };
         }
     }

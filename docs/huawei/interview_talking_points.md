@@ -436,6 +436,25 @@ Things to have ready to show:
   tagline. Use it honestly.
 - **"I built this *for* the HMI Lab's research scope."** If asked why
   I³ specifically. True and correct.
+- **"36 scenarios, 170 turns, 100 % pass on the multi-turn drift test
+  — that's the HMI bar, not single-shot retrieval."** The
+  conversational-coherence metric. Use it when the panel asks how
+  you measure quality, or "how do you know it's good?". Reference
+  test: `D:/tmp/context_drift_test.py`. Up from 20/29 = 69 % at
+  iter 40 — the curve is in `memory/project_pipeline_quality_guards.md`.
+  Now includes 8-slot multi-fact session memory (name, colour, food,
+  music, occupation, location, hobby, age, pet) — recall across
+  any number of turns.
+- **"Cross-session personalisation, encrypted at rest, with a
+  one-utterance wipe."** The privacy-pillar payoff (iter 50).
+  Personal facts the user *explicitly* shares are persisted to the
+  Interaction Diary's `user_facts` table, Fernet-encrypted with the
+  same key as the embedding columns. Loaded on every
+  `start_session(user_id)`, cleared by saying *"forget my facts"*.
+  4/4 pass on the cross-session recall test
+  (`D:/tmp/cross_session_test.py`).  Use this when asked about
+  privacy + personalisation + edge — it's the "can it remember me
+  without leaking" answer.
 
 ---
 

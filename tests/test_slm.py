@@ -39,11 +39,19 @@ class TestAttention:
         assert mask.shape == (1, 1, 8, 8)
 
     def test_causal_mask_values(self) -> None:
-        """Causal mask: 0 for past/present, -inf for future."""
+        """Causal mask: 0 for past/present, large negative for future.
+
+        Implementation uses ``_MASK_NEG = -1e9`` instead of ``-inf`` to avoid
+        ``softmax(-inf)`` producing NaN when an entire row is masked
+        (which can legitimately happen during edge cases of cross-
+        attention or padding-only rows). The test reflects the actual
+        contract: future positions are masked with a very-negative
+        finite value such that softmax weights drop below 1e-300.
+        """
         mask = create_causal_mask(4)
         # Position 0 can only see position 0
         assert mask[0, 0, 0, 0] == 0.0
-        assert mask[0, 0, 0, 1] == float('-inf')
+        assert mask[0, 0, 0, 1] <= -1e8  # masked future, finite-negative
         # Position 3 can see positions 0, 1, 2, 3
         assert mask[0, 0, 3, 0] == 0.0
         assert mask[0, 0, 3, 3] == 0.0

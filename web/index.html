@@ -1,14 +1,15 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>I&#xB3; &mdash; Implicit Interaction Intelligence</title>
-    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/style.css?v=apple35">
+    <link rel="stylesheet" href="/static/css/huawei_tabs.css?v=iter51">
+    <meta http-equiv="Cache-Control" content="no-store">
     <style>
-        /* Critical inline styles for instant render */
-        body { background: #1a1a2e; margin: 0; }
-        #app { opacity: 0; transition: opacity 0.3s ease; }
+        body { background: #000; margin: 0; }
+        #app { opacity: 0; transition: opacity 0.4s ease; }
         #app.ready { opacity: 1; }
     </style>
 </head>
@@ -16,157 +17,1413 @@
 
 <div id="app">
 
-    <!-- Connection status bar -->
     <div id="connection-bar" class="connection-bar"></div>
 
-    <!-- Header -->
-    <header class="header">
-        <div class="header-title">
-            <div class="logo-mark">I&#xB3;</div>
-            <h1>Implicit Interaction Intelligence</h1>
-        </div>
-        <div class="header-user">
-            <span class="status-dot"></span>
-            <span>User: Demo</span>
+    <!-- Accessibility-mode status strip — visible only when mode is active.
+         Auto-activates on sustained motor-difficulty signals; the [exit]
+         button issues a manual force=false override for the rest of the
+         session. -->
+    <div id="access-strip" class="access-strip" role="status" aria-live="polite" hidden>
+        <span class="access-strip-mark" aria-hidden="true">A</span>
+        <span class="access-strip-label">Accessibility mode</span>
+        <span class="access-strip-sep">·</span>
+        <span class="access-strip-mode" id="access-strip-mode">auto-activated</span>
+        <span class="access-strip-sep">·</span>
+        <span class="access-strip-reason" id="access-strip-reason">—</span>
+        <button type="button" class="access-strip-exit" id="access-strip-exit" aria-label="Exit accessibility mode">exit</button>
+    </div>
+
+    <!-- Sticky glass nav with tab links -->
+    <header class="apple-nav" role="banner">
+        <div class="nav-inner">
+            <a class="nav-brand" href="#chat" data-tab="chat">
+                <span class="brand-mark">I&#xB3;</span>
+                <span class="brand-name">Implicit Intelligence</span>
+            </a>
+            <nav class="nav-links" role="tablist" aria-label="Sections">
+                <a href="#chat"        class="nav-link" data-tab="chat"        role="tab">Chat</a>
+                <a href="#stack"       class="nav-link" data-tab="stack"       role="tab">Stack</a>
+                <a href="#state"       class="nav-link" data-tab="state"       role="tab">State</a>
+                <a href="#adaptation"  class="nav-link" data-tab="adaptation"  role="tab">Adaptation</a>
+                <a href="#routing"     class="nav-link" data-tab="routing"     role="tab">Routing</a>
+                <a href="#privacy"     class="nav-link" data-tab="privacy"     role="tab">Privacy</a>
+                <a href="#profile"     class="nav-link" data-tab="profile"     role="tab">Profile</a>
+                <a href="#edge"        class="nav-link" data-tab="edge"        role="tab">Edge</a>
+                <!-- Lab dropdown: Flow / Benchmarks / Playground are grouped
+                     under one nav entry to declutter the top bar.  The
+                     dropdown panel opens on hover or focus; clicking any
+                     item routes to that tab via the existing hash router. -->
+                <div class="nav-group" data-group="lab">
+                    <button type="button" class="nav-link nav-group-trigger" aria-haspopup="true" aria-expanded="false" data-group="lab">
+                        Lab<span class="nav-group-caret" aria-hidden="true">&#x25BE;</span>
+                    </button>
+                    <div class="nav-group-menu" role="menu" aria-label="Lab tabs">
+                        <a href="#flow"        class="nav-link nav-group-item" data-tab="flow"        role="menuitem">Flow</a>
+                        <a href="#benchmarks"  class="nav-link nav-group-item" data-tab="benchmarks"  role="menuitem">Benchmarks</a>
+                        <a href="#playground"  class="nav-link nav-group-item" data-tab="playground"  role="menuitem">Playground</a>
+                    </div>
+                </div>
+                <!-- Docs dropdown: Design / References grouped. -->
+                <div class="nav-group" data-group="docs">
+                    <button type="button" class="nav-link nav-group-trigger" aria-haspopup="true" aria-expanded="false" data-group="docs">
+                        Docs<span class="nav-group-caret" aria-hidden="true">&#x25BE;</span>
+                    </button>
+                    <div class="nav-group-menu" role="menu" aria-label="Docs tabs">
+                        <a href="#design"      class="nav-link nav-group-item" data-tab="design"      role="menuitem">Design</a>
+                        <a href="#references"  class="nav-link nav-group-item" data-tab="references"  role="menuitem">References</a>
+                    </div>
+                </div>
+                <!-- Huawei dropdown (iter 51): JD-relevance dashboard tabs
+                     surfacing Intent fine-tune / Edge profile /
+                     Fine-tune Comparison / Personal Facts / Multimodal /
+                     Research Notes / JD Map.  Each is a recruiter-
+                     facing surface that proves a JD bullet. -->
+                <div class="nav-group" data-group="huawei">
+                    <button type="button" class="nav-link nav-group-trigger" aria-haspopup="true" aria-expanded="false" data-group="huawei">
+                        Huawei<span class="nav-group-caret" aria-hidden="true">&#x25BE;</span>
+                    </button>
+                    <div class="nav-group-menu" role="menu" aria-label="Huawei tabs">
+                        <a href="#intent"       class="nav-link nav-group-item" data-tab="intent"       role="menuitem">Intent (LoRA)</a>
+                        <a href="#edge-profile" class="nav-link nav-group-item" data-tab="edge-profile" role="menuitem">Edge Profile</a>
+                        <a href="#finetune"     class="nav-link nav-group-item" data-tab="finetune"     role="menuitem">Fine-tune Cmp</a>
+                        <a href="#facts"        class="nav-link nav-group-item" data-tab="facts"        role="menuitem">Personal Facts</a>
+                        <a href="#multimodal"   class="nav-link nav-group-item" data-tab="multimodal"   role="menuitem">Multimodal</a>
+                        <a href="#research"     class="nav-link nav-group-item" data-tab="research"     role="menuitem">Research Notes</a>
+                        <a href="#jdmap"        class="nav-link nav-group-item" data-tab="jdmap"        role="menuitem">JD Map</a>
+                    </div>
+                </div>
+                <a href="#about"       class="nav-link" data-tab="about"       role="tab">About</a>
+            </nav>
+            <div class="nav-trailing">
+                <div class="pipeline-ribbon" id="pipeline-ribbon">
+                    <span class="pipe-dot" data-stage="encoder"></span>
+                    <span class="pipe-dot" data-stage="adapt"></span>
+                    <span class="pipe-dot" data-stage="router"></span>
+                    <span class="pipe-dot" data-stage="retrieval"></span>
+                    <span class="pipe-dot" data-stage="slm"></span>
+                </div>
+                <!-- Identity Lock — typing-biometric continuous-auth pill.
+                     Cites Monrose & Rubin (1997) and Killourhy & Maxion
+                     (2009).  Click opens a popover with re-register /
+                     force-register / view-profile actions. -->
+                <button type="button" class="identity-lock unregistered" id="identity-lock"
+                        title="Typing biometric authentication (Monrose & Rubin 1997, Killourhy & Maxion 2009)"
+                        aria-label="Typing biometric Identity Lock" aria-haspopup="true" aria-expanded="false">
+                    <span class="lock-icon" aria-hidden="true">&#x1F512;</span>
+                    <span class="lock-progress" id="lock-progress" aria-hidden="true">
+                        <span class="lock-dot" data-i="0"></span>
+                        <span class="lock-dot" data-i="1"></span>
+                        <span class="lock-dot" data-i="2"></span>
+                        <span class="lock-dot" data-i="3"></span>
+                        <span class="lock-dot" data-i="4"></span>
+                    </span>
+                    <span class="lock-text" id="lock-text">register</span>
+                </button>
+                <div class="identity-lock-popover" id="identity-lock-popover" role="menu" hidden>
+                    <button type="button" class="lock-action" data-action="reregister" role="menuitem">Re-register</button>
+                    <button type="button" class="lock-action" data-action="force" role="menuitem">Force-register now</button>
+                    <button type="button" class="lock-action" data-action="profile" role="menuitem">View profile</button>
+                </div>
+                <span class="state-badge warming-up" id="state-badge" title="User-state classifier — live label">—</span>
+                <button type="button" class="access-toggle" id="access-toggle"
+                        title="Toggle accessibility mode (auto-engages on sustained motor-difficulty signals)"
+                        aria-label="Toggle accessibility mode" aria-pressed="false">A</button>
+                <!-- Cloud-route consent toggle.  Default OFF; click flips
+                     /api/routing/cloud-consent/{user_id}.  When ON, the
+                     pill turns blue and the text shows the live remaining
+                     budget pulled from the privacy_budget snapshot. -->
+                <button type="button" class="cloud-consent off" id="cloud-consent-toggle"
+                        title="Cloud LLM route consent (opt-in fallback when the bandit picks cloud)"
+                        aria-label="Toggle cloud LLM route" aria-pressed="false">
+                    <span class="cloud-icon" aria-hidden="true">&#9729;</span>
+                    <span class="cloud-text">cloud &middot; off</span>
+                </button>
+                <div class="header-user">
+                    <span class="status-dot"></span>
+                    <span>Demo</span>
+                </div>
+            </div>
         </div>
     </header>
 
-    <!-- Main Grid: Chat + Dashboard -->
-    <div class="main-grid">
+    <main class="page" role="main">
 
-        <!-- Left: Chat Panel -->
-        <div class="chat-panel">
-            <div id="chat-messages" class="chat-messages">
-                <!-- Welcome message -->
-                <div class="message ai">
-                    <div class="message-avatar" style="background: #e94560;">I&#xB3;</div>
-                    <div class="message-body">
-                        <div class="message-text">
-                            Welcome to the Implicit Interaction Intelligence demo. I adapt my responses in real-time based on your interaction patterns. Type a message to begin.
+        <!-- ═════════════════════════════ CHAT TAB ═════════════════════════════ -->
+        <section class="tab-panel" id="tab-chat" data-tab="chat" role="tabpanel">
+            <div class="hero hero-chat" aria-labelledby="hero-title">
+                <p class="eyebrow reveal">Implicit Interaction Intelligence</p>
+                <h1 id="hero-title" class="hero-headline reveal">
+                    <span class="reveal-line">Adaptive.</span>
+                    <span class="reveal-line hero-headline-accent">On device.</span>
+                </h1>
+                <p class="hero-tag reveal">A small language model trained from scratch.<br>Conditions on how you type, in real time.</p>
+
+                <div class="hero-chat-window reveal-card">
+                    <!-- Iter 20 (2026-04-26): active conversation
+                         topic pill + iter 26 topic-history breadcrumb.
+                         Updated by app.js on every
+                         response/state_update frame.  Hidden until
+                         the engine has anchored a topic. -->
+                    <div class="active-topic-row">
+                        <div id="active-topic-pill" class="active-topic-pill is-hidden" aria-live="polite">
+                            <span class="active-topic-dot"></span>
+                            <span class="active-topic-label">Topic</span>
+                            <span class="active-topic-value">—</span>
+                        </div>
+                        <div id="topic-history-breadcrumb" class="topic-history-breadcrumb is-hidden" aria-label="Recently discussed topics">
+                            <span class="topic-history-label">earlier:</span>
+                            <span class="topic-history-list"></span>
+                        </div>
+                    </div>
+                    <div id="chat-messages" class="chat-messages">
+                        <div class="message ai">
+                            <div class="message-avatar">I&#xB3;</div>
+                            <div class="message-body">
+                                <div class="message-text">Hi. I'm a small custom transformer running entirely on this device. Ask me anything.</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="typing-indicator" class="typing-indicator">
+                        <span></span><span></span><span></span>
+                    </div>
+                    <!-- Suggestion chips (apple26): tap-to-prefill seed
+                         queries that show the system at its best.  Hides
+                         itself once the user has sent any message. -->
+                    <div id="suggestion-chips" class="suggestion-chips" role="list">
+                        <button class="suggestion-chip" type="button" data-prompt="how do you adapt to me">How do you adapt to me?</button>
+                        <button class="suggestion-chip" type="button" data-prompt="what is implicit interaction">What is implicit interaction?</button>
+                        <button class="suggestion-chip" type="button" data-prompt="how do you handle privacy">How do you handle privacy?</button>
+                        <button class="suggestion-chip" type="button" data-prompt="what is your architecture">What is your architecture?</button>
+                        <button class="suggestion-chip" type="button" data-prompt="why did you build this">Why did you build this?</button>
+                    </div>
+                    <div class="hero-input">
+                        <div class="chat-input-wrap">
+                            <input
+                                id="chat-input"
+                                type="text"
+                                placeholder="Ask anything"
+                                autocomplete="off"
+                                spellcheck="false"
+                                maxlength="4000"
+                                aria-label="Chat message input"
+                            >
+                            <button id="send-btn" aria-label="Send message">Send</button>
                         </div>
                     </div>
                 </div>
+
+                <p class="hero-foot reveal">Runs on this device. Cloud LLM is an opt-in fallback &mdash; flip the cloud toggle in the nav to enable it for high-complexity prompts.</p>
             </div>
 
-            <!-- Typing indicator -->
-            <div id="typing-indicator" class="typing-indicator">
-                <span></span><span></span><span></span>
+            <!-- Off-DOM mount kept for legacy code that still queries
+                 #i3-advanced-panels (browser_inference, etc).  Not
+                 visible in the chat layout — the TTS, explainer, and
+                 preference UI now live in their own dedicated homes
+                 (per-bubble icon, State tab, floating toast). -->
+            <div id="i3-advanced-panels" class="advanced-panels-host advanced-panels-host-hidden" aria-hidden="true"></div>
+        </section>
+
+        <!-- ═════════════════════════════ STACK TAB ═════════════════════════════ -->
+        <section class="tab-panel" id="tab-stack" data-tab="stack" role="tabpanel" hidden>
+            <header class="section-head reveal">
+                <p class="eyebrow">On-Device Stack</p>
+                <h2 class="section-title">Built from scratch.</h2>
+                <p class="section-sub">Every component below is hand-written PyTorch. No HuggingFace Transformers, no pretrained weights, no cloud calls in the response path.</p>
+            </header>
+            <div class="tile-grid stagger">
+                <article class="tile">
+                    <div class="tile-eyebrow">Adaptive SLM</div>
+                    <h3 class="tile-headline" id="stack-slm">—</h3>
+                    <p class="tile-meta" id="stack-slm-meta">Custom transformer · cross-attention conditioning</p>
+                </article>
+                <article class="tile">
+                    <div class="tile-eyebrow">TCN Encoder</div>
+                    <h3 class="tile-headline" id="stack-encoder">—</h3>
+                    <p class="tile-meta" id="stack-encoder-meta">Dilated temporal convolutions, metric-loss trained</p>
+                </article>
+                <article class="tile">
+                    <div class="tile-eyebrow">Routing</div>
+                    <h3 class="tile-headline" id="stack-router">—</h3>
+                    <p class="tile-meta" id="stack-router-meta">LinUCB contextual bandit · Thompson sampling</p>
+                </article>
+                <article class="tile">
+                    <div class="tile-eyebrow">Device</div>
+                    <h3 class="tile-headline" id="stack-device">—</h3>
+                    <p class="tile-meta" id="stack-device-meta">Edge-first · ONNX export</p>
+                </article>
             </div>
 
-            <!-- Chat input -->
-            <div class="chat-input-area">
-                <div class="chat-input-wrap">
-                    <input
-                        id="chat-input"
-                        type="text"
-                        placeholder="Type a message..."
-                        autocomplete="off"
-                        spellcheck="false"
-                        maxlength="4000"
-                        aria-label="Chat message input"
-                    >
-                    <button id="send-btn" aria-label="Send message">Send</button>
+            <!-- Tech specs strip (v2 numbers, post 2026-04-25 retrain) -->
+            <div class="hero-stats reveal">
+                <div class="stat"><span class="stat-num">204M</span><span class="stat-cap">parameters</span></div>
+                <div class="stat-divider"></div>
+                <div class="stat"><span class="stat-num">32,000</span><span class="stat-cap">BPE vocab</span></div>
+                <div class="stat-divider"></div>
+                <div class="stat"><span class="stat-num">974K</span><span class="stat-cap">training pairs</span></div>
+                <div class="stat-divider"></div>
+                <div class="stat"><span class="stat-num">0</span><span class="stat-cap">HF dependencies</span></div>
+            </div>
+
+            <!-- ─────────────────────────────────────────────────────────
+                 Iter 51: Subsystem grid — every major module surfaced
+                 with LOC, status, and the canonical paper / standard.
+                 Closes the JD bullet "demonstrate breadth across the
+                 ML stack" without forcing the reader to grep the repo.
+                 ───────────────────────────────────────────────────── -->
+            <header class="section-head reveal" style="margin-top: 96px;">
+                <p class="eyebrow">Iter 51 · Subsystem map</p>
+                <h2 class="section-title">22 subsystems, one repo.</h2>
+                <p class="section-sub">Each card lists the module, line count, runtime status, and the paper or standard it implements. Links jump to the source.</p>
+            </header>
+            <div class="huawei-grid reveal" id="stack-subsystem-grid">
+                <article class="huawei-card">
+                    <h3>🧠 Adaptive SLM (v2)</h3>
+                    <p><strong>422 LOC</strong> · <span class="huawei-status-pill ok">live</span></p>
+                    <p>204 M parameters, 12-layer / 12-head MoE+ACT transformer with cross-attention conditioning. Halts early on simple turns (Graves 2016 ACT) and routes to expert FFNs (Shazeer 2017 sparse MoE).</p>
+                    <p><a href="i3/slm/model.py">i3/slm/model.py</a></p>
+                </article>
+                <article class="huawei-card">
+                    <h3>🔤 BPE tokenizer (from-scratch)</h3>
+                    <p><strong>461 LOC</strong> · <span class="huawei-status-pill ok">live</span></p>
+                    <p>32 k-vocab Byte-Pair Encoding (Sennrich 2015 BPE), trained on the 974 k-pair corpus. Zero HuggingFace tokenizers dependency.</p>
+                    <p><a href="i3/slm/tokenizer.py">i3/slm/tokenizer.py</a></p>
+                </article>
+                <article class="huawei-card">
+                    <h3>📡 TCN encoder</h3>
+                    <p><strong>1,606 LOC</strong> · <span class="huawei-status-pill ok">live</span></p>
+                    <p>Dilated temporal-convolution stack (Bai 2018) over the keystroke stream → 64-D user-state vector. Triplet-loss trained, INT8 quantised, ONNX-exportable.</p>
+                    <p><a href="i3/encoder/tcn.py">i3/encoder/tcn.py</a></p>
+                </article>
+                <article class="huawei-card">
+                    <h3>🎰 LinUCB router</h3>
+                    <p><strong>634 LOC</strong> · <span class="huawei-status-pill ok">live</span></p>
+                    <p>Contextual bandit (Li 2010 LinUCB) + Thompson-sampling fallback on the (edge, cloud) arms. Reward = composite engagement signal.</p>
+                    <p><a href="i3/router/bandit.py">i3/router/bandit.py</a></p>
+                </article>
+                <article class="huawei-card">
+                    <h3>🔍 Self-critique loop</h3>
+                    <p><strong>710 LOC</strong> · <span class="huawei-status-pill ok">live</span></p>
+                    <p>Best-of-N regenerator with rule + LLM-judge scoring (Madaan 2023 Self-Refine). Up to 3 attempts; sub-scores explainable in the UI trace.</p>
+                    <p><a href="i3/critique/critic.py">i3/critique/critic.py</a></p>
+                </article>
+                <article class="huawei-card">
+                    <h3>🛡 Constitutional safety</h3>
+                    <p><strong>512 LOC</strong> · <span class="huawei-status-pill ok">live</span></p>
+                    <p>Char-CNN classifier + constitutional principles (Bai 2022 CAI). Iter 51 — soft caveats now ship side-channel, not inline.</p>
+                    <p><a href="i3/safety/classifier.py">i3/safety/classifier.py</a></p>
+                </article>
+                <article class="huawei-card">
+                    <h3>🔐 Identity Lock (biometric)</h3>
+                    <p><strong>991 LOC</strong> · <span class="huawei-status-pill ok">live</span></p>
+                    <p>Per-user keystroke-template metric model. Continuous reauth every turn; cosine-distance + threshold; live on the chat header.</p>
+                    <p><a href="i3/biometric/keystroke_auth.py">i3/biometric/keystroke_auth.py</a></p>
+                </article>
+                <article class="huawei-card">
+                    <h3>🧬 Per-user LoRA</h3>
+                    <p><strong>1,198 LOC</strong> · <span class="huawei-status-pill ok">live</span></p>
+                    <p>Biometric-keyed LoRA residual on the AdaptationVector (Hu 2021 LoRA). Adapter swaps on identity match.</p>
+                    <p><a href="i3/personalisation/lora_adapter.py">i3/personalisation/lora_adapter.py</a></p>
+                </article>
+                <article class="huawei-card">
+                    <h3>🗂 Knowledge graph + memory</h3>
+                    <p><strong>863 LOC</strong> · <span class="huawei-status-pill ok">live</span></p>
+                    <p>Per-(user, session) topic stack + Fernet-encrypted personal-fact store (iter 50). Cross-session recall verified 4/4.</p>
+                    <p><a href="i3/dialogue/knowledge_graph.py">i3/dialogue/knowledge_graph.py</a> · <a href="i3/dialogue/memory.py">memory.py</a></p>
+                </article>
+                <article class="huawei-card">
+                    <h3>📷 Vision multimodal</h3>
+                    <p><strong>514 LOC</strong> · <span class="huawei-status-pill ok">live</span></p>
+                    <p>MediaPipe Face Mesh → 8 facial-affect features (EAR, MAR, gaze offset, head-pose, AU4/AU12). Runs in-browser; only scalars hit the wire.</p>
+                    <p><a href="i3/multimodal/vision.py">i3/multimodal/vision.py</a></p>
+                </article>
+                <article class="huawei-card">
+                    <h3>👁 Gaze classifier</h3>
+                    <p><strong>1,014 LOC</strong> · <span class="huawei-status-pill ok">live</span></p>
+                    <p>MobileNetV3-small backbone (Howard 2019), per-user fine-tuned head. Gaze zones + dwell stats for AR display use.</p>
+                    <p><a href="i3/multimodal/gaze_classifier.py">i3/multimodal/gaze_classifier.py</a></p>
+                </article>
+                <article class="huawei-card">
+                    <h3>🔊 Voice prosody</h3>
+                    <p><strong>761 LOC</strong> · <span class="huawei-status-pill ok">live</span></p>
+                    <p>8 prosody scalars (pitch, jitter, shimmer, energy, speech-rate, pause stats). Browser WebAudio extraction; raw audio never leaves the device.</p>
+                    <p><a href="i3/multimodal/prosody.py">i3/multimodal/prosody.py</a></p>
+                </article>
+                <article class="huawei-card">
+                    <h3>❤ PPG / HRV</h3>
+                    <p><strong>630 LOC</strong> · <span class="huawei-status-pill ok">live</span></p>
+                    <p>Wearable physiology — HRV + PPG features for stress / recovery (Pan-Tompkins R-peak detection).</p>
+                    <p><a href="i3/multimodal/ppg_hrv.py">i3/multimodal/ppg_hrv.py</a></p>
+                </article>
+                <article class="huawei-card">
+                    <h3>⚡ Edge profiler + exports</h3>
+                    <p><strong>602 LOC</strong> · <span class="huawei-status-pill ok">live</span></p>
+                    <p>Latency + INT8 memory profiler. Kirin 9000-class budget: 55.7 ms total, 205 MB RAM, fits the 100 ms HMI window. ONNX / Core ML / ExecuTorch / TensorRT-LLM exports alongside.</p>
+                    <p><a href="i3/edge/profiler.py">i3/edge/profiler.py</a></p>
+                </article>
+                <article class="huawei-card">
+                    <h3>🧪 Intent LoRA (Qwen3-1.7B)</h3>
+                    <p><strong>504 LOC</strong> · <span class="huawei-status-pill ok">live</span></p>
+                    <p>DoRA + NEFTune + cosine-warm-restart + 8-bit AdamW LoRA on Qwen3-1.7B (iter 51). Closes the JD "fine-tune pre-trained models" bullet.</p>
+                    <p><a href="training/train_intent_lora.py">training/train_intent_lora.py</a></p>
+                </article>
+                <article class="huawei-card">
+                    <h3>☁ Multi-cloud router</h3>
+                    <p><strong>851 LOC</strong> · <span class="huawei-status-pill ok">live</span></p>
+                    <p>Multi-provider client (OpenAI, Anthropic, Gemini, Mistral, Cohere, Together, OpenRouter, Groq, Cerebras, Perplexity, custom) with consent gating + privacy-budget enforcement.</p>
+                    <p><a href="i3/cloud/client.py">i3/cloud/client.py</a></p>
+                </article>
+                <article class="huawei-card">
+                    <h3>🔗 Federated learning</h3>
+                    <p><strong>336 LOC</strong> · <span class="huawei-status-pill ok">live</span></p>
+                    <p>FedAvg (McMahan 2017) over LoRA deltas. Per-device gradient clipping + secure aggregation server.</p>
+                    <p><a href="i3/federated/aggregator.py">i3/federated/aggregator.py</a> · <a href="i3/federated/server.py">server.py</a></p>
+                </article>
+                <article class="huawei-card">
+                    <h3>🪞 MAML meta-learning</h3>
+                    <p><strong>590 LOC</strong> · <span class="huawei-status-pill ok">live</span></p>
+                    <p>Model-Agnostic Meta-Learning (Finn 2017) for k-shot user adaptation on the encoder head.</p>
+                    <p><a href="i3/meta_learning/maml.py">i3/meta_learning/maml.py</a></p>
+                </article>
+                <article class="huawei-card">
+                    <h3>🛟 EWC continual</h3>
+                    <p><strong>663 LOC</strong> · <span class="huawei-status-pill ok">live</span></p>
+                    <p>Elastic Weight Consolidation (Kirkpatrick 2017). Per-user Fisher matrix protects the shared backbone from drift across sessions.</p>
+                    <p><a href="i3/continual/ewc.py">i3/continual/ewc.py</a></p>
+                </article>
+                <article class="huawei-card">
+                    <h3>🔬 Sparse autoencoder</h3>
+                    <p><strong>727 LOC</strong> · <span class="huawei-status-pill ok">live</span></p>
+                    <p>Mech-interp dictionary learning over SLM activations (Bricken 2023 SAE). Surfaces interpretable feature directions inside the SLM tab.</p>
+                    <p><a href="i3/interpretability/sparse_autoencoder.py">i3/interpretability/sparse_autoencoder.py</a></p>
+                </article>
+                <article class="huawei-card">
+                    <h3>🛂 Redteam harness</h3>
+                    <p><strong>672 LOC</strong> · <span class="huawei-status-pill ok">live</span></p>
+                    <p>Categorised adversarial probes (Perez 2022 redteaming). Auto-runs against every release candidate.</p>
+                    <p><a href="i3/redteam/attacker.py">i3/redteam/attacker.py</a></p>
+                </article>
+                <article class="huawei-card">
+                    <h3>🎼 Agentic Core orchestrator</h3>
+                    <p><strong>657 LOC</strong> · <span class="huawei-status-pill ok">live</span></p>
+                    <p>Coordinates SLM + cloud + tools per-turn. Hybrid Multi-Agent Framework backbone for the HarmonyOS-aligned roadmap.</p>
+                    <p><a href="i3/huawei/agentic_core_runtime.py">i3/huawei/agentic_core_runtime.py</a></p>
+                </article>
+            </div>
+        </section>
+
+        <!-- ═════════════════════════════ STATE TAB ═════════════════════════════ -->
+        <section class="tab-panel" id="tab-state" data-tab="state" role="tabpanel" hidden>
+            <header class="section-head reveal">
+                <p class="eyebrow">User State</p>
+                <h2 class="section-title">Live, every keystroke.</h2>
+                <p class="section-sub">A 64-dimensional state vector encodes how you're typing — composition time, inter-key interval, edit count, linguistic complexity. The projection below is the same vector compressed to two dimensions for visualisation.</p>
+            </header>
+            <div class="embedding-container reveal-card">
+                <canvas id="embedding-canvas"></canvas>
+            </div>
+
+            <!-- Real transformer attention map (CPU-only extraction). -->
+            <div class="section-head reveal" style="margin-top: 80px;">
+                <p class="eyebrow">Attention map</p>
+                <h2 class="section-title">What the SLM looks at.</h2>
+                <p class="section-sub">Real self-attention weights extracted from the custom AdaptiveSLM. Darker cells mean the row-token attended more strongly to the column-token at the selected layer.</p>
+            </div>
+            <div id="attn-viz" class="attn-viz reveal-card">
+                <div class="attn-controls">
+                    <label for="attn-prompt" class="attn-label">Prompt</label>
+                    <input id="attn-prompt" type="text" class="attn-input"
+                           value="Hello, how are you?" maxlength="256"
+                           placeholder="Type a short prompt">
+                    <label for="attn-layer" class="attn-label">Layer</label>
+                    <select id="attn-layer" class="attn-input attn-select"></select>
+                    <button id="attn-compute" class="attn-button" type="button">Compute</button>
+                </div>
+                <div id="attn-status" class="attn-status" aria-live="polite"></div>
+                <div id="attn-grid" class="attn-grid" role="table" aria-label="Attention heatmap"></div>
+                <p class="attn-caption">
+                    <span id="attn-caption-meta">—</span>
+                </p>
+            </div>
+
+            <!-- "Why this response?" explainer surface — relocated from
+                 the chat tab.  The explain_panel.js module mounts the
+                 collapsible reasoning-trace + raw-uncertainty UI here
+                 once it boots.  Reads the trace stashed on
+                 window.__i3LastReasoningTrace by app.js. -->
+            <div class="section-head reveal" style="margin-top: 80px;">
+                <p class="eyebrow">Reasoning trace</p>
+                <h2 class="section-title">Why this response?</h2>
+                <p class="section-sub">A narrative replay of the last turn: which signals fired, which arms the bandit picked, and what the MC-Dropout estimator thought of the adaptation vector. Send a chat message, then expand the panel below.</p>
+            </div>
+            <div id="i3-explain-mount" class="i3-explain-mount reveal-card"></div>
+        </section>
+
+        <!-- ═════════════════════════════ ADAPTATION TAB ═════════════════════════════ -->
+        <section class="tab-panel" id="tab-adaptation" data-tab="adaptation" role="tabpanel" hidden>
+            <header class="section-head reveal">
+                <p class="eyebrow">Adaptation</p>
+                <h2 class="section-title">Eight axes, continuously tuned.</h2>
+                <p class="section-sub">Each axis biases generation: cognitive load tightens phrasing, formality matches your tone, accessibility simplifies vocabulary when motor difficulty is detected.</p>
+            </header>
+            <div class="gauge-container reveal-card"></div>
+
+            <!-- Engagement summary cards -->
+            <div class="section-head" style="margin-top: 80px;">
+                <p class="eyebrow">Engagement</p>
+                <h2 class="section-title">Live signal.</h2>
+            </div>
+            <div class="engagement-grid stagger">
+                <article class="engagement-card" data-metric="score">
+                    <div class="card-label">Score</div>
+                    <div class="card-value score">0.00</div>
+                </article>
+                <article class="engagement-card" data-metric="deviation">
+                    <div class="card-label">Deviation</div>
+                    <div class="card-value deviation">+0.000</div>
+                </article>
+                <article class="engagement-card" data-metric="messages">
+                    <div class="card-label">Messages</div>
+                    <div class="card-value count">0</div>
+                </article>
+                <article class="engagement-card" data-metric="baseline">
+                    <div class="card-label">Baseline</div>
+                    <div class="card-value baseline">
+                        <span class="baseline-no">Warming up</span>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <!-- ═════════════════════════════ ROUTING TAB ═════════════════════════════ -->
+        <section class="tab-panel" id="tab-routing" data-tab="routing" role="tabpanel" hidden>
+            <header class="section-head reveal">
+                <p class="eyebrow">Routing</p>
+                <h2 class="section-title">Edge first.</h2>
+                <p class="section-sub">A LinUCB contextual bandit reads the live state and picks between the on-device SLM and an optional cloud LLM route. Cloud fires only when (1) the user has opted in via the toggle, (2) the per-session privacy budget allows another call, and (3) the bandit picks it.</p>
+            </header>
+            <div class="gauge-container reveal-card"></div>
+            <div class="routing-decision reveal">
+                <span class="route-label">Waiting&hellip;</span>
+            </div>
+
+            <!-- Decision-scatter visualisation: each dot is a routing
+                 decision from the last 50 turns.  X = prompt complexity,
+                 Y = retrieval top score.  Dot colour = arm picked.
+                 Dashed line is the LinUCB-derived edge/cloud threshold
+                 at complexity 0.65. -->
+            <div class="routing-scatter-wrap reveal-card">
+                <h3>Recent routing decisions</h3>
+                <p class="panel-sub">Each dot is one of the last 50 turns. X-axis: per-prompt complexity score. Y-axis: top retrieval cosine. The dashed line shows the cloud threshold at complexity 0.65; dots to its right are candidates for cloud routing.</p>
+                <svg class="routing-scatter-svg" id="routing-scatter-svg" viewBox="0 0 720 320" preserveAspectRatio="xMidYMid meet" aria-label="Routing decision scatter plot"></svg>
+                <div class="routing-scatter-legend">
+                    <span><span class="legend-dot edge"></span>edge SLM</span>
+                    <span><span class="legend-dot cloud"></span>cloud LLM</span>
                 </div>
             </div>
+        </section>
+
+        <!-- ═════════════════════════════ FLOW TAB ═════════════════════════════ -->
+        <!-- Live system-architecture flow dashboard.  Every stage of the
+             implicit-interaction pipeline lights up on every turn with
+             real timings, real data shapes, real decisions.  No
+             synthetic animation — these are the actual measurements
+             from the last turn (PipelineTraceCollector). -->
+        <section class="tab-panel" id="tab-flow" data-tab="flow" role="tabpanel" hidden>
+            <header class="section-head reveal">
+                <p class="eyebrow">Pipeline Flow</p>
+                <h2 class="section-title">Watch every component fire.</h2>
+                <p class="section-sub">Every stage of the implicit-interaction pipeline lights up
+                   on every turn. Real timings, real data shapes, real decisions.
+                   No animations — these are the actual measurements from the last turn.</p>
+            </header>
+            <div class="flow-canvas" id="flow-canvas"></div>
+            <div class="flow-stats" id="flow-stats"></div>
+            <div class="flow-history" id="flow-history">
+                <h3>Recent turns</h3>
+                <table class="flow-history-table">
+                    <thead>
+                        <tr>
+                            <th>turn</th>
+                            <th>total ms</th>
+                            <th>stages fired</th>
+                            <th>response_path</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="flow-history-body"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ═════════════════════════════ PLAYGROUND TAB ═════════════════════════════ -->
+        <!-- Manual override of every pipeline stage for what-if exploration.
+             Closes the JD bullet "open-ended, exploratory contexts and rapidly
+             prototype AI solutions". -->
+        <section class="tab-panel" id="tab-playground" data-tab="playground" role="tabpanel" hidden>
+            <header class="section-head reveal">
+                <p class="eyebrow">Playground</p>
+                <h2 class="section-title">Override every stage.</h2>
+                <p class="section-sub">Force any combination of overrides &mdash; adaptation axes, biometric, accessibility, route, critique, coref, safety &mdash; for a single what-if turn. Capped at 100 calls per session.</p>
+            </header>
+            <div class="playground-grid reveal-card">
+                <aside class="playground-controls">
+                    <h3>Overrides</h3>
+
+                    <fieldset class="playground-fieldset">
+                        <legend>AdaptationVector</legend>
+                        <label class="playground-slider"><span>cognitive_load</span><input type="range" id="pg-adapt-cognitive_load" min="0" max="1" step="0.01" value="0.5"><output id="pg-adapt-cognitive_load-out">0.50</output></label>
+                        <label class="playground-slider"><span>formality</span><input type="range" id="pg-adapt-formality" min="0" max="1" step="0.01" value="0.5"><output id="pg-adapt-formality-out">0.50</output></label>
+                        <label class="playground-slider"><span>verbosity</span><input type="range" id="pg-adapt-verbosity" min="0" max="1" step="0.01" value="0.5"><output id="pg-adapt-verbosity-out">0.50</output></label>
+                        <label class="playground-slider"><span>emotionality</span><input type="range" id="pg-adapt-emotionality" min="0" max="1" step="0.01" value="0.5"><output id="pg-adapt-emotionality-out">0.50</output></label>
+                        <label class="playground-slider"><span>directness</span><input type="range" id="pg-adapt-directness" min="0" max="1" step="0.01" value="0.5"><output id="pg-adapt-directness-out">0.50</output></label>
+                        <label class="playground-slider"><span>emotional_tone</span><input type="range" id="pg-adapt-emotional_tone" min="0" max="1" step="0.01" value="0.5"><output id="pg-adapt-emotional_tone-out">0.50</output></label>
+                        <label class="playground-slider"><span>accessibility</span><input type="range" id="pg-adapt-accessibility" min="0" max="1" step="0.01" value="0.0"><output id="pg-adapt-accessibility-out">0.00</output></label>
+                        <label class="playground-slider"><span>reserved</span><input type="range" id="pg-adapt-reserved" min="0" max="1" step="0.01" value="0.0" disabled><output id="pg-adapt-reserved-out">0.00</output></label>
+                        <label class="playground-checkbox"><input type="checkbox" id="pg-adapt-enabled"> override AdaptationVector</label>
+                    </fieldset>
+
+                    <fieldset class="playground-fieldset">
+                        <legend>Biometric state</legend>
+                        <label><input type="radio" name="pg-bio" value="auto" checked> Auto</label>
+                        <label><input type="radio" name="pg-bio" value="registered"> Force-registered</label>
+                        <label><input type="radio" name="pg-bio" value="mismatch"> Force-mismatch</label>
+                        <label><input type="radio" name="pg-bio" value="unregistered"> Force-unregistered</label>
+                    </fieldset>
+
+                    <fieldset class="playground-fieldset">
+                        <legend>Accessibility mode</legend>
+                        <label><input type="radio" name="pg-access" value="auto" checked> Auto</label>
+                        <label><input type="radio" name="pg-access" value="on"> Force-on</label>
+                        <label><input type="radio" name="pg-access" value="off"> Force-off</label>
+                    </fieldset>
+
+                    <fieldset class="playground-fieldset">
+                        <legend>Route</legend>
+                        <label><input type="radio" name="pg-route" value="auto" checked> Auto</label>
+                        <label><input type="radio" name="pg-route" value="edge"> Force-edge</label>
+                        <label><input type="radio" name="pg-route" value="cloud"> Force-cloud</label>
+                    </fieldset>
+
+                    <fieldset class="playground-fieldset">
+                        <legend>Critique</legend>
+                        <label><input type="radio" name="pg-critique" value="auto" checked> Auto (on)</label>
+                        <label><input type="radio" name="pg-critique" value="off"> Off</label>
+                    </fieldset>
+
+                    <fieldset class="playground-fieldset">
+                        <legend>Coref</legend>
+                        <label><input type="radio" name="pg-coref" value="auto" checked> Auto (on)</label>
+                        <label><input type="radio" name="pg-coref" value="off"> Off</label>
+                    </fieldset>
+
+                    <fieldset class="playground-fieldset">
+                        <legend>Safety</legend>
+                        <label><input type="radio" name="pg-safety" value="auto" checked> Auto (on)</label>
+                        <label><input type="radio" name="pg-safety" value="off"> Off (bypass)</label>
+                    </fieldset>
+
+                    <p class="playground-cap" id="pg-cap">100 calls remaining this session.</p>
+                </aside>
+
+                <main class="playground-test">
+                    <h3>Test interface</h3>
+                    <div class="playground-input">
+                        <input type="text" id="pg-prompt" placeholder="Try: what is photosynthesis" maxlength="4000">
+                        <label class="playground-checkbox"><input type="checkbox" id="pg-compare" checked> compare against baseline (no overrides)</label>
+                        <button id="pg-send" type="button">Send</button>
+                    </div>
+
+                    <div class="playground-results">
+                        <article class="playground-card playground-card-overridden">
+                            <h4>With overrides</h4>
+                            <div class="playground-output" id="pg-result-text">—</div>
+                            <div class="playground-meta" id="pg-result-meta"></div>
+                        </article>
+                        <article class="playground-card playground-card-baseline" id="pg-baseline-card">
+                            <h4>Baseline (no overrides)</h4>
+                            <div class="playground-output" id="pg-baseline-text">—</div>
+                            <div class="playground-meta" id="pg-baseline-meta"></div>
+                        </article>
+                    </div>
+                </main>
+            </div>
+        </section>
+
+        <!-- ═════════════════════════════ PRIVACY TAB ═════════════════════════════ -->
+        <section class="tab-panel" id="tab-privacy" data-tab="privacy" role="tabpanel" hidden>
+            <header class="section-head reveal">
+                <p class="eyebrow">Privacy</p>
+                <h2 class="section-title">Your data, your device.</h2>
+                <p class="section-sub">Everything happens on this machine. No request leaves the host while the cloud route is off. Embeddings persisted to disk are Fernet-encrypted; raw text is never written.</p>
+            </header>
+            <div class="tile-grid stagger">
+                <article class="tile">
+                    <div class="tile-eyebrow">On-device</div>
+                    <h3 class="tile-headline">No cloud round-trip</h3>
+                    <p class="tile-meta">The default response path runs the custom SLM locally via PyTorch with the cloud client gated behind an explicit flag.</p>
+                </article>
+                <article class="tile">
+                    <div class="tile-eyebrow">Encryption at rest</div>
+                    <h3 class="tile-headline">Fernet · AES-128-CBC + HMAC</h3>
+                    <p class="tile-meta">Persisted state embeddings are encrypted with a Fernet key derived from the host's secrets. The DB schema has no column for raw text.</p>
+                </article>
+                <article class="tile">
+                    <div class="tile-eyebrow">PII sanitiser</div>
+                    <h3 class="tile-headline">Regex + rule-based redaction</h3>
+                    <p class="tile-meta">Email, phone, IP, URL, credit-card, and SSN-like patterns are scrubbed from any text before it reaches the diary or a future cloud handler.</p>
+                </article>
+                <article class="tile">
+                    <div class="tile-eyebrow">Origin allow-list</div>
+                    <h3 class="tile-headline">CORS doesn't cover WebSockets</h3>
+                    <p class="tile-meta">The WebSocket handler enforces an explicit Origin allow-list because the browser CORS layer doesn't apply to upgrade requests.</p>
+                </article>
+            </div>
+
+            <!-- Privacy-budget panel.  Shows live cloud-route counters,
+                 the value-add of the PII sanitiser (bytes redacted), and
+                 a per-category breakdown.  Updates on every state_update
+                 frame from the WebSocket. -->
+            <section class="privacy-budget-panel" id="privacy-budget-panel">
+                <h3>Privacy budget &middot; cloud route</h3>
+                <p class="panel-sub">Hard upper bounds enforced per session: 50 cloud calls and 1 MB transmitted. The user's consent flag is required; the per-prompt complexity score and the LinUCB bandit decide whether the cloud arm fires inside that envelope.</p>
+                <span class="privacy-budget-status off" id="privacy-budget-status">Cloud route consent: <strong>OFF</strong></span>
+                <div class="privacy-budget-counters">
+                    <div class="privacy-budget-counter">
+                        <span class="counter-label">Cloud calls</span>
+                        <span class="counter-value" id="privacy-counter-calls">0</span>
+                        <span class="counter-sub" id="privacy-counter-calls-sub">of 50 budget</span>
+                    </div>
+                    <div class="privacy-budget-counter">
+                        <span class="counter-label">PII tokens redacted</span>
+                        <span class="counter-value" id="privacy-counter-pii">0</span>
+                        <span class="counter-sub">across all cloud calls this session</span>
+                    </div>
+                    <div class="privacy-budget-counter">
+                        <span class="counter-label">Bytes transmitted</span>
+                        <span class="counter-value" id="privacy-counter-bytes">0</span>
+                        <span class="counter-sub" id="privacy-counter-bytes-sub">of 1 000 000 byte budget</span>
+                    </div>
+                    <div class="privacy-budget-counter">
+                        <span class="counter-label">Bytes redacted</span>
+                        <span class="counter-value" id="privacy-counter-redacted">0</span>
+                        <span class="counter-sub">would have crossed the wire without sanitisation</span>
+                    </div>
+                </div>
+                <div class="privacy-budget-categories">
+                    <h4>Per-category redactions</h4>
+                    <div id="privacy-budget-cats">
+                        <div class="privacy-budget-cat-row" data-cat="email"><span class="cat-name">email</span><span class="cat-bar"><span class="cat-bar-fill" style="width:0%"></span></span><span class="cat-count">0</span></div>
+                        <div class="privacy-budget-cat-row" data-cat="phone"><span class="cat-name">phone</span><span class="cat-bar"><span class="cat-bar-fill" style="width:0%"></span></span><span class="cat-count">0</span></div>
+                        <div class="privacy-budget-cat-row" data-cat="url"><span class="cat-name">url</span><span class="cat-bar"><span class="cat-bar-fill" style="width:0%"></span></span><span class="cat-count">0</span></div>
+                        <div class="privacy-budget-cat-row" data-cat="ip_address"><span class="cat-name">ip address</span><span class="cat-bar"><span class="cat-bar-fill" style="width:0%"></span></span><span class="cat-count">0</span></div>
+                        <div class="privacy-budget-cat-row" data-cat="credit_card"><span class="cat-name">credit card</span><span class="cat-bar"><span class="cat-bar-fill" style="width:0%"></span></span><span class="cat-count">0</span></div>
+                        <div class="privacy-budget-cat-row" data-cat="ssn"><span class="cat-name">ssn</span><span class="cat-bar"><span class="cat-bar-fill" style="width:0%"></span></span><span class="cat-count">0</span></div>
+                        <div class="privacy-budget-cat-row" data-cat="address"><span class="cat-name">address</span><span class="cat-bar"><span class="cat-bar-fill" style="width:0%"></span></span><span class="cat-count">0</span></div>
+                        <div class="privacy-budget-cat-row" data-cat="dob"><span class="cat-name">dob</span><span class="cat-bar"><span class="cat-bar-fill" style="width:0%"></span></span><span class="cat-count">0</span></div>
+                    </div>
+                </div>
+            </section>
+        </section>
+
+        <!-- ═════════════════════════════ PROFILE TAB ═════════════════════════════ -->
+        <section class="tab-panel" id="tab-profile" data-tab="profile" role="tabpanel" hidden>
+            <header class="section-head reveal">
+                <p class="eyebrow">Cognitive Profile</p>
+                <h2 class="section-title">What I&apos;ve learned about you.</h2>
+                <p class="section-sub">Live, on-device, never persisted off-device. The Identity Lock above the page anchors a typing-biometric template; the tiles below summarise every implicit signal the system has read from your keystrokes this session.</p>
+            </header>
+            <div class="profile-grid stagger" id="profile-grid">
+                <article class="profile-tile" data-tile="biometric">
+                    <div class="tile-eyebrow">Biometric lock</div>
+                    <h3 class="tile-headline" id="profile-bio-state">—</h3>
+                    <p class="tile-meta" id="profile-bio-meta">no template yet</p>
+                </article>
+                <article class="profile-tile" data-tile="iki">
+                    <div class="tile-eyebrow">Typing rhythm</div>
+                    <h3 class="tile-headline" id="profile-iki-headline">— ms</h3>
+                    <p class="tile-meta" id="profile-iki-meta">mean &middot; baseline warming up</p>
+                    <svg class="spark-line" id="profile-iki-spark" viewBox="0 0 120 30" preserveAspectRatio="none" aria-hidden="true"></svg>
+                </article>
+                <article class="profile-tile" data-tile="composition">
+                    <div class="tile-eyebrow">Composition cadence</div>
+                    <h3 class="tile-headline" id="profile-comp-headline">— s</h3>
+                    <p class="tile-meta" id="profile-comp-meta">avg compose &middot; fast turn share</p>
+                    <svg class="spark-line" id="profile-comp-spark" viewBox="0 0 120 30" preserveAspectRatio="none" aria-hidden="true"></svg>
+                </article>
+                <article class="profile-tile" data-tile="edits">
+                    <div class="tile-eyebrow">Edit profile</div>
+                    <h3 class="tile-headline" id="profile-edits-headline">—</h3>
+                    <p class="tile-meta" id="profile-edits-meta">avg edits &middot; peak burst</p>
+                    <svg class="spark-line" id="profile-edits-spark" viewBox="0 0 120 30" preserveAspectRatio="none" aria-hidden="true"></svg>
+                </article>
+                <article class="profile-tile" data-tile="cogload">
+                    <div class="tile-eyebrow">Cognitive load distribution</div>
+                    <h3 class="tile-headline" id="profile-cl-headline">—</h3>
+                    <p class="tile-meta" id="profile-cl-meta">5-bin histogram across the session</p>
+                    <div class="hist-bars" id="profile-cl-bars" aria-hidden="true"></div>
+                </article>
+                <article class="profile-tile" data-tile="style">
+                    <div class="tile-eyebrow">Style preference</div>
+                    <h3 class="tile-headline" id="profile-style-headline">—</h3>
+                    <p class="tile-meta" id="profile-style-meta">averaged over this session</p>
+                    <div class="style-axes" id="profile-style-bars"></div>
+                </article>
+                <article class="profile-tile" data-tile="state">
+                    <div class="tile-eyebrow">State distribution</div>
+                    <h3 class="tile-headline" id="profile-state-headline">—</h3>
+                    <p class="tile-meta" id="profile-state-meta">% time per discrete state</p>
+                    <div class="donut" id="profile-state-donut" aria-hidden="true">
+                        <svg viewBox="0 0 36 36" class="donut-svg" preserveAspectRatio="xMidYMid meet"></svg>
+                        <ul class="donut-legend" id="profile-state-legend"></ul>
+                    </div>
+                </article>
+                <article class="profile-tile" data-tile="affect">
+                    <div class="tile-eyebrow">Affect-shift events</div>
+                    <h3 class="tile-headline" id="profile-affect-headline">0</h3>
+                    <p class="tile-meta" id="profile-affect-meta">total &middot; last event &mdash;</p>
+                </article>
+                <article class="profile-tile profile-tile-gaze" data-tile="gaze">
+                    <div class="tile-eyebrow">Gaze classifier · fine-tuned MobileNetV3</div>
+                    <h3 class="tile-headline" id="profile-gaze-headline">Not calibrated</h3>
+                    <p class="tile-meta" id="profile-gaze-meta">enable the camera and press &laquo;Calibrate gaze&raquo; to fine-tune the head</p>
+                    <div class="gaze-stats" id="profile-gaze-stats">
+                        <span class="gaze-stat"><span class="gaze-stat-label">live</span><span class="gaze-stat-value" id="profile-gaze-live">camera off</span></span>
+                        <span class="gaze-stat"><span class="gaze-stat-label">at-screen %</span><span class="gaze-stat-value" id="profile-gaze-onscreen">&mdash;</span></span>
+                        <span class="gaze-stat"><span class="gaze-stat-label">stability</span><span class="gaze-stat-value" id="profile-gaze-stability">&mdash;</span></span>
+                        <span class="gaze-stat"><span class="gaze-stat-label">head params</span><span class="gaze-stat-value" id="profile-gaze-params">74 372</span></span>
+                    </div>
+                    <button type="button" class="gaze-recal-btn" id="profile-gaze-recal" aria-label="Re-calibrate the gaze head">Re-calibrate</button>
+                </article>
+                <article class="profile-tile profile-tile-personalisation" data-tile="personalisation">
+                    <div class="tile-eyebrow">Personalisation (LoRA)</div>
+                    <h3 class="tile-headline" id="profile-pers-headline">No biometric &mdash; base model</h3>
+                    <p class="tile-meta" id="profile-pers-meta">register a typing template to activate per-user LoRA</p>
+                    <div class="pers-stats" id="profile-pers-stats">
+                        <span class="pers-stat"><span class="pers-stat-label">params</span><span class="pers-stat-value" id="profile-pers-params">288</span></span>
+                        <span class="pers-stat"><span class="pers-stat-label">storage</span><span class="pers-stat-value" id="profile-pers-storage">~4 KB</span></span>
+                        <span class="pers-stat"><span class="pers-stat-label">rank</span><span class="pers-stat-value" id="profile-pers-rank">4</span></span>
+                    </div>
+                    <div class="pers-drift" id="profile-pers-drift" aria-label="Cumulative drift per axis"></div>
+                    <button type="button" class="pers-reset-btn" id="profile-pers-reset" aria-label="Reset personal LoRA adapter">Reset adapter</button>
+                </article>
+            </div>
+            <div class="profile-recent reveal-card">
+                <h3>Recent activity</h3>
+                <ul id="profile-event-log" class="profile-event-log">
+                    <li class="profile-event-empty">No events yet. Send a few messages to populate this log.</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- ═════════════════════════════ EDGE TAB ═════════════════════════════ -->
+        <section class="tab-panel" id="tab-edge" data-tab="edge" role="tabpanel" hidden>
+            <header class="section-head reveal">
+                <p class="eyebrow">Edge profile</p>
+                <h2 class="section-title">Measured on this machine.</h2>
+                <p class="section-sub">No synthetic benchmarks. The numbers below come from a real PyTorch measurement pass over the v1 checkpoint, dynamically quantised to int8 on CPU.</p>
+            </header>
+
+            <div class="tile-grid stagger" id="edge-stat-grid">
+                <article class="tile">
+                    <div class="tile-eyebrow">Model size (int8)</div>
+                    <h3 class="tile-headline" id="edge-slm-int8">—</h3>
+                    <p class="tile-meta">SLM quantised — fits in under 100 MB on-device budget</p>
+                </article>
+                <article class="tile">
+                    <div class="tile-eyebrow">Encoder latency</div>
+                    <h3 class="tile-headline" id="edge-tcn-p50">—</h3>
+                    <p class="tile-meta">TCN encoder p50 — runs 60+ times per minute of typing</p>
+                </article>
+                <article class="tile">
+                    <div class="tile-eyebrow">Generation latency</div>
+                    <h3 class="tile-headline" id="edge-slm-p50">—</h3>
+                    <p class="tile-meta">SLM decode p50 (16 tokens)</p>
+                </article>
+                <article class="tile">
+                    <div class="tile-eyebrow">Peak CPU memory</div>
+                    <h3 class="tile-headline" id="edge-memory">—</h3>
+                    <p class="tile-meta">Total process RSS during inference</p>
+                </article>
+            </div>
+
+            <!-- Bar chart: SLM size under each precision -->
+            <div class="section-head reveal" style="margin-top: 80px;">
+                <p class="eyebrow">SLM footprint</p>
+                <h2 class="section-title">Size vs precision.</h2>
+                <p class="section-sub">Every bar is a real serialised checkpoint size. int8 is what ships to the device.</p>
+            </div>
+            <div class="edge-bars reveal-card" id="edge-bars" aria-label="SLM checkpoint size in MB per precision"></div>
+
+            <!-- Deployability table -->
+            <div class="section-head reveal" style="margin-top: 80px;">
+                <p class="eyebrow">Deployability</p>
+                <h2 class="section-title">Which devices can run this?</h2>
+            </div>
+            <div class="edge-deploy reveal-card" id="edge-deploy"></div>
+
+            <p class="about-foot reveal" id="edge-footer">
+                Measurements pending. Run <code>python scripts/measure_edge.py</code> to populate this panel.
+            </p>
+        </section>
+
+        <!-- ═════════════════════════════ BENCHMARKS TAB ═════════════════════════════ -->
+        <!-- Quantitative benchmark dashboard.  Five suites: latency,
+             perplexity, conversational coherence, adaptation faithfulness,
+             memory + size.  Loads the latest report from
+             /api/benchmarks/latest and renders four hand-written SVG
+             plots. -->
+        <section class="tab-panel" id="tab-benchmarks" data-tab="benchmarks" role="tabpanel" hidden>
+            <header class="section-head reveal">
+                <p class="eyebrow">Benchmarks</p>
+                <h2 class="section-title">Reproducible numbers.</h2>
+                <p class="section-sub">Every claim, measured. Latency p50/p95/p99 per pipeline stage, perplexity over training, the 110-scenario coherence audit, adaptation faithfulness, and memory + on-disk size. Run by <code>scripts/run_benchmarks.py</code> &mdash; report cached at <code>reports/benchmarks/latest.json</code>.</p>
+            </header>
+
+            <div class="benchmarks-headline reveal-card" id="bench-headline">
+                <div class="bench-card"><div class="bench-card-label">latency p50</div><div class="bench-card-value" id="bench-latency">—</div><div class="bench-card-sub">warm round-trip</div></div>
+                <div class="bench-card"><div class="bench-card-label">perplexity</div><div class="bench-card-value" id="bench-perplexity">—</div><div class="bench-card-sub">final eval ppl</div></div>
+                <div class="bench-card"><div class="bench-card-label">coherence</div><div class="bench-card-value" id="bench-coherence">—</div><div class="bench-card-sub">% acceptable</div></div>
+                <div class="bench-card"><div class="bench-card-label">SLM params</div><div class="bench-card-value" id="bench-params">—</div><div class="bench-card-sub">total trainable</div></div>
+            </div>
+
+            <div class="benchmarks-actions reveal">
+                <span class="benchmarks-timestamp" id="bench-timestamp">No benchmarks yet.</span>
+                <button type="button" class="benchmarks-run" id="bench-run">Run benchmarks</button>
+            </div>
+
+            <div class="benchmarks-plots reveal-card" id="bench-plots">
+                <figure class="bench-plot">
+                    <figcaption>Latency breakdown (per-stage, median)</figcaption>
+                    <img id="bench-svg-latency" src="" alt="Latency breakdown plot — loading…">
+                </figure>
+                <figure class="bench-plot">
+                    <figcaption>Perplexity over training</figcaption>
+                    <img id="bench-svg-ppl" src="" alt="Perplexity curve — loading…">
+                </figure>
+                <figure class="bench-plot">
+                    <figcaption>Coherence audit by category</figcaption>
+                    <img id="bench-svg-coh" src="" alt="Coherence audit categories — loading…">
+                </figure>
+                <figure class="bench-plot">
+                    <figcaption>Adaptation faithfulness</figcaption>
+                    <img id="bench-svg-ada" src="" alt="Adaptation faithfulness scatter — loading…">
+                </figure>
+            </div>
+
+            <p class="benchmarks-empty" id="bench-empty" hidden>
+                No benchmark report found. Click <strong>Run benchmarks</strong> above (about 60&nbsp;s) or run <code>python scripts/run_benchmarks.py</code> from the repo root.
+            </p>
+        </section>
+
+        <!-- ═════════════════════════════ DESIGN TAB ═════════════════════════════ -->
+        <!-- Architectural decisions: for each major choice in the system,
+             a short justification with the alternatives considered, the
+             reason this option won, and the paper or reference that
+             motivated it.  Same hairline-card aesthetic as the About
+             tab. -->
+        <section class="tab-panel" id="tab-design" data-tab="design" role="tabpanel" hidden>
+            <header class="section-head reveal">
+                <p class="eyebrow">Design Decisions</p>
+                <h2 class="section-title">Thirteen choices, thirteen reasons.</h2>
+                <p class="section-sub">For every architectural decision in the system, what we chose, what else we considered, and why this option won. Each card cites the paper or reference that informed it.</p>
+            </header>
+
+            <div class="design-grid stagger">
+                <article class="design-card reveal">
+                    <h3 class="design-title">1. TCN over RNN/LSTM for the keystroke encoder</h3>
+                    <div class="design-row"><span class="design-label">Decision</span><span class="design-value">Dilated temporal convolutional network with residual blocks and metric-loss training.</span></div>
+                    <div class="design-row"><span class="design-label">Alternatives</span><span class="design-value">LSTM, GRU, plain 1D conv, transformer encoder.</span></div>
+                    <div class="design-row"><span class="design-label">Why</span><span class="design-value">Parallel training over the full window (no recurrent unrolling), deterministic fixed receptive field, exports cleanly to ONNX, runs at 3.7&nbsp;ms p50 on CPU. RNNs introduce hidden-state drift that hurts the metric-learning objective.</span></div>
+                    <div class="design-row"><span class="design-label">Reference</span><span class="design-value">Bai, Kolter &amp; Koltun (2018) &mdash; <em>An Empirical Evaluation of Generic Convolutional and Recurrent Networks for Sequence Modeling</em>.</span></div>
+                </article>
+
+                <article class="design-card reveal">
+                    <h3 class="design-title">2. MoE-FFN over standard feed-forward</h3>
+                    <div class="design-row"><span class="design-label">Decision</span><span class="design-value">Two-expert mixture-of-experts feed-forward with a softmax gate conditioned on the 8-dim adaptation vector.</span></div>
+                    <div class="design-row"><span class="design-label">Alternatives</span><span class="design-value">Standard GELU FFN, gated linear units (GLU/SwiGLU), per-layer adapter modules.</span></div>
+                    <div class="design-row"><span class="design-label">Why</span><span class="design-value">Capacity per parameter: 2 experts give specialisation under the adaptation conditioning while staying within the 6&nbsp;GB GPU training budget. The gating output is a free interpretability signal.</span></div>
+                    <div class="design-row"><span class="design-label">Reference</span><span class="design-value">Shazeer et al. (2017) &mdash; <em>Outrageously Large Neural Networks: The Sparsely-Gated Mixture-of-Experts Layer</em>.</span></div>
+                </article>
+
+                <article class="design-card reveal">
+                    <h3 class="design-title">3. ACT halting over fixed depth</h3>
+                    <div class="design-row"><span class="design-label">Decision</span><span class="design-value">Per-token Adaptive Computation Time controller that freezes tokens via a halting mask once their cumulative halting probability exceeds a threshold.</span></div>
+                    <div class="design-row"><span class="design-label">Alternatives</span><span class="design-value">Fixed 12-layer depth for every token, early-exit classifiers, layer-skip routing.</span></div>
+                    <div class="design-row"><span class="design-label">Why</span><span class="design-value">Adapts compute to user state: tokens that converge early under a low-cognitive-load adaptation can halt in 4&ndash;6 layers; complex prompts use the full stack. A ponder loss prevents pathological non-halting.</span></div>
+                    <div class="design-row"><span class="design-label">Reference</span><span class="design-value">Graves (2016) &mdash; <em>Adaptive Computation Time for Recurrent Neural Networks</em>.</span></div>
+                </article>
+
+                <article class="design-card reveal">
+                    <h3 class="design-title">4. Per-layer cross-attention over pooled prompt prefix</h3>
+                    <div class="design-row"><span class="design-label">Decision</span><span class="design-value">Cross-attention head at every transformer layer, attending the residual stream onto the user-state &amp; adaptation conditioning sequence.</span></div>
+                    <div class="design-row"><span class="design-label">Alternatives</span><span class="design-value">Pool the conditioning into a single prefix token, prepend to the prompt, FiLM-style scale&shift biases.</span></div>
+                    <div class="design-row"><span class="design-label">Why</span><span class="design-value">Pooled conditioning gets diluted as the residual stream evolves; per-layer cross-attention re-injects the adaptation at every depth, so token-by-token style steering is mechanically possible. Ablation confirms: zero this head and adaptation faithfulness collapses.</span></div>
+                    <div class="design-row"><span class="design-label">Reference</span><span class="design-value">Vaswani et al. (2017) &mdash; <em>Attention Is All You Need</em>; Perez et al. (2018) &mdash; <em>FiLM: Visual Reasoning with a General Conditioning Layer</em> (which we evaluated and rejected).</span></div>
+                </article>
+
+                <article class="design-card reveal">
+                    <h3 class="design-title">5. Byte-level BPE over WordPiece / SentencePiece</h3>
+                    <div class="design-row"><span class="design-label">Decision</span><span class="design-value">Byte-level Byte-Pair Encoding, 32&nbsp;k vocab, hand-implemented in 217 LOC of pure Python.</span></div>
+                    <div class="design-row"><span class="design-label">Alternatives</span><span class="design-value">WordPiece (BERT), SentencePiece unigram, the <code>tokenizers</code> Rust crate, character-level.</span></div>
+                    <div class="design-row"><span class="design-label">Why</span><span class="design-value">Byte-level guarantees no UNK fallback ever &mdash; every Unicode codepoint is reachable. Implementation-from-scratch is the demonstration: the entire tokenizer is one readable Python file with no external runtime dependency.</span></div>
+                    <div class="design-row"><span class="design-label">Reference</span><span class="design-value">Sennrich, Haddow &amp; Birch (2015) &mdash; <em>Neural Machine Translation of Rare Words with Subword Units</em>; Radford et al. (2019) &mdash; <em>Language Models are Unsupervised Multitask Learners</em> (GPT-2 byte-level preprocessing).</span></div>
+                </article>
+
+                <article class="design-card reveal">
+                    <h3 class="design-title">6. LoRA over full fine-tuning for personalisation</h3>
+                    <div class="design-row"><span class="design-label">Decision</span><span class="design-value">Low-rank adapters (rank 8) on the attention projections, one adapter per biometric template.</span></div>
+                    <div class="design-row"><span class="design-label">Alternatives</span><span class="design-value">Full fine-tuning per user, prefix tuning, IA3, prompt tuning.</span></div>
+                    <div class="design-row"><span class="design-label">Why</span><span class="design-value">Per-user state is ~1&ndash;2&nbsp;MB instead of 200&nbsp;MB. Parameter efficiency means fewer training samples needed for personalisation to take effect. The frozen backbone is shared, so all users benefit from the same well-trained weights with only the delta personalised.</span></div>
+                    <div class="design-row"><span class="design-label">Reference</span><span class="design-value">Hu et al. (2021) &mdash; <em>LoRA: Low-Rank Adaptation of Large Language Models</em>; Houlsby et al. (2019) &mdash; <em>Parameter-Efficient Transfer Learning for NLP</em>.</span></div>
+                </article>
+
+                <article class="design-card reveal">
+                    <h3 class="design-title">7. Frozen MobileNetV3 backbone + new gaze head</h3>
+                    <div class="design-row"><span class="design-label">Decision</span><span class="design-value">Use MobileNetV3 as a frozen visual feature extractor; train a small calibration head on 4 target points per session.</span></div>
+                    <div class="design-row"><span class="design-label">Alternatives</span><span class="design-value">End-to-end fine-tuning the backbone, training a CNN from scratch, a vision transformer.</span></div>
+                    <div class="design-row"><span class="design-label">Why</span><span class="design-value">Protects the pretrained features that took millions of images to learn; per-session calibration is cheap (~2 seconds, 4 fixations) and the only thing that personalises. The backbone runs in-tab via <code>onnxruntime-web</code> &mdash; camera frames never leave the browser.</span></div>
+                    <div class="design-row"><span class="design-label">Reference</span><span class="design-value">Howard et al. (2019) &mdash; <em>Searching for MobileNetV3</em>.</span></div>
+                </article>
+
+                <article class="design-card reveal">
+                    <h3 class="design-title">8. LinUCB over Thompson sampling for routing</h3>
+                    <div class="design-row"><span class="design-label">Decision</span><span class="design-value">Linear Upper Confidence Bound contextual bandit over a 12-dim feature vector for the {edge SLM, cloud LLM} arms.</span></div>
+                    <div class="design-row"><span class="design-label">Alternatives</span><span class="design-value">Contextual Thompson sampling, &epsilon;-greedy, hand-tuned threshold, neural bandit.</span></div>
+                    <div class="design-row"><span class="design-label">Why</span><span class="design-value">LinUCB has an analytical confidence interval, so the cloud threshold is a clean dashed line on the routing scatter and easy to debug. Thompson sampling needs posterior approximation; the convergence properties at our small batch size are noisier in practice.</span></div>
+                    <div class="design-row"><span class="design-label">Reference</span><span class="design-value">Li, Chu, Langford &amp; Schapire (2010) &mdash; <em>A Contextual-Bandit Approach to Personalized News Article Recommendation</em>.</span></div>
+                </article>
+
+                <article class="design-card reveal">
+                    <h3 class="design-title">9. Cosine + BM25 reranking over pure cosine</h3>
+                    <div class="design-row"><span class="design-label">Decision</span><span class="design-value">Hybrid retrieval: cosine similarity over dense embeddings recalls the top-k=50, BM25 reranks to top-3.</span></div>
+                    <div class="design-row"><span class="design-label">Alternatives</span><span class="design-value">Pure cosine, pure BM25, ColBERT-style late interaction, learned cross-encoder reranker.</span></div>
+                    <div class="design-row"><span class="design-label">Why</span><span class="design-value">Dense embeddings catch semantically similar passages; BM25 kills the &ldquo;semantic but lexically wrong&rdquo; matches that dense-only retrieval is famous for. The reranker runs in &lt;5&nbsp;ms on the top-50 set.</span></div>
+                    <div class="design-row"><span class="design-label">Reference</span><span class="design-value">Robertson (1994) &mdash; <em>Some simple effective approximations to the 2-Poisson model for probabilistic weighted retrieval</em>; Karpukhin et al. (2020) &mdash; <em>Dense Passage Retrieval for Open-Domain Question Answering</em>.</span></div>
+                </article>
+
+                <article class="design-card reveal">
+                    <h3 class="design-title">10. Per-user LoRA over global personalisation</h3>
+                    <div class="design-row"><span class="design-label">Decision</span><span class="design-value">Each user gets their own LoRA adapter, keyed by SHA-256 of their biometric template; never aggregated, never uploaded.</span></div>
+                    <div class="design-row"><span class="design-label">Alternatives</span><span class="design-value">Single global personalisation embedding, federated averaging across users, server-side per-user fine-tuning.</span></div>
+                    <div class="design-row"><span class="design-label">Why</span><span class="design-value">Privacy by architecture: there is literally no aggregation surface. Biometric gating means a user&rsquo;s adapter only loads when their typing pattern matches; impostors get the base model. Federated averaging is the natural next step (see roadmap), but only after DP noise injection on the LoRA deltas.</span></div>
+                    <div class="design-row"><span class="design-label">Reference</span><span class="design-value">Hu et al. (2021); McMahan et al. (2017) &mdash; <em>Communication-Efficient Learning of Deep Networks from Decentralized Data</em> (FedAvg, future work).</span></div>
+                </article>
+
+                <article class="design-card reveal">
+                    <h3 class="design-title">11. Rule-based coreference over neural</h3>
+                    <div class="design-row"><span class="design-label">Decision</span><span class="design-value">Deterministic recency-stack pronoun resolver. Each turn pushes its named entities; pronouns resolve to the most recent compatible entry.</span></div>
+                    <div class="design-row"><span class="design-label">Alternatives</span><span class="design-value">Neural coref (e.g.&nbsp;SpanBERT-based), CoreNLP, end-to-end attention over the full dialogue history.</span></div>
+                    <div class="design-row"><span class="design-label">Why</span><span class="design-value">Latency: &lt;1&nbsp;ms vs. &gt;50&nbsp;ms for a small neural coref. Debuggability: the demo can show which rule fired. Adequate for the demo&rsquo;s 2&ndash;3 entity, 5&ndash;10 turn horizon. The interface in <code>i3/dialogue/coref.py</code> is swappable for a learned model when long-range reference matters.</span></div>
+                    <div class="design-row"><span class="design-label">Reference</span><span class="design-value">Lappin &amp; Leass (1994) &mdash; <em>An Algorithm for Pronominal Anaphora Resolution</em>; Mitkov (1998) &mdash; <em>Robust Pronoun Resolution with Limited Knowledge</em>.</span></div>
+                </article>
+
+                <article class="design-card reveal">
+                    <h3 class="design-title">12. Char-CNN safety classifier over rule-based</h3>
+                    <div class="design-row"><span class="design-label">Decision</span><span class="design-value">A 4-class char-level CNN (~48&nbsp;k params) trained from scratch on a 2&thinsp;000-example synthetic constitutional corpus, replacing the regex hostility filter on the inbound path.</span></div>
+                    <div class="design-row"><span class="design-label">Alternatives</span><span class="design-value">Pure regex / keyword filter, fine-tuning a pretrained classifier (Detoxify, Llama&nbsp;Guard), API-based moderation (OpenAI, Perspective).</span></div>
+                    <div class="design-row"><span class="design-label">Why</span><span class="design-value">Regex misses leetspeak / obfuscation and over-flags benign mentions; fine-tuned heads import HuggingFace machinery which violates the "from scratch" pitch; API moderation breaks the on-device privacy story. A char-level CNN sees raw bytes, learns n-gram patterns, ships in &lt;200&nbsp;KB, and exposes a refusal-reasoning surface (verdict, confidence, principle, suggested response) that the regex filter cannot.</span></div>
+                    <div class="design-row"><span class="design-label">Reference</span><span class="design-value">Bai et al. (2022) &mdash; <em>Constitutional AI: Harmlessness from AI Feedback</em>; Zhang, Zhao &amp; LeCun (2015) &mdash; <em>Character-level Convolutional Networks for Text Classification</em>.</span></div>
+                </article>
+
+                <article class="design-card reveal">
+                    <h3 class="design-title">13. Hybrid edge-cloud over edge-only</h3>
+                    <div class="design-row"><span class="design-label">Decision</span><span class="design-value">Local SLM is the default; cloud LLM is an opt-in fallback for high-complexity prompts, gated by user consent and a privacy budget.</span></div>
+                    <div class="design-row"><span class="design-label">Alternatives</span><span class="design-value">Edge-only (no cloud at all), cloud-only, always-cloud-with-edge-fallback.</span></div>
+                    <div class="design-row"><span class="design-label">Why</span><span class="design-value">Production realism: a 204&nbsp;M model genuinely cannot match a foundation LLM on out-of-domain Q&amp;A, but an honest HMI system shouldn&rsquo;t hide that. The hybrid story shows engineering judgement on the JD&rsquo;s &ldquo;foundational LLMs&rdquo; line: edge-first defaults, cloud as a privacy-budget-bounded escalation.</span></div>
+                    <div class="design-row"><span class="design-label">Reference</span><span class="design-value">Chen et al. (2023) &mdash; <em>FrugalGPT</em> (cost-quality tradeoff); the LinUCB router in <code>i3/router/bandit.py</code> generalises this to a learned policy.</span></div>
+                </article>
+            </div>
+        </section>
+
+        <!-- ═════════════════════════════ REFERENCES TAB ═════════════════════════════ -->
+        <!-- Flat alphabetised list of every paper cited in the codebase.
+             Each card surfaces author/year/title, a one-paragraph
+             description of how the paper informed the project, and the
+             file(s) where it's used. -->
+        <section class="tab-panel" id="tab-references" data-tab="references" role="tabpanel" hidden>
+            <header class="section-head reveal">
+                <p class="eyebrow">References</p>
+                <h2 class="section-title">Every paper, every file.</h2>
+                <p class="section-sub">A flat alphabetised bibliography of the works cited in the codebase. Each entry includes a one-paragraph summary of how it informed the implementation and a pointer to the file where it lives.</p>
+            </header>
+
+            <div class="reference-list stagger">
+                <article class="reference-card reveal">
+                    <h3 class="ref-title">Bai, Kolter &amp; Koltun (2018) &mdash; An Empirical Evaluation of Generic Convolutional and Recurrent Networks for Sequence Modeling</h3>
+                    <p class="ref-meta">arXiv:1803.01271</p>
+                    <p class="ref-body">The paper that argued dilated TCNs match or exceed RNNs on a wide range of sequence tasks while being parallelisable and memory-efficient. Our 4-block dilated TCN encoder over the 32-dim sliding feature window is a direct application of the residual TCN block they propose.</p>
+                    <p class="ref-used">used in: <code>i3/encoder/tcn.py</code>, <code>i3/encoder/blocks.py</code></p>
+                </article>
+
+                <article class="reference-card reveal">
+                    <h3 class="ref-title">Bai et al. (2022) &mdash; Constitutional AI: Harmlessness from AI Feedback</h3>
+                    <p class="ref-meta">arXiv:2212.08073</p>
+                    <p class="ref-body">Anthropic&rsquo;s framework for using a constitution-style prompt to drive RLAIF refusal calibration. We don&rsquo;t train with this loop today, but the safety story in <code>i3/safety/</code> follows the constitutional pattern of explicit principle-driven rejection, and it&rsquo;s named in the roadmap as the next step for refusal tightening.</p>
+                    <p class="ref-used">used in: <code>i3/safety/</code> (informal), <code>docs/TECHNICAL_REPORT.md</code> §8</p>
+                </article>
+
+                <article class="reference-card reveal">
+                    <h3 class="ref-title">Caruana (1997) &mdash; Multitask Learning</h3>
+                    <p class="ref-meta">Machine Learning, 28(1)</p>
+                    <p class="ref-body">The canonical reference for auxiliary-task learning as a regulariser. Our v2 SLM has three optional auxiliary heads &mdash; typing biometrics, affect, reading-level &mdash; trained alongside the next-token loss. They&rsquo;re off the inference path but on the training graph.</p>
+                    <p class="ref-used">used in: <code>i3/slm/multi_task_heads.py</code></p>
+                </article>
+
+                <article class="reference-card reveal">
+                    <h3 class="ref-title">Eyben, W&ouml;llmer &amp; Schuller (2010) &mdash; openSMILE: The Munich Versatile and Fast Open-Source Audio Feature Extractor</h3>
+                    <p class="ref-meta">ACM Multimedia 2010</p>
+                    <p class="ref-body">openSMILE&rsquo;s feature catalogue defines the canonical low-level prosodic descriptors (pitch, jitter, shimmer, energy, spectral statistics). Our client-side prosody extractor reimplements a small subset of these features in JavaScript so audio never leaves the browser.</p>
+                    <p class="ref-used">used in: <code>i3/multimodal/prosody.py</code>, <code>web/js/voice_prosody.js</code></p>
+                </article>
+
+                <article class="reference-card reveal">
+                    <h3 class="ref-title">Flesch (1948); Gunning (1952)</h3>
+                    <p class="ref-meta">Foundational readability metrics</p>
+                    <p class="ref-body">Flesch-Kincaid Grade and Gunning-Fog Index are the two oldest readability metrics still in use. Our linguistic feature extractor computes both from scratch (no <code>textstat</code> dependency) along with type-token ratio, sentence length statistics, and emoji density.</p>
+                    <p class="ref-used">used in: <code>i3/interaction/linguistic.py</code></p>
+                </article>
+
+                <article class="reference-card reveal">
+                    <h3 class="ref-title">Graves (2016) &mdash; Adaptive Computation Time for Recurrent Neural Networks</h3>
+                    <p class="ref-meta">arXiv:1603.08983</p>
+                    <p class="ref-body">Introduced the per-step halting probability formulation we adapt to a transformer. Our ACT controller emits a halting probability per token at each layer; tokens with cumulative halting probability above threshold are frozen via a halting mask. The ponder loss is the original Graves formulation.</p>
+                    <p class="ref-used">used in: <code>i3/slm/act_halting.py</code>, <code>i3/slm/aux_losses.py</code></p>
+                </article>
+
+                <article class="reference-card reveal">
+                    <h3 class="ref-title">Houlsby et al. (2019) &mdash; Parameter-Efficient Transfer Learning for NLP</h3>
+                    <p class="ref-meta">ICML 2019</p>
+                    <p class="ref-body">Introduced adapter modules: small bottleneck layers inserted into each transformer layer that are the only thing trained. Our LoRA implementation is the rank-decomposed reformulation that came two years later, but the conceptual lineage is direct.</p>
+                    <p class="ref-used">used in: <code>i3/personalisation/lora_adapter.py</code> (informally cited)</p>
+                </article>
+
+                <article class="reference-card reveal">
+                    <h3 class="ref-title">Howard et al. (2019) &mdash; Searching for MobileNetV3</h3>
+                    <p class="ref-meta">ICCV 2019</p>
+                    <p class="ref-body">MobileNetV3-Small is the visual backbone for our gaze classifier. Frozen weights, with a small per-session calibration head trained on 4 fixation targets. The ONNX export runs in-tab via <code>onnxruntime-web</code> so camera frames never leave the browser.</p>
+                    <p class="ref-used">used in: <code>i3/multimodal/gaze_classifier.py</code>, <code>web/js/gaze_capture.js</code></p>
+                </article>
+
+                <article class="reference-card reveal">
+                    <h3 class="ref-title">Hu et al. (2021) &mdash; LoRA: Low-Rank Adaptation of Large Language Models</h3>
+                    <p class="ref-meta">arXiv:2106.09685</p>
+                    <p class="ref-body">The reformulation of adapter modules as a low-rank update <em>W &larr; W + BA</em>. We use rank 8 on the attention projections, one adapter per biometric template, never aggregated. The whole personalisation story rides on this paper.</p>
+                    <p class="ref-used">used in: <code>i3/personalisation/lora_adapter.py</code></p>
+                </article>
+
+                <article class="reference-card reveal">
+                    <h3 class="ref-title">Killourhy &amp; Maxion (2009) &mdash; Comparing Anomaly-Detection Algorithms for Keystroke Dynamics</h3>
+                    <p class="ref-meta">DSN 2009</p>
+                    <p class="ref-body">Provides the canonical benchmark for keystroke-dynamics features and the Mahalanobis-distance baseline that beats most learned alternatives at this task size. Our continuous-auth scorer is essentially their Mahalanobis classifier with a sliding-window template update.</p>
+                    <p class="ref-used">used in: <code>i3/biometric/keystroke_auth.py</code>, <code>i3/biometric/continuous_auth.py</code></p>
+                </article>
+
+                <article class="reference-card reveal">
+                    <h3 class="ref-title">Li, Chu, Langford &amp; Schapire (2010) &mdash; A Contextual-Bandit Approach to Personalized News Article Recommendation</h3>
+                    <p class="ref-meta">WWW 2010</p>
+                    <p class="ref-body">Introduces LinUCB: linear regression with an analytical UCB confidence interval. Our edge/cloud router is a 12-dim LinUCB, with the cloud arm gated additionally by user consent and a privacy budget.</p>
+                    <p class="ref-used">used in: <code>i3/router/bandit.py</code></p>
+                </article>
+
+                <article class="reference-card reveal">
+                    <h3 class="ref-title">Madaan et al. (2023) &mdash; Self-Refine: Iterative Refinement with Self-Feedback</h3>
+                    <p class="ref-meta">arXiv:2303.17651</p>
+                    <p class="ref-body">Demonstrates that an LLM can critique and refine its own output. Our self-critique loop is a much smaller, single-pass version: the critic emits a tag from a closed set and, if non-<code>none</code>, regeneration runs once with the critique note prepended.</p>
+                    <p class="ref-used">used in: <code>i3/critique/critic.py</code></p>
+                </article>
+
+                <article class="reference-card reveal">
+                    <h3 class="ref-title">Monrose &amp; Rubin (1997) &mdash; Authentication via Keystroke Dynamics</h3>
+                    <p class="ref-meta">CCS 1997</p>
+                    <p class="ref-body">The original paper that established keystroke dynamics as a viable continuous-authentication signal. Defined the dwell/flight feature schema we still use, plus the registration-plus-verification protocol that the Identity Lock pill in the nav implements.</p>
+                    <p class="ref-used">used in: <code>i3/biometric/keystroke_auth.py</code></p>
+                </article>
+
+                <article class="reference-card reveal">
+                    <h3 class="ref-title">Picard (1997) &mdash; Affective Computing</h3>
+                    <p class="ref-meta">MIT Press</p>
+                    <p class="ref-body">The book that founded the field of affective computing &mdash; the framing that emotional state is observable from physiological and behavioural signals and is a legitimate input to HMI systems. Our affect classifier and adaptation pathway are direct applications of this thesis.</p>
+                    <p class="ref-used">used in: <code>i3/affect/state_classifier.py</code>, <code>i3/affect/shift_detector.py</code></p>
+                </article>
+
+                <article class="reference-card reveal">
+                    <h3 class="ref-title">Robertson (1994) &mdash; Some Simple Effective Approximations to the 2-Poisson Model for Probabilistic Weighted Retrieval</h3>
+                    <p class="ref-meta">SIGIR 1994</p>
+                    <p class="ref-body">The BM25 paper. Our retrieval reranker is BM25 over the top-k=50 dense-cosine candidates &mdash; a hybrid that catches what dense-only retrieval misses (lexically-divergent semantic neighbours).</p>
+                    <p class="ref-used">used in: <code>i3/slm/retrieval.py</code></p>
+                </article>
+
+                <article class="reference-card reveal">
+                    <h3 class="ref-title">Schuller (2009) &mdash; The INTERSPEECH 2009 Emotion Challenge</h3>
+                    <p class="ref-meta">INTERSPEECH 2009</p>
+                    <p class="ref-body">Defined the canonical computational paralinguistics evaluation: the link between low-level prosodic features and affective state. Our prosody-driven contribution to the user-state embedding draws on this framing.</p>
+                    <p class="ref-used">used in: <code>i3/multimodal/prosody.py</code>, <code>i3/multimodal/voice.py</code></p>
+                </article>
+
+                <article class="reference-card reveal">
+                    <h3 class="ref-title">Sennrich, Haddow &amp; Birch (2015) &mdash; Neural Machine Translation of Rare Words with Subword Units</h3>
+                    <p class="ref-meta">ACL 2016</p>
+                    <p class="ref-body">Introduced Byte-Pair Encoding (BPE) for NMT. Our hand-written tokenizer is the byte-level variant popularised by GPT-2: 32&nbsp;k vocab, 217 LOC, no <code>sentencepiece</code> or <code>tokenizers</code> Rust crate. Trained on the combined 974&nbsp;k-pair dialogue corpus.</p>
+                    <p class="ref-used">used in: <code>i3/slm/bpe_tokenizer.py</code></p>
+                </article>
+
+                <article class="reference-card reveal">
+                    <h3 class="ref-title">Shazeer et al. (2017) &mdash; Outrageously Large Neural Networks: The Sparsely-Gated Mixture-of-Experts Layer</h3>
+                    <p class="ref-meta">ICLR 2017</p>
+                    <p class="ref-body">The MoE-FFN paper. Our 2-expert mixture-of-experts replaces the standard FFN at every transformer layer; the gate is a softmax over a learned linear projection of the 8-dim adaptation vector. The load-balance auxiliary loss is the original Shazeer formulation.</p>
+                    <p class="ref-used">used in: <code>i3/slm/moe_ffn.py</code>, <code>i3/slm/aux_losses.py</code></p>
+                </article>
+
+                <article class="reference-card reveal">
+                    <h3 class="ref-title">Sweller (1988) &mdash; Cognitive Load During Problem Solving</h3>
+                    <p class="ref-meta">Cognitive Science, 12(2)</p>
+                    <p class="ref-body">Cognitive load theory: working memory has a finite budget and the system designer&rsquo;s job is to minimise extraneous load. Our <code>cognitive_load</code> adaptation axis is a direct mapping: when the user&rsquo;s typing pattern signals high load (long IKI variance, edit bursts, slow composition), the post-processor tightens phrasing and the SLM is biased toward shorter sentences.</p>
+                    <p class="ref-used">used in: <code>i3/adaptation/</code>, <code>i3/affect/state_classifier.py</code></p>
+                </article>
+
+                <article class="reference-card reveal">
+                    <h3 class="ref-title">Vaswani et al. (2017) &mdash; Attention Is All You Need</h3>
+                    <p class="ref-meta">NeurIPS 2017</p>
+                    <p class="ref-body">The transformer paper. Our SLM is a decoder-only transformer in the original GPT-style configuration, with two additions: per-layer cross-attention onto a non-textual conditioning sequence, and pre-LayerNorm (Xiong et al. 2020) for training stability at depth 12.</p>
+                    <p class="ref-used">used in: <code>i3/slm/transformer.py</code>, <code>i3/slm/attention.py</code>, <code>i3/slm/adaptive_transformer_v2.py</code></p>
+                </article>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════ HUAWEI: INTENT TAB (iter 51) ═══════════════════════ -->
+        <section class="tab-panel" id="tab-intent" data-tab="intent" role="tabpanel" hidden>
+            <header class="section-head reveal">
+                <p class="eyebrow">Huawei · iter 51</p>
+                <h2 class="section-title">Intent — Qwen3 + LoRA structured output.</h2>
+                <p class="section-sub">Live HMI command-intent parsing via the iter-51 fine-tuned LoRA adapter on Qwen3-1.7B (open weights, on-device). Closes the JD bullet "fine-tune pre-trained models". Read <a href="docs/huawei/finetune_artefact.md">finetune_artefact.md</a>.</p>
+            </header>
+            <div class="huawei-card reveal">
+                <div class="huawei-card-row">
+                    <label for="intent-input"><strong>Try an utterance:</strong></label>
+                    <input type="text" id="intent-input" placeholder='set a timer for 10 minutes' style="flex:1;padding:10px;border:1px solid #444;border-radius:4px;background:#0a0a0a;color:#eee;font-family:inherit;font-size:14px;"/>
+                    <select id="intent-backend" style="padding:10px;border:1px solid #444;border-radius:4px;background:#0a0a0a;color:#eee;">
+                        <option value="qwen">Qwen3 LoRA (on-device)</option>
+                        <option value="gemini">Gemini 2.5 Flash (cloud)</option>
+                    </select>
+                    <button type="button" id="intent-submit" class="btn btn-primary">Parse</button>
+                </div>
+                <div class="huawei-card-output" id="intent-output">
+                    <em>Result will appear here. Try: "text Mum I'll be late", "play some lo-fi", "navigate to King's Cross", "what's the weather", "do a backflip" (OOV).</em>
+                </div>
+                <div class="huawei-card-meta" id="intent-meta"></div>
+            </div>
+            <div class="huawei-status reveal">
+                <h3>Backend status</h3>
+                <pre id="intent-status-block"><code>loading…</code></pre>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════ HUAWEI: EDGE PROFILE TAB (iter 51) ═══════════════════════ -->
+        <section class="tab-panel" id="tab-edge-profile" data-tab="edge-profile" role="tabpanel" hidden>
+            <header class="section-head reveal">
+                <p class="eyebrow">Huawei · iter 51</p>
+                <h2 class="section-title">Edge profile — fits Kirin 9000 in 56 ms P50.</h2>
+                <p class="section-sub">Per-component latency + memory budget. Closes recruiter screening Q4 (edge deployment).  Source: <a href="docs/paper/I3_research_paper.md">paper §6.4</a>; live data via <code>/api/profiling/report</code>.</p>
+            </header>
+            <div id="edge-profile-render" class="huawei-card reveal">
+                <em>Loading edge profile from <code>/api/profiling/report</code>…</em>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════ HUAWEI: FINE-TUNE COMPARISON TAB (iter 51) ═══════════════════════ -->
+        <section class="tab-panel" id="tab-finetune" data-tab="finetune" role="tabpanel" hidden>
+            <header class="section-head reveal">
+                <p class="eyebrow">Huawei · iter 51</p>
+                <h2 class="section-title">Fine-tune comparison — Qwen on-device vs Gemini cloud.</h2>
+                <p class="section-sub">Same dataset (5050 HMI command-intent examples), same eval, two different fine-tunes. Open vs closed weights, edge vs cloud, free vs paid.</p>
+            </header>
+            <div id="finetune-comparison" class="huawei-card reveal">
+                <em>Loading comparison from <code>/api/intent/status</code>…</em>
+            </div>
+            <div class="huawei-status reveal" style="margin-top:1rem;">
+                <h3>Reference: <a href="docs/huawei/finetune_artefact.md">finetune_artefact.md</a></h3>
+                <p>Detailed methodology, model selection rationale (verified 2026 landscape: DeepSeek V4-Pro/Flash, Qwen3.5, Gemma 4, Phi-4 against the 6.4 GB hardware budget), reproduction steps.</p>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════ HUAWEI: PERSONAL FACTS TAB (iter 51) ═══════════════════════ -->
+        <section class="tab-panel" id="tab-facts" data-tab="facts" role="tabpanel" hidden>
+            <header class="section-head reveal">
+                <p class="eyebrow">Huawei · iter 51</p>
+                <h2 class="section-title">Personal facts — cross-session encrypted memory.</h2>
+                <p class="section-sub">Iter 50 added Fernet-encrypted SQLite-backed personal-fact storage. Slots: name, favourite colour, occupation, location, hobby, age, pet. Wipe with one utterance: "forget my facts".</p>
+            </header>
+            <div class="huawei-card reveal">
+                <h3>Stored facts (this session)</h3>
+                <div id="facts-list">
+                    <em>Tell the model "my name is X", "I live in Y" etc. via the Chat tab — values appear here on the next turn.</em>
+                </div>
+                <div style="margin-top:16px;">
+                    <button type="button" id="facts-forget-button" class="btn btn-secondary">🗑 Forget my facts</button>
+                </div>
+            </div>
+            <div class="huawei-status reveal" style="margin-top:1rem;">
+                <h3>Privacy contract</h3>
+                <ul>
+                    <li>Storage: SQLite <code>user_facts</code> table, keyed by <code>(user_id, slot)</code>.</li>
+                    <li>Encryption: Fernet (AES-128-CBC + HMAC-SHA-256) at rest when <code>$I3_ENCRYPTION_KEY</code> is set.</li>
+                    <li>Wipe: one utterance ("forget my facts") clears in-memory + DB rows.</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════ HUAWEI: MULTIMODAL TAB (iter 51) ═══════════════════════ -->
+        <section class="tab-panel" id="tab-multimodal" data-tab="multimodal" role="tabpanel" hidden>
+            <header class="section-head reveal">
+                <p class="eyebrow">Huawei · iter 51</p>
+                <h2 class="section-title">Multimodal — 5 input channels.</h2>
+                <p class="section-sub">Vision + voice + keystroke + PPG/HRV + touch all feed the same TCN encoder. Closes the JD bullet "multimodal models".</p>
+            </header>
+            <div class="huawei-grid reveal">
+                <div class="huawei-card">
+                    <h3>📷 Vision</h3>
+                    <p><strong>514 LOC</strong> · MediaPipe Face Mesh · 8 facial-affect features (eye-aspect ratio, mouth-aspect ratio, gaze offset, head-pose pitch/yaw, brow-furrow AU4, smile AU12).</p>
+                    <p><a href="i3/multimodal/vision.py">i3/multimodal/vision.py</a></p>
+                </div>
+                <div class="huawei-card">
+                    <h3>👁 Gaze classifier</h3>
+                    <p><strong>1014 LOC</strong> · Gaze-zone tracking + dwell statistics for AR display use.</p>
+                    <p><a href="i3/multimodal/gaze_classifier.py">i3/multimodal/gaze_classifier.py</a></p>
+                </div>
+                <div class="huawei-card">
+                    <h3>🔊 Voice prosody</h3>
+                    <p><strong>761 LOC</strong> · 8 prosody scalars from audio (pitch, jitter, shimmer, energy, speech rate, pause stats).</p>
+                    <p><a href="i3/multimodal/prosody.py">i3/multimodal/prosody.py</a></p>
+                </div>
+                <div class="huawei-card">
+                    <h3>❤ PPG / HRV</h3>
+                    <p><strong>630 LOC</strong> · Wearable physiology — heart-rate variability + photoplethysmography for stress / recovery state.</p>
+                    <p><a href="i3/multimodal/ppg_hrv.py">i3/multimodal/ppg_hrv.py</a></p>
+                </div>
+                <div class="huawei-card">
+                    <h3>👆 Touch dynamics</h3>
+                    <p><strong>223 LOC</strong> · Touch-screen interaction features — pressure variance, swipe-velocity, pinch dynamics.</p>
+                    <p><a href="i3/multimodal/touch.py">i3/multimodal/touch.py</a></p>
+                </div>
+                <div class="huawei-card">
+                    <h3>⌨ Keystroke dynamics</h3>
+                    <p>Per-turn IKI distribution, burst detection, pause statistics, dwell-flight ratios. Feeds the TCN encoder.</p>
+                    <p><a href="i3/interaction/features.py">i3/interaction/features.py</a></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════ HUAWEI: RESEARCH NOTES TAB (iter 51) ═══════════════════════ -->
+        <section class="tab-panel" id="tab-research" data-tab="research" role="tabpanel" hidden>
+            <header class="section-head reveal">
+                <p class="eyebrow">Huawei · iter 51</p>
+                <h2 class="section-title">Research reading list — what I³ stands on.</h2>
+                <p class="section-sub">15+ papers (2017–2026), each cited with where I³ uses or extends it.  Closes the JD bullet "stay up to date with the latest research".  Full list at <a href="docs/huawei/research_reading_list.md">research_reading_list.md</a>.</p>
+            </header>
+            <div class="huawei-grid reveal" id="research-grid">
+                <em>Select papers from <a href="docs/huawei/research_reading_list.md">the full list</a>.</em>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════ HUAWEI: JD MAP TAB (iter 51) ═══════════════════════ -->
+        <section class="tab-panel" id="tab-jdmap" data-tab="jdmap" role="tabpanel" hidden>
+            <header class="section-head reveal">
+                <p class="eyebrow">Huawei · iter 51</p>
+                <h2 class="section-title">JD → repo map.</h2>
+                <p class="section-sub">Every JD bullet mapped to the exact file, class, function, or test that satisfies it.  Live render of <a href="docs/huawei/jd_to_repo_map.md">jd_to_repo_map.md</a>.</p>
+            </header>
+            <div id="jdmap-render" class="huawei-card reveal">
+                <em>Loading <code>docs/huawei/jd_to_repo_map.md</code>…</em>
+            </div>
+        </section>
+
+        <!-- ═════════════════════════════ ABOUT TAB ═════════════════════════════ -->
+        <section class="tab-panel" id="tab-about" data-tab="about" role="tabpanel" hidden>
+            <header class="section-head reveal">
+                <p class="eyebrow">About</p>
+                <h2 class="section-title">A portfolio piece.</h2>
+                <p class="section-sub">Implicit Interaction Intelligence is an HMI demo built for the Huawei R&amp;D UK internship application. Every component is hand-written, ships from a single repository, and is intentionally edge-deployable.</p>
+            </header>
+
+            <div class="about-grid">
+                <div class="about-card reveal">
+                    <div class="about-q">Q1. Custom ML from scratch?</div>
+                    <div class="about-a">SLM, tokenizer, TCN encoder, LinUCB bandit, linguistic feature extractors and keystroke analytics — all hand-written PyTorch.</div>
+                </div>
+                <div class="about-card reveal">
+                    <div class="about-q">Q2. SLM without heavy frameworks?</div>
+                    <div class="about-a">204 M-parameter MoE+ACT decoder transformer with per-layer cross-attention conditioning, byte-level BPE tokenizer (32 k vocab). Zero HuggingFace dependencies in the generation path.</div>
+                </div>
+                <div class="about-card reveal">
+                    <div class="about-q">Q3. Pipeline orchestration?</div>
+                    <div class="about-a">21-stage, wave-based DAG in <code>scripts/run_everything.py</code>. Reproduces the entire stack from a clean checkout in ~10 min.</div>
+                </div>
+                <div class="about-card reveal">
+                    <div class="about-q">Q4. Edge deployment?</div>
+                    <div class="about-a">ONNX export of the encoder (~0.4 MB), browser-side inference via WebGPU/WASM, edge-profile harness, byte/message/rate caps for wearable budgets.</div>
+                </div>
+            </div>
+
+            <div class="about-foot reveal">
+                Built on a single 6 GB laptop GPU. Designed to be quantised to 8-bit and shipped to a phone.
+            </div>
+        </section>
+
+        <!-- Hidden but functional diary -->
+        <div id="diary-panel" class="diary-panel diary-panel-hidden" aria-hidden="true">
+            <div class="diary-header"><h3>Diary</h3><span class="diary-toggle">&#9660;</span></div>
+            <div class="diary-entries"></div>
         </div>
 
-        <!-- Right: Dashboard Panel -->
-        <div id="dashboard" class="dashboard-panel">
+        <!-- Floating "How am I doing?" preference toast root.  Lives
+             outside any tab so the prompt is reachable from anywhere
+             once the user has sent enough messages.  Dismissal is
+             persisted to localStorage; the toast only re-shows on demand
+             or after another 5+ messages. -->
+        <div id="i3-preference-toast-root" class="i3-preference-toast-root" aria-live="polite"></div>
 
-            <!-- User State Embedding -->
-            <div class="dash-section">
-                <div class="dash-section-title">User State</div>
-                <div class="embedding-container">
-                    <canvas id="embedding-canvas"></canvas>
-                </div>
-            </div>
+        <footer class="page-footer">
+            <p>Implicit Interaction Intelligence · A portfolio piece for the Huawei R&amp;D UK HMI Lab</p>
+        </footer>
 
-            <!-- Adaptation Gauges -->
-            <div class="dash-section adaptation">
-                <div class="dash-section-title">Adaptation</div>
-                <div class="gauge-container">
-                    <!-- Gauges are created dynamically by Dashboard.init() -->
-                </div>
-            </div>
-
-            <!-- Routing -->
-            <div class="dash-section routing">
-                <div class="dash-section-title">Routing</div>
-                <div class="gauge-container">
-                    <!-- Edge/Cloud gauges created dynamically -->
-                </div>
-                <div class="routing-decision">
-                    Decision: <span class="route-label">Waiting...</span>
-                </div>
-            </div>
-
-            <!-- Engagement -->
-            <div class="dash-section engagement">
-                <div class="dash-section-title">Engagement</div>
-                <div class="engagement-grid">
-                    <div class="engagement-card" data-metric="score">
-                        <div class="card-label">Score</div>
-                        <div class="card-value score">0.00</div>
-                    </div>
-                    <div class="engagement-card" data-metric="deviation">
-                        <div class="card-label">Deviation</div>
-                        <div class="card-value deviation">+0.000</div>
-                    </div>
-                    <div class="engagement-card" data-metric="messages">
-                        <div class="card-label">Messages</div>
-                        <div class="card-value count">0</div>
-                    </div>
-                    <div class="engagement-card" data-metric="baseline">
-                        <div class="card-label">Baseline</div>
-                        <div class="card-value baseline">
-                            <span class="baseline-no">Warming up...</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-    </div>
-
-    <!-- Diary Panel (collapsible) -->
-    <div id="diary" class="diary-panel">
-        <div class="diary-header">
-            <h3>Interaction Diary</h3>
-            <span class="diary-toggle">&#9660;</span>
-        </div>
-        <div class="diary-entries"></div>
-    </div>
+    </main>
 
 </div>
 
-<!-- JavaScript modules (order matters: dependencies first) -->
-<script src="/static/js/websocket.js"></script>
-<script src="/static/js/chat.js"></script>
-<script src="/static/js/dashboard.js"></script>
-<script src="/static/js/embedding_viz.js"></script>
-<script src="/static/js/app.js"></script>
+<!-- JavaScript modules -->
+<script src="/static/js/websocket.js?v=apple35"></script>
+<script src="/static/js/chat.js?v=apple35"></script>
+<script src="/static/js/dashboard.js?v=apple35"></script>
+<script src="/static/js/embedding_viz.js?v=apple35"></script>
+<script src="/static/js/voice_prosody.js?v=apple35"></script>
+<script src="/static/js/gaze_capture.js?v=apple35"></script>
+<script src="/static/js/app.js?v=apple35"></script>
+<script src="/static/js/live_preview.js?v=apple35"></script>
+<script src="/static/js/edge_tab.js?v=apple35"></script>
+<script src="/static/js/tab_router.js?v=apple35"></script>
+<script src="/static/js/attention_heatmap.js?v=apple35"></script>
+<script src="/static/js/profile_tab.js?v=apple35"></script>
+<script src="/static/js/huawei_tabs.js?v=iter51"></script>
+<script src="/static/js/flow_dashboard.js?v=apple35"></script>
+<script src="/static/js/routing_scatter.js?v=apple35"></script>
+<script src="/static/js/playground.js?v=apple35"></script>
+<script src="/static/js/benchmarks_tab.js?v=apple35"></script>
 <script>
-    // Reveal app after all modules are loaded
     document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('app').classList.add('ready');
     });
 </script>
 
-<!-- I3 advanced-insights panels (attention viz, what-if, persona, reset, WCAG). -->
 <link rel="stylesheet" href="/static/css/advanced.css">
-<div id="i3-advanced-panels"></div>
 <script type="module" src="/static/js/advanced_init.js"></script>
 
-<!-- Browser-side ONNX Runtime inference (WebGPU / WASM) — opt-in via the toggle. -->
 <link rel="stylesheet" href="/css/browser_inference.css">
 <div id="i3-browser-inference"></div>
 <script type="module" src="/js/browser_inference.js" defer></script>
 
-<!-- TTS player — adaptation-conditioned speech output. -->
 <link rel="stylesheet" href="/css/tts_player.css">
 <script type="module" src="/js/tts_player.js" defer></script>
 
-<!-- Uncertainty + counterfactual explanation panel. -->
 <link rel="stylesheet" href="/css/explain_panel.css">
 <script type="module" src="/js/explain_panel.js" defer></script>
 

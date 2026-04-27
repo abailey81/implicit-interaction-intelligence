@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400" width="800" height="400" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="12">
+  <rect width="800" height="400" fill="#0a0a0c"/>
+  <text x="40.0" y="30.0" fill="#ffffff" text-anchor="start" font-size="18" font-weight="600">Eval perplexity over training steps</text>
+  <line x1="70.0" y1="60.0" x2="760.0" y2="60.0" stroke="#1c1c1e" stroke-width="1.0"/>
+  <text x="62.0" y="64.0" fill="#8e8e93" text-anchor="end" font-size="11" font-weight="400">286.8</text>
+  <line x1="70.0" y1="130.0" x2="760.0" y2="130.0" stroke="#1c1c1e" stroke-width="1.0"/>
+  <text x="62.0" y="134.0" fill="#8e8e93" text-anchor="end" font-size="11" font-weight="400">220.8</text>
+  <line x1="70.0" y1="200.0" x2="760.0" y2="200.0" stroke="#1c1c1e" stroke-width="1.0"/>
+  <text x="62.0" y="204.0" fill="#8e8e93" text-anchor="end" font-size="11" font-weight="400">154.8</text>
+  <line x1="70.0" y1="270.0" x2="760.0" y2="270.0" stroke="#1c1c1e" stroke-width="1.0"/>
+  <text x="62.0" y="274.0" fill="#8e8e93" text-anchor="end" font-size="11" font-weight="400">88.9</text>
+  <line x1="70.0" y1="340.0" x2="760.0" y2="340.0" stroke="#1c1c1e" stroke-width="1.0"/>
+  <text x="62.0" y="344.0" fill="#8e8e93" text-anchor="end" font-size="11" font-weight="400">22.9</text>
+  <line x1="70.0" y1="340.0" x2="70.0" y2="344.0" stroke="#3a3a3c" stroke-width="1.0"/>
+  <text x="70.0" y="358.0" fill="#8e8e93" text-anchor="middle" font-size="11" font-weight="400">1300</text>
+  <line x1="208.0" y1="340.0" x2="208.0" y2="344.0" stroke="#3a3a3c" stroke-width="1.0"/>
+  <text x="208.0" y="358.0" fill="#8e8e93" text-anchor="middle" font-size="11" font-weight="400">7340</text>
+  <line x1="346.0" y1="340.0" x2="346.0" y2="344.0" stroke="#3a3a3c" stroke-width="1.0"/>
+  <text x="346.0" y="358.0" fill="#8e8e93" text-anchor="middle" font-size="11" font-weight="400">13380</text>
+  <line x1="484.0" y1="340.0" x2="484.0" y2="344.0" stroke="#3a3a3c" stroke-width="1.0"/>
+  <text x="484.0" y="358.0" fill="#8e8e93" text-anchor="middle" font-size="11" font-weight="400">19420</text>
+  <line x1="622.0" y1="340.0" x2="622.0" y2="344.0" stroke="#3a3a3c" stroke-width="1.0"/>
+  <text x="622.0" y="358.0" fill="#8e8e93" text-anchor="middle" font-size="11" font-weight="400">25460</text>
+  <line x1="760.0" y1="340.0" x2="760.0" y2="344.0" stroke="#3a3a3c" stroke-width="1.0"/>
+  <text x="760.0" y="358.0" fill="#8e8e93" text-anchor="middle" font-size="11" font-weight="400">31500</text>
+  <text x="415.0" y="395.0" fill="#e5e5ea" text-anchor="middle" font-size="12" font-weight="400">training step</text>
+  <text x="20.0" y="200.0" fill="#e5e5ea" text-anchor="middle" font-size="12" font-weight="400">perplexity</text>
+  <polyline points="70.0,74.5 188.8,174.0 337.3,265.5 485.8,320.4 634.3,338.7 760.0,337.4" fill="none" stroke="#0a84ff" stroke-width="2.5"/>
+  <circle cx="70.0" cy="74.5" r="3.5" fill="#0a84ff"/>
+  <circle cx="188.8" cy="174.0" r="3.5" fill="#0a84ff"/>
+  <circle cx="337.3" cy="265.5" r="3.5" fill="#0a84ff"/>
+  <circle cx="485.8" cy="320.4" r="3.5" fill="#0a84ff"/>
+  <circle cx="634.3" cy="338.7" r="3.5" fill="#0a84ff"/>
+  <circle cx="760.0" cy="337.4" r="3.5" fill="#0a84ff"/>
+  <text x="760.0" y="50.0" fill="#30d158" text-anchor="end" font-size="12" font-weight="600">final = 25.33</text>
+</svg>

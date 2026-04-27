@@ -299,6 +299,14 @@ nav:
       - EU AI Act Scope: responsible_ai/eu_ai_act_scope.md
   - Huawei:
       - huawei/README.md
+      - JD → Repo Map: huawei/jd_to_repo_map.md
+      - Feature Matrix (vs Apple / Pixel / Galaxy / Pangu / Qwen / DeepSeek / Gemma / Kimi): huawei/feature_matrix.md
+      - Design Brief (persona + interaction principle): huawei/design_brief.md
+      - Fine-tune Artefact (Qwen + Gemini side-by-side): huawei/finetune_artefact.md
+      - Iteration Log (51-iter trajectory): huawei/iteration_log.md
+      - Research Reading List (15 papers 2024-2026): huawei/research_reading_list.md
+      - Forward Roadmap (next 6 months at HMI Lab): huawei/forward_roadmap.md
+      - Onboarding a Teammate (1-day handover): huawei/onboarding_a_teammate.md
       - HarmonyOS + HMAF Integration: huawei/harmony_hmaf_integration.md
       - HarmonyOS 6 AI Glasses Alignment: huawei/harmonyos6_ai_glasses_alignment.md
       - Kirin Deployment: huawei/kirin_deployment.md
@@ -306,6 +314,7 @@ nav:
       - Edinburgh Joint Lab: huawei/edinburgh_joint_lab.md
       - Smart Hanhan: huawei/smart_hanhan.md
       - Interview Talking Points: huawei/interview_talking_points.md
+      - Agentic Core: huawei/agentic_core.md
   - Slides:
       - slides/README.md
       - Presentation: slides/presentation.md

@@ -44,6 +44,7 @@ from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
 
+from i3.explain.reasoning_trace import build_reasoning_trace
 from i3.interaction.types import KeystrokeEvent
 from i3.pipeline.types import PipelineInput
 from server.middleware import RateLimitMiddleware
@@ -86,70 +87,73 @@ _ws_rate_limiter = RateLimitMiddleware.ws_limiter()
 
 
 class ConnectionManager:
-    """Manages active WebSocket connections and session bookkeeping."""
+    """Manages active WebSocket connections and session bookkeeping.
+
+    A single ``user_id`` may have *multiple* concurrent sockets open — the
+    demo often runs in two browser windows side-by-side (desktop + mobile
+    emulator), or a user may have two tabs pointed at the UI.  The old
+    "evict the prior on every new connect" behaviour turned that into a
+    reconnect war: the tabs fought over the slot, every connection got
+    closed with 1001 within ~2 s, and the UI showed a constant "Reconnect"
+    badge.  We now track every live socket per user and fan-out server
+    messages to all of them.
+
+    Each ``(user_id, websocket)`` pair still owns its own ``session_id``;
+    multi-connection users get multiple simultaneous sessions, which the
+    rest of the pipeline already tolerates.
+    """
 
     def __init__(self) -> None:
-        self.active_connections: dict[str, WebSocket] = {}   # user_id -> ws
-        self.sessions: dict[str, str] = {}                   # user_id -> session_id
-        # SEC: Async lock guarding all mutations of active_connections /
-        # sessions so concurrent connect()/disconnect() cannot race and
-        # leave a stale or wrong-WebSocket entry behind.
+        # user_id -> {websocket: session_id}
+        self.active_connections: dict[str, dict[WebSocket, str]] = {}
+        # SEC: Async lock guarding all mutations so concurrent
+        # connect()/disconnect() never race.
         self._lock: asyncio.Lock = asyncio.Lock()
 
     async def connect(self, websocket: WebSocket, user_id: str) -> str:
-        """Accept the socket, register the user, and return a fresh session id."""
+        """Accept the socket and register a fresh session id for it."""
         await websocket.accept()
-        prior: WebSocket | None
+        session_id = str(uuid.uuid4())
         async with self._lock:
-            # SEC: Evict any prior connection for this user_id atomically and
-            # immediately install the new one so the prior handler's finally
-            # cleanup cannot wipe the *new* slot. We compare WebSocket
-            # identity in disconnect() to prevent that race.
-            prior = self.active_connections.get(user_id)
-            self.active_connections[user_id] = websocket
-            session_id = str(uuid.uuid4())
-            self.sessions[user_id] = session_id
-
-        if prior is not None:
-            try:
-                await prior.close(code=_CLOSE_GOING_AWAY)
-            except Exception:  # pragma: no cover -- best effort cleanup
-                pass
-
-        logger.info("User %s connected, session %s", user_id, session_id)
+            self.active_connections.setdefault(user_id, {})[websocket] = session_id
+        logger.info(
+            "User %s connected, session %s (active_sockets=%d)",
+            user_id,
+            session_id,
+            len(self.active_connections.get(user_id, {})),
+        )
         return session_id
 
     async def disconnect(self, user_id: str, websocket: WebSocket | None = None) -> None:
-        """Remove *user_id* iff *websocket* is the currently registered socket.
-
-        SEC: When *websocket* is provided, only remove the entry if the
-        registered connection is the same object — this prevents an evicted
-        old handler from clobbering the freshly-installed new connection.
-        """
+        """Remove *websocket* from *user_id*'s active-sockets map."""
         async with self._lock:
-            current = self.active_connections.get(user_id)
-            if websocket is not None and current is not websocket:
-                # The slot is owned by a newer connection — leave it alone.
-                logger.debug(
-                    "disconnect() for %s skipped: slot owned by newer socket",
-                    user_id,
-                )
+            bucket = self.active_connections.get(user_id)
+            if not bucket:
                 return
-            self.active_connections.pop(user_id, None)
-            self.sessions.pop(user_id, None)
+            if websocket is None:
+                self.active_connections.pop(user_id, None)
+            else:
+                bucket.pop(websocket, None)
+                if not bucket:
+                    self.active_connections.pop(user_id, None)
         logger.info("User %s disconnected", user_id)
 
     async def send_json(self, user_id: str, data: dict[str, Any]) -> None:
-        """Send a JSON payload to a connected user (no-op if absent)."""
-        ws = self.active_connections.get(user_id)
-        if ws is None:
+        """Fan-out a JSON payload to every live socket for *user_id*.
+
+        Closed / backpressure-errored sockets are logged and silently
+        dropped — never propagated to the caller.
+        """
+        bucket = self.active_connections.get(user_id)
+        if not bucket:
             return
-        try:
-            await ws.send_json(data)
-        except Exception:
-            # SEC: Closed sockets / backpressure failures are logged and
-            # swallowed; never propagate to the caller.
-            logger.warning("Failed to send to %s, dropping message", user_id)
+        # Iterate over a snapshot so sends that fail + trigger concurrent
+        # disconnect() from their handler cannot mutate the dict under us.
+        for ws in list(bucket.keys()):
+            try:
+                await ws.send_json(data)
+            except Exception:
+                logger.warning("Failed to send to %s, dropping message", user_id)
 
 
 manager = ConnectionManager()
@@ -351,6 +355,10 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str) -> None:
     messages_handled = 0
     session_start = time.monotonic()
     session_ended = False  # SEC: idempotency guard for end_session
+    # Per-handler tracker for rising-edge biometric events so we can
+    # emit ``biometric_event`` frames once per transition rather than
+    # on every turn the user is in the same state.
+    biometric_state_tracker: dict[str, str] = {}
 
     try:
         while True:
@@ -472,11 +480,27 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str) -> None:
                 # SEC: Bounded coercion of every client-supplied number
                 # so an attacker cannot inject NaN/inf or 2**62-sized
                 # values into the pipeline.
+                #
+                # Accept metrics either at the top level of the frame
+                # (legacy) or nested under ``composition_metrics`` —
+                # the chat.js client + biometric/affect probes send the
+                # nested form, so without this the authenticator sees
+                # zero composition / edit / IKI on every turn and can
+                # never distinguish typing patterns.
+                comp_metrics = data.get("composition_metrics") or {}
+                if not isinstance(comp_metrics, dict):
+                    comp_metrics = {}
+
+                def _pick_metric(key: str, default=0):
+                    if key in data and data[key] is not None:
+                        return data[key]
+                    return comp_metrics.get(key, default)
+
                 try:
                     msg_ts = _safe_float(data.get("timestamp", time.time()))
-                    composition_ms = _safe_float(data.get("composition_time_ms", 0))
-                    edit_count = _safe_int(data.get("edit_count", 0))
-                    pause_ms = _safe_float(data.get("pause_before_send_ms", 0))
+                    composition_ms = _safe_float(_pick_metric("composition_time_ms", 0))
+                    edit_count = _safe_int(_pick_metric("edit_count", 0))
+                    pause_ms = _safe_float(_pick_metric("pause_before_send_ms", 0))
                     if composition_ms < 0 or pause_ms < 0 or edit_count < 0:
                         raise ValueError("negative_metric")
                 except ValueError as exc:
@@ -488,6 +512,60 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str) -> None:
                     await websocket.close(code=_CLOSE_POLICY_VIOLATION)
                     break
 
+                # Voice-prosody flagship feature: validate the optional
+                # ``prosody_features`` field on the message frame.  The
+                # JS-side ``VoiceProsodyMonitor`` ships eight numeric
+                # scalars (pace, pitch mean/var, RMS energy mean/var,
+                # voiced ratio, pause density, spectral centroid) plus
+                # two metadata fields (samples_count, captured_seconds).
+                # The audio buffer NEVER leaves the browser — only these
+                # ten scalars do.  We validate via
+                # :func:`i3.multimodal.validate_prosody_payload` which
+                # rejects NaN/inf, missing keys, and non-dict payloads;
+                # rejection degrades gracefully to the keystroke-only
+                # path rather than closing the socket, since prosody is
+                # a soft signal.
+                from i3.multimodal.prosody import (
+                    validate_gaze_payload,
+                    validate_prosody_payload,
+                )
+                raw_prosody = data.get("prosody_features")
+                validated_prosody = validate_prosody_payload(raw_prosody)
+                if raw_prosody is not None and validated_prosody is None:
+                    logger.debug(
+                        "Rejected malformed prosody_features payload from %s",
+                        user_id,
+                    )
+                prosody_features_dict: dict | None = (
+                    validated_prosody.to_dict()
+                    if validated_prosody is not None
+                    else None
+                )
+
+                # Vision-gaze flagship: the JS side ships an aggregate
+                # ``gaze_features`` dict on the message frame.  We
+                # validate via :func:`validate_gaze_payload` (which
+                # returns the 8-d numeric scalar dict on success);
+                # rejection degrades to the camera-off path.  The
+                # raw image NEVER reaches this code — only the
+                # already-classified label + numeric scalars.
+                raw_gaze = data.get("gaze_features")
+                validated_gaze_scalars = validate_gaze_payload(raw_gaze)
+                gaze_features_dict: dict | None = None
+                if validated_gaze_scalars is not None and isinstance(raw_gaze, dict):
+                    # Pass the original (unvalidated) dict through to
+                    # the engine — the engine validates again and
+                    # builds the JSON-safe output dict that lands on
+                    # PipelineOutput.gaze.  Validation here is purely
+                    # to gate whether the engine sees the payload at
+                    # all.
+                    gaze_features_dict = dict(raw_gaze)
+                elif raw_gaze is not None:
+                    logger.debug(
+                        "Rejected malformed gaze_features payload from %s",
+                        user_id,
+                    )
+
                 pipeline_input = PipelineInput(
                     user_id=user_id,
                     session_id=session_id,
@@ -496,33 +574,570 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str) -> None:
                     composition_time_ms=composition_ms,
                     edit_count=edit_count,
                     pause_before_send_ms=pause_ms,
-                    keystroke_timings=[
-                        float(ks.get("inter_key_interval_ms", 0))
-                        for ks in keystroke_buffer
-                    ],
+                    # Prefer the per-event server-side buffer (sampled
+                    # by the live JS client).  Fall back to a client-
+                    # supplied keystroke_timings array on the message
+                    # frame (used by Python probes that don't stream
+                    # individual keystroke events).
+                    keystroke_timings=(
+                        [
+                            float(ks.get("inter_key_interval_ms", 0))
+                            for ks in keystroke_buffer
+                        ]
+                        if keystroke_buffer
+                        else [
+                            float(t)
+                            for t in (
+                                comp_metrics.get("keystroke_timings") or []
+                            )
+                            if isinstance(t, (int, float))
+                        ]
+                    ),
+                    prosody_features=prosody_features_dict,
+                    gaze_features=gaze_features_dict,
                 )
 
-                output = await pipeline.process_message(pipeline_input)
+                # ------------------------------------------------------
+                # Streaming hook: if the pipeline picks the SLM path it
+                # will invoke this callback once per decoded token delta.
+                # Retrieval / tool / OOD paths never call it (there are
+                # no intermediate tokens to emit), so streaming_started
+                # remains False and the single-frame response below
+                # still fires the usual {"type": "response"} behaviour.
+                # ------------------------------------------------------
+                streaming_state: dict[str, Any] = {"started": False}
 
-                # Main response
-                await manager.send_json(user_id, {
-                    "type": "response",
-                    "text": output.response_text,
-                    "route": output.route_chosen,
-                    "latency_ms": round(output.latency_ms),
-                    "timestamp": time.time(),
-                })
+                async def _on_token(delta: str) -> None:
+                    if not isinstance(delta, str) or not delta:
+                        return
+                    streaming_state["started"] = True
+                    await manager.send_json(
+                        user_id,
+                        {"type": "token", "delta": delta},
+                    )
 
-                # Behavioural state update (used by the dashboard viz)
+                output = await pipeline.process_message(
+                    pipeline_input,
+                    on_token=_on_token,
+                )
+
+                # Promote the StyleVector sub-axes to top-level keys so
+                # both the state_update frame and the reasoning trace see
+                # the same flattened shape the dashboard UI expects.
+                adaptation_flat = dict(output.adaptation)
+                style = adaptation_flat.get("style_mirror")
+                if isinstance(style, dict):
+                    for k in ("formality", "verbosity", "emotionality", "directness"):
+                        if k in style and k not in adaptation_flat:
+                            adaptation_flat[k] = style[k]
+
+                # Convert the engine's AffectShift dataclass to a
+                # plain dict for both the WS frame and the reasoning
+                # trace.  ``None`` when the detector hasn't run yet
+                # (legacy callers / first-turn flows).
+                affect_shift_obj = getattr(output, "affect_shift", None)
+                affect_shift_dict: dict | None = None
+                if affect_shift_obj is not None:
+                    try:
+                        # Prefer the dataclass's own to_dict() so the
+                        # serialisation contract lives next to the type.
+                        affect_shift_dict = affect_shift_obj.to_dict()
+                    except AttributeError:
+                        # Defensive: a future change might pass a dict
+                        # straight through.
+                        if isinstance(affect_shift_obj, dict):
+                            affect_shift_dict = dict(affect_shift_obj)
+
+                # Live State Badge label + Accessibility Mode state —
+                # both are already serialised to plain dicts inside
+                # the engine helpers, so we just defensively coerce
+                # them here.  ``None`` is a valid value (legacy
+                # callers / classifier wasn't wired in).
+                user_state_label_obj = getattr(output, "user_state_label", None)
+                user_state_label_dict: dict | None = (
+                    dict(user_state_label_obj)
+                    if isinstance(user_state_label_obj, dict)
+                    else None
+                )
+                accessibility_obj = getattr(output, "accessibility", None)
+                accessibility_dict: dict | None = (
+                    dict(accessibility_obj)
+                    if isinstance(accessibility_obj, dict)
+                    else None
+                )
+
+                # Biometric Identity Lock — keystroke-based continuous
+                # auth result for this turn.  Already a plain dict
+                # (the engine calls ``BiometricMatch.to_dict()``); we
+                # coerce defensively.  ``None`` when the authenticator
+                # isn't wired (legacy callers).
+                biometric_obj = getattr(output, "biometric", None)
+                biometric_dict: dict | None = (
+                    dict(biometric_obj)
+                    if isinstance(biometric_obj, dict)
+                    else None
+                )
+
+                # Self-critique trace (Phase 7 HMI piece).  Populated
+                # only on SLM-generation turns by the pipeline; the
+                # engine itself nulls it for retrieval / tool / OOD
+                # paths so we don't have to filter again here.
+                critique_obj = getattr(output, "critique", None)
+                critique_dict: dict | None = (
+                    dict(critique_obj)
+                    if isinstance(critique_obj, dict) and critique_obj
+                    else None
+                )
+
+                # Co-reference resolution (multi-turn understanding).
+                # ``None`` when no pronoun was detected on this turn or
+                # when the user message had no compatible entity in
+                # scope.  When non-``None`` the WS layer ships it on
+                # the response/response_done frame so the chat UI can
+                # render the ``coref · they → huawei`` chip.
+                coref_obj = getattr(output, "coreference_resolution", None)
+                coref_dict: dict | None = (
+                    dict(coref_obj)
+                    if isinstance(coref_obj, dict) and coref_obj
+                    else None
+                )
+
+                # Voice-prosody multimodal fusion status.  Always a dict
+                # when the engine ran (``prosody_active`` is False on
+                # mic-off turns); ``None`` only on legacy callers with
+                # no multimodal head wired in.  Drives the
+                # ``voice prosody · active`` chat chip and the
+                # reasoning-trace fusion sentence.
+                multimodal_obj = getattr(output, "multimodal", None)
+                multimodal_dict: dict | None = (
+                    dict(multimodal_obj)
+                    if isinstance(multimodal_obj, dict)
+                    else None
+                )
+
+                # Vision-gaze classifier output (third multimodal
+                # flagship — fine-tuned MobileNetV3 head).  Always
+                # ``None`` when the camera was off this turn.
+                gaze_obj = getattr(output, "gaze", None)
+                gaze_dict_out: dict | None = (
+                    dict(gaze_obj)
+                    if isinstance(gaze_obj, dict)
+                    else None
+                )
+
+                # Per-turn pipeline trace (Flow dashboard — third
+                # flagship surface).  Always a dict when the engine
+                # ran; ``None`` only on legacy callers / build-error
+                # outputs.  Drives ``web/js/flow_dashboard.js`` which
+                # animates each stage box pulsing in the order they
+                # actually fired with real measurements.
+                pipeline_trace_obj = getattr(output, "pipeline_trace", None)
+                pipeline_trace_dict: dict | None = (
+                    dict(pipeline_trace_obj)
+                    if isinstance(pipeline_trace_obj, dict)
+                    else None
+                )
+                # Detect rising-edge biometric transitions so a
+                # one-shot ``biometric_event`` frame can fire.  We
+                # stash the previous state on the WS handler scope so
+                # the state machine sees registering→registered and
+                # registered→drift transitions even across long
+                # idle gaps.
+                _prev_biometric_state = (
+                    biometric_state_tracker.get(user_id, "")
+                )
+                _curr_biometric_state = (
+                    str(biometric_dict.get("state", ""))
+                    if biometric_dict is not None
+                    else ""
+                )
+                _biometric_event: str | None = None
+                if biometric_dict is not None:
+                    if (
+                        _prev_biometric_state in ("", "unregistered", "registering")
+                        and _curr_biometric_state == "registered"
+                    ):
+                        _biometric_event = "registered"
+                    elif (
+                        _prev_biometric_state in ("registered", "verifying")
+                        and biometric_dict.get("drift_alert")
+                    ):
+                        _biometric_event = "drift_alert"
+                    elif (
+                        _prev_biometric_state in ("registered", "verifying")
+                        and _curr_biometric_state == "mismatch"
+                    ):
+                        _biometric_event = "mismatch"
+                    if _curr_biometric_state:
+                        biometric_state_tracker[user_id] = _curr_biometric_state
+
+                # Iter 20 (2026-04-26): active-topic snapshot.
+                # Surfaces the entity tracker's current top-of-stack
+                # entity (preferring user-anchored topic) so the chat
+                # tab can render a small "active topic" pill.  This
+                # makes the conversation-context engine VISIBLE to
+                # the recruiter — they see "we're talking about:
+                # transformer" without opening the State tab.
+                active_topic_dict: dict | None = None
+                topic_history_list: list[dict] | None = None
+                try:
+                    snap = pipeline._entity_tracker.snapshot(
+                        user_id, session_id,
+                    )
+                    if snap:
+                        # Prefer the topmost user-anchored topic, else
+                        # the topmost ORG/TOPIC, else the topmost frame.
+                        anchored = next(
+                            (f for f in snap if f.user_anchor_turn is not None
+                             and f.kind in {"org", "topic"}),
+                            None,
+                        )
+                        topic_kind = next(
+                            (f for f in snap if f.kind in {"org", "topic"}),
+                            None,
+                        )
+                        chosen = anchored or topic_kind or snap[0]
+                        # Iter 26 (2026-04-26): topic history breadcrumb
+                        # — pull up to 4 distinct USER-ANCHORED ORG/TOPIC
+                        # entities from the stack (excluding the current
+                        # active) so the chat hero shows "earlier: A,
+                        # B, C".  Filtering to user-anchored prevents
+                        # incidentally-mentioned places ("Cupertino"
+                        # because the assistant said "Apple is
+                        # headquartered in Cupertino") from polluting
+                        # the breadcrumb.
+                        seen_canon = {chosen.canonical}
+                        history: list[dict] = []
+                        for f in snap:
+                            if len(history) >= 4:
+                                break
+                            if f.canonical in seen_canon:
+                                continue
+                            if f.kind not in {"org", "topic"}:
+                                continue
+                            if f.user_anchor_turn is None:
+                                continue
+                            seen_canon.add(f.canonical)
+                            history.append({
+                                "canonical": f.canonical,
+                                "surface": f.text,
+                                "kind": f.kind,
+                                "user_anchored": True,
+                            })
+                        if history:
+                            topic_history_list = history
+                        active_topic_dict = {
+                            "canonical": chosen.canonical,
+                            "surface": chosen.text,
+                            "kind": chosen.kind,
+                            "user_anchored": chosen.user_anchor_turn is not None,
+                            "last_turn_idx": chosen.last_turn_idx,
+                            "stack_depth": len(snap),
+                        }
+                except Exception:
+                    active_topic_dict = None
+
+                # Build the visible reasoning trace.  This is the HMI
+                # artefact: every implicit signal that shaped the
+                # response gets surfaced as plain English on the chat
+                # bubble.  Wrapped in try/except so a trace-builder
+                # failure can never block the response.
+                reasoning_trace: dict | None = None
+                try:
+                    composition_metrics = {
+                        "composition_time_ms": composition_ms,
+                        "edit_count": edit_count,
+                        "pause_before_send_ms": pause_ms,
+                        "keystroke_timings": [
+                            float(ks.get("inter_key_interval_ms", 0))
+                            for ks in keystroke_buffer
+                        ],
+                    }
+                    # Multi-turn history: number of prior turn pairs
+                    # the engine consumed for this response.  When 0
+                    # (first turn) the trace falls back to its
+                    # single-turn narrative; otherwise paragraph 4
+                    # mentions the carried context.
+                    try:
+                        history_turns_used = int(
+                            pipeline.get_last_history_turns_used(
+                                user_id, session_id
+                            )
+                        )
+                    except Exception:  # pragma: no cover - defensive
+                        history_turns_used = 0
+                    reasoning_trace = build_reasoning_trace(
+                        keystroke_metrics=composition_metrics,
+                        adaptation=adaptation_flat,
+                        adaptation_changes=list(
+                            getattr(output, "adaptation_changes", []) or []
+                        ),
+                        engagement_score=float(output.engagement_score),
+                        deviation_from_baseline=float(
+                            output.deviation_from_baseline
+                        ),
+                        messages_in_session=int(output.messages_in_session),
+                        baseline_established=bool(output.baseline_established),
+                        routing_confidence=output.routing_confidence,
+                        response_path=getattr(
+                            output, "response_path", "unknown"
+                        ),
+                        retrieval_score=float(
+                            getattr(output, "retrieval_score", 0.0)
+                        ),
+                        user_message_preview=text[:80] if text else "",
+                        response_preview=(output.response_text or "")[:80],
+                        user_state_embedding_2d=tuple(
+                            output.user_state_embedding_2d
+                        ),
+                        history_turns_used=history_turns_used,
+                        affect_shift=affect_shift_dict,
+                        user_state_label=user_state_label_dict,
+                        accessibility=accessibility_dict,
+                        biometric=getattr(
+                            output, "biometric", None
+                        ),
+                        critique=critique_dict,
+                        coreference_resolution=coref_dict,
+                        personalisation=getattr(
+                            output, "personalisation", None
+                        ),
+                        multimodal=multimodal_dict,
+                        gaze=gaze_dict_out,
+                        routing_decision=getattr(
+                            output, "routing_decision", None
+                        ),
+                        privacy_budget=getattr(
+                            output, "privacy_budget", None
+                        ),
+                        session_memory=getattr(
+                            output, "session_memory", None
+                        ),
+                        explain_plan=getattr(
+                            output, "explain_plan", None
+                        ),
+                    )
+                except Exception:  # pragma: no cover - never block on trace
+                    logger.warning(
+                        "reasoning_trace failed for %s; shipping response "
+                        "without it",
+                        user_id,
+                        exc_info=True,
+                    )
+                    reasoning_trace = None
+
+                # Main response.  We also ship ``response_path`` (which
+                # internal sub-stage of the hybrid stack answered) and
+                # ``retrieval_score`` (cosine score of the top match) so
+                # the UI can surface a confidence chip and light the
+                # correct pipeline LED.
+                if streaming_state["started"]:
+                    # SLM path — the UI already rendered tokens one by
+                    # one.  Send ``response_done`` so the streaming
+                    # bubble can be finalised with the full text and
+                    # the metadata chips.
+                    response_frame: dict[str, Any] = {
+                        "type": "response_done",
+                        "text": output.response_text,
+                        "route": output.route_chosen,
+                        "latency_ms": round(output.latency_ms),
+                        "timestamp": time.time(),
+                        "response_path": getattr(output, "response_path", "unknown"),
+                        "retrieval_score": getattr(output, "retrieval_score", 0.0),
+                        "adaptation_changes": list(
+                            getattr(output, "adaptation_changes", []) or []
+                        ),
+                        # Iteration 12 (2026-04-26): include the FULL
+                        # adaptation snapshot (all 8 axes flattened) so
+                        # the per-bubble Decision Trace expander in the
+                        # chat tab can render bars without an extra
+                        # round-trip.
+                        "adaptation": adaptation_flat,
+                        # Iteration 20: active conversation topic from
+                        # the entity tracker (anchored topic wins).
+                        "active_topic": active_topic_dict,
+                        # Iteration 26: topic-history breadcrumb (last
+                        # 4 distinct topics, excluding active).
+                        "topic_history": topic_history_list,
+                        "affect_shift": affect_shift_dict,
+                        # Iter 51: safety caveat shipped as side-channel
+                        # field (not inlined in response_text).  Frontend
+                        # renders as "ⓘ moderation note" pill.
+                        "safety_caveat": getattr(output, "safety_caveat", None),
+                        "user_state_label": user_state_label_dict,
+                        "accessibility": accessibility_dict,
+                        "biometric": biometric_dict,
+                        "critique": critique_dict,
+                        "coreference_resolution": coref_dict,
+                        "personalisation": getattr(
+                            output, "personalisation", None
+                        ),
+                        "multimodal": multimodal_dict,
+                        "gaze": gaze_dict_out,
+                        "pipeline_trace": pipeline_trace_dict,
+                        "routing_decision": getattr(
+                            output, "routing_decision", None
+                        ),
+                        "privacy_budget": getattr(
+                            output, "privacy_budget", None
+                        ),
+                        "safety": getattr(output, "safety", None),
+                        "session_memory": getattr(output, "session_memory", None),
+                        "explain_plan": getattr(output, "explain_plan", None),
+                        # Iter 51: per-(user, session) stated facts so
+                        # the Personal Facts dashboard tab can render
+                        # live (wireFactsTab in huawei_tabs.js).
+                        "personal_facts": getattr(output, "personal_facts", None),
+                        # Iter 51: structured intent-parse result for
+                        # turns where the engine ran the parser; None
+                        # for normal chat.  Surfaced as a green chip.
+                        "intent_result": getattr(output, "intent_result", None),
+                    }
+                    if reasoning_trace is not None:
+                        response_frame["reasoning_trace"] = reasoning_trace
+                    await manager.send_json(user_id, response_frame)
+                else:
+                    # Retrieval / tool / OOD — single-frame behaviour.
+                    response_frame = {
+                        "type": "response",
+                        "text": output.response_text,
+                        "route": output.route_chosen,
+                        "latency_ms": round(output.latency_ms),
+                        "timestamp": time.time(),
+                        "response_path": getattr(output, "response_path", "unknown"),
+                        "retrieval_score": getattr(output, "retrieval_score", 0.0),
+                        "adaptation_changes": list(
+                            getattr(output, "adaptation_changes", []) or []
+                        ),
+                        # Iteration 12 (2026-04-26): include the FULL
+                        # adaptation snapshot (all 8 axes flattened) so
+                        # the per-bubble Decision Trace expander in the
+                        # chat tab can render bars without an extra
+                        # round-trip.
+                        "adaptation": adaptation_flat,
+                        # Iteration 20: active conversation topic from
+                        # the entity tracker (anchored topic wins).
+                        "active_topic": active_topic_dict,
+                        # Iteration 26: topic-history breadcrumb (last
+                        # 4 distinct topics, excluding active).
+                        "topic_history": topic_history_list,
+                        "affect_shift": affect_shift_dict,
+                        # Iter 51: safety caveat shipped as side-channel
+                        # field (not inlined in response_text).  Frontend
+                        # renders as "ⓘ moderation note" pill.
+                        "safety_caveat": getattr(output, "safety_caveat", None),
+                        "user_state_label": user_state_label_dict,
+                        "accessibility": accessibility_dict,
+                        "biometric": biometric_dict,
+                        "critique": critique_dict,
+                        "coreference_resolution": coref_dict,
+                        "personalisation": getattr(
+                            output, "personalisation", None
+                        ),
+                        "multimodal": multimodal_dict,
+                        "gaze": gaze_dict_out,
+                        "pipeline_trace": pipeline_trace_dict,
+                        "routing_decision": getattr(
+                            output, "routing_decision", None
+                        ),
+                        "privacy_budget": getattr(
+                            output, "privacy_budget", None
+                        ),
+                        "safety": getattr(output, "safety", None),
+                        "session_memory": getattr(output, "session_memory", None),
+                        "explain_plan": getattr(output, "explain_plan", None),
+                        # Iter 51: per-(user, session) stated facts so
+                        # the Personal Facts dashboard tab can render
+                        # live (wireFactsTab in huawei_tabs.js).
+                        "personal_facts": getattr(output, "personal_facts", None),
+                        # Iter 51: structured intent-parse result for
+                        # turns where the engine ran the parser; None
+                        # for normal chat.  Surfaced as a green chip.
+                        "intent_result": getattr(output, "intent_result", None),
+                    }
+                    if reasoning_trace is not None:
+                        response_frame["reasoning_trace"] = reasoning_trace
+                    await manager.send_json(user_id, response_frame)
+
+                # Biometric rising-edge event — fired once per
+                # state transition (registered / drift_alert / mismatch)
+                # so the front-end can play a one-shot animation
+                # without re-triggering on every subsequent turn while
+                # the state stays stable.
+                if _biometric_event and biometric_dict is not None:
+                    bio_evt_frame: dict[str, Any] = {
+                        "type": "biometric_event",
+                        "event": _biometric_event,
+                        "timestamp": time.time(),
+                    }
+                    bio_evt_frame.update(biometric_dict)
+                    await manager.send_json(user_id, bio_evt_frame)
+
+                # Live State Badge frame — sent in addition to the
+                # response so the badge updates even mid-conversation
+                # (i.e. the same state classifier output gets surfaced
+                # both as part of the chat message metadata chips AND
+                # as the standalone nav-badge update).
+                if user_state_label_dict is not None:
+                    badge_frame: dict[str, Any] = {
+                        "type": "state_badge",
+                        "timestamp": time.time(),
+                    }
+                    badge_frame.update(user_state_label_dict)
+                    await manager.send_json(user_id, badge_frame)
+
+                # Accessibility-mode rising / falling edge frame.  Only
+                # emitted on the actual transition turns so the UI
+                # animation can play once and not re-trigger on every
+                # subsequent turn while the mode stays active.
+                if accessibility_dict is not None and (
+                    accessibility_dict.get("activated_this_turn")
+                    or accessibility_dict.get("deactivated_this_turn")
+                ):
+                    change_frame: dict[str, Any] = {
+                        "type": "accessibility_change",
+                        "timestamp": time.time(),
+                    }
+                    change_frame.update(accessibility_dict)
+                    await manager.send_json(user_id, change_frame)
+
+                # Behavioural state update (used by the dashboard viz).
+                # The dashboard UI expects the four StyleVector sub-
+                # dimensions (formality / verbosity / emotionality /
+                # directness) at the *top level* of the ``adaptation``
+                # object alongside ``cognitive_load`` / ``emotional_tone``.
+                # ``adaptation_flat`` was already flattened above so the
+                # reasoning trace and the dashboard observe the same
+                # shape on every turn.
                 await manager.send_json(user_id, {
                     "type": "state_update",
                     "user_state_embedding_2d": list(output.user_state_embedding_2d),
-                    "adaptation": output.adaptation,
+                    "adaptation": adaptation_flat,
                     "engagement_score": output.engagement_score,
                     "deviation_from_baseline": output.deviation_from_baseline,
                     "routing_confidence": output.routing_confidence,
                     "messages_in_session": output.messages_in_session,
                     "baseline_established": output.baseline_established,
+                    "route_chosen": output.route_chosen,
+                    "routing_decision": getattr(output, "routing_decision", None),
+                    "privacy_budget": getattr(output, "privacy_budget", None),
+                    "user_state_label": user_state_label_dict,
+                    "accessibility": accessibility_dict,
+                    "biometric": biometric_dict,
+                    # Iter 20: active conversation topic (chat hero pill).
+                    "active_topic": active_topic_dict,
+                    # Iter 26: topic-history breadcrumb.
+                    "topic_history": topic_history_list,
+                    # Iter 51: side-channel safety caveat.
+                    "safety_caveat": getattr(output, "safety_caveat", None),
+                    # Iter 51: per-(user, session) stated facts for the
+                    # Personal Facts dashboard tab — wireFactsTab in
+                    # huawei_tabs.js listens for the i3:state_update
+                    # CustomEvent and renders them.
+                    "personal_facts": getattr(output, "personal_facts", None),
+                    # Iter 51: structured intent-parse result if the
+                    # engine ran the parser on this turn.
+                    "intent_result": getattr(output, "intent_result", None),
                 })
 
                 # Diary entry (only sent when the pipeline produces one)
@@ -563,15 +1178,46 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str) -> None:
                     pass
                 break
 
-            else:
-                logger.warning(
-                    "Closing WebSocket for %s: unknown type=%r", user_id, msg_type
-                )
-                await websocket.close(code=_CLOSE_POLICY_VIOLATION)
-                break
+            elif msg_type == "session_start":
+                # SEC/UX: The browser's app.js sends ``{type: "session_start"}``
+                # right after the socket opens as a handshake ack.  Treating
+                # it as "unknown" closed every connection with 1008 the
+                # instant the UI loaded, putting the client into an endless
+                # reconnect loop (observed 2026-04-25 browser probe).  The
+                # server-side session is already started on connect, so we
+                # just acknowledge and continue.
+                continue
 
-    except WebSocketDisconnect:
-        logger.info("User %s WebSocket disconnected normally", user_id)
+            elif msg_type == "ping":
+                # SEC/UX: Optional keepalive from the client -- respond so
+                # proxies / load balancers don't time the socket out.
+                await manager.send_json(
+                    user_id, {"type": "pong", "timestamp": time.time()}
+                )
+                continue
+
+            else:
+                # SEC: Ignore unknown types instead of closing the socket.
+                # Closing on an unknown type is a denial-of-service vector
+                # for client-library version drift: a new UI field names
+                # an unknown type once and the user can never chat again
+                # because the server drops the socket before the message
+                # round trip.  We log + drop the frame and keep the socket
+                # open so the next valid frame still reaches the pipeline.
+                logger.warning(
+                    "Ignoring unknown WebSocket frame from %s: type=%r",
+                    user_id,
+                    msg_type,
+                )
+                continue
+
+    except WebSocketDisconnect as _wd:
+        logger.info(
+            "User %s WebSocket disconnected normally (code=%r reason=%r)",
+            user_id,
+            getattr(_wd, "code", None),
+            getattr(_wd, "reason", None),
+        )
     except Exception as exc:
         # SEC: Never leak internal error details back to the client.
         logger.error("WebSocket error for %s: %s", user_id, exc, exc_info=True)

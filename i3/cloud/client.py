@@ -127,10 +127,32 @@ class CloudLLMClient:
             behaviour.
     """
 
+    # SEC: Hard ceilings on the per-call token budget.  These cap
+    # *both* the operator-configured ``cloud.max_tokens`` and any
+    # caller-supplied override so a runaway config cannot bill an
+    # arbitrarily large prompt.
+    _MAX_INPUT_TOKENS_PER_CALL: int = 800
+    _MAX_OUTPUT_TOKENS_PER_CALL: int = 200
+
     def __init__(self, config: Any) -> None:
         cloud: CloudConfig = config.cloud
-        self.model: str = cloud.model
-        self.max_tokens: int = cloud.max_tokens
+        # Allow env override of the model name.  ``I3_CLOUD_MODEL``
+        # is documented in the project pitch as the knob the operator
+        # flips when switching between Sonnet / Opus / Haiku tiers.
+        env_model = os.environ.get("I3_CLOUD_MODEL", "").strip()
+        self.model: str = env_model or cloud.model
+        # SEC: clamp the configured output cap to the hard ceiling.
+        configured_max = int(cloud.max_tokens)
+        self.max_tokens: int = min(
+            configured_max, self._MAX_OUTPUT_TOKENS_PER_CALL
+        )
+        if configured_max > self._MAX_OUTPUT_TOKENS_PER_CALL:
+            logger.warning(
+                "cloud.max_tokens=%d exceeds output-token ceiling %d; "
+                "clamping.",
+                configured_max,
+                self._MAX_OUTPUT_TOKENS_PER_CALL,
+            )
         # Clamp timeout to the hard ceiling so a misconfigured config
         # cannot stall the pipeline indefinitely.
         requested_timeout = float(cloud.timeout)
@@ -155,6 +177,11 @@ class CloudLLMClient:
         # Cumulative token counters
         self._total_input_tokens: int = 0
         self._total_output_tokens: int = 0
+        # User-level override that loosens the I3_CLOUD_DISABLED env
+        # gate.  Toggled via :meth:`set_consent_override` from the
+        # consent endpoint.  Per-user budget enforcement still happens
+        # in :class:`PrivacyBudget`.
+        self._consent_override: bool = False
 
         if not self._api_key:
             logger.warning(
@@ -211,6 +238,14 @@ class CloudLLMClient:
                     "content-type": "application/json",
                     "accept": "application/json",
                     "user-agent": f"i3-cloud-client/{_I3_VERSION}",
+                    # Traceability: a synthetic, opaque user
+                    # identifier so the upstream provider can
+                    # correlate requests without seeing the actual
+                    # I3 user_id.  We deliberately do NOT forward
+                    # the real user_id — the demo guarantees the
+                    # cloud cannot link prompts back to a specific
+                    # user.
+                    "X-AI-User": "i3-synthetic-user",
                 },
                 timeout=timeout,
                 # SEC: explicit TLS verification (defence-in-depth).
@@ -259,6 +294,37 @@ class CloudLLMClient:
             user_message = ""
         messages.append({"role": "user", "content": user_message})
         return messages
+
+    @classmethod
+    def _enforce_input_token_budget(
+        cls,
+        system_prompt: str,
+        messages: list[dict[str, str]],
+    ) -> list[dict[str, str]]:
+        """Drop oldest history pairs until the input estimate fits.
+
+        Approximation: characters / 4.  Keeps the most-recent history
+        pairs and the current user message intact.
+        """
+        def _estimate(s: str) -> int:
+            return max(1, len(s or "") // 4)
+
+        budget = cls._MAX_INPUT_TOKENS_PER_CALL
+        budget -= _estimate(system_prompt)
+        if not messages:
+            return messages
+        # Always keep the last (current-turn) message.
+        kept: list[dict[str, str]] = [messages[-1]]
+        budget -= _estimate(messages[-1].get("content", ""))
+        # Walk older messages in reverse so the most recent history
+        # entries stay; stop when budget runs out.
+        for entry in reversed(messages[:-1]):
+            cost = _estimate(entry.get("content", ""))
+            if budget - cost < 0:
+                break
+            kept.insert(0, entry)
+            budget -= cost
+        return kept
 
     @staticmethod
     def _parse_response(data: dict[str, Any]) -> dict[str, Any]:
@@ -344,6 +410,14 @@ class CloudLLMClient:
         assert self._client is not None  # for type checker
 
         messages = self._build_messages(user_message, conversation_history)
+        # SEC: input-token budget.  We don't ship a tokenizer with the
+        # client, so we approximate by character / 4 (a stable
+        # English-text rule of thumb).  When the estimate exceeds the
+        # ceiling we drop the oldest history pairs first; the current
+        # turn's user_message + system_prompt are never trimmed.
+        messages = self._enforce_input_token_budget(
+            system_prompt, messages
+        )
         payload: dict[str, Any] = {
             "model": self.model,
             "max_tokens": self.max_tokens,
@@ -530,6 +604,21 @@ class CloudLLMClient:
                         "Claude API returned HTTP %d (non-retryable)",
                         response.status_code,
                     )
+                    # Circuit-breaker: auth/billing failures mean the
+                    # account is broken (wrong key, no credit, banned
+                    # org).  Hammering the upstream will not fix that
+                    # and every fallback response to the user says the
+                    # demo is broken.  Mark the client unavailable so
+                    # the router stops picking cloud and all subsequent
+                    # messages go to the local SLM instead.
+                    if response.status_code in {400, 401, 402, 403}:
+                        self._cloud_disabled_by_error = True
+                        logger.warning(
+                            "Cloud route disabled for the rest of this "
+                            "process (HTTP %d).  All further requests "
+                            "will use the local SLM.",
+                            response.status_code,
+                        )
                     public_msg = (
                         f"Cloud provider returned HTTP {response.status_code}"
                     )
@@ -654,8 +743,59 @@ class CloudLLMClient:
 
     @property
     def is_available(self) -> bool:
-        """Return ``True`` if an API key is configured."""
-        return bool(self._api_key)
+        """Return ``True`` if the cloud route is usable for *this process*.
+
+        Returns ``False`` when:
+        * no API key is configured, *or*
+        * the operator has explicitly disabled the cloud path via
+          ``I3_CLOUD_DISABLED=1`` AND the consent override has not
+          been engaged via :meth:`set_consent_override` (e.g. the
+          Anthropic account is out of credit, or the deployment is
+          intended to be edge-only), *or*
+        * the client has seen a non-retryable auth/billing failure
+          (HTTP 401 / 402 / 403) and self-circuit-broke.
+
+        The per-user consent flag is enforced separately by the engine
+        (``PrivacyBudget.consent``) so a single process serving
+        multiple users can have ``is_available=True`` here while still
+        gating individual users behind their consent toggle.
+        """
+        if not self._api_key:
+            return False
+        env_disabled = os.environ.get(
+            "I3_CLOUD_DISABLED", ""
+        ).strip().lower() in {"1", "true", "yes", "on"}
+        consent_override = bool(
+            getattr(self, "_consent_override", False)
+        )
+        if env_disabled and not consent_override:
+            return False
+        if getattr(self, "_cloud_disabled_by_error", False):
+            return False
+        return True
+
+    def set_consent_override(self, enabled: bool) -> bool:
+        """Allow a user-level consent flip to override ``I3_CLOUD_DISABLED``.
+
+        The env var is the operator's "the cloud account is broken,
+        don't even try" switch.  In a demo setting we want the user to
+        be able to opt in via the UI even when the operator has set
+        the env var (e.g. for screen-recording the cloud flow on a
+        machine where a global flag is set).  This method flips a
+        per-process override that ``is_available`` consults.
+
+        Note that the per-user consent in :class:`PrivacyBudget` is
+        STILL required — this just loosens the env-var gate at the
+        client level.
+
+        Returns the new state.
+        """
+        self._consent_override = bool(enabled)
+        if enabled:
+            logger.info("Cloud client consent override engaged.")
+        else:
+            logger.info("Cloud client consent override cleared.")
+        return self._consent_override
 
     @property
     def usage_stats(self) -> dict[str, int]:

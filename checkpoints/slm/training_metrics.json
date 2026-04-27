@@ -1,0 +1,16 @@
+{
+  "final_step": 31500,
+  "best_val_loss": 3.1830578325004923,
+  "best_step": 26000,
+  "total_time_s": 4907.967114448547,
+  "configs": {
+    "vocab_size": 30000,
+    "d_model": 512,
+    "n_layers": 8,
+    "n_heads": 8,
+    "d_ff": 2048,
+    "learning_rate": 0.0003,
+    "batch_size": 24,
+    "max_steps": 31500
+  }
+}

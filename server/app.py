@@ -72,6 +72,26 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.types import Receive, Scope, Send
+
+
+class SafeStaticFiles(StaticFiles):
+    """StaticFiles that ignores non-http scopes.
+
+    The upstream ``StaticFiles.__call__`` asserts ``scope["type"] == "http"``.
+    Because the root demo-UI mount is last in the router, any WebSocket or
+    lifespan request that doesn't match an earlier route falls through to
+    StaticFiles and raises ``AssertionError``, flooding the server log.
+    We intercept non-http scopes and close them cleanly instead of asserting.
+    """
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "websocket":
+            await send({"type": "websocket.close", "code": 1008})
+            return
+        if scope["type"] != "http":
+            return
+        await super().__call__(scope, receive, send)
 
 from i3.config import load_config
 from i3.pipeline.engine import Pipeline
@@ -103,7 +123,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         # directly.
         config = getattr(app.state, "config", None)
         if config is None:
-            config = load_config("configs/default.yaml", set_seeds=False)
+            _cfg_path = os.environ.get("I3_CONFIG_PATH", "configs/default.yaml")
+            config = load_config(_cfg_path, set_seeds=False)
         # SEC (M-3, 2026-04-23 audit): the in-memory sliding-window rate
         # limiter keeps per-process state.  If operators scale to
         # ``I3_WORKERS > 1`` without a shared store, each worker
@@ -255,7 +276,13 @@ def create_app() -> FastAPI:
     # config-parsing cost.  We load it here, stash it on ``app.state``,
     # and disable seed-setting for the second (no-op) reload.
     # ------------------------------------------------------------------
-    config = load_config("configs/default.yaml")
+    # SEC: Allow operators to override the config path via env var
+    # (defaults to the canonical configs/default.yaml). Useful when
+    # standing up a parallel verification server alongside the
+    # production one — they need different DB paths to avoid SQLite
+    # write-lock contention on the shared diary database.
+    _cfg_path = os.environ.get("I3_CONFIG_PATH", "configs/default.yaml")
+    config = load_config(_cfg_path)
     app.state.config = config
     cors_origins = _resolve_cors_origins(config)
     logger.info("CORS origins: %s", cors_origins)
@@ -392,13 +419,90 @@ def create_app() -> FastAPI:
     from server.routes_preference import include_preference_routes
     include_preference_routes(app)
 
+    # Edge-deployment proof dashboard — answers Huawei HMI Lab filter
+    # question "ever deployed ML models to low-compute devices?". Reads
+    # the cached report at ``reports/edge_profile.json``; the measurement
+    # itself is run out-of-band via ``scripts/measure_edge.py``.
+    from server.routes_edge import include_edge_routes
+    include_edge_routes(app)
+
+    # Accessibility-mode manual toggle — companion endpoint to the
+    # auto-activation logic in i3.affect.accessibility_mode.  The UI's
+    # nav-side [A] button hits this when the user wants to force the
+    # mode on (or clear a prior override).
+    from server.routes_accessibility import include_accessibility_routes
+    include_accessibility_routes(app)
+
+    # Identity Lock -- typing-biometric continuous authentication.
+    # The HEADLINE I3 feature (Monrose-Rubin / Killourhy-Maxion) --
+    # see i3.biometric.keystroke_auth for the full design rationale.
+    from server.routes_biometric import include_biometric_routes
+    include_biometric_routes(app)
+
+    # Cognitive Profile snapshot -- per-(user, session) running stats
+    # for the second flagship surface (the Profile tab).
+    from server.routes_profile import include_profile_routes
+    include_profile_routes(app)
+
+    # Per-biometric LoRA personalisation -- the FLAGSHIP novelty
+    # feature.  Each registered biometric template gets its own tiny
+    # on-device LoRA adapter (~544 params) layered onto the base
+    # AdaptationVector.  Trained online from the A/B preference picker;
+    # never federated, never leaves the device.  See
+    # i3.personalisation.lora_adapter for the design + Hu et al. 2021,
+    # Houlsby et al. 2019 citations.
+    from server.routes_personalisation import include_personalisation_routes
+    include_personalisation_routes(app)
+
+    # Live system-architecture Flow dashboard -- the third flagship
+    # surface.  Per-turn pipeline trace with stage timings + arrow
+    # flows ships on every WS response/response_done frame; these REST
+    # routes back the "Recent turns" replay table.  See
+    # i3.observability.pipeline_trace for the collector contract.
+    from server.routes_flow import include_flow_routes
+    include_flow_routes(app)
+
+    # Vision fine-tuning showcase -- gaze classifier with frozen
+    # MobileNetV3-small backbone + per-user fine-tuned head.
+    # Closes the JD-gap "adapt or fine-tune pre-trained models" bullet.
+    # See i3/multimodal/gaze_classifier.py for the full design.
+    from server.routes_gaze import include_gaze_routes
+    include_gaze_routes(app)
+
+    # Cloud-vs-edge routing surface — per-session privacy budget,
+    # cloud-route consent toggle, recent routing decisions for the
+    # scatter plot.  Closes the JD-line "Build and fine-tune SLMs,
+    # traditional ML models, or applications leveraging foundational
+    # LLMs, depending on the use case" — the cloud LLM is the *opt-in*
+    # fallback, the edge SLM is the default.
+    from server.routes_routing import include_routing_routes
+    include_routing_routes(app)
+
+    # Quantitative benchmarks tab — latency, perplexity, coherence,
+    # adaptation faithfulness, memory + size.  See i3/benchmarks/runner.py
+    # and scripts/run_benchmarks.py for the offline CLI.
+    from server.routes_benchmarks import include_benchmark_routes
+    include_benchmark_routes(app)
+
+    # Playground tab — manual override of every pipeline stage for
+    # what-if exploration.  Capped at 100 calls per session.
+    from server.routes_playground import include_playground_routes
+    include_playground_routes(app)
+
     # ------------------------------------------------------------------
     # Static files -- serve the demo UI (must be mounted *last* so API
-    # and WS routes take precedence)
+    # and WS routes take precedence).
+    #
+    # Order matters: the root ("/") mount is a catch-all, so every more
+    # specific mount must precede it or Starlette routes everything to
+    # the root mount.  The demo HTML also uses two URL-path conventions
+    # for assets -- ``/static/css/*`` (core chat bundle) and ``/css/*``
+    # (advanced-UI modules) -- so we expose the same ``web/`` directory
+    # under both prefixes.
     # ------------------------------------------------------------------
-    app.mount("/", StaticFiles(directory="web", html=True), name="static")
-    # Advanced cinematic demo UI (Batch G9) — served at /advanced.
-    app.mount("/advanced", StaticFiles(directory="web/advanced", html=True), name="advanced_ui")
+    app.mount("/advanced", SafeStaticFiles(directory="web/advanced", html=True), name="advanced_ui")
+    app.mount("/static", SafeStaticFiles(directory="web"), name="static_alias")
+    app.mount("/", SafeStaticFiles(directory="web", html=True), name="static")
 
     return app
 

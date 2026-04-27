@@ -1,0 +1,24 @@
+{
+  "slm_params": 53307392,
+  "slm_size_fp32_mb": 203.35,
+  "slm_size_bf16_mb": 101.68,
+  "slm_size_int8_mb": 110.19,
+  "tcn_params": 106112,
+  "tcn_size_fp32_mb": 0.405,
+  "tcn_size_int8_mb": 0.4,
+  "latency_ms_p50": 612.83,
+  "latency_ms_p95": 692.35,
+  "latency_ms_encoder_p50": 3.679,
+  "latency_ms_encoder_p95": 4.707,
+  "memory_peak_mb": 1311.1,
+  "onnx_size_mb": null,
+  "deployable_to": [
+    "mid-range phone (int8 110.2 MB <= 300 MB budget)",
+    "budget phone (int8 110.2 MB > 100 MB budget - too big)",
+    "wearable (int8 110.2 MB > 50 MB budget - too big)"
+  ],
+  "timestamp": "2026-04-25T02:26:08+00:00",
+  "device": "cpu",
+  "slm_checkpoint": "D:\\implicit-interaction-intelligence\\checkpoints\\slm\\best_model.pt",
+  "tcn_checkpoint": "D:\\implicit-interaction-intelligence\\checkpoints\\encoder\\best_model.pt"
+}

@@ -128,6 +128,18 @@ class AdaptiveSLM(nn.Module):
 
         self.d_model: int = d_model
         self.vocab_size: int = vocab_size
+        # Record the other architecture hyperparameters as public
+        # attributes so introspection (``pipeline.get_diagnostics`` and
+        # the ``/api/stack`` endpoint) can report them without having
+        # to walk sub-modules.  This also lets the checkpoint loader
+        # auto-detect shape when the config and checkpoint disagree.
+        self.n_heads: int = n_heads
+        self.n_layers: int = n_layers
+        self.d_ff: int = d_ff
+        self.max_seq_len: int = max_seq_len
+        self.dropout: float = dropout
+        self.conditioning_dim: int = conditioning_dim
+        self.adaptation_dim: int = adaptation_dim
 
         # ----- Token + Positional Embedding ------------------------------------
         self.embedding = TransformerEmbedding(
@@ -324,6 +336,52 @@ class AdaptiveSLM(nn.Module):
         logits = self.output_projection(x)           # [batch, seq_len, vocab_size]
 
         return logits, layer_info
+
+    # ----- attention extraction -------------------------------------------------
+
+    @torch.no_grad()
+    def forward_with_attention(
+        self,
+        input_ids: torch.Tensor,
+        adaptation_vector: torch.Tensor | None = None,
+        user_state: torch.Tensor | None = None,
+    ) -> tuple[torch.Tensor, list[torch.Tensor]]:
+        """Run the model and return per-layer self-attention weights.
+
+        Additive companion to :meth:`forward` used by the ``/api/attention``
+        endpoint and by interpretability tooling.  Never touches the KV
+        cache (``use_cache=False``) and always runs under ``torch.no_grad``.
+
+        Parameters
+        ----------
+        input_ids : torch.Tensor
+            ``[batch, seq_len]`` integer token IDs.
+        adaptation_vector : torch.Tensor, optional
+            ``[batch, adaptation_dim]`` — same semantics as :meth:`forward`.
+        user_state : torch.Tensor, optional
+            ``[batch, conditioning_dim]`` — same semantics as :meth:`forward`.
+
+        Returns
+        -------
+        logits : torch.Tensor
+            ``[batch, seq_len, vocab_size]``
+        attention_weights_per_layer : list[torch.Tensor]
+            One tensor per transformer layer, each of shape
+            ``[batch, n_heads, seq_len, seq_len]`` (self-attention only).
+        """
+        logits, layer_info = self.forward(
+            input_ids=input_ids,
+            adaptation_vector=adaptation_vector,
+            user_state=user_state,
+            use_cache=False,
+        )
+        per_layer: list[torch.Tensor] = []
+        for i in range(len(self.layers)):
+            entry = layer_info.get(f"layer_{i}", {})
+            weights = entry.get("self_attn") if isinstance(entry, dict) else None
+            if weights is not None:
+                per_layer.append(weights.detach())
+        return logits, per_layer
 
     # ----- cache management -----------------------------------------------------
 

@@ -535,6 +535,13 @@ class Config(BaseModel):
     privacy: PrivacyConfig = Field(default_factory=PrivacyConfig)
     profiling: ProfilingConfig = Field(default_factory=ProfilingConfig)
     server: ServerConfig = Field(default_factory=ServerConfig)
+    # V2 sections consumed by ``i3/slm/train_v2.py`` only.  Kept as free-
+    # form dicts here (not Pydantic sub-models) because the trainer owns
+    # their schema and the runtime pipeline doesn't look at them; adding
+    # them keeps ``extra="forbid"`` happy without duplicating the
+    # TrainingV2/ModelV2 validators across two files.
+    slm_v2: dict | None = None
+    training_v2: dict | None = None
 
 
 # ---------------------------------------------------------------------------

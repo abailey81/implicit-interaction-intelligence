@@ -159,3 +159,57 @@
     font-variant-numeric: tabular-nums;
     letter-spacing: 0.02em;
 }
+
+/* ===========================================================================
+ * Personalisation update toast — surfaces the per-biometric LoRA update
+ * after each A/B preference pick.  Cites Hu et al. 2021 LoRA and Houlsby
+ * et al. 2019 (Adapter modules) by inheritance from the server-side
+ * i3.personalisation.lora_adapter module.
+ * =========================================================================== */
+
+.lora-update-toast {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, rgba(96, 67, 213, 0.95), rgba(63, 41, 184, 0.95));
+    color: #fff;
+    box-shadow: 0 12px 32px rgba(63, 41, 184, 0.35), 0 1px 0 rgba(255, 255, 255, 0.08) inset;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    font-size: 13px;
+    letter-spacing: 0.01em;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 280ms ease, transform 280ms ease;
+    pointer-events: none;
+    max-width: 480px;
+}
+
+.lora-update-toast.lora-update-toast-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.lora-update-toast .lora-update-icon {
+    font-size: 18px;
+    line-height: 1;
+}
+
+.lora-update-toast .lora-update-text {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.lora-update-toast .lora-update-meta {
+    font-size: 11px;
+    opacity: 0.78;
+    border-left: 1px solid rgba(255, 255, 255, 0.25);
+    padding-left: 10px;
+    margin-left: 4px;
+}

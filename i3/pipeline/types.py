@@ -22,6 +22,7 @@ boundary.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
 import numpy as np
 
@@ -56,6 +57,55 @@ class PipelineInput:
     edit_count: int
     pause_before_send_ms: float
     keystroke_timings: list[float] = field(default_factory=list)
+
+    # Optional voice-prosody features for the multimodal fusion path.
+    # When non-``None``, the dict carries the eight scalars listed in
+    # :data:`i3.multimodal.PROSODY_FEATURE_KEYS` plus two metadata fields
+    # (``samples_count``, ``captured_seconds``).  The browser-side
+    # ``VoiceProsodyMonitor`` (``web/js/voice_prosody.js``) extracts these
+    # via the WebAudio API and ships them on the ``message`` frame; the
+    # WS layer validates the payload via
+    # :func:`i3.multimodal.validate_prosody_payload` before constructing
+    # the input.  ``None`` means the user did not enable the mic this
+    # turn (the default) — the engine then runs its keystroke-only path.
+    #
+    # Privacy contract: the raw audio buffer NEVER leaves the browser.
+    # See the top-of-file docstring of ``i3/multimodal/prosody.py``.
+    prosody_features: dict | None = None
+
+    # Optional gaze-classifier features for the vision multimodal path.
+    # The browser-side ``GazeCapture`` monitor (``web/js/gaze_capture.js``)
+    # captures one webcam frame per ~250 ms, downsamples to a 64×48
+    # grayscale fingerprint, and ships the aggregated dict on the
+    # ``message`` frame.  Shape:
+    # ``{label, confidence, label_probs, presence, blink_rate_norm,
+    # head_stability, captured_seconds, samples_count}``.  Validated
+    # by :func:`i3.multimodal.validate_gaze_payload`.  ``None`` means
+    # the camera was off this turn (the default).
+    #
+    # Privacy contract: the raw image NEVER leaves the browser as a
+    # full-resolution frame.  Only the 64×48 grayscale fingerprint
+    # (3072 bytes) is shipped to the server's gaze classifier; that
+    # in turn is fine-tuned per-user via in-session calibration.
+    # See ``i3/multimodal/gaze_classifier.py`` for the full contract.
+    gaze_features: dict | None = None
+
+    # Optional per-turn playground overrides.  When non-``None``, the
+    # pipeline applies the supplied keys to bypass / override the
+    # corresponding stages (adaptation, biometric, accessibility,
+    # route, critique, coref).  Defaults reproduce the normal flow
+    # exactly; only the keys the operator explicitly set are honoured.
+    # Hard-capped to 100 requests per session by the playground
+    # endpoint.  Shape:
+    #   {"adaptation": {<AdaptationVector dict>} | None,
+    #    "biometric_state": "registered" | "mismatch" | "unregistered",
+    #    "accessibility": True | False,
+    #    "route": "edge" | "cloud",
+    #    "critique": True | False,
+    #    "coref": True | False,
+    #    "safety": True | False}
+    # Never persisted; lives only for the duration of the turn.
+    playground_overrides: dict | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -106,6 +156,225 @@ class PipelineOutput:
 
     # Diary entry (optional, only on significant events)
     diary_entry: dict | None = None
+
+    # Which sub-path of the hybrid local-SLM stack carried the turn.
+    # One of ``"retrieval"`` / ``"retrieval_borderline"`` / ``"slm"`` /
+    # ``"ood"`` / ``"none"``.  Used by the UI's pipeline-activity ribbon
+    # to highlight the correct component.  Optional so legacy callers
+    # that construct PipelineOutput directly aren't broken.
+    response_path: str = "unknown"
+
+    # Cosine-similarity score from the retrieval layer (0.0–1.0), only
+    # meaningful when response_path starts with "retrieval".  The UI
+    # shows this as a "confidence" chip next to the reply.
+    retrieval_score: float = 0.0
+
+    # Per-axis adaptation rewrites applied to the visible response.
+    # Each entry is ``{"axis": ..., "value": ..., "change": ...}`` —
+    # e.g. ``{"axis": "formality", "value": "0.74",
+    # "change": "expanded contractions"}``.  Empty when adaptation was
+    # neutral.  The UI surfaces these as chips beneath the reply so the
+    # user can see exactly how their typing reshaped the answer.
+    adaptation_changes: list = field(default_factory=list)
+
+    # Mid-conversation affect-shift detection result.  ``None`` when
+    # the detector hasn't been wired in (legacy callers) or when the
+    # turn produced no shift signal.  When non-``None`` and
+    # ``detected=True`` the engine has already appended the
+    # ``suggestion`` to the visible ``response_text``.  See
+    # :class:`i3.affect.AffectShift` for the full contract.
+    affect_shift: Any | None = None
+
+    # Iter 51 (2026-04-27): safety-classifier soft caveat surfaced via
+    # a side-channel chip rather than appended to the chat bubble.
+    # ``None`` when the safety classifier did not emit a caveat for
+    # this turn (the common case).  When a string is set, the
+    # frontend renders a small "ⓘ moderation note" pill next to the
+    # response without polluting the chat text.  The caveat is the
+    # full sentence (e.g., "Do not provide assistance with self-harm,
+    # violence, or weapon construction (Constitutional principle:
+    # physical-harm).").
+    safety_caveat: str | None = None
+
+    # Discrete user-state label produced by the state classifier
+    # (Live State Badge feature).  Populated as a JSON-safe dict
+    # with keys ``state``, ``confidence``, ``secondary_state``,
+    # ``contributing_signals``.  ``None`` when the classifier is
+    # not wired into the pipeline (legacy callers).  See
+    # :func:`i3.affect.classify_user_state` for the full contract.
+    user_state_label: dict | None = None
+
+    # Accessibility-mode auto-switch state produced by the
+    # :class:`i3.affect.AccessibilityController` (Accessibility Mode
+    # feature).  Populated as a JSON-safe dict with the
+    # :class:`AccessibilityModeState` field set; ``None`` when the
+    # controller isn't wired in.  When ``active=True`` the engine has
+    # already pushed the adaptation knobs harder so the post-processor
+    # produces a maximally-trimmed, simple-vocabulary reply.
+    accessibility: dict | None = None
+
+    # Continuous typing-biometric authentication result produced by
+    # :class:`i3.biometric.KeystrokeAuthenticator` (the I3 headline
+    # feature -- Identity Lock).  Serialised as a plain dict with the
+    # :class:`BiometricMatch` fields set; ``None`` when the
+    # authenticator isn't wired in (legacy callers).  The WS layer
+    # ships this on every response/state_update frame so the front-end
+    # Identity Lock badge can paint live.
+    biometric: dict | None = None
+
+    # Co-reference resolution result produced by
+    # :class:`i3.dialogue.EntityTracker` on every turn.  ``None`` when
+    # the resolver isn't wired in (legacy callers) OR when the user's
+    # message contained no pronoun / referring expression that could
+    # be resolved.  When non-``None`` the WS layer surfaces the chip
+    # ``coref · they → huawei`` and the reasoning-trace narrates
+    # ``"You said 'where are they located?'; I resolved 'they' to
+    # 'Huawei' (most recent ORG mentioned 1 turn ago) before
+    # retrieval."``  Shape: ``{"original_query": str,
+    # "resolved_query": str, "used_entity": {"text", "canonical",
+    # "kind", "last_turn_idx"}, "used_pronoun": str,
+    # "confidence": float, "reasoning": str}``.
+    coreference_resolution: dict | None = None
+
+    # Per-biometric LoRA personalisation status produced by
+    # :class:`i3.personalisation.PersonalisationManager` (the FLAGSHIP
+    # novelty -- see i3.personalisation.lora_adapter for the design).
+    # Shape: ``{"applied": bool, "drift": {axis: float}, "n_updates":
+    # int, "user_key": str | None, "num_parameters": int, "rank": int,
+    # "reason": str}``.  ``applied=False`` means the user's
+    # biometric template isn't registered yet (or the residual is
+    # exactly zero on a fresh adapter); ``applied=True`` means the
+    # personalised residual was layered onto the base AdaptationVector
+    # before downstream rewriting.
+    personalisation: dict | None = None
+
+    # Self-critique loop trace produced by :class:`i3.critique.SelfCritic`
+    # on the SLM-generation path (Phase 7 HMI pitch piece).  Populated
+    # only when ``response_path == "slm"``; ``None`` for retrieval /
+    # tool / OOD turns since the critic doesn't run there.  Shape:
+    # ``{"final_score": float, "accepted": bool, "regenerated": bool,
+    # "rejected": bool, "threshold": float,
+    # "attempts": [{"text": str, "score": float, "sub_scores": {..},
+    # "reasons": [..], "sampling_params": {..}}, ...]}``.  The WS layer
+    # ships this on every response/response_done frame so the chat UI
+    # can render a "self-critique" chip + an expandable trace under the
+    # message.
+    critique: dict | None = None
+
+    # Voice-prosody multimodal fusion status produced by the
+    # :class:`i3.multimodal.MultimodalFusion` head when the browser
+    # ships ``prosody_features`` on a turn.  Shape:
+    # ``{"prosody_active": bool, "gaze_active": bool, "fused_dim": int,
+    # "samples_count": int, "captured_seconds": float,
+    # "feature_summary": {<key>: float, ...}}``.  ``None`` when the
+    # multimodal head wasn't wired in OR the user did not enable the
+    # mic on this turn (the default).  When ``prosody_active=True``,
+    # the WS layer surfaces a ``voice prosody · active`` chip on the
+    # response and the reasoning trace narrates the fusion sentence.
+    multimodal: dict | None = None
+
+    # Vision-gaze classifier output (third multimodal flagship —
+    # fine-tuned MobileNetV3-small backbone + per-user fine-tuned head).
+    # Shape: ``{"label": str, "confidence": float, "label_probs": {...},
+    # "presence": bool, "blink_rate_norm": float, "head_stability": float,
+    # "captured_seconds": float, "samples_count": int,
+    # "gaze_aware_note": str | None}``.  ``None`` when the camera was
+    # off (the default) or the classifier wasn't wired in.  When
+    # ``presence=False`` the engine has annotated ``gaze_aware_note``
+    # with the gaze-conditioned response-timing message.
+    gaze: dict | None = None
+
+    # Per-turn pipeline trace produced by
+    # :class:`i3.observability.pipeline_trace.PipelineTraceCollector`
+    # (third flagship surface — the live Flow dashboard).  Shape:
+    # ``{"turn_id": str, "user_id": str, "session_id": str,
+    # "started_at_ms": float, "ended_at_ms": float,
+    # "total_latency_ms": float, "stages": [<StageRecord>, ...],
+    # "arrow_flows": [<arrow>, ...]}``.  ``None`` when the collector
+    # wasn't wired in (legacy callers / build_error_output).  The WS
+    # layer ships this on every response/response_done frame so
+    # ``web/js/flow_dashboard.js`` can animate every stage box.
+    pipeline_trace: dict | None = None
+
+    # Detailed routing-decision audit trail produced by the LinUCB
+    # bandit + complexity / privacy gates on every turn.  Shape:
+    # ``{"arm": "edge_slm" | "cloud_llm",
+    #    "confidence": float,
+    #    "reason": str,
+    #    "feature_vector": list[float],
+    #    "complexity": {"score": float, "factors": dict, "notes": str},
+    #    "consent_required": bool}``.  ``None`` only on legacy
+    # callers / build_error_output.  Used by the Routing tab's
+    # scatter plot, the cloud-route reasoning paragraph, and the
+    # ``GET /api/routing/decision/recent`` endpoint.
+    routing_decision: dict | None = None
+
+    # Privacy-budget snapshot for the cloud LLM hybrid route.
+    # Populated on every turn (whether or not the cloud arm fired)
+    # so the UI can render the "X of 50 calls used" counter live.
+    # Shape mirrors :class:`i3.privacy.budget.PrivacyBudgetSnapshot`.
+    # ``None`` only on legacy callers / build_error_output.
+    privacy_budget: dict | None = None
+
+    # Constitutional safety verdict produced by the char-CNN classifier
+    # in :mod:`i3.safety.classifier`.  Shape mirrors
+    # :class:`SafetyVerdict.to_dict`:
+    #   {"verdict": "safe"|"review"|"refuse",
+    #    "confidence": float,
+    #    "reasons": [..],
+    #    "constitutional_principle": str,
+    #    "suggested_response": str,
+    #    "scores": {<label>: float, ...}}
+    # ``None`` only on legacy callers / build_error_output / when the
+    # classifier failed to load.  When ``verdict == "refuse"`` the
+    # engine has already short-circuited the response_text to the
+    # canonical refusal and set ``response_path = "tool:safety"``.
+    safety: dict | None = None
+
+    # Hierarchical session memory snapshot (Phase B.5, 2026-04-25).
+    # Shape: ``{"user_facts": [{"predicate", "object", "confidence",
+    # "decay"}, ...], "topic_stack": [{"canonical", "weight"}, ...],
+    # "turn_count": int, "thread_summary": str}``.  ``None`` when the
+    # memory module isn't wired in.  Surfaced in the reasoning trace
+    # as ``"User-stated facts on file: 'developer', 'prefers
+    # bullets'.  Session topic thread: 'X'."``
+    session_memory: dict | None = None
+
+    # Multi-step explain decomposition trace (Phase B.3, 2026-04-25).
+    # Populated only on turns where the engine detected an "explain X"
+    # / "tell me about X" / "describe X" query and ran the
+    # :class:`ExplainDecomposer`.  Shape: ``{"topic": str,
+    # "sub_questions": [str], "sub_answers": [{"question", "source",
+    # "text", "confidence"}], "composite_answer": str}``.  ``None`` for
+    # every other turn.  Surfaced in the chat UI as a collapsible
+    # ``<details>`` "Reasoning chain" element under the response.
+    explain_plan: dict | None = None
+
+    # Iter 51 (2026-04-27): per-(user, session) stated facts dict
+    # captured by the pipeline's fact-handler regex chain
+    # (``Pipeline._stated_facts``).  Shape: ``{<slot>: <value>, ...}``
+    # with slots like ``name``, ``favourite_color``, ``occupation``,
+    # ``location``, ``hobby``, ``age``, ``pet``, ``language``.
+    # Surfaced live by the Personal Facts dashboard tab via the
+    # ``i3:state_update`` browser CustomEvent (see
+    # ``web/js/huawei_tabs.js:wireFactsTab``).  ``None`` when no facts
+    # have been stated yet this session OR on legacy callers that
+    # construct PipelineOutput directly.  Empty dict means the user
+    # has visited the recall path but no facts are on file.
+    personal_facts: dict | None = None
+
+    # Iter 51 (2026-04-27): structured-output intent-parse result for
+    # turns that hit the ``/api/intent`` HTTP endpoint OR for turns
+    # where the engine detected a command-shaped utterance ("set timer
+    # for 10 minutes", "play jazz").  Shape mirrors
+    # :class:`i3.intent.IntentResult.to_dict`:
+    #   {"action": str, "params": dict,
+    #    "valid_json": bool, "valid_action": bool, "valid_slots": bool,
+    #    "confidence": float, "raw_text": str, "backend": str,
+    #    "latency_ms": float}
+    # ``None`` for normal chat turns.  Surfaced in the chat UI as a
+    # green ``intent · play_music · genre=jazz`` chip.
+    intent_result: dict | None = None
 
 
 # ---------------------------------------------------------------------------

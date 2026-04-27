@@ -40,6 +40,45 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+# ---------------------------------------------------------------------------
+# Tokenizer compatibility shims
+# ---------------------------------------------------------------------------
+#
+# v2 wires a :class:`~i3.slm.bpe_tokenizer.BPETokenizer` rather than the
+# v1 :class:`~i3.slm.tokenizer.SimpleTokenizer`. Public surface is *almost*
+# identical (encode / decode / PAD_ID / BOS_ID / EOS_ID / SEP_ID / UNK_ID),
+# but two small differences need bridging in the generate loop:
+#
+# 1. ``encode()`` signature:
+#    - SimpleTokenizer:  ``encode(text, add_special=True, max_length=None)``
+#    - BPETokenizer:     ``encode(text, *, add_bos=False, add_eos=False, max_length=None)``
+#    The default behaviour is also opposite (Simple wraps with BOS+EOS by
+#    default; BPE adds nothing). The decode signature matches.
+#
+# 2. Stop tokens — ``[SEP]`` is a legitimate stop signal for the v2
+#    dialogue format because the trainer used ``[BOS] history [SEP]
+#    response [EOS]`` and the model has learned to emit ``[SEP]`` if
+#    it ever wants to "start a new turn". Adding SEP to the stop set
+#    short-circuits that into ending the current response cleanly.
+#
+# These helpers detect the tokenizer kind by attribute introspection
+# (no isinstance import — keeps the SLMGenerator independent of which
+# tokenizer module is imported at the call site).
+# ---------------------------------------------------------------------------
+
+
+def _is_bpe_tokenizer(tokenizer) -> bool:  # type: ignore[no-untyped-def]
+    """True when *tokenizer* exposes the BPE ``add_bos``/``add_eos`` API."""
+    return hasattr(tokenizer, "merges") and hasattr(tokenizer, "token_bytes")
+
+
+def _encode_with_special(tokenizer, text: str, add_special: bool):  # type: ignore[no-untyped-def]
+    """Cross-tokenizer wrapper: encode *text*, optionally with BOS+EOS."""
+    if _is_bpe_tokenizer(tokenizer):
+        return tokenizer.encode(text, add_bos=add_special, add_eos=add_special)
+    return tokenizer.encode(text, add_special=add_special)
+
+
 class SLMGenerator:
     """Autoregressive text generation with temperature, top-k, top-p sampling.
 
@@ -111,6 +150,7 @@ class SLMGenerator:
         top_p: float = 0.9,
         repetition_penalty: float = 1.2,
         stop_tokens: list[int] | None = None,
+        dialogue_mode: bool = True,
     ) -> str:
         """Generate text autoregressively from a prompt.
 
@@ -176,13 +216,52 @@ class SLMGenerator:
         self.model.clear_cache()
 
         try:
-            # 1. Encode prompt
-            input_ids = self.tokenizer.encode(prompt, add_special=True)
+            # 1. Encode prompt.  In "dialogue mode" we match the exact
+            # format the model saw during training:
+            #
+            #     [BOS] <history tokens> [SEP] <response tokens> [EOS]
+            #
+            # The offline training pipeline stored the literal string
+            # ``[SEP]`` between turns; the word-level tokenizer then
+            # preprocessed that as three separate word tokens ``[``,
+            # ``sep``, ``]``.  The default ``encode(..., add_special=True)``
+            # wraps the prompt in ``[BOS] ... [EOS]`` — that trailing EOS
+            # is exactly what the model was trained to *emit* (not
+            # consume), so conditioning on it makes the first next-token
+            # prediction land in the "continue past end-of-sequence"
+            # region of the distribution, which is where the model saw
+            # noise during training.  Result: the model ignores the
+            # prompt and regurgitates whatever it memorised.
+            #
+            # Dialogue-mode encoding instead builds:
+            #
+            #     [BOS_ID] + tokens(prompt) + tokens("[SEP]")
+            #
+            # so the first step samples the *response* distribution.
+            if dialogue_mode:
+                body = _encode_with_special(self.tokenizer, prompt, add_special=False)
+                # For the BPE tokenizer the SEP_ID is a single reserved token
+                # (id=4) that ``encode("[SEP]")`` would *not* recover —
+                # byte-level BPE would tokenise the literal characters
+                # "[SEP]" as bytes. Inject the id directly instead.
+                if _is_bpe_tokenizer(self.tokenizer):
+                    input_ids = [self.tokenizer.BOS_ID, *body, self.tokenizer.SEP_ID]
+                else:
+                    sep = self.tokenizer.encode("[SEP]", add_special=False)
+                    input_ids = [self.tokenizer.BOS_ID, *body, *sep]
+            else:
+                input_ids = _encode_with_special(self.tokenizer, prompt, add_special=True)
             input_tensor = torch.tensor([input_ids], device=self.device)
 
             # 2. Default stop tokens
             if stop_tokens is None:
-                stop_tokens = [self.tokenizer.EOS_ID]
+                # v2's BPE format puts ``[SEP]`` between turns, so the model
+                # may emit it to start a "next turn". Stopping there keeps
+                # responses tight; v1 SimpleTokenizer keeps EOS-only stops.
+                if _is_bpe_tokenizer(self.tokenizer):
+                    stop_tokens = [self.tokenizer.EOS_ID, self.tokenizer.SEP_ID]
+                else:
+                    stop_tokens = [self.tokenizer.EOS_ID]
             # SEC: Use a set for O(1) membership and to dedupe input.
             stop_set: set[int] = set(stop_tokens)
             # SEC: Identify EOS/PAD/BOS so the repetition penalty does NOT
@@ -301,6 +380,191 @@ class SLMGenerator:
             self.model.clear_cache()
 
     # ------------------------------------------------------------------
+    # Streaming generation (token-by-token)
+    # ------------------------------------------------------------------
+
+    @torch.no_grad()
+    def generate_streaming(
+        self,
+        prompt: str,
+        adaptation_vector: torch.Tensor | None = None,
+        user_state: torch.Tensor | None = None,
+        max_new_tokens: int = 100,
+        temperature: float = 0.8,
+        top_k: int = 50,
+        top_p: float = 0.9,
+        repetition_penalty: float = 1.2,
+        stop_tokens: list[int] | None = None,
+        dialogue_mode: bool = True,
+    ):
+        """Generate text autoregressively, yielding each token as it lands.
+
+        Additive companion to :meth:`generate`.  Yields one decoded string
+        ``delta`` per sampled token (the incremental continuation).  The
+        final value yielded is the *complete* decoded string so callers
+        can attach it to a ``response_done`` frame without re-decoding.
+
+        The yield protocol is::
+
+            for item in gen.generate_streaming(prompt):
+                if isinstance(item, tuple) and item[0] == "final":
+                    full_text = item[1]
+                else:  # plain string -> incremental delta token
+                    delta_str = item
+
+        The token string is the diff between the decoded sequence *before*
+        and *after* the new token is appended — this handles multi-char
+        tokens (punctuation, whitespace) cleanly.
+
+        All security guards, sampling knobs, and cache-cleanup semantics
+        match :meth:`generate` exactly.
+        """
+        # ---- Validate sampling parameters (same rules as generate()) ----
+        if temperature < 0:
+            raise ValueError(f"temperature must be >= 0, got {temperature}")
+        if not 0.0 <= top_p <= 1.0:
+            raise ValueError(f"top_p must be in [0, 1], got {top_p}")
+        if top_k < 0:
+            raise ValueError(f"top_k must be >= 0, got {top_k}")
+        if repetition_penalty <= 0:
+            raise ValueError(
+                f"repetition_penalty must be > 0, got {repetition_penalty}"
+            )
+        if max_new_tokens < 0:
+            raise ValueError(f"max_new_tokens must be >= 0, got {max_new_tokens}")
+        max_new_tokens = min(max_new_tokens, self.HARD_MAX_NEW_TOKENS)
+
+        greedy = temperature <= 1e-5
+
+        self.model.clear_cache()
+
+        try:
+            # ---- Encode prompt (dialogue-mode aware) --------------------
+            if dialogue_mode:
+                body = _encode_with_special(self.tokenizer, prompt, add_special=False)
+                if _is_bpe_tokenizer(self.tokenizer):
+                    input_ids = [self.tokenizer.BOS_ID, *body, self.tokenizer.SEP_ID]
+                else:
+                    sep = self.tokenizer.encode("[SEP]", add_special=False)
+                    input_ids = [self.tokenizer.BOS_ID, *body, *sep]
+            else:
+                input_ids = _encode_with_special(self.tokenizer, prompt, add_special=True)
+            input_tensor = torch.tensor([input_ids], device=self.device)
+
+            if stop_tokens is None:
+                if _is_bpe_tokenizer(self.tokenizer):
+                    stop_tokens = [self.tokenizer.EOS_ID, self.tokenizer.SEP_ID]
+                else:
+                    stop_tokens = [self.tokenizer.EOS_ID]
+            stop_set: set[int] = set(stop_tokens)
+            protected_ids: set[int] = {
+                self.tokenizer.PAD_ID,
+                self.tokenizer.BOS_ID,
+                self.tokenizer.EOS_ID,
+            }
+
+            # ---- Conditioning ------------------------------------------
+            if adaptation_vector is not None:
+                if adaptation_vector.dim() == 1:
+                    adaptation_vector = adaptation_vector.unsqueeze(0)
+                adaptation_vector = adaptation_vector.to(self.device)
+            if user_state is not None:
+                if user_state.dim() == 1:
+                    user_state = user_state.unsqueeze(0)
+                user_state = user_state.to(self.device)
+
+            generated_ids: list[int] = list(input_ids)
+            # The "response" portion is only the tokens *after* the prompt.
+            response_ids: list[int] = []
+
+            try:
+                pos_max = self.model.embedding.positional_encoding.pe.size(1)
+            except AttributeError:
+                pos_max = 2048
+
+            # Running decode of the response so we can compute per-token
+            # deltas without re-tokenising. Start with an empty decode.
+            prev_decoded = ""
+
+            for _ in range(max_new_tokens):
+                if len(generated_ids) >= pos_max:
+                    logger.warning(
+                        "Reached positional encoding limit (%d); stopping.",
+                        pos_max,
+                    )
+                    break
+
+                logits, _ = self.model(
+                    input_tensor,
+                    adaptation_vector,
+                    user_state,
+                    use_cache=True,
+                )
+                next_logits = logits[:, -1, :]
+
+                next_logits = self._apply_repetition_penalty(
+                    next_logits,
+                    generated_ids,
+                    repetition_penalty,
+                    protected_ids=protected_ids,
+                )
+
+                if greedy:
+                    next_token = int(torch.argmax(next_logits, dim=-1).item())
+                else:
+                    next_logits = next_logits / temperature
+                    if top_k > 0:
+                        next_logits = self._top_k_filter(next_logits, top_k)
+                    if top_p < 1.0:
+                        next_logits = self._top_p_filter(next_logits, top_p)
+                    probs = F.softmax(next_logits, dim=-1)
+                    if (
+                        torch.isnan(probs).any()
+                        or torch.isinf(probs).any()
+                        or probs.sum().item() <= 0.0
+                    ):
+                        logger.warning(
+                            "Degenerate sampling distribution; "
+                            "falling back to uniform."
+                        )
+                        probs = torch.full_like(probs, 1.0 / probs.size(-1))
+                    next_token = int(
+                        torch.multinomial(probs, num_samples=1).item()
+                    )
+
+                if next_token in stop_set:
+                    break
+
+                generated_ids.append(next_token)
+                response_ids.append(next_token)
+                input_tensor = torch.tensor(
+                    [[next_token]], device=self.device
+                )
+
+                # Compute the delta between the previous full decode and
+                # the new full decode so multi-char tokens (punctuation,
+                # whitespace-prefixed words) render correctly.
+                new_decoded = self.tokenizer.decode(response_ids, skip_special=True)
+                if new_decoded.startswith(prev_decoded):
+                    delta = new_decoded[len(prev_decoded):]
+                else:
+                    # Rare: decode format shifted between tokens. Fall
+                    # back to emitting the single-token decode.
+                    delta = self.tokenizer.decode([next_token], skip_special=True)
+                prev_decoded = new_decoded
+
+                if delta:
+                    yield delta
+
+            # Final payload: full decoded response (prompt + continuation,
+            # matching generate()'s return contract).
+            full_text = self.tokenizer.decode(generated_ids, skip_special=True)
+            yield ("final", full_text)
+
+        finally:
+            self.model.clear_cache()
+
+    # ------------------------------------------------------------------
     # Batch generation
     # ------------------------------------------------------------------
 
@@ -406,8 +670,8 @@ class SLMGenerator:
             - ``"num_tokens"`` -- number of generated tokens measured
         """
         # Encode prompt and full text
-        prompt_ids = self.tokenizer.encode(prompt, add_special=True)
-        full_ids = self.tokenizer.encode(generated_text, add_special=True)
+        prompt_ids = _encode_with_special(self.tokenizer, prompt, add_special=True)
+        full_ids = _encode_with_special(self.tokenizer, generated_text, add_special=True)
 
         prompt_len = len(prompt_ids)
         if len(full_ids) <= prompt_len:

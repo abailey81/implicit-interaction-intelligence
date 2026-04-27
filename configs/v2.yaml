@@ -1,0 +1,199 @@
+project:
+  name: "Implicit Interaction Intelligence"
+  version: "1.0.0"
+  seed: 42
+  # PERF: 'auto' -> CUDA when available, else MPS (Apple Silicon), else CPU.
+  # See i3/runtime/device.py::pick_device for the exact resolution order.
+  device: "auto"
+  # PERF: mixed-precision training (torch.amp autocast + GradScaler on fp16).
+  # Honoured by training scripts; a no-op on CPU so CPU reproducibility is
+  # preserved bit-for-bit.
+  mixed_precision: true
+
+interaction:
+  feature_window: 10
+  keystroke_features: true
+  linguistic_features: true
+  feature_dim: 32
+
+encoder:
+  architecture: "tcn"
+  input_dim: 32
+  hidden_dims: [64, 64, 64, 64]
+  kernel_size: 3
+  dilations: [1, 2, 4, 8]
+  dropout: 0.1
+  embedding_dim: 64
+  use_layer_norm: true
+  use_residual: true
+
+user_model:
+  session_ema_alpha: 0.3
+  longterm_ema_alpha: 0.1
+  baseline_warmup: 5
+  deviation_threshold: 1.5
+  max_history_sessions: 50
+
+adaptation:
+  cognitive_load:
+    min_response_length: 10
+    max_response_length: 150
+    vocabulary_levels: 3
+  style_mirror:
+    dimensions: 4
+    adaptation_rate: 0.2
+  emotional_tone:
+    warmth_range: [0.0, 1.0]
+    default: 0.5
+  accessibility:
+    detection_threshold: 0.7
+    simplification_levels: 3
+
+router:
+  arms: ["local_slm", "cloud_llm"]
+  bandit_type: "contextual_thompson"
+  context_dim: 12
+  prior_alpha: 1.0
+  prior_beta: 1.0
+  exploration_bonus: 0.1
+  min_cloud_complexity: 0.6
+  privacy_override: true
+
+slm:
+  # Scaled up to the realistic Huawei-SLM ceiling for a 6 GB edge GPU:
+  # d_model=512, 8 layers, 8 heads, d_ff=2048 → ~30 M parameters plus a
+  # 20k×512 token-embedding matrix (~10 M more), so ~40 M total.
+  # That's genuinely SLM-class (Huawei's Pangu-edge family tops out
+  # around 1-3 B; we're training from scratch on a synthetic
+  # domain-specialised corpus, so ~40 M is what we can saturate
+  # without memorising the dataset).
+  #
+  # Vocab ceiling is 30 k to cover broad real-world vocabulary
+  # harvested from a 350+ topic Wikipedia corpus across HMI, devices,
+  # ML, sciences, geography, sports, arts, philosophy, history,
+  # languages.  At this scale the tokenizer keeps every word that
+  # appears more than a handful of times in the training corpus.
+  vocab_size: 30000
+  max_seq_len: 256
+  d_model: 512
+  n_heads: 8
+  n_layers: 8
+  d_ff: 2048
+  dropout: 0.1
+  conditioning_dim: 64
+  adaptation_dim: 8
+  cross_attention_heads: 4
+  use_pre_ln: true
+  tie_weights: true
+  training:
+    batch_size: 32
+    learning_rate: 3.0e-4
+    warmup_steps: 1000
+    max_steps: 100000
+    gradient_clip: 1.0
+    weight_decay: 0.01
+    checkpoint_every: 5000
+  generation:
+    temperature: 0.8
+    top_k: 50
+    top_p: 0.9
+    max_new_tokens: 100
+    repetition_penalty: 1.2
+  quantization:
+    enabled: true
+    dtype: "int8"
+    method: "dynamic"
+
+# ── v2 SLM: 400 M-parameter AdaptiveTransformerV2 (MoE + ACT + per-layer cond) ──
+# Targets a single RTX 4050 Laptop (6.4 GB VRAM, ~5 GB usable) via bf16 +
+# 8-bit AdamW + gradient checkpointing.  See i3/slm/train_v2.py for the
+# trainer that consumes this section.
+slm_v2:
+  # Target: ~210M params — largest shape that trains in ~18-24 h overnight
+  # on a single RTX 4050 Laptop (6.4 GB VRAM) with bf16 + 8-bit AdamW +
+  # gradient checkpointing + max_seq_len=512.  The 400M shape below in
+  # comments is the architecturally-ideal target but its 3-epoch wall
+  # time (~14 days on this GPU) put it outside the user's budget.
+  vocab_size: 32000
+  d_model: 768
+  n_layers: 12
+  n_heads: 12
+  d_ff: 3072
+  n_experts: 2           # gives ~210M params at the shape above
+  max_seq_len: 512
+  dropout: 0.1
+  adaptation_dim: 8
+  use_grad_checkpointing: true
+  # Reference shape (unused — documents the architectural ideal if a
+  # bigger GPU becomes available):
+  # d_model: 960  n_layers: 16  d_ff: 3840  n_experts: 2  seq: 1024
+
+training_v2:
+  batch_size: 4
+  grad_accum_steps: 8       # effective batch = 32
+  learning_rate: 3.0e-4
+  weight_decay: 0.1
+  warmup_ratio: 0.02
+  grad_clip_norm: 1.0
+  n_epochs: 2               # 2 epochs on the subsampled corpus
+  # Sub-sample the 974k corpus to 300k pairs at train-time.  At the
+  # 210M shape above the trainer pushes ~8-10 samples/sec → 300k
+  # pairs / epoch ≈ 9-11 h → 2 epochs ≈ 18-22 h.  Seed-fixed so the
+  # split is reproducible.
+  corpus_subset_size: 300000
+  corpus_subset_seed: 17
+  save_every_steps: 1500
+  eval_every_steps: 750
+  mtl_weight: 0.0           # multi-task heads off by default
+  moe_aux_weight: 0.01
+  act_ponder_weight: 0.01
+  seed: 17
+
+cloud:
+  provider: "anthropic"
+  model: "claude-sonnet-4-5"            # brief §8: locked model id
+  max_tokens: 200
+  timeout: 10.0
+  fallback_on_error: true
+  # Universal provider layer (see i3/cloud/providers/ and docs/cloud/
+  # provider_universality.md). provider picks one concrete adapter;
+  # fallback_chain, if set, wraps MultiProviderClient around it.
+  fallback_chain: []  # e.g. [anthropic, google, ollama]
+  cost_tracking_enabled: true
+
+diary:
+  db_path: "data/diary_v2.db"
+  max_entries: 1000
+  session_summary_model: "cloud"
+  encrypt_at_rest: true
+
+privacy:
+  strip_pii: true
+  never_store_raw_text: true
+  encrypt_embeddings: true
+  encryption_key_env: "I3_ENCRYPTION_KEY"
+
+profiling:
+  enabled: true
+  benchmark_iterations: 100
+  target_devices:
+    - name: "Kirin 9000 (Phone)"
+      memory_mb: 512
+      tops: 2.0
+    - name: "Kirin A2 (Wearable)"
+      memory_mb: 128
+      tops: 0.5
+    - name: "Smart Hanhan (IoT)"
+      memory_mb: 64
+      tops: 0.1
+
+server:
+  host: "127.0.0.1"
+  port: 8000
+  # Explicit allow-list for CORS; wildcard "*" is rejected unless
+  # I3_ALLOW_CORS_WILDCARD=1 is set (see server/app.py).  Override
+  # with the I3_CORS_ORIGINS environment variable in production.
+  cors_origins:
+    - "http://localhost:8000"
+    - "http://127.0.0.1:8000"
+  websocket_ping_interval: 30

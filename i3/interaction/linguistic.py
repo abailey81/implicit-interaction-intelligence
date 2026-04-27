@@ -408,8 +408,13 @@ class LinguisticAnalyzer:
             replacement = abbr.replace(".", "\x00")
             protected = pattern.sub(replacement, protected)
 
-        # Also protect decimal numbers (e.g. "3.14")
-        protected = re.sub(r'(\d)\.(\d)', r'\1\x00\2', protected)
+        # Also protect decimal numbers (e.g. "3.14").  The replacement
+        # string must NOT be a raw-string: ``\x00`` needs to be a literal
+        # NUL byte (matching the abbreviation placeholder on line 408).
+        # In a raw-string ``r'\x00'`` is the four literal characters
+        # ``\``, ``x``, ``0``, ``0``, which ``re`` interprets as a bad
+        # escape and raises ``re.error: bad escape \x`` at match time.
+        protected = re.sub(r'(\d)\.(\d)', '\\1\x00\\2', protected)
 
         # Split on sentence-ending punctuation
         parts: list[str] = []

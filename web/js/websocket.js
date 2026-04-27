@@ -82,6 +82,25 @@ class WebSocketClient {
         this.ws.onclose = (event) => {
             console.log('[WS] Connection closed:', event.code, event.reason);
             this._trigger('disconnected');
+            // --------------------------------------------------------
+            // Do NOT reconnect on server-initiated "go away" closes.
+            // Without this guard, an eviction (1001) or policy-violation
+            // rejection (1008) puts the client into a reconnect loop:
+            // every new connection kicks the previous one, which then
+            // reconnects, which kicks the new one, forever.  Codes in
+            // the 4000-4999 app-reserved range are also treated as
+            // terminal ("server told me to stop").
+            // --------------------------------------------------------
+            const noReconnectCodes = new Set([1000, 1001, 1008]);
+            const isAppRejection = event.code >= 4000 && event.code <= 4999;
+            if (noReconnectCodes.has(event.code) || isAppRejection) {
+                console.log(
+                    `[WS] Close code ${event.code} is terminal; ` +
+                    'not scheduling a reconnect.'
+                );
+                this._trigger('reconnect_failed', { code: event.code });
+                return;
+            }
             this._reconnect();
         };
 

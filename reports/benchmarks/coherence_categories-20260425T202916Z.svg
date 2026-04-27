@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400" width="800" height="400" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="12">
+  <rect width="800" height="400" fill="#0a0a0c"/>
+  <text x="40.0" y="30.0" fill="#ffffff" text-anchor="start" font-size="18" font-weight="600">Conversational coherence by category</text>
+  <text x="400.0" y="200.0" fill="#8e8e93" text-anchor="middle" font-size="12" font-weight="400">No coherence audit data</text>
+</svg>

@@ -35,7 +35,13 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 DEFAULT_MAX_BODY_BYTES: int = 1 * 1024 * 1024          # 1 MiB for REST
-DEFAULT_API_RATE_LIMIT: int = 60                        # requests / minute / IP
+# 60 req/min was too tight for the demo UI: a single page load fires
+# /api/profile + /api/edge/profile + /api/biometric/.../status +
+# /api/personalisation/.../status + /api/benchmarks/latest + 4 SVG plots
+# + /api/flow/recent + a flurry of state_update WS frames.  Bumped to
+# 600 req/min which still rejects abusive scrapers while the UI loads
+# cleanly on a fresh page open.
+DEFAULT_API_RATE_LIMIT: int = 600                       # requests / minute / IP
 DEFAULT_WS_USER_RATE_LIMIT: int = 600                   # messages / minute / user
 DEFAULT_WINDOW_SECONDS: int = 60                        # sliding-window length
 
@@ -79,20 +85,32 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         "default-src 'self'; "
         "script-src 'self' 'unsafe-inline'; "
         "style-src 'self' 'unsafe-inline'; "
+        # SEC: SVGs from /api/benchmarks/svg/* are first-party, generated
+        # deterministically by our own ``i3.benchmarks.runner`` from
+        # measured numbers — no remote / user-supplied content reaches
+        # this endpoint.  We allow them as ``img-src`` and as
+        # ``object-src 'self'`` so the Benchmarks tab can embed them as
+        # ``<object>`` (preserves their interactive viewBox + a11y) or
+        # ``<img>`` (lighter fallback) without CSP blocking.
         "img-src 'self' data:; "
+        "media-src 'self' blob: data:; "
         "connect-src 'self' ws: wss:; "
         "font-src 'self' data:; "
-        "object-src 'none'; "
+        "object-src 'self'; "
         "base-uri 'self'; "
         "form-action 'self'; "
         "frame-ancestors 'none'"
     )
 
-    # SEC: fullscreen=(self) added per OWASP guidance — the demo dashboard
-    # may use fullscreen on the embedding canvas; geolocation/camera/etc.
-    # are denied entirely.
+    # SEC: ``camera=(self)`` and ``microphone=(self)`` allow opt-in
+    # multimodal capture (gaze classifier + voice prosody fusion) which
+    # the user explicitly enables via UI toggles.  Without these grants,
+    # ``getUserMedia`` is blocked at the policy layer before the user
+    # ever sees the browser permission prompt — so the mic / camera
+    # toggle buttons appeared "broken" even after consent.
+    # All other capabilities stay denied.
     DEFAULT_PERMISSIONS: str = (
-        "camera=(), microphone=(), geolocation=(), payment=(), "
+        "camera=(self), microphone=(self), geolocation=(), payment=(), "
         "usb=(), accelerometer=(), gyroscope=(), magnetometer=(), "
         "fullscreen=(self)"
     )

@@ -1,0 +1,272 @@
+/* Iter 51 (2026-04-27) — styles for the 7 new Huawei dashboard tabs.
+   Intentionally minimal so they inherit the existing design language.
+   Loaded after style.css so cascade wins. */
+
+.huawei-card {
+    background: #0f0f10;
+    border: 1px solid #2a2a2c;
+    border-radius: 8px;
+    padding: 18px 20px;
+    margin: 12px 0;
+}
+
+.huawei-card-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 14px;
+}
+
+.huawei-card-row label {
+    color: #ccc;
+    font-size: 13px;
+    margin-right: 4px;
+}
+
+.huawei-card-output {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    background: #050505;
+    border: 1px solid #1f1f21;
+    border-radius: 4px;
+    padding: 12px 14px;
+    color: #b0e6c0;
+    font-size: 13px;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    overflow-x: auto;
+    min-height: 60px;
+}
+
+.huawei-card-output em {
+    color: #777;
+}
+
+.huawei-card-output.error {
+    color: #f08080;
+    border-color: #5b2222;
+}
+
+.huawei-card-meta {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #888;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.huawei-card-meta span {
+    background: #1a1a1c;
+    border: 1px solid #2a2a2c;
+    border-radius: 12px;
+    padding: 2px 10px;
+}
+
+.huawei-card-meta .meta-good { color: #7adb7a; border-color: #2c4a2c; }
+.huawei-card-meta .meta-warn { color: #d9c864; border-color: #514a23; }
+.huawei-card-meta .meta-bad  { color: #ee7e7e; border-color: #5b2222; }
+
+.huawei-status {
+    background: #0a0a0b;
+    border: 1px solid #2a2a2c;
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin: 12px 0;
+}
+
+.huawei-status pre {
+    background: #050505;
+    border-radius: 4px;
+    padding: 10px;
+    overflow-x: auto;
+    font-size: 12px;
+    color: #cde;
+}
+
+.huawei-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 12px;
+    margin: 12px 0;
+}
+
+.huawei-grid .huawei-card {
+    margin: 0;
+}
+
+.huawei-grid .huawei-card h3 {
+    margin: 0 0 8px 0;
+    font-size: 15px;
+    color: #f0f0f0;
+}
+
+.huawei-grid .huawei-card p {
+    margin: 6px 0;
+    font-size: 13px;
+    color: #bbb;
+    line-height: 1.45;
+}
+
+.huawei-grid .huawei-card a {
+    color: #6cb1ff;
+    font-size: 12px;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+.huawei-grid .huawei-card a:hover {
+    color: #99c8ff;
+}
+
+/* Profiling-tab specific */
+.edge-profile-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 8px 0;
+}
+
+.edge-profile-table th,
+.edge-profile-table td {
+    padding: 6px 10px;
+    border-bottom: 1px solid #2a2a2c;
+    font-size: 13px;
+    text-align: left;
+}
+
+.edge-profile-table th {
+    color: #888;
+    font-weight: 500;
+    background: #0a0a0b;
+}
+
+.edge-profile-table td.num {
+    text-align: right;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    color: #cde;
+}
+
+.edge-profile-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.edge-profile-summary .stat {
+    background: #1a1a1c;
+    border: 1px solid #2a2a2c;
+    border-radius: 6px;
+    padding: 10px 12px;
+}
+
+.edge-profile-summary .stat-label {
+    font-size: 11px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.edge-profile-summary .stat-value {
+    font-size: 22px;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    color: #f5f5f5;
+    margin-top: 4px;
+}
+
+.edge-profile-summary .stat-value.good {
+    color: #7adb7a;
+}
+
+/* Side-channel chips — affect-shift + safety + adaptation */
+.message-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.message-chip {
+    background: #1a1a1c;
+    border: 1px solid #2a2a2c;
+    border-radius: 12px;
+    padding: 2px 10px;
+    font-size: 11px;
+    color: #aaa;
+    cursor: default;
+}
+
+.message-chip.chip-affect {
+    color: #d9c864;
+    border-color: #514a23;
+}
+
+.message-chip.chip-safety {
+    color: #ee7e7e;
+    border-color: #5b2222;
+}
+
+.message-chip.chip-adapt {
+    color: #6cb1ff;
+    border-color: #2a4a6a;
+}
+
+.message-chip.chip-intent {
+    color: #b0e6c0;
+    border-color: #2c4a2c;
+}
+
+/* Intent JSON output highlighting */
+.intent-json-block {
+    color: #cde;
+}
+.intent-json-block .json-key { color: #6cb1ff; }
+.intent-json-block .json-string { color: #b0e6c0; }
+.intent-json-block .json-number { color: #f0c870; }
+.intent-json-block .json-bool { color: #d090e0; }
+
+/* Iter 51 — Stack subsystem cards: status pill + grid spacing */
+.huawei-status-pill {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-left: 4px;
+    background: #102015;
+    color: #b0e6c0;
+    border: 1px solid #2c4a2c;
+    vertical-align: 1px;
+}
+.huawei-status-pill.ok    { background: #102015; color: #b0e6c0; border-color: #2c4a2c; }
+.huawei-status-pill.warn  { background: #20180a; color: #f0c870; border-color: #4a3a1a; }
+.huawei-status-pill.error { background: #200a0a; color: #f0a0a0; border-color: #4a1a1a; }
+
+#stack-subsystem-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+}
+#stack-subsystem-grid .huawei-card { margin: 0; }
+#stack-subsystem-grid .huawei-card h3 {
+    font-size: 15px;
+    margin: 0 0 10px;
+    color: #f0f0f0;
+}
+#stack-subsystem-grid .huawei-card p {
+    font-size: 13px;
+    color: #b0b0b0;
+    line-height: 1.45;
+    margin: 6px 0;
+}
+#stack-subsystem-grid .huawei-card a {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    color: #6cb1ff;
+    text-decoration: none;
+    font-size: 12px;
+}
+#stack-subsystem-grid .huawei-card a:hover {
+    text-decoration: underline;
+}

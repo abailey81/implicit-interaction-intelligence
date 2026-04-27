@@ -110,6 +110,7 @@ class MultiHeadSelfAttention(nn.Module):
         x: torch.Tensor,
         mask: torch.Tensor | None = None,
         use_cache: bool = False,
+        return_weights: bool = False,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Compute multi-head self-attention.
 
@@ -131,6 +132,11 @@ class MultiHeadSelfAttention(nn.Module):
             If ``True``, append current K / V to the internal cache and
             use the full cached K / V for attention.  Call
             :meth:`clear_cache` between sequences (default ``False``).
+        return_weights : bool, optional
+            If ``True``, always return the attention weights as the second
+            tuple element.  The default behaviour already returns them
+            (so this flag is primarily a forward-compatible contract
+            marker used by :meth:`AdaptiveSLM.forward_with_attention`).
 
         Returns
         -------

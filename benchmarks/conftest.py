@@ -28,8 +28,31 @@ import pytest
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-ENCODER_CKPT = PROJECT_ROOT / "checkpoints" / "encoder" / "best.pt"
-SLM_CKPT = PROJECT_ROOT / "checkpoints" / "slm" / "best.pt"
+
+
+def _pick_ckpt(*candidates: Path) -> Path:
+    """Return the first existing checkpoint path from *candidates*.
+
+    Trainers now emit ``best_model.pt`` whereas the older convention was
+    ``best.pt``; we accept either so the benchmark suite finds the
+    freshly-trained artefact without forcing a migration.
+    """
+    for p in candidates:
+        if p.is_file():
+            return p
+    # Fall back to the first candidate (will trigger the "missing" skip
+    # in each test — same UX as before).
+    return candidates[0]
+
+
+ENCODER_CKPT = _pick_ckpt(
+    PROJECT_ROOT / "checkpoints" / "encoder" / "best_model.pt",
+    PROJECT_ROOT / "checkpoints" / "encoder" / "best.pt",
+)
+SLM_CKPT = _pick_ckpt(
+    PROJECT_ROOT / "checkpoints" / "slm" / "best_model.pt",
+    PROJECT_ROOT / "checkpoints" / "slm" / "best.pt",
+)
 
 
 def _require_ckpt() -> bool:

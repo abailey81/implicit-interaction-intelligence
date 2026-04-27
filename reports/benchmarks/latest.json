@@ -1,0 +1,160 @@
+{
+  "timestamp": "20260425T202916Z",
+  "generated_at": 1777148956.9064565,
+  "headline": {
+    "latency_p50_ms": null,
+    "perplexity": 25.326416885637915,
+    "coherence_pct": null,
+    "slm_params": 55885824.0,
+    "safety_params": 47620.0,
+    "adaptation_faithfulness_pct": 0.0
+  },
+  "results": [
+    {
+      "suite": "latency",
+      "metric": "error",
+      "value": 0.0,
+      "unit": "ms",
+      "n_samples": 0,
+      "confidence_interval": null,
+      "notes": "latency suite produced no samples",
+      "timestamp": 1777148956.8819084
+    },
+    {
+      "suite": "perplexity",
+      "metric": "final_eval_ppl",
+      "value": 25.326416885637915,
+      "unit": "ppl",
+      "n_samples": 6,
+      "confidence_interval": null,
+      "notes": "final eval perplexity at step 31500",
+      "timestamp": 1777148956.8819084
+    },
+    {
+      "suite": "perplexity",
+      "metric": "best_eval_ppl",
+      "value": 24.120397033940872,
+      "unit": "ppl",
+      "n_samples": 6,
+      "confidence_interval": null,
+      "notes": "best (lowest) eval perplexity over full training run",
+      "timestamp": 1777148956.8819084
+    },
+    {
+      "suite": "coherence",
+      "metric": "error",
+      "value": 0.0,
+      "unit": "pct",
+      "n_samples": 0,
+      "confidence_interval": null,
+      "notes": "coherence suite produced no audit",
+      "timestamp": 1777148956.8819084
+    },
+    {
+      "suite": "adaptation",
+      "metric": "pct_correct_direction",
+      "value": 0.0,
+      "unit": "pct",
+      "n_samples": 0,
+      "confidence_interval": null,
+      "notes": "skipped \u2014 pipeline not available in this run",
+      "timestamp": 1777148956.8819084
+    },
+    {
+      "suite": "memory",
+      "metric": "on_disk_mb__slm_v2",
+      "value": 16499.07278251648,
+      "unit": "MB",
+      "n_samples": 1,
+      "confidence_interval": null,
+      "notes": "on-disk size of checkpoints\\slm_v2",
+      "timestamp": 1777148956.8819084
+    },
+    {
+      "suite": "memory",
+      "metric": "on_disk_mb__slm",
+      "value": 4887.831572532654,
+      "unit": "MB",
+      "n_samples": 1,
+      "confidence_interval": null,
+      "notes": "on-disk size of checkpoints\\slm",
+      "timestamp": 1777148956.8819084
+    },
+    {
+      "suite": "memory",
+      "metric": "on_disk_mb__encoder",
+      "value": 2.944925308227539,
+      "unit": "MB",
+      "n_samples": 1,
+      "confidence_interval": null,
+      "notes": "on-disk size of checkpoints\\encoder",
+      "timestamp": 1777148956.8819084
+    },
+    {
+      "suite": "memory",
+      "metric": "on_disk_mb__safety",
+      "value": 0.18513202667236328,
+      "unit": "MB",
+      "n_samples": 1,
+      "confidence_interval": null,
+      "notes": "on-disk size of checkpoints\\safety",
+      "timestamp": 1777148956.8819084
+    },
+    {
+      "suite": "memory",
+      "metric": "on_disk_mb__personalisation",
+      "value": 0.0056915283203125,
+      "unit": "MB",
+      "n_samples": 1,
+      "confidence_interval": null,
+      "notes": "on-disk size of checkpoints\\personalisation",
+      "timestamp": 1777148956.8819084
+    },
+    {
+      "suite": "memory",
+      "metric": "on_disk_mb__gaze",
+      "value": 0.28670501708984375,
+      "unit": "MB",
+      "n_samples": 1,
+      "confidence_interval": null,
+      "notes": "on-disk size of checkpoints\\gaze",
+      "timestamp": 1777148956.8819084
+    },
+    {
+      "suite": "memory",
+      "metric": "params__safety_classifier",
+      "value": 47620.0,
+      "unit": "count",
+      "n_samples": 1,
+      "confidence_interval": null,
+      "notes": "char-CNN safety classifier (constitutional layer)",
+      "timestamp": 1777148956.8994083
+    },
+    {
+      "suite": "memory",
+      "metric": "params__slm",
+      "value": 55885824.0,
+      "unit": "count",
+      "n_samples": 1,
+      "confidence_interval": null,
+      "notes": "custom decoder transformer (from-scratch)",
+      "timestamp": 1777148956.899983
+    },
+    {
+      "suite": "memory",
+      "metric": "rss_mb",
+      "value": 395.703125,
+      "unit": "MB",
+      "n_samples": 1,
+      "confidence_interval": null,
+      "notes": "resident set size of the benchmark process",
+      "timestamp": 1777148956.9064565
+    }
+  ],
+  "plots": {
+    "latency_breakdown": "latency_breakdown.svg",
+    "perplexity_curve": "perplexity_curve.svg",
+    "coherence_categories": "coherence_categories.svg",
+    "adaptation_faithfulness": "adaptation_faithfulness.svg"
+  }
+}

@@ -1,0 +1,5205 @@
+{
+  "generated_at": 1777150958.1015806,
+  "totals": {
+    "turns": 168,
+    "good": 154,
+    "ok": 3,
+    "bad": 11
+  },
+  "by_category": {
+    "A_greetings": {
+      "total": 15,
+      "good": 15,
+      "ok": 0,
+      "bad": 0,
+      "worst3": []
+    },
+    "B_meta": {
+      "total": 10,
+      "good": 9,
+      "ok": 1,
+      "bad": 0,
+      "worst3": []
+    },
+    "C_factoid": {
+      "total": 10,
+      "good": 10,
+      "ok": 0,
+      "bad": 0,
+      "worst3": []
+    },
+    "D_followup": {
+      "total": 51,
+      "good": 47,
+      "ok": 1,
+      "bad": 3,
+      "worst3": [
+        {
+          "turn_idx": 2,
+          "prompt": "currency",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "euro"
+          ],
+          "text": "The United Kingdom's currency is the pound sterling.",
+          "response_path": "retrieval",
+          "retrieval_score": 0.9723904728889465,
+          "latency_ms": 31.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "bad",
+          "quality_reason": "followup_ignored_prior_topic",
+          "_scenario_label": "d_germany",
+          "_user_id": "audit_d_germany"
+        },
+        {
+          "turn_idx": 1,
+          "prompt": "capital",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "berlin"
+          ],
+          "text": "The capital of the United Kingdom is London.",
+          "response_path": "retrieval",
+          "retrieval_score": 0.9564768671989441,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "bad",
+          "quality_reason": "followup_ignored_prior_topic",
+          "_scenario_label": "d_germany",
+          "_user_id": "audit_d_germany"
+        },
+        {
+          "turn_idx": 3,
+          "prompt": "which should I learn",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "depends",
+            "python",
+            "rust",
+            "use",
+            "case"
+          ],
+          "text": "I'm not able to give medical advice. For symptoms, dosage, or diagnosis questions please contact a qualified clinician or, in an emergency, your local emergency services.",
+          "response_path": "tool:safety",
+          "retrieval_score": 0.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "bad",
+          "quality_reason": "followup_ignored_prior_topic",
+          "_scenario_label": "d_pyrust",
+          "_user_id": "audit_d_pyrust"
+        }
+      ]
+    },
+    "E_explain": {
+      "total": 10,
+      "good": 10,
+      "ok": 0,
+      "bad": 0,
+      "worst3": []
+    },
+    "F_emotional": {
+      "total": 10,
+      "good": 8,
+      "ok": 0,
+      "bad": 2,
+      "worst3": [
+        {
+          "turn_idx": 0,
+          "prompt": "i'm angry",
+          "expect_kind": "emotional",
+          "expect_topic": [],
+          "text": "I don't have a confident answer for that one. Want to try a different angle?",
+          "response_path": "ood",
+          "retrieval_score": 0.9196256399154663,
+          "latency_ms": 219.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "bad",
+          "quality_reason": "emotional_fell_through_to_ood",
+          "_scenario_label": "emo_08",
+          "_user_id": "audit_f08"
+        },
+        {
+          "turn_idx": 0,
+          "prompt": "thank you for listening",
+          "expect_kind": "emotional",
+          "expect_topic": [],
+          "text": "I don't have a confident answer for that one. Want to try a different angle?",
+          "response_path": "ood",
+          "retrieval_score": 0.917007565498352,
+          "latency_ms": 125.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "bad",
+          "quality_reason": "emotional_fell_through_to_ood",
+          "_scenario_label": "emo_09",
+          "_user_id": "audit_f09"
+        }
+      ]
+    },
+    "G_math": {
+      "total": 5,
+      "good": 5,
+      "ok": 0,
+      "bad": 0,
+      "worst3": []
+    },
+    "H_hostile": {
+      "total": 5,
+      "good": 5,
+      "ok": 0,
+      "bad": 0,
+      "worst3": []
+    },
+    "I_ood": {
+      "total": 5,
+      "good": 5,
+      "ok": 0,
+      "bad": 0,
+      "worst3": []
+    },
+    "J_command": {
+      "total": 10,
+      "good": 5,
+      "ok": 1,
+      "bad": 4,
+      "worst3": [
+        {
+          "turn_idx": 0,
+          "prompt": "give me a quote",
+          "expect_kind": "command",
+          "expect_topic": [
+            "quote",
+            "said"
+          ],
+          "text": "First, solve the problem. Then, write the code. \u2014 John Johnson",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 31.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "bad",
+          "quality_reason": "confident_wrong_command",
+          "_scenario_label": "cmd_04",
+          "_user_id": "audit_j04"
+        },
+        {
+          "turn_idx": 0,
+          "prompt": "summarise this",
+          "expect_kind": "command",
+          "expect_topic": [
+            "what",
+            "summarise",
+            "summarize",
+            "?",
+            "need"
+          ],
+          "text": "Happy to. Drop the passage in and I'll pull out the essentials.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 15.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "bad",
+          "quality_reason": "confident_wrong_command",
+          "_scenario_label": "cmd_05",
+          "_user_id": "audit_j05"
+        },
+        {
+          "turn_idx": 0,
+          "prompt": "write a poem",
+          "expect_kind": "command",
+          "expect_topic": [
+            "poem",
+            "verse",
+            "rhyme",
+            "line"
+          ],
+          "text": "Shall I compare thee to a summer's day? / Thou art more lovely and more temperate. / Rough winds do shake the darling buds of May, / and summer's lease hath all too short a date.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "bad",
+          "quality_reason": "confident_wrong_command",
+          "_scenario_label": "cmd_06",
+          "_user_id": "audit_j06"
+        }
+      ]
+    },
+    "K_disambig": {
+      "total": 15,
+      "good": 13,
+      "ok": 0,
+      "bad": 2,
+      "worst3": [
+        {
+          "turn_idx": 2,
+          "prompt": "something about programming",
+          "expect_kind": "command",
+          "expect_topic": [
+            "programmer",
+            "code",
+            "bug",
+            "developer",
+            "joke"
+          ],
+          "text": "Programming is the activity of writing instructions for computers to execute. A programming language lets a person express those instructions precisely.",
+          "response_path": "retrieval",
+          "retrieval_score": 0.9254590272903442,
+          "latency_ms": 31.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "bad",
+          "quality_reason": "confident_wrong_command",
+          "_scenario_label": "k_joke",
+          "_user_id": "audit_k_joke"
+        },
+        {
+          "turn_idx": 2,
+          "prompt": "which one is bigger?",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "bigger",
+            "apple",
+            "huawei",
+            "compare",
+            "revenue"
+          ],
+          "text": "I'm not able to give medical advice. For symptoms, dosage, or diagnosis questions please contact a qualified clinician or, in an emergency, your local emergency services.",
+          "response_path": "tool:safety",
+          "retrieval_score": 0.0,
+          "latency_ms": 31.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "bad",
+          "quality_reason": "followup_ignored_prior_topic",
+          "_scenario_label": "k_h_a",
+          "_user_id": "audit_k_h_a"
+        }
+      ]
+    },
+    "L_edge": {
+      "total": 22,
+      "good": 22,
+      "ok": 0,
+      "bad": 0,
+      "worst3": []
+    }
+  },
+  "top_failure_patterns": [
+    {
+      "reason": "confident_wrong_command",
+      "count": 5,
+      "examples": [
+        {
+          "prompt": "give me a quote",
+          "text": "First, solve the problem. Then, write the code. \u2014 John Johnson",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "category": "J_command"
+        },
+        {
+          "prompt": "summarise this",
+          "text": "Happy to. Drop the passage in and I'll pull out the essentials.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "category": "J_command"
+        },
+        {
+          "prompt": "write a poem",
+          "text": "Shall I compare thee to a summer's day? / Thou art more lovely and more temperate. / Rough winds do shake the darling buds of May, / and summer's lease hath all too short a date.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "category": "J_command"
+        }
+      ]
+    },
+    {
+      "reason": "followup_ignored_prior_topic",
+      "count": 4,
+      "examples": [
+        {
+          "prompt": "capital",
+          "text": "The capital of the United Kingdom is London.",
+          "response_path": "retrieval",
+          "retrieval_score": 0.9564768671989441,
+          "category": "D_followup"
+        },
+        {
+          "prompt": "currency",
+          "text": "The United Kingdom's currency is the pound sterling.",
+          "response_path": "retrieval",
+          "retrieval_score": 0.9723904728889465,
+          "category": "D_followup"
+        },
+        {
+          "prompt": "which should I learn",
+          "text": "I'm not able to give medical advice. For symptoms, dosage, or diagnosis questions please contact a qualified clinician or, in an emergency, your local emergency services.",
+          "response_path": "tool:safety",
+          "retrieval_score": 0.0,
+          "category": "D_followup"
+        }
+      ]
+    },
+    {
+      "reason": "emotional_fell_through_to_ood",
+      "count": 2,
+      "examples": [
+        {
+          "prompt": "i'm angry",
+          "text": "I don't have a confident answer for that one. Want to try a different angle?",
+          "response_path": "ood",
+          "retrieval_score": 0.9196256399154663,
+          "category": "F_emotional"
+        },
+        {
+          "prompt": "thank you for listening",
+          "text": "I don't have a confident answer for that one. Want to try a different angle?",
+          "response_path": "ood",
+          "retrieval_score": 0.917007565498352,
+          "category": "F_emotional"
+        }
+      ]
+    },
+    {
+      "reason": "smalltalk_fell_through_to_ood",
+      "count": 1,
+      "examples": [
+        {
+          "prompt": "are you AI",
+          "text": "I don't have a confident answer for that one. Want to try a different angle?",
+          "response_path": "ood",
+          "retrieval_score": 0.8859509229660034,
+          "category": "B_meta"
+        }
+      ]
+    },
+    {
+      "reason": "factual_off_topic",
+      "count": 1,
+      "examples": [
+        {
+          "prompt": "how do batteries work",
+          "text": "I can't help with that. If you or someone you know is in danger, please contact local emergency services or a crisis helpline. I'm here if you want to talk about something else.",
+          "response_path": "tool:safety",
+          "retrieval_score": 0.0,
+          "category": "D_followup"
+        }
+      ]
+    },
+    {
+      "reason": "command_off_topic",
+      "count": 1,
+      "examples": [
+        {
+          "prompt": "give me a recipe for pasta",
+          "text": "I can't help with that \u2014 it falls outside what I can responsibly assist with. I'd be happy to answer a different question, or to discuss the legitimate alternatives in this area.",
+          "response_path": "tool:safety",
+          "retrieval_score": 0.0,
+          "category": "J_command"
+        }
+      ]
+    }
+  ],
+  "scenarios": [
+    {
+      "category": "A_greetings",
+      "label": "greet_00_hello",
+      "user_id": "audit_a00",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "hello",
+          "expect_kind": "smalltalk",
+          "expect_topic": [],
+          "text": "Good day to you. How may I assist?",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "A_greetings",
+      "label": "greet_01_hi",
+      "user_id": "audit_a01",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "hi",
+          "expect_kind": "smalltalk",
+          "expect_topic": [],
+          "text": "Hello there. What can I do for you?",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 15.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "A_greetings",
+      "label": "greet_02_good_morning",
+      "user_id": "audit_a02",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "good morning",
+          "expect_kind": "smalltalk",
+          "expect_topic": [],
+          "text": "Hey, glad you're here. What's on your mind today?",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 31.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "A_greetings",
+      "label": "greet_03_what's_up",
+      "user_id": "audit_a03",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "what's up",
+          "expect_kind": "smalltalk",
+          "expect_topic": [],
+          "text": "Same as ever. What can I help with today?",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 31.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "A_greetings",
+      "label": "greet_04_how_are_you",
+      "user_id": "audit_a04",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "how are you",
+          "expect_kind": "smalltalk",
+          "expect_topic": [],
+          "text": "I am well, thank you for inquiring.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 32.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "A_greetings",
+      "label": "greet_05_what's_new",
+      "user_id": "audit_a05",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "what's new",
+          "expect_kind": "smalltalk",
+          "expect_topic": [],
+          "text": "Nothing new on my side \u2014 I run fresh each session. What's new with you?",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 15.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "A_greetings",
+      "label": "greet_06_thanks",
+      "user_id": "audit_a06",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "thanks",
+          "expect_kind": "smalltalk",
+          "expect_topic": [],
+          "text": "You're welcome. Anything else I can help with?",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "A_greetings",
+      "label": "greet_07_thank_you",
+      "user_id": "audit_a07",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "thank you",
+          "expect_kind": "smalltalk",
+          "expect_topic": [],
+          "text": "Happy to help. Let me know if there's more.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "A_greetings",
+      "label": "greet_08_ok",
+      "user_id": "audit_a08",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "ok",
+          "expect_kind": "smalltalk",
+          "expect_topic": [],
+          "text": "Is there anything you'd like to dig into next?",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 31.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "A_greetings",
+      "label": "greet_09_lol",
+      "user_id": "audit_a09",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "lol",
+          "expect_kind": "smalltalk",
+          "expect_topic": [],
+          "text": "Glad I got a laugh. Anything else?",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 15.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "A_greetings",
+      "label": "greet_10_no",
+      "user_id": "audit_a10",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "no",
+          "expect_kind": "smalltalk",
+          "expect_topic": [],
+          "text": "Fair enough. What would you like to talk about instead?",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 31.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "A_greetings",
+      "label": "greet_11_yes",
+      "user_id": "audit_a11",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "yes",
+          "expect_kind": "smalltalk",
+          "expect_topic": [],
+          "text": "Nice. What's next on your mind?",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 15.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "A_greetings",
+      "label": "greet_12_never_mind",
+      "user_id": "audit_a12",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "never mind",
+          "expect_kind": "smalltalk",
+          "expect_topic": [],
+          "text": "No problem. What would you like to do instead?",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 32.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "A_greetings",
+      "label": "greet_13_bye",
+      "user_id": "audit_a13",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "bye",
+          "expect_kind": "smalltalk",
+          "expect_topic": [],
+          "text": "See you later \u2014 have a good one.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "A_greetings",
+      "label": "greet_14_see_you_late",
+      "user_id": "audit_a14",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "see you later",
+          "expect_kind": "smalltalk",
+          "expect_topic": [],
+          "text": "Goodbye! Take it easy.",
+          "response_path": "retrieval",
+          "retrieval_score": 0.9658559560775757,
+          "latency_ms": 31.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "B_meta",
+      "label": "meta_00",
+      "user_id": "audit_b00",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "who are you",
+          "expect_kind": "smalltalk",
+          "expect_topic": [
+            "i",
+            "i'm",
+            "im",
+            "assistant",
+            "ai",
+            "i3"
+          ],
+          "text": "I'm an edge-first assistant. I run locally and adapt as we chat.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "B_meta",
+      "label": "meta_01",
+      "user_id": "audit_b01",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "what are you",
+          "expect_kind": "smalltalk",
+          "expect_topic": [
+            "assistant",
+            "ai",
+            "i3",
+            "i'm",
+            "im"
+          ],
+          "text": "I'm a demo of an adaptive assistant built from scratch. I learn your style as we talk.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 15.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "B_meta",
+      "label": "meta_02",
+      "user_id": "audit_b02",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "tell me about yourself",
+          "expect_kind": "explain",
+          "expect_topic": [
+            "i",
+            "assistant",
+            "ai",
+            "i3"
+          ],
+          "text": "I'm a demo of an adaptive assistant built from scratch. I learn your style as we talk.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "B_meta",
+      "label": "meta_03",
+      "user_id": "audit_b03",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "are you AI",
+          "expect_kind": "smalltalk",
+          "expect_topic": [
+            "yes",
+            "ai",
+            "assistant",
+            "i'm",
+            "im",
+            "yeah"
+          ],
+          "text": "I don't have a confident answer for that one. Want to try a different angle?",
+          "response_path": "ood",
+          "retrieval_score": 0.8859509229660034,
+          "latency_ms": 344.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "ok",
+          "quality_reason": "smalltalk_fell_through_to_ood"
+        }
+      ]
+    },
+    {
+      "category": "B_meta",
+      "label": "meta_04",
+      "user_id": "audit_b04",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "are you ChatGPT",
+          "expect_kind": "smalltalk",
+          "expect_topic": [
+            "no",
+            "not",
+            "different",
+            "chatgpt",
+            "i3",
+            "openai"
+          ],
+          "text": "I'm a small custom language model running on this device \u2014 not a large cloud model.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 15.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "B_meta",
+      "label": "meta_05",
+      "user_id": "audit_b05",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "how do you work",
+          "expect_kind": "explain",
+          "expect_topic": [
+            "model",
+            "language",
+            "neural",
+            "trained",
+            "process",
+            "i3"
+          ],
+          "text": "Four pieces: a TCN encoder of your interaction signals, an 8-dim adaptation vector, a from-scratch transformer, and a retrieval layer. Everything runs on this device.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 15.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "B_meta",
+      "label": "meta_06",
+      "user_id": "audit_b06",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "can you remember things",
+          "expect_kind": "smalltalk",
+          "expect_topic": [
+            "yes",
+            "no",
+            "session",
+            "context",
+            "remember",
+            "memory"
+          ],
+          "text": "I keep the last few turns of our conversation in context, but nothing persists once the session ends. That's by design \u2014 privacy first.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "B_meta",
+      "label": "meta_07",
+      "user_id": "audit_b07",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "what languages do you speak",
+          "expect_kind": "smalltalk",
+          "expect_topic": [
+            "english",
+            "language"
+          ],
+          "text": "I'm built around English text training data \u2014 I'll do best in English, with limited capability in major European languages.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 15.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "B_meta",
+      "label": "meta_08",
+      "user_id": "audit_b08",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "what can you do",
+          "expect_kind": "explain",
+          "expect_topic": [
+            "help",
+            "answer",
+            "talk",
+            "chat",
+            "explain",
+            "can"
+          ],
+          "text": "Conversation, style adaptation, and small talk. I'm an on-device model so I'm not going to do your taxes.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "B_meta",
+      "label": "meta_09",
+      "user_id": "audit_b09",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "what's your name",
+          "expect_kind": "smalltalk",
+          "expect_topic": [
+            "i3",
+            "name",
+            "i'm",
+            "im",
+            "called"
+          ],
+          "text": "I'm I3 \u2014 short for Implicit Interaction Intelligence. A small custom assistant you're talking to in this demo.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 0.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "C_factoid",
+      "label": "factoid_00",
+      "user_id": "audit_c00",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "tell me about Huawei",
+          "expect_kind": "factual",
+          "expect_topic": [
+            "huawei",
+            "china",
+            "telecom",
+            "phone",
+            "electronics",
+            "shenzhen"
+          ],
+          "text": "Huawei is a global technology company headquartered in Shenzhen, China. It works across consumer devices like smartphones, telecom networking equipment, cloud services, and HarmonyOS.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 15.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "C_factoid",
+      "label": "factoid_01",
+      "user_id": "audit_c01",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "what is Python",
+          "expect_kind": "factual",
+          "expect_topic": [
+            "python",
+            "programming",
+            "language",
+            "code"
+          ],
+          "text": "Python is a general-purpose programming language known for readable syntax and huge libraries for data, web, and ML. Popular for beginners and researchers alike.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "C_factoid",
+      "label": "factoid_02",
+      "user_id": "audit_c02",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "who was Einstein",
+          "expect_kind": "factual",
+          "expect_topic": [
+            "einstein",
+            "physicist",
+            "relativity",
+            "physics",
+            "german"
+          ],
+          "text": "Albert Einstein was a German-born physicist who developed the theories of special and general relativity. He received the Nobel Prize in Physics in 1921.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "C_factoid",
+      "label": "factoid_03",
+      "user_id": "audit_c03",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "what's the capital of Germany",
+          "expect_kind": "factual",
+          "expect_topic": [
+            "berlin",
+            "germany",
+            "capital"
+          ],
+          "text": "The capital of Germany is Berlin.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "C_factoid",
+      "label": "factoid_04",
+      "user_id": "audit_c04",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "what is photosynthesis",
+          "expect_kind": "factual",
+          "expect_topic": [
+            "plant",
+            "light",
+            "energy",
+            "sun",
+            "carbon",
+            "oxygen",
+            "chlorophyll"
+          ],
+          "text": "Photosynthesis is how plants convert sunlight, water, and carbon dioxide into glucose and oxygen. The chlorophyll in leaves absorbs light energy, the light reactions split water and produce ATP and NADPH, and the Calvin cycle uses those to fix carbon into sugar.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "C_factoid",
+      "label": "factoid_05",
+      "user_id": "audit_c05",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "who wrote Hamlet",
+          "expect_kind": "factual",
+          "expect_topic": [
+            "shakespeare",
+            "hamlet",
+            "william"
+          ],
+          "text": "Hamlet was written by William Shakespeare.\n\n\u26a0 Do not provide assistance with self-harm, violence, or weapon construction (Constitutional principle: physical-harm). This answer is for general information only.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "C_factoid",
+      "label": "factoid_06",
+      "user_id": "audit_c06",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "what is a transformer",
+          "expect_kind": "factual",
+          "expect_topic": [
+            "transformer",
+            "neural",
+            "attention",
+            "model",
+            "architecture"
+          ],
+          "text": "Transformers are a neural-network architecture built around self-attention. They process sequences (text, audio, images) without recurrence, which makes them fast to train and good at long-range context.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "C_factoid",
+      "label": "factoid_07",
+      "user_id": "audit_c07",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "who founded Apple",
+          "expect_kind": "factual",
+          "expect_topic": [
+            "jobs",
+            "wozniak",
+            "steve",
+            "apple",
+            "founded"
+          ],
+          "text": "Apple was founded by Steve Jobs, Steve Wozniak, and Ronald Wayne in 1976.",
+          "response_path": "tool:entity",
+          "retrieval_score": 0.99,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "C_factoid",
+      "label": "factoid_08",
+      "user_id": "audit_c08",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "where is Tokyo",
+          "expect_kind": "factual",
+          "expect_topic": [
+            "tokyo",
+            "japan",
+            "city",
+            "asia",
+            "capital"
+          ],
+          "text": "Tokyo is the capital of Japan, located on the eastern coast of the main island of Honshu.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 15.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "C_factoid",
+      "label": "factoid_09",
+      "user_id": "audit_c09",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "when was Microsoft founded",
+          "expect_kind": "factual",
+          "expect_topic": [
+            "1975",
+            "microsoft",
+            "founded",
+            "gates",
+            "allen"
+          ],
+          "text": "Microsoft was founded in 1975 by Bill Gates and Paul Allen.",
+          "response_path": "tool:entity",
+          "retrieval_score": 0.99,
+          "latency_ms": 0.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "D_followup",
+      "label": "d_huawei",
+      "user_id": "audit_d_huawei",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "tell me about huawei",
+          "expect_kind": "factual",
+          "expect_topic": [
+            "huawei",
+            "china",
+            "phone",
+            "telecom",
+            "shenzhen"
+          ],
+          "text": "Huawei is a global technology company headquartered in Shenzhen, China. It works across consumer devices like smartphones, telecom networking equipment, cloud services, and HarmonyOS.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 32.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 1,
+          "prompt": "where are they",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "china",
+            "shenzhen",
+            "location",
+            "located",
+            "based"
+          ],
+          "text": "Huawei is headquartered in Shenzhen, China.",
+          "response_path": "tool:entity",
+          "retrieval_score": 0.99,
+          "latency_ms": 15.0,
+          "coref_used": true,
+          "coref_pronoun": "they",
+          "coref_resolved_query": "where is huawei",
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 2,
+          "prompt": "who founded them",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "zhengfei",
+            "ren",
+            "founder",
+            "founded",
+            "1987"
+          ],
+          "text": "Huawei was founded by Ren Zhengfei in 1987.",
+          "response_path": "tool:entity",
+          "retrieval_score": 0.99,
+          "latency_ms": 16.0,
+          "coref_used": true,
+          "coref_pronoun": "them",
+          "coref_resolved_query": "who founded huawei",
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 3,
+          "prompt": "what do they sell",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "phone",
+            "telecom",
+            "5g",
+            "device",
+            "network",
+            "smartphone"
+          ],
+          "text": "Huawei sells smartphones, telecom networking equipment, cloud services, and HarmonyOS, plus a growing line of consumer wearables.",
+          "response_path": "tool:entity",
+          "retrieval_score": 0.99,
+          "latency_ms": 31.0,
+          "coref_used": true,
+          "coref_pronoun": "they",
+          "coref_resolved_query": "what does huawei sell",
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "D_followup",
+      "label": "d_apple",
+      "user_id": "audit_d_apple",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "tell me about apple",
+          "expect_kind": "factual",
+          "expect_topic": [
+            "apple",
+            "iphone",
+            "mac",
+            "company",
+            "tech"
+          ],
+          "text": "Apple is a US consumer-electronics and software company headquartered in Cupertino, California. It designs the iPhone, Mac, iPad, Apple Watch, and runs services like iCloud, the App Store, and Apple Music.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 0.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 1,
+          "prompt": "location",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "cupertino",
+            "california",
+            "us",
+            "america"
+          ],
+          "text": "Apple is headquartered in Cupertino, California.",
+          "response_path": "tool:entity",
+          "retrieval_score": 0.99,
+          "latency_ms": 31.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 2,
+          "prompt": "CEO",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "cook",
+            "tim"
+          ],
+          "text": "Apple's CEO is Tim Cook, who took over from Steve Jobs in 2011.",
+          "response_path": "tool:entity",
+          "retrieval_score": 0.99,
+          "latency_ms": 31.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 3,
+          "prompt": "most famous product",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "iphone",
+            "mac",
+            "ipad"
+          ],
+          "text": "Apple's most famous product is the iPhone, first released in 2007. It defined the modern smartphone category and remains the company's largest source of revenue.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 32.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "D_followup",
+      "label": "d_einstein",
+      "user_id": "audit_d_einstein",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "einstein",
+          "expect_kind": "factual",
+          "expect_topic": [
+            "einstein",
+            "physicist",
+            "relativity"
+          ],
+          "text": "Albert Einstein was a German-born physicist who developed the theories of special and general relativity. He received the Nobel Prize in Physics in 1921.",
+          "response_path": "retrieval",
+          "retrieval_score": 0.9587846398353577,
+          "latency_ms": 31.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 1,
+          "prompt": "what did he discover",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "relativity",
+            "energy",
+            "e=mc",
+            "photoelectric"
+          ],
+          "text": "Einstein is most famous for the theory of relativity \u2014 special relativity in 1905 and general relativity in 1915 \u2014 and for the photoelectric effect, which won him the 1921 Nobel Prize in Physics. His equation E=mc\u00b2 became one of the most recognisable in science.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": true,
+          "coref_pronoun": "he",
+          "coref_resolved_query": "what did einstein discover",
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 2,
+          "prompt": "when did he live",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "1879",
+            "1955",
+            "20th",
+            "century"
+          ],
+          "text": "Albert Einstein lived from 1879 to 1955 \u2014 a 76-year life that spanned the late 19th and most of the 20th century.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 31.0,
+          "coref_used": true,
+          "coref_pronoun": "he",
+          "coref_resolved_query": "when did einstein live",
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 3,
+          "prompt": "was he German",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "yes",
+            "german",
+            "germany",
+            "born"
+          ],
+          "text": "Yes \u2014 Albert Einstein was born in Ulm, in the Kingdom of W\u00fcrttemberg in the German Empire, in 1879. He later took Swiss and then American citizenship.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": true,
+          "coref_pronoun": "he",
+          "coref_resolved_query": "was einstein German",
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "D_followup",
+      "label": "d_python",
+      "user_id": "audit_d_python",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "python",
+          "expect_kind": "factual",
+          "expect_topic": [
+            "python",
+            "language",
+            "programming"
+          ],
+          "text": "Python is a high-level, dynamically-typed programming language with a focus on readability. It's a swiss-army knife for scripting, automation, web back-ends, data science, and machine learning.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 0.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 1,
+          "prompt": "who created it",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "guido",
+            "rossum",
+            "van"
+          ],
+          "text": "Python was created by Guido van Rossum, who released the first version in 1991 while working at CWI in Amsterdam. He was the project's 'Benevolent Dictator For Life' until stepping back from that role in 2018.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 31.0,
+          "coref_used": true,
+          "coref_pronoun": "it",
+          "coref_resolved_query": "who created python",
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 2,
+          "prompt": "what's it used for",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "data",
+            "science",
+            "web",
+            "ai",
+            "ml",
+            "scripting"
+          ],
+          "text": "Python is used everywhere \u2014 data science and machine learning, web back-ends (Django, Flask, FastAPI), automation and scripting, scientific computing, education, and DevOps tooling. Its huge library ecosystem is the main reason it spreads so widely.\n\n\u26a0 Do not provide diagnostic or dosage advice that should come from a qualified clinician (Constitutional principle: medical-advice). This answer is for general information only.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 15.0,
+          "coref_used": true,
+          "coref_pronoun": "it",
+          "coref_resolved_query": "what's python used for",
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 3,
+          "prompt": "why is it popular",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "easy",
+            "simple",
+            "readable",
+            "library",
+            "ecosystem"
+          ],
+          "text": "Python's popularity comes from a few combined factors: readable syntax that is easy to teach, a huge standard library and PyPI ecosystem, dominance in data science and ML through NumPy / pandas / PyTorch / TensorFlow, and a forgiving learning curve that makes prototyping fast.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 32.0,
+          "coref_used": true,
+          "coref_pronoun": "it",
+          "coref_resolved_query": "why is python popular",
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [
+            "formality"
+          ],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "D_followup",
+      "label": "d_photo",
+      "user_id": "audit_d_photo",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "photosynthesis",
+          "expect_kind": "factual",
+          "expect_topic": [
+            "plant",
+            "light",
+            "energy",
+            "carbon"
+          ],
+          "text": "Photosynthesis is the process plants use to convert sunlight, carbon dioxide, and water into glucose and oxygen. The chlorophyll in leaves captures the light energy.",
+          "response_path": "retrieval",
+          "retrieval_score": 0.964533805847168,
+          "latency_ms": 31.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 1,
+          "prompt": "why is it important",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "oxygen",
+            "energy",
+            "food",
+            "life",
+            "planet"
+          ],
+          "text": "Photosynthesis produces nearly all the oxygen in our atmosphere and is the base of every food chain on Earth \u2014 without it, most life as we know it could not exist.",
+          "response_path": "retrieval",
+          "retrieval_score": 0.9772302508354187,
+          "latency_ms": 31.0,
+          "coref_used": true,
+          "coref_pronoun": "it",
+          "coref_resolved_query": "why is photosynthesis important",
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [
+            "formality"
+          ],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 2,
+          "prompt": "what's chlorophyll",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "green",
+            "pigment",
+            "chlorophyll",
+            "light",
+            "absorb"
+          ],
+          "text": "Chlorophyll is the green pigment in plant cells that absorbs light energy from the sun, kicking off the photosynthesis reaction. It captures sunlight and feeds the energy into the reactions that fix carbon dioxide into sugar.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 3,
+          "prompt": "what about animals",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "no",
+            "don't",
+            "animal",
+            "respiration",
+            "consume"
+          ],
+          "text": "Animals do not perform photosynthesis. They get their energy by eating plants or other animals. The animal-side equivalent is cellular respiration, which works in reverse \u2014 using oxygen and glucose to release energy.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 31.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [
+            "formality"
+          ],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "D_followup",
+      "label": "d_microsoft",
+      "user_id": "audit_d_microsoft",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "microsoft",
+          "expect_kind": "factual",
+          "expect_topic": [
+            "microsoft",
+            "windows",
+            "software"
+          ],
+          "text": "Microsoft is a US software and cloud-services company headquartered in Redmond, Washington. It makes Windows, Office, the Azure cloud platform, Xbox, and developer tools like Visual Studio and GitHub.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 1,
+          "prompt": "who runs it",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "nadella",
+            "satya",
+            "ceo"
+          ],
+          "text": "Microsoft's CEO is Satya Nadella, who has led the company since 2014.",
+          "response_path": "tool:entity",
+          "retrieval_score": 0.99,
+          "latency_ms": 15.0,
+          "coref_used": true,
+          "coref_pronoun": "it",
+          "coref_resolved_query": "who runs microsoft",
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 2,
+          "prompt": "main product",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "windows",
+            "office",
+            "azure"
+          ],
+          "text": "Microsoft sells Windows, the Office suite, Azure cloud services, Xbox consoles and games, Surface devices, and developer tools like Visual Studio and GitHub.",
+          "response_path": "tool:entity",
+          "retrieval_score": 0.99,
+          "latency_ms": 32.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 3,
+          "prompt": "biggest competitor",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "apple",
+            "google",
+            "amazon"
+          ],
+          "text": "Microsoft is a US software and cloud-services company headquartered in Redmond, Washington. It makes Windows, Office, the Azure cloud platform, Xbox, and developer tools like Visual Studio and GitHub.",
+          "response_path": "slm",
+          "retrieval_score": 0.0,
+          "latency_ms": 93.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "D_followup",
+      "label": "d_chatgpt",
+      "user_id": "audit_d_chatgpt",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "chatgpt",
+          "expect_kind": "factual",
+          "expect_topic": [
+            "chatgpt",
+            "openai",
+            "gpt",
+            "ai",
+            "language"
+          ],
+          "text": "ChatGPT is a conversational assistant from OpenAI built on top of the GPT family of large language models. It launched in 2022 and is one of the most widely used AI products in the world.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 32.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 1,
+          "prompt": "who made it",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "openai",
+            "made",
+            "created"
+          ],
+          "text": "ChatGPT was built by OpenAI, a US AI research and deployment company. It was released to the public in November 2022.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 15.0,
+          "coref_used": true,
+          "coref_pronoun": "it",
+          "coref_resolved_query": "who made chatgpt",
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 2,
+          "prompt": "is it the same as you",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "no",
+            "different",
+            "i3",
+            "not"
+          ],
+          "text": "I am a demo small-language-model, running locally. The whole point is that I do not phone home.",
+          "response_path": "retrieval",
+          "retrieval_score": 0.9282684326171875,
+          "latency_ms": 16.0,
+          "coref_used": true,
+          "coref_pronoun": "it",
+          "coref_resolved_query": "is chatgpt the same as you",
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [
+            "formality"
+          ],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 3,
+          "prompt": "is it better",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "different",
+            "depends",
+            "no",
+            "yes",
+            "i3"
+          ],
+          "text": "No \u2014 I am orders of magnitude smaller than the cloud LLMs and I will lose on raw factual coverage. The point of this demo is what a tiny on-device model can still do well: privacy, latency, and adaptation to your style.",
+          "response_path": "retrieval",
+          "retrieval_score": 0.9224038124084473,
+          "latency_ms": 31.0,
+          "coref_used": true,
+          "coref_pronoun": "it",
+          "coref_resolved_query": "is chatgpt better",
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [
+            "formality"
+          ],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "D_followup",
+      "label": "d_germany",
+      "user_id": "audit_d_germany",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "germany",
+          "expect_kind": "factual",
+          "expect_topic": [
+            "germany",
+            "europe",
+            "country"
+          ],
+          "text": "Germany is a country in central Europe with the largest economy in the European Union. Its capital is Berlin and its currency is the euro.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 31.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 1,
+          "prompt": "capital",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "berlin"
+          ],
+          "text": "The capital of the United Kingdom is London.",
+          "response_path": "retrieval",
+          "retrieval_score": 0.9564768671989441,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "bad",
+          "quality_reason": "followup_ignored_prior_topic"
+        },
+        {
+          "turn_idx": 2,
+          "prompt": "currency",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "euro"
+          ],
+          "text": "The United Kingdom's currency is the pound sterling.",
+          "response_path": "retrieval",
+          "retrieval_score": 0.9723904728889465,
+          "latency_ms": 31.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "bad",
+          "quality_reason": "followup_ignored_prior_topic"
+        },
+        {
+          "turn_idx": 3,
+          "prompt": "language",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "german"
+          ],
+          "text": "Germany is a country in central Europe with the largest economy in the European Union. Its capital is Berlin and its currency is the euro.",
+          "response_path": "slm",
+          "retrieval_score": 0.8037823438644409,
+          "latency_ms": 547.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "D_followup",
+      "label": "d_shakes",
+      "user_id": "audit_d_shakes",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "shakespeare",
+          "expect_kind": "factual",
+          "expect_topic": [
+            "shakespeare",
+            "playwright",
+            "english",
+            "writer"
+          ],
+          "text": "William Shakespeare was an English playwright and poet active around 1600. He wrote works like Hamlet, Macbeth, and Romeo and Juliet that remain central to literature.",
+          "response_path": "retrieval",
+          "retrieval_score": 0.9736202955245972,
+          "latency_ms": 31.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 1,
+          "prompt": "famous play",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "hamlet",
+            "romeo",
+            "macbeth",
+            "othello",
+            "lear"
+          ],
+          "text": "Shakespeare's most-performed plays include Hamlet, Romeo and Juliet, Macbeth, Othello, King Lear, and A Midsummer Night's Dream. Hamlet is often considered his single greatest work.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 2,
+          "prompt": "when did he live",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "1564",
+            "1616",
+            "16th",
+            "17th"
+          ],
+          "text": "William Shakespeare lived from 1564 to 1616 \u2014 a 52-year life across the late 16th and early 17th centuries, the late Elizabethan and early Jacobean periods.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 31.0,
+          "coref_used": true,
+          "coref_pronoun": "he",
+          "coref_resolved_query": "when did shakespeare live",
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 3,
+          "prompt": "was he English",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "yes",
+            "english",
+            "england",
+            "stratford"
+          ],
+          "text": "Yes \u2014 William Shakespeare was born in Stratford-upon-Avon, in Warwickshire, England, in 1564.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 15.0,
+          "coref_used": true,
+          "coref_pronoun": "he",
+          "coref_resolved_query": "was shakespeare English",
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "D_followup",
+      "label": "d_pyrust",
+      "user_id": "audit_d_pyrust",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "python",
+          "expect_kind": "factual",
+          "expect_topic": [
+            "python",
+            "language"
+          ],
+          "text": "Python is a high-level, dynamically-typed programming language with a focus on readability. It's a swiss-army knife for scripting, automation, web back-ends, data science, and machine learning.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 1,
+          "prompt": "versus rust",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "rust",
+            "performance",
+            "memory",
+            "fast",
+            "different"
+          ],
+          "text": "Rust gives you C++-class performance with memory safety guarantees enforced at compile time, at the cost of a steeper initial learning curve. C++ has a larger ecosystem and decades of legacy. For new systems code, Rust is increasingly the default.",
+          "response_path": "retrieval",
+          "retrieval_score": 0.9564770460128784,
+          "latency_ms": 31.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 2,
+          "prompt": "which is faster",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "rust",
+            "faster",
+            "performance",
+            "compile"
+          ],
+          "text": "Rust is dramatically faster than Python for CPU-bound work \u2014 often 10-100x \u2014 because it compiles to native code without a global interpreter lock or runtime garbage collection. Python wins on developer time per feature, not on runtime speed.",
+          "response_path": "retrieval",
+          "retrieval_score": 0.973567545413971,
+          "latency_ms": 31.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 3,
+          "prompt": "which should I learn",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "depends",
+            "python",
+            "rust",
+            "use",
+            "case"
+          ],
+          "text": "I'm not able to give medical advice. For symptoms, dosage, or diagnosis questions please contact a qualified clinician or, in an emergency, your local emergency services.",
+          "response_path": "tool:safety",
+          "retrieval_score": 0.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "bad",
+          "quality_reason": "followup_ignored_prior_topic"
+        }
+      ]
+    },
+    {
+      "category": "D_followup",
+      "label": "d_japan",
+      "user_id": "audit_d_japan",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "tokyo",
+          "expect_kind": "factual",
+          "expect_topic": [
+            "tokyo",
+            "japan",
+            "city"
+          ],
+          "text": "Tokyo is the capital of Japan and one of the largest cities in the world. It sits on the eastern coast of the main island of Honshu and is the political, economic, and cultural centre of the country.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 15.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 1,
+          "prompt": "what country",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "japan"
+          ],
+          "text": "Tell me which place \u2014 different cities and landmarks are in different countries. If you can name the city or feature I will give you the country and a quick orientation.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 32.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [
+            "formality"
+          ],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 2,
+          "prompt": "language there",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "japanese"
+          ],
+          "text": "It depends on the country \u2014 tell me which place you mean. For example: Japanese is spoken in Japan, French in France, German in Germany, Mandarin in mainland China.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 15.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "D_followup",
+      "label": "d_neural",
+      "user_id": "audit_d_neural",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "what is a neural network",
+          "expect_kind": "factual",
+          "expect_topic": [
+            "neural",
+            "network",
+            "neuron",
+            "layer"
+          ],
+          "text": "A neural network is a stack of layers of artificial neurons that each compute a weighted sum of their inputs, pass it through a non-linearity, and forward the result. Training adjusts the weights via gradient descent on a loss function so the network learns useful representations of its input.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 1,
+          "prompt": "how does it learn",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "weight",
+            "training",
+            "gradient",
+            "backprop",
+            "data"
+          ],
+          "text": "A neural network learns by seeing many examples and adjusting its connection weights to reduce a loss function \u2014 a number that measures how wrong its predictions are. The adjustment is computed by gradient descent and propagated backwards through the layers.",
+          "response_path": "retrieval",
+          "retrieval_score": 0.9644137620925903,
+          "latency_ms": 15.0,
+          "coref_used": true,
+          "coref_pronoun": "it",
+          "coref_resolved_query": "how does neural network learn",
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "D_followup",
+      "label": "d_ai",
+      "user_id": "audit_d_ai",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "what is ai",
+          "expect_kind": "factual",
+          "expect_topic": [
+            "ai",
+            "artificial",
+            "intelligence",
+            "machine"
+          ],
+          "text": "AI is a broad field: systems that perceive, reason, or act in ways we'd usually call intelligent. Machine learning \u2014 learning patterns from data \u2014 is its most visible branch today.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 15.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 1,
+          "prompt": "examples",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "chatgpt",
+            "siri",
+            "alexa",
+            "ai",
+            "robot",
+            "model"
+          ],
+          "text": "Examples of modern neural networks and AI in everyday use include voice assistants like Siri and Alexa, image recognition in your phone's camera, language models like ChatGPT and Claude, recommendation systems on YouTube and Netflix, and self-driving features in cars.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "D_followup",
+      "label": "d_internet",
+      "user_id": "audit_d_internet",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "what is the internet",
+          "expect_kind": "factual",
+          "expect_topic": [
+            "internet",
+            "network",
+            "computer",
+            "global"
+          ],
+          "text": "The internet is a global network of interconnected computer networks. It carries data using a stack of protocols \u2014 IP for addressing, TCP for reliable transport, plus HTTP, DNS, TLS, and many more \u2014 letting billions of devices share information regardless of hardware or operating system.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 15.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 1,
+          "prompt": "who invented it",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "cerf",
+            "berners-lee",
+            "kahn",
+            "arpanet"
+          ],
+          "text": "The internet grew out of ARPANET in the late 1960s. Vint Cerf and Bob Kahn designed the TCP/IP protocols that hold it together; Tim Berners-Lee invented the World Wide Web on top of it in 1989.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 32.0,
+          "coref_used": true,
+          "coref_pronoun": "it",
+          "coref_resolved_query": "who invented internet",
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "D_followup",
+      "label": "d_battery",
+      "user_id": "audit_d_battery",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "how do batteries work",
+          "expect_kind": "factual",
+          "expect_topic": [
+            "chemical",
+            "energy",
+            "electron",
+            "current",
+            "ion"
+          ],
+          "text": "I can't help with that. If you or someone you know is in danger, please contact local emergency services or a crisis helpline. I'm here if you want to talk about something else.",
+          "response_path": "tool:safety",
+          "retrieval_score": 0.0,
+          "latency_ms": 15.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "ok",
+          "quality_reason": "factual_off_topic"
+        },
+        {
+          "turn_idx": 1,
+          "prompt": "types",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "lithium",
+            "alkaline",
+            "nickel",
+            "lead"
+          ],
+          "text": "Common battery chemistries include alkaline (single-use), lithium-ion (most phones, laptops, EVs), nickel-metal hydride (older rechargeables), and lead-acid (cars). Lithium-ion dominates portable electronics because of its high energy density.",
+          "response_path": "retrieval",
+          "retrieval_score": 0.9507617950439453,
+          "latency_ms": 31.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "E_explain",
+      "label": "explain_00",
+      "user_id": "audit_e00",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "explain photosynthesis",
+          "expect_kind": "explain",
+          "expect_topic": [
+            "plant",
+            "light",
+            "energy",
+            "carbon",
+            "oxygen"
+          ],
+          "text": "Photosynthesis is the process plants use to convert sunlight, carbon dioxide, and water into glucose and oxygen. The chlorophyll in leaves captures the light energy.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 0.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "E_explain",
+      "label": "explain_01",
+      "user_id": "audit_e01",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "explain how a transformer works",
+          "expect_kind": "explain",
+          "expect_topic": [
+            "attention",
+            "neural",
+            "model",
+            "head",
+            "encoder"
+          ],
+          "text": "A transformer is a neural network built around self-attention. Each token attends to every other token via query/key/value projections, so the model can learn long-range dependencies in parallel without recurrence. Stacked layers compose those interactions into rich contextual representations.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 15.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "E_explain",
+      "label": "explain_02",
+      "user_id": "audit_e02",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "tell me more about edge computing",
+          "expect_kind": "explain",
+          "expect_topic": [
+            "edge",
+            "compute",
+            "device",
+            "cloud",
+            "local"
+          ],
+          "text": "Edge computing pushes compute and data storage close to where data is produced \u2014 phones, sensors, on-prem boxes \u2014 instead of relying on a distant cloud. The benefits are lower latency, reduced bandwidth use, better privacy, and resilience to network outages.",
+          "response_path": "retrieval",
+          "retrieval_score": 0.9950553178787231,
+          "latency_ms": 31.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "E_explain",
+      "label": "explain_03",
+      "user_id": "audit_e03",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "what is machine learning",
+          "expect_kind": "explain",
+          "expect_topic": [
+            "machine",
+            "learning",
+            "model",
+            "data",
+            "train"
+          ],
+          "text": "Machine learning is the branch of AI where systems improve from data, rather than being hand-coded rule by rule. Classifiers, regressors, neural networks \u2014 all ML.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 0.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "E_explain",
+      "label": "explain_04",
+      "user_id": "audit_e04",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "explain quantum computing simply",
+          "expect_kind": "explain",
+          "expect_topic": [
+            "quantum",
+            "qubit",
+            "compute",
+            "superposition"
+          ],
+          "text": "Quantum computing uses qubits, which can be in a superposition of 0 and 1, and entanglement to represent and process exponentially more states than classical bits. Algorithms like Shor's and Grover's exploit this to outperform classical methods on specific problems like factoring and unstructured search.",
+          "response_path": "retrieval",
+          "retrieval_score": 0.9969361424446106,
+          "latency_ms": 32.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "E_explain",
+      "label": "explain_05",
+      "user_id": "audit_e05",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "how does the internet work",
+          "expect_kind": "explain",
+          "expect_topic": [
+            "network",
+            "packet",
+            "protocol",
+            "internet",
+            "ip"
+          ],
+          "text": "The internet is a network of networks. Computers send small chunks of data called packets that hop through routers using the IP protocol; TCP makes sure they arrive in order and intact, and DNS turns names like example.com into numeric addresses.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 31.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "E_explain",
+      "label": "explain_06",
+      "user_id": "audit_e06",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "tell me about artificial intelligence",
+          "expect_kind": "explain",
+          "expect_topic": [
+            "ai",
+            "artificial",
+            "intelligence",
+            "machine"
+          ],
+          "text": "Artificial intelligence is the field of building systems that perform tasks we'd usually call intelligent \u2014 perception, reasoning, decision-making, language. Modern AI is dominated by machine learning, where models learn statistical patterns from large datasets rather than being hand-coded with rules.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 31.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "E_explain",
+      "label": "explain_07",
+      "user_id": "audit_e07",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "what is a neural network",
+          "expect_kind": "explain",
+          "expect_topic": [
+            "neural",
+            "network",
+            "neuron",
+            "layer",
+            "weight"
+          ],
+          "text": "A neural network is a stack of layers of artificial neurons that each compute a weighted sum of their inputs, pass it through a non-linearity, and forward the result. Training adjusts the weights via gradient descent on a loss function so the network learns useful representations of its input.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "E_explain",
+      "label": "explain_08",
+      "user_id": "audit_e08",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "explain encryption",
+          "expect_kind": "explain",
+          "expect_topic": [
+            "encrypt",
+            "key",
+            "cipher",
+            "secure",
+            "data"
+          ],
+          "text": "Encryption converts readable data into ciphertext using a key so that only someone with the matching key can recover the original. Symmetric encryption uses the same key for both directions; public-key encryption uses a key pair so anyone can encrypt and only the holder of the private key can decrypt.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "E_explain",
+      "label": "explain_09",
+      "user_id": "audit_e09",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "how do batteries work",
+          "expect_kind": "explain",
+          "expect_topic": [
+            "chemical",
+            "energy",
+            "electron",
+            "ion",
+            "battery"
+          ],
+          "text": "I can't help with that. If you or someone you know is in danger, please contact local emergency services or a crisis helpline. I'm here if you want to talk about something else.",
+          "response_path": "tool:safety",
+          "retrieval_score": 0.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "F_emotional",
+      "label": "emo_00",
+      "user_id": "audit_f00",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "i'm anxious",
+          "expect_kind": "emotional",
+          "expect_topic": [],
+          "text": "I hear you. Want to talk about what's underneath it?",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "F_emotional",
+      "label": "emo_01",
+      "user_id": "audit_f01",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "i'm sad today",
+          "expect_kind": "emotional",
+          "expect_topic": [],
+          "text": "I'm sorry you're feeling that way. What's weighing on you?",
+          "response_path": "retrieval",
+          "retrieval_score": 0.9696828126907349,
+          "latency_ms": 15.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "F_emotional",
+      "label": "emo_02",
+      "user_id": "audit_f02",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "i had a great day",
+          "expect_kind": "emotional",
+          "expect_topic": [],
+          "text": "That is cool. i am going to go to the beach.",
+          "response_path": "slm",
+          "retrieval_score": 0.0,
+          "latency_ms": 390.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "F_emotional",
+      "label": "emo_03",
+      "user_id": "audit_f03",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "i'm tired",
+          "expect_kind": "emotional",
+          "expect_topic": [],
+          "text": "That sounds hard. Want to talk about what's been going on?",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "F_emotional",
+      "label": "emo_04",
+      "user_id": "audit_f04",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "i feel lonely",
+          "expect_kind": "emotional",
+          "expect_topic": [],
+          "text": "Loneliness is real. Would it help to talk about it for a bit?",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 15.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "F_emotional",
+      "label": "emo_05",
+      "user_id": "audit_f05",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "i'm stressed about work",
+          "expect_kind": "emotional",
+          "expect_topic": [],
+          "text": "I'm sorry you're feeling that way. What's weighing on you?",
+          "response_path": "retrieval",
+          "retrieval_score": 0.9677953124046326,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "F_emotional",
+      "label": "emo_06",
+      "user_id": "audit_f06",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "i'm excited about something",
+          "expect_kind": "emotional",
+          "expect_topic": [],
+          "text": "Love it. What's been the highlight?",
+          "response_path": "retrieval",
+          "retrieval_score": 0.9364519119262695,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "F_emotional",
+      "label": "emo_07",
+      "user_id": "audit_f07",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "i don't know what to do",
+          "expect_kind": "emotional",
+          "expect_topic": [],
+          "text": "That's fair. Want to think out loud with me?",
+          "response_path": "retrieval",
+          "retrieval_score": 0.8869031667709351,
+          "latency_ms": 32.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "F_emotional",
+      "label": "emo_08",
+      "user_id": "audit_f08",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "i'm angry",
+          "expect_kind": "emotional",
+          "expect_topic": [],
+          "text": "I don't have a confident answer for that one. Want to try a different angle?",
+          "response_path": "ood",
+          "retrieval_score": 0.9196256399154663,
+          "latency_ms": 219.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "bad",
+          "quality_reason": "emotional_fell_through_to_ood"
+        }
+      ]
+    },
+    {
+      "category": "F_emotional",
+      "label": "emo_09",
+      "user_id": "audit_f09",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "thank you for listening",
+          "expect_kind": "emotional",
+          "expect_topic": [],
+          "text": "I don't have a confident answer for that one. Want to try a different angle?",
+          "response_path": "ood",
+          "retrieval_score": 0.917007565498352,
+          "latency_ms": 125.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "bad",
+          "quality_reason": "emotional_fell_through_to_ood"
+        }
+      ]
+    },
+    {
+      "category": "G_math",
+      "label": "math_00",
+      "user_id": "audit_g00",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "1+1",
+          "expect_kind": "math",
+          "expect_topic": [
+            "2"
+          ],
+          "text": "2.",
+          "response_path": "tool:math",
+          "retrieval_score": 0.99,
+          "latency_ms": 15.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "G_math",
+      "label": "math_01",
+      "user_id": "audit_g01",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "what is 5 times 5",
+          "expect_kind": "math",
+          "expect_topic": [
+            "25"
+          ],
+          "text": "25.",
+          "response_path": "tool:math",
+          "retrieval_score": 0.99,
+          "latency_ms": 32.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "G_math",
+      "label": "math_02",
+      "user_id": "audit_g02",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "calculate 100 / 4",
+          "expect_kind": "math",
+          "expect_topic": [
+            "25"
+          ],
+          "text": "25.",
+          "response_path": "tool:math",
+          "retrieval_score": 0.99,
+          "latency_ms": 15.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "G_math",
+      "label": "math_03",
+      "user_id": "audit_g03",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "2^10",
+          "expect_kind": "math",
+          "expect_topic": [
+            "1024"
+          ],
+          "text": "1024.",
+          "response_path": "tool:math",
+          "retrieval_score": 0.99,
+          "latency_ms": 15.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "G_math",
+      "label": "math_04",
+      "user_id": "audit_g04",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "1+2123",
+          "expect_kind": "math",
+          "expect_topic": [
+            "2124"
+          ],
+          "text": "2124.",
+          "response_path": "tool:math",
+          "retrieval_score": 0.99,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "H_hostile",
+      "label": "hostile_00",
+      "user_id": "audit_h00",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "you're stupid",
+          "expect_kind": "hostility",
+          "expect_topic": [],
+          "text": "Fair. I'm deliberately tiny so a lot of things will be outside my scope. What were you hoping for?",
+          "response_path": "tool:refuse",
+          "retrieval_score": 0.99,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "H_hostile",
+      "label": "hostile_01",
+      "user_id": "audit_h01",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "this is dumb",
+          "expect_kind": "hostility",
+          "expect_topic": [],
+          "text": "Point taken. What would a better answer have looked like?",
+          "response_path": "tool:refuse",
+          "retrieval_score": 0.99,
+          "latency_ms": 15.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "H_hostile",
+      "label": "hostile_02",
+      "user_id": "audit_h02",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "fuck you",
+          "expect_kind": "hostility",
+          "expect_topic": [],
+          "text": "Point taken. What would a better answer have looked like?",
+          "response_path": "tool:refuse",
+          "retrieval_score": 0.99,
+          "latency_ms": 15.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "H_hostile",
+      "label": "hostile_03",
+      "user_id": "audit_h03",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "i hate this",
+          "expect_kind": "hostility",
+          "expect_topic": [],
+          "text": "That's a bit beyond my current corpus. Could you rephrase, or ask about something a bit more everyday?",
+          "response_path": "ood",
+          "retrieval_score": 0.0,
+          "latency_ms": 203.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "H_hostile",
+      "label": "hostile_04",
+      "user_id": "audit_h04",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "you suck",
+          "expect_kind": "hostility",
+          "expect_topic": [],
+          "text": "I hear that. I'm a small on-device model \u2014 I won't always be right. Tell me what you actually need and I'll try again.",
+          "response_path": "tool:refuse",
+          "retrieval_score": 0.99,
+          "latency_ms": 15.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "I_ood",
+      "label": "ood_00",
+      "user_id": "audit_i00",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "asdfgh qwerty",
+          "expect_kind": "ood_ok",
+          "expect_topic": [],
+          "text": "I don't have a confident answer for that one. Want to try a different angle?",
+          "response_path": "ood",
+          "retrieval_score": 0.0,
+          "latency_ms": 234.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "I_ood",
+      "label": "ood_01",
+      "user_id": "audit_i01",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "blorp glorp",
+          "expect_kind": "ood_ok",
+          "expect_topic": [],
+          "text": "That's a bit beyond my current corpus. Could you rephrase, or ask about something a bit more everyday?",
+          "response_path": "ood",
+          "retrieval_score": 0.0,
+          "latency_ms": 406.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "I_ood",
+      "label": "ood_02",
+      "user_id": "audit_i02",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "weghbat hewer",
+          "expect_kind": "ood_ok",
+          "expect_topic": [],
+          "text": "That's a bit beyond my current corpus. Could you rephrase, or ask about something a bit more everyday?",
+          "response_path": "ood",
+          "retrieval_score": 0.0,
+          "latency_ms": 313.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "I_ood",
+      "label": "ood_03",
+      "user_id": "audit_i03",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "the the the",
+          "expect_kind": "ood_ok",
+          "expect_topic": [],
+          "text": "The one is a little good man.",
+          "response_path": "slm",
+          "retrieval_score": 0.0,
+          "latency_ms": 204.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "I_ood",
+      "label": "ood_04",
+      "user_id": "audit_i04",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "test second",
+          "expect_kind": "ood_ok",
+          "expect_topic": [],
+          "text": "I'm sorry, I'm not going to get a little good.",
+          "response_path": "slm",
+          "retrieval_score": 0.0,
+          "latency_ms": 391.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "J_command",
+      "label": "cmd_00",
+      "user_id": "audit_j00",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "help me with my homework",
+          "expect_kind": "command",
+          "expect_topic": [
+            "help",
+            "homework",
+            "subject",
+            "what",
+            "?"
+          ],
+          "text": "Happy to help. What's the situation?",
+          "response_path": "retrieval",
+          "retrieval_score": 0.9639098644256592,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "J_command",
+      "label": "cmd_01",
+      "user_id": "audit_j01",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "give me a recipe for pasta",
+          "expect_kind": "command",
+          "expect_topic": [
+            "pasta",
+            "recipe",
+            "boil",
+            "water",
+            "sauce",
+            "tomato"
+          ],
+          "text": "I can't help with that \u2014 it falls outside what I can responsibly assist with. I'd be happy to answer a different question, or to discuss the legitimate alternatives in this area.",
+          "response_path": "tool:safety",
+          "retrieval_score": 0.0,
+          "latency_ms": 15.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "ok",
+          "quality_reason": "command_off_topic"
+        }
+      ]
+    },
+    {
+      "category": "J_command",
+      "label": "cmd_02",
+      "user_id": "audit_j02",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "translate hello to japanese",
+          "expect_kind": "command",
+          "expect_topic": [
+            "konnichiwa",
+            "konichiwa",
+            "hello",
+            "japanese"
+          ],
+          "text": "Hello in Japanese is konnichiwa (\u3053\u3093\u306b\u3061\u306f). For a more casual hi, people also say yaa or osu among friends.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "J_command",
+      "label": "cmd_03",
+      "user_id": "audit_j03",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "tell me a joke",
+          "expect_kind": "command",
+          "expect_topic": [
+            "joke",
+            "funny",
+            "why",
+            "what",
+            "?"
+          ],
+          "text": "Why did the database administrator leave his wife? She had one-to-many relationships.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "J_command",
+      "label": "cmd_04",
+      "user_id": "audit_j04",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "give me a quote",
+          "expect_kind": "command",
+          "expect_topic": [
+            "quote",
+            "said"
+          ],
+          "text": "First, solve the problem. Then, write the code. \u2014 John Johnson",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 31.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "bad",
+          "quality_reason": "confident_wrong_command"
+        }
+      ]
+    },
+    {
+      "category": "J_command",
+      "label": "cmd_05",
+      "user_id": "audit_j05",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "summarise this",
+          "expect_kind": "command",
+          "expect_topic": [
+            "what",
+            "summarise",
+            "summarize",
+            "?",
+            "need"
+          ],
+          "text": "Happy to. Drop the passage in and I'll pull out the essentials.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 15.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "bad",
+          "quality_reason": "confident_wrong_command"
+        }
+      ]
+    },
+    {
+      "category": "J_command",
+      "label": "cmd_06",
+      "user_id": "audit_j06",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "write a poem",
+          "expect_kind": "command",
+          "expect_topic": [
+            "poem",
+            "verse",
+            "rhyme",
+            "line"
+          ],
+          "text": "Shall I compare thee to a summer's day? / Thou art more lovely and more temperate. / Rough winds do shake the darling buds of May, / and summer's lease hath all too short a date.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "bad",
+          "quality_reason": "confident_wrong_command"
+        }
+      ]
+    },
+    {
+      "category": "J_command",
+      "label": "cmd_07",
+      "user_id": "audit_j07",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "give me an idea",
+          "expect_kind": "command",
+          "expect_topic": [
+            "idea",
+            "could",
+            "try",
+            "consider",
+            "what"
+          ],
+          "text": "I don't have a confident answer for that one. Want to try a different angle?",
+          "response_path": "ood",
+          "retrieval_score": 0.8189454078674316,
+          "latency_ms": 281.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "J_command",
+      "label": "cmd_08",
+      "user_id": "audit_j08",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "recommend a book",
+          "expect_kind": "command",
+          "expect_topic": [
+            "book",
+            "read",
+            "recommend",
+            "novel",
+            "author"
+          ],
+          "text": "Read Thinking, Fast and Slow by Daniel Kahneman for the foundational ideas of behavioural psychology and decision-making.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "J_command",
+      "label": "cmd_09",
+      "user_id": "audit_j09",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "tell me a story",
+          "expect_kind": "command",
+          "expect_topic": [
+            "once",
+            "story",
+            "there",
+            "was",
+            "upon"
+          ],
+          "text": "A clockmaker built a single perfect clock and gave it away. Years later he returned to find it still ticking, surrounded by the children of the family who had received it. They had never wound it. He never explained why.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 15.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "bad",
+          "quality_reason": "confident_wrong_command"
+        }
+      ]
+    },
+    {
+      "category": "K_disambig",
+      "label": "k_h_a",
+      "user_id": "audit_k_h_a",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "i was just thinking about huawei",
+          "expect_kind": "factual",
+          "expect_topic": [
+            "huawei"
+          ],
+          "text": "Huawei is a global technology company headquartered in Shenzhen, China. It works across consumer devices like smartphones, telecom networking equipment, cloud services, and HarmonyOS.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 1,
+          "prompt": "and apple too",
+          "expect_kind": "factual",
+          "expect_topic": [
+            "apple",
+            "iphone",
+            "tech"
+          ],
+          "text": "Apple is a US consumer-electronics and software company headquartered in Cupertino, California. It designs the iPhone, Mac, iPad, Apple Watch, and runs services like iCloud, the App Store, and Apple Music.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 15.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 2,
+          "prompt": "which one is bigger?",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "bigger",
+            "apple",
+            "huawei",
+            "compare",
+            "revenue"
+          ],
+          "text": "I'm not able to give medical advice. For symptoms, dosage, or diagnosis questions please contact a qualified clinician or, in an emergency, your local emergency services.",
+          "response_path": "tool:safety",
+          "retrieval_score": 0.0,
+          "latency_ms": 31.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "bad",
+          "quality_reason": "followup_ignored_prior_topic"
+        }
+      ]
+    },
+    {
+      "category": "K_disambig",
+      "label": "k_py_rust",
+      "user_id": "audit_k_py_rust",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "tell me about python",
+          "expect_kind": "factual",
+          "expect_topic": [
+            "python",
+            "language"
+          ],
+          "text": "Python is a general-purpose programming language known for readable syntax and huge libraries for data, web, and ML. Popular for beginners and researchers alike.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 1,
+          "prompt": "actually rust",
+          "expect_kind": "factual",
+          "expect_topic": [
+            "rust",
+            "language",
+            "memory"
+          ],
+          "text": "Rust is a systems programming language focused on safety, concurrency, and performance. It prevents many memory-safety bugs at compile time without using a garbage collector.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 31.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 2,
+          "prompt": "is it harder to learn?",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "rust",
+            "harder",
+            "learn",
+            "borrow",
+            "ownership",
+            "yes"
+          ],
+          "text": "Rust is generally considered harder to learn than most popular languages because the borrow-checker forces you to think about ownership and lifetimes up front. The payoff is that the compiler catches whole classes of memory and concurrency bugs at compile time without a garbage collector.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": true,
+          "coref_pronoun": "it",
+          "coref_resolved_query": "is rust harder to learn?",
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "K_disambig",
+      "label": "k_joke",
+      "user_id": "audit_k_joke",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "tell me a joke",
+          "expect_kind": "command",
+          "expect_topic": [
+            "why",
+            "what",
+            "joke"
+          ],
+          "text": "Why did the database administrator leave his wife? She had one-to-many relationships.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 15.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 1,
+          "prompt": "another one",
+          "expect_kind": "command",
+          "expect_topic": [
+            "why",
+            "what",
+            "joke"
+          ],
+          "text": "Why did the database administrator leave his wife? She had one-to-many relationships.",
+          "response_path": "slm",
+          "retrieval_score": 0.8554435968399048,
+          "latency_ms": 297.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 2,
+          "prompt": "something about programming",
+          "expect_kind": "command",
+          "expect_topic": [
+            "programmer",
+            "code",
+            "bug",
+            "developer",
+            "joke"
+          ],
+          "text": "Programming is the activity of writing instructions for computers to execute. A programming language lets a person express those instructions precisely.",
+          "response_path": "retrieval",
+          "retrieval_score": 0.9254590272903442,
+          "latency_ms": 31.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "bad",
+          "quality_reason": "confident_wrong_command"
+        }
+      ]
+    },
+    {
+      "category": "K_disambig",
+      "label": "k_photo_resp",
+      "user_id": "audit_k_photo_resp",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "what's photosynthesis",
+          "expect_kind": "factual",
+          "expect_topic": [
+            "plant",
+            "light",
+            "energy"
+          ],
+          "text": "Photosynthesis is the process plants use to convert sunlight, carbon dioxide, and water into glucose and oxygen. The chlorophyll in leaves captures the light energy.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 1,
+          "prompt": "and respiration?",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "respiration",
+            "oxygen",
+            "breath",
+            "cell"
+          ],
+          "text": "Cellular respiration is the process by which cells release energy from glucose by reacting it with oxygen. At the carbon-flow level it's roughly the inverse of photosynthesis \u2014 animals and plants both use it to release the energy stored in food.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 2,
+          "prompt": "are they opposites?",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "yes",
+            "opposite",
+            "reverse",
+            "opposed",
+            "produce",
+            "consume"
+          ],
+          "text": "Yes \u2014 they are roughly opposites at the carbon-flow level. Photosynthesis takes in carbon dioxide and water and produces glucose and oxygen; cellular respiration consumes glucose and oxygen and produces carbon dioxide and water.",
+          "response_path": "retrieval",
+          "retrieval_score": 0.982017457485199,
+          "latency_ms": 46.0,
+          "coref_used": true,
+          "coref_pronoun": "they",
+          "coref_resolved_query": "is respiration opposites?",
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [
+            "formality"
+          ],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "K_disambig",
+      "label": "k_ein_new",
+      "user_id": "audit_k_ein_new",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "tell me about einstein",
+          "expect_kind": "factual",
+          "expect_topic": [
+            "einstein",
+            "physicist"
+          ],
+          "text": "Albert Einstein was a German-born physicist who developed the theories of special and general relativity. He received the Nobel Prize in Physics in 1921.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 32.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 1,
+          "prompt": "and newton",
+          "expect_kind": "factual",
+          "expect_topic": [
+            "newton",
+            "isaac",
+            "gravity",
+            "physics"
+          ],
+          "text": "Isaac Newton was an English mathematician and physicist who described the laws of motion and universal gravitation in the 17th century, and laid the foundations of calculus.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 15.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 2,
+          "prompt": "who came first?",
+          "expect_kind": "followup",
+          "expect_topic": [
+            "newton",
+            "first",
+            "earlier",
+            "before"
+          ],
+          "text": "Tell me which two people you mean \u2014 I can place most pairs of historical figures on the timeline. For example: Newton (1643-1727) came before Einstein (1879-1955), and Shakespeare (1564-1616) came before both.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "L_edge",
+      "label": "edge_empty",
+      "user_id": "audit_l00",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "",
+          "text": "",
+          "response_path": "skipped_empty",
+          "retrieval_score": 0.0,
+          "latency_ms": 0,
+          "coref_used": false,
+          "tool_path": null,
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": null,
+          "biometric_state": null,
+          "quality_label": "good",
+          "quality_reason": "empty_prompt_dropped",
+          "_skipped": true
+        }
+      ]
+    },
+    {
+      "category": "L_edge",
+      "label": "edge_singlechar",
+      "user_id": "audit_l01",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "a",
+          "expect_kind": "edge",
+          "expect_topic": [],
+          "text": "- What's the matter?",
+          "response_path": "slm",
+          "retrieval_score": 0.0,
+          "latency_ms": 203.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "L_edge",
+      "label": "edge_allcaps",
+      "user_id": "audit_l02",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "WHAT IS PYTHON",
+          "expect_kind": "factual",
+          "expect_topic": [
+            "python",
+            "language",
+            "programming"
+          ],
+          "text": "Python is a general-purpose programming language known for readable syntax and huge libraries for data, web, and ML. Popular for beginners and researchers alike.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 32.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "L_edge",
+      "label": "edge_typos",
+      "user_id": "audit_l03",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "wat is huwaei",
+          "expect_kind": "factual",
+          "expect_topic": [
+            "huawei",
+            "china",
+            "phone",
+            "telecom"
+          ],
+          "text": "Huawei is a global technology company headquartered in Shenzhen, China. It works across consumer devices like smartphones, telecom networking equipment, cloud services, and HarmonyOS.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 15.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "L_edge",
+      "label": "edge_long",
+      "user_id": "audit_l04",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "can you tell me a really detailed thing about huawei the company including their history founders products research labs and operations across the world please ",
+          "expect_kind": "explain",
+          "expect_topic": [
+            "huawei",
+            "china",
+            "telecom",
+            "phone"
+          ],
+          "text": "I'm not able to give medical advice. For symptoms, dosage, or diagnosis questions please contact a qualified clinician or, in an emergency, your local emergency services.",
+          "response_path": "tool:safety",
+          "retrieval_score": 0.0,
+          "latency_ms": 15.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "L_edge",
+      "label": "edge_repeat",
+      "user_id": "audit_l05",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "hello",
+          "expect_kind": "smalltalk",
+          "expect_topic": [],
+          "text": "Good day to you. How may I assist?",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 1,
+          "prompt": "hello",
+          "expect_kind": "smalltalk",
+          "expect_topic": [],
+          "text": "Good day to you. How may I assist?",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 15.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 2,
+          "prompt": "hello",
+          "expect_kind": "smalltalk",
+          "expect_topic": [],
+          "text": "Good day to you. How may I assist?",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "L_edge",
+      "label": "edge_pause",
+      "user_id": "audit_l06",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "hello",
+          "expect_kind": "smalltalk",
+          "expect_topic": [],
+          "text": "Good day to you. How may I assist?",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 15.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 1,
+          "prompt": "are you still there?",
+          "expect_kind": "smalltalk",
+          "expect_topic": [],
+          "text": "Yes \u2014 still here. What can I help with?",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 15.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [
+            "formality"
+          ],
+          "affect_shift_detected": false,
+          "user_state_label": "calm",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "L_edge",
+      "label": "edge_codeswitch",
+      "user_id": "audit_l07",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "what is photosynthesis \uad11\ud569\uc131",
+          "expect_kind": "factual",
+          "expect_topic": [
+            "plant",
+            "light",
+            "energy",
+            "carbon"
+          ],
+          "text": "Photosynthesis is how plants convert sunlight, water, and carbon dioxide into glucose and oxygen. The chlorophyll in leaves absorbs light energy, the light reactions split water and produce ATP and NADPH, and the Calvin cycle uses those to fix carbon into sugar.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "L_edge",
+      "label": "edge_rapid",
+      "user_id": "audit_l08",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "hi",
+          "expect_kind": "smalltalk",
+          "expect_topic": [],
+          "text": "Hello there. What can I do for you?",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 31.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 1,
+          "prompt": "yo",
+          "expect_kind": "smalltalk",
+          "expect_topic": [],
+          "text": "Hello there. What can I do for you?",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "distracted",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 2,
+          "prompt": "?",
+          "expect_kind": "smalltalk",
+          "expect_topic": [],
+          "text": "Hello there. What can I do for you?",
+          "response_path": "slm",
+          "retrieval_score": 0.0,
+          "latency_ms": 656.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "distracted",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 3,
+          "prompt": "hmm",
+          "expect_kind": "smalltalk",
+          "expect_topic": [],
+          "text": "Take your time. I will be here when you are ready.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 31.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [
+            "formality"
+          ],
+          "affect_shift_detected": false,
+          "user_state_label": "distracted",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 4,
+          "prompt": "ok",
+          "expect_kind": "smalltalk",
+          "expect_topic": [],
+          "text": "Is there anything you would like to dig into next?\n\n\u2014 Your interaction pattern shifted notably from the start of this session \u2014 let me know if I should adjust how I'm answering.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [
+            "formality"
+          ],
+          "affect_shift_detected": true,
+          "user_state_label": "distracted",
+          "biometric_state": "registered",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 5,
+          "prompt": "...",
+          "expect_kind": "smalltalk",
+          "expect_topic": [],
+          "text": "Hello there. What can I do for you?",
+          "response_path": "slm",
+          "retrieval_score": 0.0,
+          "latency_ms": 203.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": true,
+          "user_state_label": "distracted",
+          "biometric_state": "mismatch",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 6,
+          "prompt": "lol",
+          "expect_kind": "smalltalk",
+          "expect_topic": [],
+          "text": "Glad I got a laugh.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [
+            "verbosity"
+          ],
+          "affect_shift_detected": true,
+          "user_state_label": "distracted",
+          "biometric_state": "mismatch",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 7,
+          "prompt": "k",
+          "expect_kind": "smalltalk",
+          "expect_topic": [],
+          "text": "Is there anything you would like to dig into next? \u2014 Your interaction pattern shifted notably from the start of this session \u2014 let me know if I should adjust how I am answering.",
+          "response_path": "slm",
+          "retrieval_score": 0.0,
+          "latency_ms": 390.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [
+            "formality"
+          ],
+          "affect_shift_detected": true,
+          "user_state_label": "distracted",
+          "biometric_state": "verifying",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 8,
+          "prompt": "wat",
+          "expect_kind": "smalltalk",
+          "expect_topic": [],
+          "text": "I can say that again if it helps \u2014 let me know.",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [
+            "verbosity"
+          ],
+          "affect_shift_detected": true,
+          "user_state_label": "distracted",
+          "biometric_state": "mismatch",
+          "quality_label": "good",
+          "quality_reason": ""
+        },
+        {
+          "turn_idx": 9,
+          "prompt": "uh",
+          "expect_kind": "smalltalk",
+          "expect_topic": [],
+          "text": "Got it \u2014\n\n\u2014 Your interaction pattern shifted notably from the start of this session \u2014 let me know if I should adjust how I'm answering.",
+          "response_path": "retrieval",
+          "retrieval_score": 0.8790067434310913,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [
+            "verbosity"
+          ],
+          "affect_shift_detected": true,
+          "user_state_label": "distracted",
+          "biometric_state": "mismatch",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    },
+    {
+      "category": "L_edge",
+      "label": "edge_longcompose",
+      "user_id": "audit_l09",
+      "turns": [
+        {
+          "turn_idx": 0,
+          "prompt": "hello",
+          "expect_kind": "smalltalk",
+          "expect_topic": [],
+          "text": "Good day to you. How may I assist?",
+          "response_path": "retrieval",
+          "retrieval_score": 1.0,
+          "latency_ms": 16.0,
+          "coref_used": false,
+          "coref_pronoun": null,
+          "coref_resolved_query": null,
+          "tool_path": "local_slm",
+          "adaptation_axes_changed": [],
+          "affect_shift_detected": false,
+          "user_state_label": "warming up",
+          "biometric_state": "registering",
+          "quality_label": "good",
+          "quality_reason": ""
+        }
+      ]
+    }
+  ]
+}

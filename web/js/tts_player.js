@@ -133,47 +133,76 @@ async function playResult(audio, btn, caption, result) {
     caption.textContent = result.explanation || 'Speaking.';
 
     if (result.audio_wav_base64) {
-        // Server produced WAV bytes — play them directly.
+        // Server produced WAV bytes — play them directly.  Browsers
+        // gate ``audio.play()`` behind a user-gesture promise, but
+        // since we're inside the click handler that requested TTS we
+        // already have the gesture token.  If playback still fails
+        // (e.g. the pyttsx3 WAV stream confuses the browser), fall
+        // through to the Web Speech API instead of giving up — the
+        // user can hear *something* either way.
         try {
             audio.src = base64WavToUrl(result.audio_wav_base64);
+            audio.onended = () => { btn.classList.remove('is-speaking'); };
+            audio.onerror = () => {
+                console.warn('[tts] <audio> element errored; trying Web Speech API');
+                speakViaWebSpeech(result, btn, caption);
+            };
             await audio.play();
-        } catch (err) {
-            caption.textContent = 'Unable to play audio.';
-            btn.classList.remove('is-speaking');
             return;
+        } catch (err) {
+            console.warn('[tts] audio.play() rejected:', err);
+            // Fall through to the Web Speech path below.
         }
-        audio.onended = () => {
-            btn.classList.remove('is-speaking');
-        };
+    }
+
+    if (hasWebSpeechApi()) {
+        speakViaWebSpeech(result, btn, caption);
         return;
     }
 
     if (result.directive && hasWebSpeechApi()) {
-        // Client-side fallback — use the browser's speechSynthesis.
-        const d = result.directive;
-        const utt = new SpeechSynthesisUtterance(String(d.text || ''));
-        if (typeof d.rate === 'number') utt.rate = d.rate;
-        if (typeof d.pitch === 'number') utt.pitch = d.pitch;
-        if (typeof d.volume === 'number') utt.volume = d.volume;
-        utt.onend = () => {
-            btn.classList.remove('is-speaking');
-        };
-        utt.onerror = () => {
-            btn.classList.remove('is-speaking');
-            caption.textContent = 'Speech synthesis failed.';
-        };
-        try {
-            window.speechSynthesis.cancel();
-            window.speechSynthesis.speak(utt);
-        } catch (err) {
-            btn.classList.remove('is-speaking');
-            caption.textContent = 'Speech synthesis failed.';
-        }
+        speakViaWebSpeech(result, btn, caption);
         return;
     }
 
     btn.classList.remove('is-speaking');
     caption.textContent = 'No playback path available.';
+}
+
+/**
+ * Web Speech API fallback path — used both when the server didn't
+ * produce a WAV and when the WAV refused to play in this browser.
+ * @param {object} result
+ * @param {HTMLButtonElement} btn
+ * @param {HTMLElement} caption
+ */
+function speakViaWebSpeech(result, btn, caption) {
+    if (!hasWebSpeechApi()) {
+        btn.classList.remove('is-speaking');
+        caption.textContent = 'No playback path available.';
+        return;
+    }
+    const d = result.directive || {};
+    const text = String(
+        d.text || result.text || result.spoken_text || result.message || ''
+    ).trim() || 'Hello.';
+    const utt = new SpeechSynthesisUtterance(text);
+    if (typeof d.rate === 'number')   utt.rate   = d.rate;
+    if (typeof d.pitch === 'number')  utt.pitch  = d.pitch;
+    if (typeof d.volume === 'number') utt.volume = d.volume;
+    utt.onend = () => { btn.classList.remove('is-speaking'); };
+    utt.onerror = () => {
+        btn.classList.remove('is-speaking');
+        caption.textContent = 'Speech synthesis failed.';
+    };
+    try {
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utt);
+        caption.textContent = 'Speaking…';
+    } catch (err) {
+        btn.classList.remove('is-speaking');
+        caption.textContent = 'Speech synthesis failed.';
+    }
 }
 
 /**
@@ -219,6 +248,12 @@ async function onSpeakClicked(btn, caption, audio) {
 /**
  * Entry point — invoked once on DOMContentLoaded.
  * Idempotent.
+ *
+ * The original on-page "Speak response" button is still mounted (so
+ * legacy diagnostics that look for #i3-tts-speak-btn keep working) but
+ * the parent #i3-advanced-panels host is hidden by CSS in the apple21
+ * layout.  The primary entry point is now a per-bubble icon button
+ * dispatched as `i3:speak-bubble` — see chat.js _appendBubbleTts.
  */
 export function initTtsPlayer() {
     if (_initialised) return;
@@ -235,11 +270,6 @@ export function initTtsPlayer() {
 
     const { btn, caption, audio } = buildUi(mount);
 
-    // Accessibility check: if neither a server response nor Web Speech
-    // can reach the user, the button stays disabled with a clear
-    // message (the spec's "soft fallback").  We optimistically enable
-    // the button first and let the request attempt do the real test;
-    // but if the browser has no Web Speech at all, we pre-warn.
     if (!hasWebSpeechApi()) {
         caption.textContent = 'Browser has no Web Speech API — '
             + 'server audio will be used if available.';
@@ -249,12 +279,86 @@ export function initTtsPlayer() {
         onSpeakClicked(btn, caption, audio);
     });
 
-    // If neither path exists, disable the button up front.
-    // ``fetch`` existence is guaranteed in every modern browser that
-    // reached this module; if Web Speech is missing we still try the
-    // server first.
     if (!hasWebSpeechApi() && typeof fetch !== 'function') {
         disableButton(btn, caption, 'TTS unavailable in this browser.');
+    }
+
+    // Listen for the per-bubble TTS event dispatched from chat.js.
+    // We reuse the same audio element + caption + button-state machinery
+    // so the global player stays the single source of truth.
+    window.addEventListener('i3:speak-bubble', (ev) => {
+        const detail = ev && ev.detail ? ev.detail : {};
+        const txt = String(detail.text || '').trim();
+        const bubbleBtn = detail.button || null;
+        if (!txt) {
+            if (bubbleBtn) bubbleBtn.classList.remove('is-loading');
+            return;
+        }
+        speakArbitraryText(txt, btn, caption, audio, bubbleBtn);
+    });
+}
+
+/**
+ * Drive a TTS request for an arbitrary text payload (rather than reading
+ * the latest message off the DOM).  Used by the bubble TTS buttons so
+ * each bubble plays its own text.
+ *
+ * @param {string} text
+ * @param {HTMLButtonElement} btn  the legacy mount button (used as the
+ *     state machine for "is-speaking" pulse).
+ * @param {HTMLElement} caption    the legacy caption element.
+ * @param {HTMLAudioElement} audio shared audio element.
+ * @param {HTMLButtonElement|null} bubbleBtn the per-bubble button to
+ *     reset once playback starts.
+ */
+async function speakArbitraryText(text, btn, caption, audio, bubbleBtn) {
+    if (btn.disabled) return;
+    caption.textContent = 'Requesting synthesis…';
+    if (bubbleBtn) {
+        bubbleBtn.classList.add('is-loading');
+        bubbleBtn.classList.remove('is-speaking');
+    }
+    const resetBubble = () => {
+        if (!bubbleBtn) return;
+        bubbleBtn.classList.remove('is-loading');
+        bubbleBtn.classList.remove('is-speaking');
+    };
+    try {
+        const resp = await fetch(ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: USER_ID, text: text.slice(0, MAX_TEXT_CHARS) }),
+        });
+        if (!resp.ok) {
+            if (resp.status === 503 && hasWebSpeechApi()) {
+                const fake = {
+                    directive: { text, rate: 1.0, pitch: 1.0, volume: 1.0 },
+                    explanation: 'Server TTS unavailable — using browser voice.',
+                };
+                if (bubbleBtn) {
+                    bubbleBtn.classList.remove('is-loading');
+                    bubbleBtn.classList.add('is-speaking');
+                }
+                await playResult(audio, btn, caption, fake);
+                if (audio) audio.addEventListener('ended', resetBubble, { once: true });
+                else resetBubble();
+                return;
+            }
+            caption.textContent = 'TTS request failed.';
+            resetBubble();
+            return;
+        }
+        const result = await resp.json();
+        if (bubbleBtn) {
+            bubbleBtn.classList.remove('is-loading');
+            bubbleBtn.classList.add('is-speaking');
+        }
+        await playResult(audio, btn, caption, result);
+        if (audio) audio.addEventListener('ended', resetBubble, { once: true });
+        else resetBubble();
+    } catch (err) {
+        caption.textContent = 'TTS request errored.';
+        resetBubble();
     }
 }
 

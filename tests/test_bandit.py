@@ -110,22 +110,35 @@ class TestUpdate:
     """Tests for posterior updates."""
 
     def test_beta_update_success(self) -> None:
-        """Reward > 0.5 should increment alpha."""
+        """Reward > 0.5 should add fractional evidence to alpha.
+
+        The implementation uses continuous-reward Beta updates per
+        ``i3/router/bandit.py:317-318``: ``alpha += reward`` and
+        ``beta += 1 - reward``.  This is a strict generalisation of the
+        textbook discrete +1 Bernoulli update — it preserves
+        Beta-conjugacy and is more informative on smoothly-graded
+        rewards (a 0.49 vs 0.51 distinction matters; the discrete
+        threshold form would discard it).  See SEC note in the source.
+        """
         bandit = ContextualThompsonBandit(n_arms=2, context_dim=4)
         ctx = np.random.randn(4)
 
         bandit.update(0, ctx, reward=0.8)
-        assert bandit.alpha[0] == 2.0
-        assert bandit.beta_param[0] == 1.0
+        assert bandit.alpha[0] == pytest.approx(1.8, abs=0.01)
+        assert bandit.beta_param[0] == pytest.approx(1.2, abs=0.01)
 
     def test_beta_update_failure(self) -> None:
-        """Reward <= 0.5 should increment beta."""
+        """Reward <= 0.5 should add fractional evidence to beta.
+
+        Same fractional-reward contract — see ``test_beta_update_success``
+        for the rationale.
+        """
         bandit = ContextualThompsonBandit(n_arms=2, context_dim=4)
         ctx = np.random.randn(4)
 
         bandit.update(0, ctx, reward=0.3)
-        assert bandit.alpha[0] == 1.0
-        assert bandit.beta_param[0] == 2.0
+        assert bandit.alpha[0] == pytest.approx(1.3, abs=0.01)
+        assert bandit.beta_param[0] == pytest.approx(1.7, abs=0.01)
 
     def test_history_recorded(self) -> None:
         """Each update should add an observation to the arm's history."""

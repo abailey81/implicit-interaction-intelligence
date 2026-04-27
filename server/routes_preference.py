@@ -89,13 +89,23 @@ class PreferenceRecordRequest(BaseModel):
 
 
 class PreferenceRecordResponse(BaseModel):
-    """Response model for ``POST /api/preference/record``."""
+    """Response model for ``POST /api/preference/record``.
+
+    The optional ``personalisation`` field carries the
+    :class:`i3.personalisation.LoRAUpdate.to_dict()` payload when the
+    user's biometric template is registered and the contrastive SGD
+    step actually fired.  ``None`` when the user has no biometric
+    template registered yet (the rest of the preference flow still
+    works in that case -- the dataset still grows, the reward model
+    still trains, only the personal LoRA adapter is skipped).
+    """
 
     model_config = ConfigDict(extra="forbid")
 
     user_id: str
     pairs_collected: int
     accepted: bool
+    personalisation: dict | None = None
 
 
 class PreferenceQueryResponse(BaseModel):
@@ -287,10 +297,49 @@ async def record_preference(request: Request) -> JSONResponse:
     state.selector.register_labelled(pair)
     state.last_candidate = pair
 
+    # ----- Per-biometric LoRA personalisation update --------------------
+    # When the user's typing-biometric template is registered, run a
+    # contrastive SGD step on their personal LoRA adapter from the
+    # picked vs rejected adaptation profiles.  Soft-fail: if the
+    # pipeline isn't reachable from this request scope, or the user
+    # has no template yet, we silently skip the update (the rest of
+    # the preference flow still succeeds).  See
+    # i3.personalisation.lora_adapter for the model + the LoRA / Adapter
+    # citations.
+    personalisation_payload: dict | None = None
+    try:
+        if body.winner in ("a", "b"):
+            picked_features = (
+                feat_a if body.winner == "a" else feat_b
+            )
+            rejected_features = (
+                feat_b if body.winner == "a" else feat_a
+            )
+            pipeline = getattr(request.app.state, "pipeline", None)
+            if pipeline is not None and hasattr(
+                pipeline, "update_personalisation_from_preference"
+            ):
+                personalisation_payload = (
+                    pipeline.update_personalisation_from_preference(
+                        body.user_id,
+                        picked_adaptation=list(picked_features),
+                        rejected_adaptation=list(rejected_features),
+                    )
+                )
+    except Exception:
+        # Personalisation is decorative — never break the preference flow.
+        logger.exception(
+            "personalisation update failed for user_id=%s; preference "
+            "still recorded",
+            body.user_id,
+        )
+        personalisation_payload = None
+
     payload = PreferenceRecordResponse(
         user_id=body.user_id,
         pairs_collected=len(state.dataset),
         accepted=True,
+        personalisation=personalisation_payload,
     )
     return JSONResponse(payload.model_dump(mode="json"))
 
@@ -328,9 +377,18 @@ async def query_next(
     # it based on its own cadence rules.  ``should_query`` is True when
     # the information gain clears a low baseline.
     threshold = 0.01
+    # Demo guard (2026-04-26 iter 10): the fabricated default pair has
+    # literal placeholder text "Response A" / "Response B".  Showing
+    # those to a recruiter looks broken — gate the toast off until a
+    # real labelled pair has been recorded (state.last_candidate is
+    # set by record_preference) so the user sees actual content.
+    is_placeholder = (
+        chosen.response_a == "Response A"
+        and chosen.response_b == "Response B"
+    )
     payload = PreferenceQueryResponse(
         user_id=user_id,
-        should_query=bool(ig >= threshold),
+        should_query=bool(ig >= threshold) and not is_placeholder,
         prompt=chosen.prompt,
         response_a=chosen.response_a,
         response_b=chosen.response_b,
@@ -339,9 +397,13 @@ async def query_next(
         response_b_features=list(chosen.response_b_features),
         information_gain=ig,
         reason=(
-            f"ig {ig:.3f} >= {threshold:.3f}"
-            if ig >= threshold
-            else f"ig {ig:.3f} < {threshold:.3f}"
+            "placeholder pair — suppressed for demo"
+            if is_placeholder
+            else (
+                f"ig {ig:.3f} >= {threshold:.3f}"
+                if ig >= threshold
+                else f"ig {ig:.3f} < {threshold:.3f}"
+            )
         ),
     )
     return JSONResponse(payload.model_dump(mode="json"))

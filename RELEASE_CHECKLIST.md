@@ -15,6 +15,24 @@ CI — this file is the source of truth for the contract.
   reports 0 failures under `--strict`.
 - [ ] `make redteam` — all four runtime invariants pass.
 - [ ] `make security-check` — bandit + pip-audit clean.
+- [ ] **Iter 51 additions** (conversational coherence + intent fine-tune):
+  - [ ] `python D:/tmp/context_drift_test.py` reports 170/170 (or
+        equivalent on the latest expanded set).
+  - [ ] `python D:/tmp/cross_session_test.py` reports 4/4.
+  - [ ] If the Qwen LoRA adapter exists at
+        `checkpoints/intent_lora/qwen3.5-2b_best/`, run
+        `python training/eval_intent.py --backends qwen` and check
+        action accuracy ≥ 90 %.
+  - [ ] `curl http://localhost:8000/api/profiling/report` returns 200
+        JSON with `fits_budget: true`.
+  - [ ] `curl -X POST http://localhost:8000/api/intent -H 'Content-Type:
+        application/json' -d '{"text":"set a timer for 10 minutes",
+        "backend":"qwen"}'` returns
+        `{"action":"set_timer","params":{"duration_seconds":600},...}`
+        OR cleanly degrades to `{"error":"adapter not loaded",...}`
+        when the adapter isn't trained.
+  - [ ] `curl http://localhost:8000/api/intent/status` returns the
+        per-backend status block.
 
 ## 2. Data gate
 

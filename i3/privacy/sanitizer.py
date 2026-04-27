@@ -13,7 +13,7 @@ Classes:
 import logging
 import re
 import threading
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -36,6 +36,16 @@ class SanitizationResult:
     pii_detected: bool
     pii_types: list[str]  # Types of PII found (e.g., ["email", "phone"])
     replacements_made: int
+    # Per-category redaction counts, e.g. ``{"email": 2, "phone": 1}``.
+    # Populated even when ``replacements_made == 0`` (empty dict in that
+    # case) so callers can iterate without conditionals.  Used by the
+    # privacy-budget tracker to break down the per-session counter.
+    pii_category_counts: dict = field(default_factory=dict)
+    # Total bytes that WOULD have been transmitted unredacted — i.e. the
+    # cumulative byte size of every match across every PII pattern.
+    # The "value-add of the sanitiser" number surfaced on the Privacy
+    # tab.
+    bytes_redacted: int = 0
 
 
 class PrivacySanitizer:
@@ -102,7 +112,12 @@ class PrivacySanitizer:
         ), "[PHONE]"),
 
         ("phone_intl", re.compile(
-            r'\b\+[0-9]{1,3}[-.\s]?[0-9]{1,4}[-.\s]?[0-9]{3,4}[-.\s]?[0-9]{3,4}\b'
+            # SEC (iter 51, 2026-04-27): the leading ``\b`` failed
+            # against ``+49 30 1234 5678`` because ``+`` is a non-word
+            # character and word-boundary requires a word char on one
+            # side.  Replace ``\b\+`` with ``(?<!\w)\+`` so the assertion
+            # still rejects mid-word matches but accepts a leading ``+``.
+            r'(?<!\w)\+[0-9]{1,3}[-.\s]?[0-9]{1,4}[-.\s]?[0-9]{3,4}[-.\s]?[0-9]{3,4}\b'
         ), "[PHONE]"),
 
         ("credit_card", re.compile(
@@ -158,12 +173,12 @@ class PrivacySanitizer:
         attack surface is bounded to a fixed-size input.
         """
         if not self.enabled:
-            return SanitizationResult(text, False, [], 0)
+            return SanitizationResult(text, False, [], 0, {}, 0)
 
         if not isinstance(text, str):
             # Non-string input cannot contain PII and would crash the regex
             # engine. Return an empty/clean result rather than raising.
-            return SanitizationResult("", False, [], 0)
+            return SanitizationResult("", False, [], 0, {}, 0)
 
         truncated = False
         if len(text) > MAX_INPUT_LENGTH:
@@ -179,12 +194,25 @@ class PrivacySanitizer:
         pii_types: list[str] = []
         replacements = 0
         sanitized = text
+        category_counts: dict[str, int] = {}
+        bytes_redacted = 0
 
         for pii_type, pattern, replacement in self.PII_PATTERNS:
             matches = pattern.findall(sanitized)
             if matches:
                 pii_types.append(pii_type)
                 replacements += len(matches)
+                # Sum the byte-size of every match BEFORE substitution
+                # so the budget counter can show how much sensitive
+                # data would have been transmitted unredacted.  Note:
+                # for groups patterns, ``findall`` returns tuples; we
+                # coerce by re-finding with ``finditer`` for accurate
+                # match-string lengths.
+                for m in pattern.finditer(sanitized):
+                    bytes_redacted += len(m.group(0).encode("utf-8"))
+                category_counts[pii_type] = (
+                    category_counts.get(pii_type, 0) + len(matches)
+                )
                 sanitized = pattern.sub(replacement, sanitized)
 
         # SEC: Thread-safe stats update; we never log the actual PII value,
@@ -204,7 +232,14 @@ class PrivacySanitizer:
                 replacements,
             )
 
-        return SanitizationResult(sanitized, bool(pii_types), pii_types, replacements)
+        return SanitizationResult(
+            sanitized,
+            bool(pii_types),
+            pii_types,
+            replacements,
+            dict(category_counts),
+            bytes_redacted,
+        )
 
     def contains_pii(self, text: str) -> bool:
         """Quick check: does this text contain PII?

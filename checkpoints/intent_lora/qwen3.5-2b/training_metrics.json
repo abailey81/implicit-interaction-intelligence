@@ -1,0 +1,48 @@
+{
+  "step_loss": [
+    {
+      "step": 1,
+      "epoch": 0,
+      "loss": 4.322862148284912
+    },
+    {
+      "step": 2,
+      "epoch": 0,
+      "loss": 2.828047275543213
+    },
+    {
+      "step": 3,
+      "epoch": 0,
+      "loss": 2.4876973628997803
+    }
+  ],
+  "epoch_avg_loss": [
+    {
+      "epoch": 0,
+      "avg_loss": 3.17816162109375
+    }
+  ],
+  "val_loss_curve": [
+    {
+      "step": 3,
+      "val_loss": 3.0057748376377047
+    }
+  ],
+  "model": "Qwen/Qwen3-1.7B",
+  "rank": 16,
+  "alpha": 32,
+  "lr": 0.0002,
+  "batch_size": 1,
+  "grad_accum": 2,
+  "epochs": 2,
+  "n_train": 4545,
+  "n_val": 252,
+  "use_dora": false,
+  "neftune_noise_alpha": 5.0,
+  "use_8bit_adam": false,
+  "wall_time_s": 23.97824501991272,
+  "final_step": 3,
+  "final_val_loss": 3.0057748376377047,
+  "best_val_loss": 3.0057748376377047,
+  "best_checkpoint_dir": "D:\\implicit-interaction-intelligence\\checkpoints\\intent_lora\\qwen3.5-2b_best"
+}

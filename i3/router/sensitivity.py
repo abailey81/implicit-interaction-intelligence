@@ -97,7 +97,12 @@ _SENSITIVE_PATTERNS: tuple[SensitivityPattern, ...] = (
     SensitivityPattern(
         pattern=re.compile(
             r"\b(abuse|abus(ed|ing|ive)|domestic\s+violence"
-            r"|sexual\s+assault|rape|molest|harass(ed|ment|ing)"
+            # Iter 51: include the inflected forms ``sexually assaulted``
+            # and ``sexually abused`` — previously only the noun phrase
+            # ``sexual assault`` matched, missing first-person reports.
+            r"|sexual(?:ly)?\s+(?:assault(?:ed|ing)?|abuse(?:d|ing)?|harass(?:ed|ment|ing)?)"
+            r"|sexual\s+assault|rape|raped|raping|molest(?:ed|ing|ation)?"
+            r"|harass(ed|ment|ing)"
             r"|stalk(ed|er|ing)|batter(ed|ing)|victim"
             r"|restraining\s+order|protective\s+order)\b",
             re.IGNORECASE,

@@ -18,7 +18,7 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry]
 name        = "implicit-interaction-intelligence"
 version     = "1.1.0"
-description = "Adaptive AI companion built from implicit interaction signals."
+description = "On-device assistant that reads how you type and answers accordingly. 204M custom transformer (MoE+ACT), TCN keystroke encoder, LinUCB router, LoRA personalisation, byte-level BPE — built from scratch in PyTorch, zero HuggingFace deps in the inference path, ~200MB int8 on a 6GB laptop GPU."
 readme      = "README.md"
 license     = "MIT"
 authors     = ["Tamer Atesyakar <tamer.atesyakar@bk.ru>"]
@@ -88,6 +88,14 @@ python = "^3.10"
 torch          = ">=2.6,<3.0"
 numpy          = ">=1.24,<3.0"
 scikit-learn   = ">=1.3,<2.0"
+
+# 8-bit AdamW optimizer state for the 400M v2 SLM trainer
+# (i3/slm/train_v2.py). This is a CUDA-kernel library (same category as
+# torch.optim), NOT a "heavy ML framework" — it halves optimiser-state
+# VRAM (~1.6 GB -> ~0.8 GB) so the 400M config fits inside the 6.4 GB
+# RTX 4050 budget.  Optional on non-CUDA machines; the trainer falls
+# back to torch.optim.AdamW with a clear warning if it cannot import.
+bitsandbytes   = { version = ">=0.43", optional = true }
 
 # Web server
 fastapi        = "^0.115"         # SEC: pulls starlette ≥ 0.40 (multipart DoS fix)
@@ -327,18 +335,22 @@ kokoro        = { version = ">=0.1",  optional = true }   # Kokoro 82M open-weig
 [tool.poetry.group.docs.dependencies]
 mkdocs                                   = "^1.5"
 mkdocs-material                          = { version = "^9.5", extras = ["imaging"] }
-mkdocstrings                             = { version = "^0.24", extras = ["python"] }
+# mkdocstrings >=0.27 and mkdocstrings-python >=1.11 land the griffe
+# 1.x -> 2.x compatibility shim; pinning both together avoids the
+# ``from griffe.collections`` ModuleNotFoundError that the
+# ``docs`` stage trips on with the older (0.24 / 1.10) pair.
+mkdocstrings                             = { version = ">=0.27,<0.29", extras = ["python"] }
+mkdocstrings-python                      = ">=1.11,<2.0"
 # Pin autorefs to 1.3.x: 1.4.x raises "AttributeError: 'dict' object
 # has no attribute 'link_titles'" during ``mkdocs build --strict``
 # against mkdocs 1.6 because its plugin ``on_config`` expects a typed
 # MkDocsConfig object but sometimes receives a plain dict from
-# upstream plugins in the chain.  The verify-all harness's
-# ``config.mkdocs_build_strict`` check trips on this.
+# upstream plugins in the chain.
 mkdocs-autorefs                          = "~1.3.0"
 # Pin griffe to 1.x: griffe 2.0 removed the ``griffe.collections``
-# module which ``mkdocstrings_handlers.python.handler`` still imports
-# from.  Upgrade together when a compatible mkdocstrings-python
-# lands.
+# module which older ``mkdocstrings_handlers.python.handler`` still
+# imports from.  Upgrade together when a fully-2.0-compatible
+# mkdocstrings-python lands.
 griffe                                   = "^1.0"
 mkdocs-include-markdown-plugin           = "^6.0"
 mkdocs-git-revision-date-localized-plugin = "^1.2"

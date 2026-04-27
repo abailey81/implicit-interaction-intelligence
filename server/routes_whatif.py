@@ -277,23 +277,62 @@ async def _generate_with_override(
 ) -> str:
     """Run the pipeline's generator with a forced AdaptationVector.
 
-    Prefers the local SLM so the override is actually exercised through
-    cross-attention (cloud LLMs ignore the AdaptationVector at the wire
-    level; they only see the derived system prompt).
+    Tries retrieval first (so the same Q→A pair the chat would have
+    picked is reused as the substrate), then runs the result through
+    the pipeline's ResponsePostProcessor with the forced adaptation —
+    that's what makes the override *visibly* reshape the reply
+    (truncation, contraction expand/contract, hedge stripping,
+    accessibility simplification).
+
+    Falls back to the local SLM cross-attention generator when no
+    retrieval candidate clears the threshold.
     """
-    slm_gen = getattr(pipeline, "_slm_generator", None)
-    if slm_gen is not None:
+    base_text: str | None = None
+
+    # 1. Retrieval-first: reuse the same Q→A substrate the chat path
+    #    would have picked, so the diff between profiles is purely the
+    #    rewriting (not generator stochasticity).
+    retriever = getattr(pipeline, "_slm_retriever", None)
+    if retriever is not None:
         try:
-            generated: str = slm_gen.generate(
-                prompt=message,
-                adaptation_vector=adaptation_override.unsqueeze(0),
-                user_state=user_state.unsqueeze(0),
+            adapt_dict = pipeline._adaptation_to_dict(adaptation_obj)
+            match = retriever.best(message, adaptation=adapt_dict, min_score=0.30)
+            if match is not None:
+                cand, score = match
+                if score >= 0.55:
+                    base_text = cand
+        except Exception:
+            logger.debug("whatif retrieval failed; falling through to SLM.")
+
+    # 2. SLM cross-attention generator if retrieval didn't have a
+    #    confident answer.
+    if base_text is None:
+        slm_gen = getattr(pipeline, "_slm_generator", None)
+        if slm_gen is not None:
+            try:
+                raw = slm_gen.generate(
+                    prompt=message,
+                    adaptation_vector=adaptation_override.unsqueeze(0),
+                    user_state=user_state.unsqueeze(0),
+                )
+                base_text = pipeline._clean_slm_output(raw, prompt=message)
+            except Exception:
+                logger.exception(
+                    "SLM generation failed in what-if; using rule-based fallback."
+                )
+
+    # 3. Apply adaptation rewriting on top of whatever substrate we got.
+    if base_text:
+        try:
+            adapted, _log = pipeline.postprocessor.adapt_with_log(
+                base_text, adaptation_obj
             )
-            return generated
+            return adapted
         except Exception:
             logger.exception(
-                "SLM generation failed in what-if; using rule-based fallback."
+                "adapt_with_log failed in what-if; returning unmodified base."
             )
+            return base_text
 
     # Rule-based fallback mirrors the pipeline's ``_fallback_response``.
     try:

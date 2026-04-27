@@ -30,6 +30,11 @@ from i3.safety.certificates import (
     certificate_from_yaml,
     certificate_to_yaml,
 )
+from i3.safety.classifier import (
+    SafetyClassifier,
+    SafetyVerdict,
+    get_global_classifier,
+)
 from i3.safety.pddl_planner import (
     Action,
     PddlDomain,
@@ -45,9 +50,12 @@ __all__ = [
     "PddlDomain",
     "PrivacySafetyPlanner",
     "SafetyCertificate",
+    "SafetyClassifier",
     "SafetyContext",
     "SafetyPlan",
     "SafetyPlannerError",
+    "SafetyVerdict",
     "certificate_from_yaml",
     "certificate_to_yaml",
+    "get_global_classifier",
 ]

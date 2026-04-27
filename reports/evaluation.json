@@ -1,0 +1,151 @@
+{
+  "perplexity": {
+    "perplexity": 1.3138153611454133,
+    "avg_loss": 0.2729353935569263,
+    "num_tokens": 92909,
+    "num_batches": 71
+  },
+  "conditioning_sensitivity": {
+    "mean_kl_divergence": 0.2219369259247105,
+    "mean_cosine_distance": 0.058592440485954286,
+    "per_prompt": [
+      {
+        "prompt": "Hello, how are you doing today?",
+        "mean_kl_divergence": 0.0008982961913716281,
+        "mean_cosine_distance": 0.02590981125831604,
+        "n_pairs": 10
+      },
+      {
+        "prompt": "Can you help me with something?",
+        "mean_kl_divergence": 0.17095393734052777,
+        "mean_cosine_distance": 0.02235419750213623,
+        "n_pairs": 10
+      },
+      {
+        "prompt": "I'm feeling really stressed out.",
+        "mean_kl_divergence": 0.5623186338692904,
+        "mean_cosine_distance": 0.13522038459777833,
+        "n_pairs": 10
+      },
+      {
+        "prompt": "What do you think about this idea?",
+        "mean_kl_divergence": 0.1786506887874566,
+        "mean_cosine_distance": 0.06652859449386597,
+        "n_pairs": 10
+      },
+      {
+        "prompt": "Tell me something interesting.",
+        "mean_kl_divergence": 0.17084056995809077,
+        "mean_cosine_distance": 0.022296029329299926,
+        "n_pairs": 10
+      },
+      {
+        "prompt": "I need some advice about a problem.",
+        "mean_kl_divergence": 0.15367753533646464,
+        "mean_cosine_distance": 0.04232807755470276,
+        "n_pairs": 10
+      },
+      {
+        "prompt": "How does this work exactly?",
+        "mean_kl_divergence": 0.10395961292088032,
+        "mean_cosine_distance": 0.021175503730773926,
+        "n_pairs": 10
+      },
+      {
+        "prompt": "I'm not sure I understand.",
+        "mean_kl_divergence": 0.28784922882914543,
+        "mean_cosine_distance": 0.07188993096351623,
+        "n_pairs": 10
+      },
+      {
+        "prompt": "That's really exciting news!",
+        "mean_kl_divergence": 0.45323912519961596,
+        "mean_cosine_distance": 0.07922898530960083,
+        "n_pairs": 10
+      },
+      {
+        "prompt": "I've been having a tough day.",
+        "mean_kl_divergence": 0.13698163081426173,
+        "mean_cosine_distance": 0.09899289011955262,
+        "n_pairs": 10
+      }
+    ]
+  },
+  "diversity": {
+    "distinct_1": 0.20348837209302326,
+    "distinct_2": 0.3564705882352941,
+    "total_unigrams": 860,
+    "unique_unigrams": 175,
+    "total_bigrams": 850,
+    "unique_bigrams": 303,
+    "avg_length": 86.0
+  },
+  "length_compliance": {
+    "correlation": 0.0,
+    "per_level": [
+      {
+        "cognitive_load": 0.0,
+        "avg_length": 80.8,
+        "min_length": 79,
+        "max_length": 83
+      },
+      {
+        "cognitive_load": 0.25,
+        "avg_length": 80.8,
+        "min_length": 79,
+        "max_length": 83
+      },
+      {
+        "cognitive_load": 0.5,
+        "avg_length": 80.8,
+        "min_length": 79,
+        "max_length": 83
+      },
+      {
+        "cognitive_load": 0.75,
+        "avg_length": 80.8,
+        "min_length": 79,
+        "max_length": 83
+      },
+      {
+        "cognitive_load": 1.0,
+        "avg_length": 80.8,
+        "min_length": 79,
+        "max_length": 83
+      }
+    ],
+    "monotonic": true
+  },
+  "samples": [
+    {
+      "prompt": "Hello, how are you doing today?",
+      "casual": "hello , how are you doing today ? sep ] i ' m so excited about what happened today ! [ sep ] i ' ve been contemplating the situation is multifaceted and overwhelmed lately . [ sep ] i can see why you would feel that sounds like to plan . [ sep ] i have been engaged in several important tasks . [ sep ] would feel that works . [ sep ] i understand . [ sep ] when we examine the situation is far",
+      "formal": "hello , how are you doing today ? sep ] i ' ve been feeling stressed and overwhelmed lately . [ sep ] would feel peaceful and content right now . [ sep ] i ' m thrilled about what might happen tomorrow . [ sep ] i ' m worried about what might happen tomorrow . [ sep ] i am in good spirits . how did that make you like to talk more about it ? [ sep ] when we examine the situation is there",
+      "empathetic": "hello , how are you doing today ? sep ] i ' m feeling a bit down , to be honest . [ sep ] i ' ve been contemplating the situation is multifaceted and requires careful consideration of several interconnected variables before any meaningful conclusion can see why you would feel that way . [ sep ] i ' ve been quite productive today ! had a bit down , we examine the correlation between environmental factors and behavioral outcomes suggests a more nuanced approach to problem"
+    },
+    {
+      "prompt": "Can you help me with something?",
+      "casual": "can you help me with ? sep ] i ' m worried about what might happen tomorrow . [ sep ] is there anything i ' m thrilled about what might happen tomorrow . [ sep ] how did that makes a bit down , to be honest . [ sep ] would feel peaceful and overwhelmed lately . [ sep ] yeah , everything is proceeding according to be better , but i ' ve been quite productive today , thanks . [ sep ]",
+      "formal": "can you help me with ? sep ] the situation is multifaceted and requires careful consideration of several interconnected variables before any meaningful conclusion can be drawn . [ sep ] i ' ve been quite productive today , just taking it easy today , thank you . [ sep ] when we examine the correlation between environmental factors and behavioral outcomes suggests a more complex than initially anticipated . [ sep ] i am pleased to problem - solving is warranted . [ sep ]",
+      "empathetic": "can you help me with ? sep ] i ' m frustrated with how things have been quite productive today , thank you . [ sep ] i am doing well , thank you . [ sep ] when we examine the situation is multifaceted and requires careful consideration of several important tasks . [ sep ] i ' ve been engaged in good spirits . [ sep ] i have been quite productive today , thank you . [ sep ] when we often discover"
+    },
+    {
+      "prompt": "I'm feeling really stressed out.",
+      "casual": "i ' m feeling really stressed out . sep ] things are going well , how did that make you feel ? [ sep ] i understand . [ sep ] what do you sharing that works . [ sep ] i appreciate your concern . [ sep ] i have been quite productive today , thank you . [ sep ] i see . [ sep ] when we examine the correlation between environmental factors and content right now . [ sep ] i ' ve been",
+      "formal": "i ' m feeling really stressed out . sep ] that sounds like quite an experience . [ sep ] thank you for asking . [ sep ] when we examine the correlation between environmental factors and behavioral outcomes suggests a more nuanced approach to problem - solving is warranted . [ sep ] i have been engaged in several important tasks . [ sep ] would feel peaceful and content right now . [ sep ] i ' ve been quite productive today , thank you .",
+      "empathetic": "i ' m feeling really stressed out . sep ] the situation is multifaceted and requires careful consideration of several interconnected variables before any meaningful conclusion can see why you would feel that way . [ sep ] i appreciate your concern . [ sep ] i must say , thank you for asking . [ sep ] i understand . [ sep ] i ' ve been well , thank you for your concern . [ sep ] i ' ve been quite productive today , thank"
+    },
+    {
+      "prompt": "What do you think about this idea?",
+      "casual": "what do you think about ? sep ] i ' m feeling nostalgic , everything is proceeding according to plan . [ sep ] the situation is multifaceted and requires careful consideration of several interconnected variables before any meaningful conclusion can see why you would feel that way . [ sep ] i ' ve been pretty busy lately . [ sep ] things are going well , thank you like to problem - solving is far more about it now . [ sep ] i",
+      "formal": "what do you think about ? sep ] i ' ve been pretty busy lately . [ sep ] i am doing great ! had a good , thank you for your concern . how did that sounds like to plan . [ sep ] i have been quite an experience . [ sep ] i ' m thrilled about it now . [ sep ] would feel peaceful and overwhelmed lately . [ sep ] i ' m so far more about it now .",
+      "empathetic": "what do you think about ? sep ] i ' ve been contemplating the philosophical implications of our daily routines and how they shape our understanding of purpose and meaning . [ sep ] when we examine the situation is far more complex than initially anticipated . [ sep ] not much , just taking it now ? [ sep ] doing great ! had a good day so far . [ sep ] i ' m feeling nostalgic , just hanging out . [ sep"
+    },
+    {
+      "prompt": "Tell me something interesting.",
+      "casual": "tell me interesting . i am doing well , thank you for inquiring . [ sep ] not bad at all , thank you for asking . [ sep ] everything is proceeding according to plan . [ sep ] i appreciate your concern . [ sep ] the good things in good spirits . [ sep ] i ' m so far . [ sep ] could be better , thanks ! [ sep ] i must say , thank you for asking",
+      "formal": "tell me interesting . sep ] i ' ve been pretty busy lately . [ sep ] not much , just hanging out . [ sep ] that makes a bit down , to be better , thanks for asking ! [ sep ] thank you for your consideration . [ sep ] the situation is there anything i ' m okay , just a bit tired . [ sep ] i have been quite productive today , thanks for asking ! [ sep",
+      "empathetic": "tell me interesting . sep ] i am doing well , thank you for inquiring . [ sep ] the correlation between environmental factors and behavioral outcomes suggests a more nuanced approach to problem - solving is warranted . [ sep ] makes sense . [ sep ] not bad at all is there anything i ' m worried about it . [ sep ] i ' ve been quite productive today , thank you . [ sep ] i understand . [ sep"
+    }
+  ]
+}
