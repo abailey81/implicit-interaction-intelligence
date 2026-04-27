@@ -5908,23 +5908,35 @@ class Pipeline:
         if not self._looks_like_command(message):
             return None
 
-        # Lazy-load the parser.  Cached on the engine instance so
-        # subsequent commands skip the ~30 s base-model load.
-        parser = getattr(self, "_intent_parser_qwen", None)
-        if parser is None:
-            try:
-                from i3.intent.qwen_inference import QwenIntentParser
-                parser = QwenIntentParser()
-                self._intent_parser_qwen = parser
-            except Exception as exc:  # pragma: no cover - missing deps
-                logger.debug("intent parser load failed: %s", exc)
-                return None
+        # Iter 66: open an OTel span for the cascade arm B leg so the
+        # observability stack (OTel collector + Sentry + Langfuse) can
+        # correlate per-arm latency.  Falls back to no-op when OTel
+        # isn't configured.
+        from i3.observability.tracing import span as _otel_span
 
-        try:
-            result = parser.parse(message)
-        except Exception as exc:  # pragma: no cover
-            logger.debug("intent parse failed: %s", exc)
-            return None
+        with _otel_span("cascade.arm_b.qwen_intent",
+                        i3_user_id=str(user_id)[:32],
+                        i3_session_id=str(session_id)[:32],
+                        i3_message_chars=len(message or "")):
+            # Lazy-load the parser.  Cached on the engine instance so
+            # subsequent commands skip the ~30 s base-model load.
+            parser = getattr(self, "_intent_parser_qwen", None)
+            if parser is None:
+                try:
+                    with _otel_span("cascade.arm_b.qwen_load"):
+                        from i3.intent.qwen_inference import QwenIntentParser
+                        parser = QwenIntentParser()
+                        self._intent_parser_qwen = parser
+                except Exception as exc:  # pragma: no cover - missing deps
+                    logger.debug("intent parser load failed: %s", exc)
+                    return None
+
+            try:
+                with _otel_span("cascade.arm_b.qwen_parse"):
+                    result = parser.parse(message)
+            except Exception as exc:  # pragma: no cover
+                logger.debug("intent parse failed: %s", exc)
+                return None
 
         # Stash result for PipelineOutput regardless of confidence so
         # the dashboard can show "we tried, here's what we got".
