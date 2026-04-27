@@ -376,3 +376,62 @@
 .message-chip.chip-used-qwen   { color: #ffd07a; border-color: #6a4a1a; background: rgba(106,74,26,0.14); }
 .message-chip.chip-used-gemini { color: #cfe0ff; border-color: #38528a; background: rgba(56,82,138,0.14); }
 .message-chip.chip-used-tool   { color: #c8c8c8; border-color: #444;    background: rgba(255,255,255,0.03); }
+
+/* Iter 51 phase 17 — actuator side-effect banners.
+   Two visual classes:
+     .actuator-banner — fires immediately on intent parse ("Timer
+                        started", "Now playing", "Navigating to …").
+     .actuator-event  — fires when a scheduled action elapses or
+                        is cancelled.  Pulses briefly to draw the
+                        eye when a timer goes off mid-conversation.
+   Both render inline in the chat-messages flow, deliberately
+   smaller than the user/AI bubbles so they read as system
+   notifications, not chat turns. */
+.actuator-banner,
+.actuator-event {
+    align-self: stretch;
+    margin: 6px 0;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.02em;
+    color: #c8d8f0;
+    background: rgba(40, 60, 110, 0.14);
+    border: 1px solid rgba(60, 90, 160, 0.30);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 88%;
+    transition: background-color 0.6s ease,
+                box-shadow 0.6s ease;
+}
+.actuator-event {
+    color: #ffe9a8;
+    background: rgba(110, 80, 24, 0.16);
+    border-color: rgba(160, 120, 40, 0.36);
+}
+.actuator-banner .actuator-icon,
+.actuator-event .actuator-icon {
+    font-size: 13px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.actuator-banner .actuator-label,
+.actuator-event .actuator-label {
+    line-height: 1.4;
+}
+/* Pulse animation for fired events — 1.8 s gentle highlight so
+   the user can't miss the timer going off mid-conversation. */
+.actuator-event.actuator-pulse {
+    background: rgba(160, 120, 40, 0.32);
+    box-shadow: 0 0 0 4px rgba(255, 200, 80, 0.18);
+}
+@keyframes actuator-pulse-frames {
+    0%   { box-shadow: 0 0 0 0   rgba(255, 200, 80, 0.30); }
+    50%  { box-shadow: 0 0 0 6px rgba(255, 200, 80, 0.10); }
+    100% { box-shadow: 0 0 0 0   rgba(255, 200, 80, 0.0);  }
+}
+.actuator-event.actuator-pulse {
+    animation: actuator-pulse-frames 1.8s ease-out 1;
+}

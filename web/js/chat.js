@@ -1365,6 +1365,114 @@ class ChatInterface {
         (body || msgEl).appendChild(wrap);
     }
 
+    /**
+     * Iter 51 phase 17: append an immediate ``actuator_state`` banner
+     * to the chat — fires when an HMI command is parsed and the
+     * system has *just* taken the action.  Visual format:
+     *
+     *     ┌─────────────────────────────────────────────┐
+     *     │ ⏱  Timer started · 5 min                    │
+     *     └─────────────────────────────────────────────┘
+     *
+     * Different ICON + LABEL per action type.  Plays a small
+     * confirmation sound is OUT OF SCOPE (could be a future
+     * polish), but the visual lands immediately.
+     */
+    appendActuatorBanner(data) {
+        if (!data || typeof data !== 'object') return;
+        const action = String(data.action || '').toLowerCase();
+        const params = data.params || {};
+        const labelMap = {
+            'set_timer':       { icon: '⏱',  label: 'Timer started' },
+            'set_alarm':       { icon: '⏰', label: 'Alarm set' },
+            'set_reminder':    { icon: '📌', label: 'Reminder set' },
+            'play_music':      { icon: '♪',  label: 'Now playing' },
+            'navigate':        { icon: '➤',  label: 'Navigating to' },
+            'send_message':    { icon: '✉',  label: 'Message sent to' },
+            'call':            { icon: '📞', label: 'Calling' },
+            'control_device':  { icon: '⚙',  label: 'Device' },
+            'cancel':          { icon: '✕',  label: 'Cancelled' },
+        };
+        const m = labelMap[action];
+        if (!m) return;
+        // Compose the banner text from the params.
+        let detail = '';
+        if (action === 'set_timer' && params.duration_seconds != null) {
+            const s = Number(params.duration_seconds);
+            detail = s >= 60
+                ? `${Math.round(s / 60)} min`
+                : `${s} sec`;
+        } else if (action === 'play_music') {
+            detail = params.artist || params.genre || '';
+        } else if (action === 'navigate' && params.location) {
+            detail = String(params.location);
+        } else if (action === 'send_message' && params.recipient) {
+            detail = String(params.recipient);
+        } else if (action === 'call' && params.recipient) {
+            detail = String(params.recipient);
+        } else if (action === 'control_device') {
+            const dev = params.device || '';
+            const st  = params.state || '';
+            detail = `${dev}${st ? ' → ' + st : ''}`.trim();
+        } else if (action === 'set_alarm' && params.time) {
+            detail = String(params.time);
+        } else if (action === 'set_reminder' && params.task) {
+            detail = String(params.task);
+        }
+        const messages = document.getElementById('chat-messages');
+        if (!messages) return;
+        const banner = document.createElement('div');
+        banner.className = 'actuator-banner actuator-' + action;
+        const icon = document.createElement('span');
+        icon.className = 'actuator-icon';
+        icon.textContent = m.icon;
+        const label = document.createElement('span');
+        label.className = 'actuator-label';
+        label.textContent = m.label + (detail ? ' · ' + detail : '');
+        banner.appendChild(icon);
+        banner.appendChild(label);
+        messages.appendChild(banner);
+        this._scrollToBottom();
+    }
+
+    /**
+     * Iter 51 phase 17: render a delayed ``actuator_event`` (the
+     * timer/alarm fired, the cancel cleared a pending action).
+     * Pulses the banner so the user notices even if their
+     * attention drifted.
+     */
+    appendActuatorEvent(data) {
+        if (!data || typeof data !== 'object') return;
+        const evt = String(data.event || '').toLowerCase();
+        const messages = document.getElementById('chat-messages');
+        if (!messages) return;
+        const wrap = document.createElement('div');
+        wrap.className = 'actuator-event actuator-event-' + evt;
+        const iconMap = {
+            'timer_fired':  '⏰',
+            'alarm_fired':  '⏰',
+            'cancelled':    '✕',
+        };
+        const icon = document.createElement('span');
+        icon.className = 'actuator-icon';
+        icon.textContent = iconMap[evt] || '●';
+        const text = document.createElement('span');
+        text.className = 'actuator-label';
+        text.textContent = data.message
+            || (evt === 'cancelled'
+                ? `Cancelled ${data.cancelled_action || ''}`.trim()
+                : evt);
+        wrap.appendChild(icon);
+        wrap.appendChild(text);
+        messages.appendChild(wrap);
+        this._scrollToBottom();
+        // Trigger a brief pulse animation so the user notices.
+        wrap.classList.add('actuator-pulse');
+        setTimeout(function () {
+            wrap.classList.remove('actuator-pulse');
+        }, 1800);
+    }
+
     _appendBubbleTts(msgEl, body) {
         try {
             // Don't double-attach (defensive).

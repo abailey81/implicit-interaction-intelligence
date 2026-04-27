@@ -269,6 +269,223 @@ async def _recv_bounded(websocket: WebSocket) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# Iter 51 phase 17 — actuator side-effects
+# ---------------------------------------------------------------------------
+# When the intent parser returns a structured action, fire a real
+# side-effect: a timer that actually counts down and notifies, a
+# "now playing" badge for music, a navigation banner, an alarm.
+# All side-effects ride on the existing WS connection as
+# ``actuator_state`` (immediate) or ``actuator_event`` (delayed)
+# frames the front-end renders distinctively.
+
+# Per-user timer task registry.  Lets us cancel a pending timer if
+# the user issues "cancel".  Keyed by (user_id, action) — only one
+# pending instance per (user, action) pair to avoid runaway
+# scheduling on rapid taps.
+_PENDING_ACTUATORS: dict[tuple[str, str], asyncio.Task] = {}
+
+
+async def _fire_actuator_side_effects(
+    *,
+    manager: "ConnectionManager",
+    user_id: str,
+    intent: dict[str, Any],
+) -> None:
+    """Dispatch a real side-effect for ``intent``.
+
+    Sends an immediate ``actuator_state`` frame describing what was
+    just done (play_music / navigate / control_device / set_alarm /
+    set_timer), and for time-bounded actions schedules a delayed
+    ``actuator_event`` frame that fires when the timer / alarm
+    elapses.  Cancel intents tear down any pending task for the
+    same user.
+    """
+    action = (intent.get("action") or "").lower()
+    params = intent.get("params") or {}
+
+    # Always emit the immediate state frame so the UI can render a
+    # banner / pill the moment the action is parsed.
+    state_frame = {
+        "type": "actuator_state",
+        "action": action,
+        "params": params,
+        "timestamp": time.time(),
+    }
+    await manager.send_json(user_id, state_frame)
+
+    # set_timer → schedule a one-shot notification at duration_seconds.
+    if action == "set_timer":
+        try:
+            duration = int(params.get("duration_seconds") or 0)
+        except (TypeError, ValueError):
+            duration = 0
+        if duration > 0:
+            await _schedule_timer(
+                manager=manager,
+                user_id=user_id,
+                action=action,
+                delay_seconds=duration,
+                fire_payload={
+                    "type": "actuator_event",
+                    "event": "timer_fired",
+                    "duration_seconds": duration,
+                    "human_duration": _human_duration(duration),
+                    "message": (
+                        f"⏰ Your {_human_duration(duration)} timer is up."
+                    ),
+                },
+            )
+
+    # set_alarm → parse "7am" / "06:30" / "19:00" → schedule for that time.
+    elif action == "set_alarm":
+        delay = _parse_clock_to_delay(params.get("time"))
+        if delay > 0:
+            human = str(params.get("time") or "")
+            await _schedule_timer(
+                manager=manager,
+                user_id=user_id,
+                action=action,
+                delay_seconds=delay,
+                fire_payload={
+                    "type": "actuator_event",
+                    "event": "alarm_fired",
+                    "alarm_time": human,
+                    "message": f"⏰ Alarm: it's {human}.",
+                },
+            )
+
+    # set_reminder → schedule at the time/when slot, fire with the task text.
+    elif action == "set_reminder":
+        when = params.get("time") or params.get("when") or ""
+        delay = _parse_clock_to_delay(when)
+        task_text = str(params.get("task") or "your reminder")
+        if delay > 0:
+            await _schedule_timer(
+                manager=manager,
+                user_id=user_id,
+                action=action,
+                delay_seconds=delay,
+                fire_payload={
+                    "type": "actuator_event",
+                    "event": "reminder_fired",
+                    "task": task_text,
+                    "message": f"📌 Reminder: {task_text}.",
+                },
+            )
+
+    # cancel → tear down any pending timer/alarm/reminder for this user.
+    elif action == "cancel":
+        for key in list(_PENDING_ACTUATORS.keys()):
+            if key[0] == user_id:
+                task = _PENDING_ACTUATORS.pop(key, None)
+                if task is not None and not task.done():
+                    task.cancel()
+                await manager.send_json(user_id, {
+                    "type": "actuator_event",
+                    "event": "cancelled",
+                    "cancelled_action": key[1],
+                    "timestamp": time.time(),
+                })
+
+
+async def _schedule_timer(
+    *,
+    manager: "ConnectionManager",
+    user_id: str,
+    action: str,
+    delay_seconds: int,
+    fire_payload: dict[str, Any],
+) -> None:
+    """Schedule ``fire_payload`` to be sent over WS in ``delay_seconds``.
+
+    Cancels any pre-existing pending task for the same (user, action)
+    pair so a second "set timer" replaces the first instead of
+    stacking.  The task is registered in :data:`_PENDING_ACTUATORS`
+    so ``cancel`` can find and tear it down.
+    """
+    key = (user_id, action)
+    existing = _PENDING_ACTUATORS.pop(key, None)
+    if existing is not None and not existing.done():
+        existing.cancel()
+
+    async def _run() -> None:
+        try:
+            await asyncio.sleep(delay_seconds)
+            payload = dict(fire_payload)
+            payload.setdefault("timestamp", time.time())
+            await manager.send_json(user_id, payload)
+        except asyncio.CancelledError:
+            # User cancelled or a fresh timer replaced this one.
+            pass
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.debug("actuator timer fire failed: %s", exc)
+        finally:
+            _PENDING_ACTUATORS.pop(key, None)
+
+    task = asyncio.create_task(_run(), name=f"actuator-{user_id}-{action}")
+    _PENDING_ACTUATORS[key] = task
+
+
+def _human_duration(seconds: int) -> str:
+    """Compact human duration: '90 sec' → '1 min 30 sec', 3600 → '1 hour'."""
+    if seconds < 60:
+        return f"{seconds} sec"
+    if seconds < 3600:
+        m, s = divmod(seconds, 60)
+        return f"{m} min" if s == 0 else f"{m} min {s} sec"
+    h, rem = divmod(seconds, 3600)
+    m = rem // 60
+    return f"{h} hour" if m == 0 else f"{h} hour {m} min"
+
+
+def _parse_clock_to_delay(when: Any) -> int:
+    """Parse a clock-time string ('7am' / '07:00' / '6pm' / '18:30')
+    into a delay-in-seconds from *now* until that time today (or
+    tomorrow if it has already passed).
+
+    Returns 0 if ``when`` is empty / unparseable, so the caller can
+    skip scheduling without raising.
+
+    Demo-friendly cap: anything > 24 h gets clamped to 24 h, so a
+    misparsed value can't tie up an actuator slot for days.
+    """
+    if not when:
+        return 0
+    s = str(when).strip().lower().replace(" ", "")
+    if not s:
+        return 0
+    import re as _re
+    import datetime as _dt
+    # Match "7am", "7:30am", "07:00", "18:30", "6 pm".
+    m = _re.match(r"^(\d{1,2})(?::(\d{2}))?(am|pm)?$", s)
+    if not m:
+        # "in 5 minutes" — fall back to existing duration parser.
+        m2 = _re.match(r"^in(\d+)(s|sec|m|min|h|hr|hour)$", s)
+        if m2:
+            n = int(m2.group(1))
+            unit = m2.group(2)
+            mult = {"s": 1, "sec": 1, "m": 60, "min": 60,
+                    "h": 3600, "hr": 3600, "hour": 3600}.get(unit, 60)
+            return min(n * mult, 86400)
+        return 0
+    h = int(m.group(1))
+    mm = int(m.group(2) or 0)
+    ampm = m.group(3)
+    if ampm == "pm" and h < 12:
+        h += 12
+    elif ampm == "am" and h == 12:
+        h = 0
+    if h > 23 or mm > 59:
+        return 0
+    now = _dt.datetime.now()
+    target = now.replace(hour=h, minute=mm, second=0, microsecond=0)
+    if target <= now:
+        target += _dt.timedelta(days=1)
+    delta = int((target - now).total_seconds())
+    return min(max(delta, 0), 86400)
+
+
+# ---------------------------------------------------------------------------
 # Endpoint
 # ---------------------------------------------------------------------------
 
@@ -1088,6 +1305,27 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str) -> None:
                     }
                     bio_evt_frame.update(biometric_dict)
                     await manager.send_json(user_id, bio_evt_frame)
+
+                # ─── Iter 51 phase 17: actuator side-effects ────────
+                # When the intent parser produced a structured
+                # action, fire the corresponding side-effect so the
+                # demo isn't just an ack — the user actually feels
+                # the timer go off, sees the navigation kick in, etc.
+                # All side-effects are sent as additional WS frames
+                # the front-end renders distinctively.
+                _intent_for_actuator = (
+                    response_frame.get("intent_result") or {}
+                )
+                if _intent_for_actuator and _intent_for_actuator.get("valid_action") \
+                        and _intent_for_actuator.get("valid_slots"):
+                    try:
+                        await _fire_actuator_side_effects(
+                            manager=manager,
+                            user_id=user_id,
+                            intent=_intent_for_actuator,
+                        )
+                    except Exception as exc:  # pragma: no cover
+                        logger.debug("actuator dispatch failed: %s", exc)
 
                 # Live State Badge frame — sent in addition to the
                 # response so the badge updates even mid-conversation

@@ -880,6 +880,24 @@ class I3App {
             renderStateBadge(data);
         });
 
+        // --- Iter 51 phase 17: actuator side-effects ---
+        // ``actuator_state`` fires immediately when an HMI command
+        // is parsed (set_timer, play_music, navigate, control_device).
+        // ``actuator_event`` fires when a scheduled action elapses
+        // (timer_fired, alarm_fired, cancelled).  Both render as
+        // small system messages in the chat so the demo *feels*
+        // like the system actually did something.
+        this.wsClient.on('actuator_state', (data) => {
+            try {
+                this.chat.appendActuatorBanner(data);
+            } catch (e) { /* don't let render kill the WS handler */ }
+        });
+        this.wsClient.on('actuator_event', (data) => {
+            try {
+                this.chat.appendActuatorEvent(data);
+            } catch (e) { /* same */ }
+        });
+
         // --- Accessibility-mode rising / falling edge ---
         this.wsClient.on('accessibility_change', (data) => {
             applyAccessibilityState(data);
