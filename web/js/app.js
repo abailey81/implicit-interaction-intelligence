@@ -733,6 +733,11 @@ class I3App {
                 multimodal: data.multimodal,
                 routing_decision: data.routing_decision,
                 privacy_budget: data.privacy_budget,
+                // Iter 51 phase 11: route_decision drives the three
+                // SLM/Qwen/Gemini indicator chips + "Used: X" badge.
+                route_decision: data.route_decision,
+                intent_result: data.intent_result,
+                safety_caveat: data.safety_caveat,
                 // Iteration 12 (2026-04-26): pass the FULL adaptation
                 // snapshot + biometric verdict + explain-plan through
                 // to chat.js so the per-bubble Decision Trace and
@@ -805,6 +810,16 @@ class I3App {
                 multimodal: data.multimodal,
                 routing_decision: data.routing_decision,
                 privacy_budget: data.privacy_budget,
+                // Iter 51 phase 11: route_decision (arm + model +
+                // class + reason + threshold + arms_used) is what
+                // drives the three SLM/Qwen/Gemini indicator chips
+                // and the prominent "Used: X" winner badge in
+                // _appendSideChips.  Without it streamed responses
+                // (which arrive as token frames + response_done)
+                // get the legacy single-arm chip instead.
+                route_decision: data.route_decision,
+                intent_result: data.intent_result,
+                safety_caveat: data.safety_caveat,
                 // Iteration 12 (2026-04-26): pass the FULL adaptation
                 // snapshot + biometric verdict + explain-plan through
                 // to chat.js so the per-bubble Decision Trace and
