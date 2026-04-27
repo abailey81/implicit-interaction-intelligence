@@ -12,10 +12,20 @@ this repository.
 > [`docs/huawei/feature_matrix.md`](docs/huawei/feature_matrix.md).
 > Persona + interaction principle in
 > [`docs/huawei/design_brief.md`](docs/huawei/design_brief.md).
-> 51-iteration trajectory in
-> [`docs/huawei/iteration_log.md`](docs/huawei/iteration_log.md).
+> **132-iteration trajectory** in
+> [`docs/huawei/iteration_log.md`](docs/huawei/iteration_log.md) +
+> [`docs/huawei/iter52_plus_roadmap.md`](docs/huawei/iter52_plus_roadmap.md).
 > Forward roadmap in
 > [`docs/huawei/forward_roadmap.md`](docs/huawei/forward_roadmap.md).
+> Recruiter clarification answers in
+> [`docs/huawei/recruiter_clarification_answers.md`](docs/huawei/recruiter_clarification_answers.md).
+>
+> **Latest counts** (as of iter 132):
+> 626 / 626 iter-test sweep green (`make test-iter`); fine-tuned
+> Qwen3-1.7B LoRA adapter committed (best_val_loss = 5.36e-06,
+> 1 704 steps × 3 epochs × DoRA + 8-bit AdamW + NEFTune + cosine
+> warm restarts, 9 656 s wall on RTX 4050 Laptop); 80 commits
+> stacked since iter 51 (every iter shipped + tested + documented).
 
 ---
 
