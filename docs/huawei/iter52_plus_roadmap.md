@@ -203,4 +203,89 @@ distinct special IDs / idempotent double encode.
 **Focus.** Document iter 53-64 in CHANGELOG and this roadmap so the
 reviewer can read the trajectory in one place.
 
-## Iter 66 — *(next focus, picked when iter 65 commits)*
+## Iter 66 — OpenTelemetry per-cascade-arm spans (commit `3e24e4b`)
+
+`_maybe_handle_intent_command` now opens nested OTel spans
+(`cascade.arm_b.qwen_intent` / `qwen_load` / `qwen_parse`) so the
+collector / Sentry / Langfuse can correlate per-arm latency.  4 tests
+verify span emission via the in-memory OTel exporter.
+
+## Iter 67 — Process-wide CostTracker singleton (commit `728cf84`)
+
+`get_global_cost_tracker()` + `GET /api/cost/report` expose the
+shared cloud-spend ledger; 5 tests cover singleton identity, reset,
+record/report, unknown-model handling, schema.
+
+## Iter 68 — Multimodal validator coverage (commit `1325029`)
+
+11 tests pin `validate_prosody_payload` / `validate_gaze_payload`:
+non-dict rejection, missing-key handling, out-of-range / NaN clamp,
+type-coercion safety.
+
+## Iter 69 — EngagementSignal invariants (commit `69d552b`)
+
+16 tests pin score bounds in [0, 1] under hostile values + the
+intuitive monotonicity properties (continuation > no-continuation,
+fast latency > slow latency, higher topic-continuity > lower).
+
+## Iter 70 — KnowledgeGraph dedupe regression (commit `1fbdcdc`)
+
+5 tests pin the iter-51 Jaccard ≥ 0.6 dedupe behaviour in
+`KnowledgeGraph.overview()` so a year-overlap regression breaks fast.
+
+## Iter 71 — PII sanitiser comprehensive coverage (commit `f86ce55`)
+
+25 tests across email / SSN / phone (US/UK/intl) / credit-card / IP
+with explicit no-false-positive guards (Windows builds, year ranges,
+SemVer fragments) and honest documentation of regex-precedence limits.
+
+## Iter 72 — SelfCritic scoring contract (commit `bb447c3`)
+
+11 tests pin the 5-rubric composite scoring + threshold-accept
+behaviour + "never raises" robustness.
+
+## Iter 73 — AdaptationVector clamping + serialisation (commit `c682348`)
+
+10 tests pin the 8-axis vector's `[0, 1]` clamp, `to_tensor()` shape
+and layout, and NaN safety.
+
+## Iter 74 — TCN encoder invariants (commit `2cea36b`)
+
+8 tests pin output shape (batch, 64), L2-norm contract, gradient
+flow, eval-mode batch-independence, and config validation.
+
+## Iter 75 — `make test-iter` / `test-cascade` Makefile targets (commit `4511524`)
+
+One-command access to the full iter-52..74 test sweep + cascade-only
+fast subset.
+
+## Iter 76 — DiaryStore PII-free schema invariants (commit `7cc3a03`)
+
+4 tests inspect the live SQLite schema after `initialize()` to
+enforce the no-natural-language-column contract.
+
+## Iter 77 — IntentResult / SUPPORTED_ACTIONS / ACTION_SLOTS contract (commit `e549a2a`)
+
+11 tests pin the canonical action vocab, per-action slot whitelist,
+confidence heuristic, and `to_dict()` shape.
+
+## Iter 78 — routing_decision dict + state_update frame shape (commit `c1334e1`)
+
+8 tests pin the routing_decision schema and synthesise the full
+`state_update` frame to verify json.dumps round-trip.
+
+## Iter 79 — KnowledgeGraph canonicalisation (commit `865d2ce`)
+
+15 tests pin case / leading-article / punctuation-insensitive subject
+lookup + display-name override behaviour.
+
+## Iter 80 — ModelEncryptor Fernet round-trip + key rotation (commit `24c892e`)
+
+9 tests pin bytes / embedding / JSON round-trip, key isolation,
+ephemeral-key fallback, and invalid-key rejection.
+
+## Iter 81 — Aggregate sweep + Makefile + roadmap refresh (this commit)
+
+Total iter-52..80 test count: **295 / 295 green in 5.49 s.**
+
+## Iter 82 — *(next focus, picked when iter 81 commits)*

@@ -218,8 +218,11 @@ test-iter: ## Iter 52-74 fast subset (cascade + multilingual + perf + health + p
 	    tests/test_adaptation_vector.py \
 	    tests/test_tcn_invariants.py \
 	    tests/test_diary_schema_invariants.py \
-	    tests/test_intent_types.py
-	@printf "$(GREEN)✓ Iter 52-77 subset green$(RESET)\n"
+	    tests/test_intent_types.py \
+	    tests/test_routing_decision_schema.py \
+	    tests/test_knowledge_graph_canonical.py \
+	    tests/test_encryption_envelope.py
+	@printf "$(GREEN)✓ Iter 52-80 subset green$(RESET)\n"
 
 test-cascade: ## Cascade-only sweep (Qwen LoRA arm B + dashboard + chips + spans)
 	@printf "$(BLUE)▶ Running cascade-only sweep...$(RESET)\n"
