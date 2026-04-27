@@ -706,6 +706,29 @@ async def get_profiling_report(request: Request) -> JSONResponse:
 
 
 # ------------------------------------------------------------------
+# Iter 55: per-cascade-arm rolling latency stats
+# ------------------------------------------------------------------
+
+@router.get("/cascade/stats")
+async def get_cascade_stats(request: Request) -> JSONResponse:
+    """Live rolling per-arm latency snapshot.
+
+    Returns the engine's in-memory per-arm latency window (iter 55)
+    so the dashboard's cascade ribbon can show live p50/p95 numbers
+    that react to actual usage, not just the static profiling report.
+    """
+    pipeline = _get_pipeline(request)
+    try:
+        stats = pipeline.cascade_arm_stats() if hasattr(pipeline, "cascade_arm_stats") else {}
+    except Exception:
+        logger.exception("get_cascade_stats failed")
+        raise HTTPException(status_code=500, detail="Internal error")
+    if not isinstance(stats, dict):
+        raise HTTPException(status_code=500, detail="Internal error")
+    return JSONResponse(stats)
+
+
+# ------------------------------------------------------------------
 # Demo utilities
 # ------------------------------------------------------------------
 

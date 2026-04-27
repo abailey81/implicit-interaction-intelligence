@@ -213,7 +213,11 @@
     function wireEdgeProfileTab() {
         function refresh() {
             getJSON('/api/profiling/report')
-                .then(renderEdgeProfile)
+                .then(function (data) {
+                    renderEdgeProfile(data);
+                    return getJSON('/api/cascade/stats').catch(function () { return {}; });
+                })
+                .then(renderCascadeLiveStats)
                 .catch(function (err) {
                     var c = document.getElementById('edge-profile-render');
                     if (c) c.innerHTML = '<em>Failed to load: ' + escHtml(err.message) + '</em>';
@@ -223,6 +227,45 @@
         document.addEventListener('tab:shown', function (e) {
             if (e && e.detail && e.detail.tab === 'edge-profile') refresh();
         });
+    }
+
+    // Iter 55: render the live per-arm latency stats (rolling p50/p95/max
+    // over the last 200 turns of each arm).  Appended below the static
+    // cascade-arm cards from iter 53 so the reviewer can see "this is
+    // what the budget says vs what we actually measured live".
+    function renderCascadeLiveStats(stats) {
+        if (!stats || typeof stats !== 'object') return;
+        var c = document.getElementById('edge-profile-render');
+        if (!c) return;
+        var armDefs = [
+            { key: 'slm', label: 'SLM (arm A)' },
+            { key: 'qwen_intent', label: 'Qwen LoRA intent (arm B)' },
+            { key: 'gemini_cloud', label: 'Gemini cloud (arm C)' },
+            { key: 'retrieval', label: 'Retrieval' },
+            { key: 'tool', label: 'Tool short-circuit' },
+        ];
+        var rows = armDefs.map(function (a) {
+            var s = stats[a.key] || {};
+            return '' +
+                '<tr>' +
+                  '<td>' + escHtml(a.label) + '</td>' +
+                  '<td class="num">' + (s.n || 0) + '</td>' +
+                  '<td class="num">' + ((s.p50_ms != null) ? s.p50_ms : '—') + '</td>' +
+                  '<td class="num">' + ((s.p95_ms != null) ? s.p95_ms : '—') + '</td>' +
+                  '<td class="num">' + ((s.mean_ms != null) ? s.mean_ms : '—') + '</td>' +
+                  '<td class="num">' + ((s.max_ms != null) ? s.max_ms : '—') + '</td>' +
+                '</tr>';
+        }).join('');
+        var html =
+            '<h3 style="margin-top:24px;">Live cascade-arm latency (rolling window of ' +
+            (stats._window_size || 200) + ' turns)</h3>' +
+            '<table class="edge-profile-table">' +
+              '<thead><tr><th>Arm</th><th class="num">n</th>' +
+                '<th class="num">p50 ms</th><th class="num">p95 ms</th>' +
+                '<th class="num">mean ms</th><th class="num">max ms</th></tr></thead>' +
+              '<tbody>' + rows + '</tbody>' +
+            '</table>';
+        c.insertAdjacentHTML('beforeend', html);
     }
 
     // -------------------------------------------------------------------

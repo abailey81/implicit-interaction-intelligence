@@ -84,3 +84,56 @@ def test_arm_c_is_opt_in():
     rep = _report()
     fires = rep["cascade_arms"]["C_gemini_cloud"]["fires"].lower()
     assert "opt-in" in fires or "consent" in fires or "explicit" in fires
+
+
+# ---------------------------------------------------------------------------
+# Iter 55: per-arm rolling latency stats
+# ---------------------------------------------------------------------------
+
+def test_classify_cascade_arm():
+    classify = Pipeline._classify_cascade_arm
+    assert classify("slm", "local_slm") == "slm"
+    assert classify("tool:intent", "local_slm") == "qwen_intent"
+    assert classify("cloud_llm", "cloud_llm") == "gemini_cloud"
+    assert classify("retrieval", "local_slm") == "retrieval"
+    assert classify("tool:fact", "local_slm") == "tool"
+    assert classify("tool:recap", "local_slm") == "tool"
+    assert classify("tool:safety", "local_slm") == "tool"
+    assert classify("unknown", "unknown") == "other"
+
+
+def test_cascade_arm_stats_empty():
+    from collections import deque
+    p = _bare_pipeline()
+    p._cascade_arm_latencies = {
+        "slm": deque(maxlen=200),
+        "qwen_intent": deque(maxlen=200),
+    }
+    s = p.cascade_arm_stats()
+    assert s["_window_size"] == 200
+    assert s["slm"]["n"] == 0
+    assert s["slm"]["p50_ms"] == 0.0
+
+
+def test_cascade_arm_stats_populated():
+    from collections import deque
+    p = _bare_pipeline()
+    p._cascade_arm_latencies = {
+        "slm": deque(maxlen=200),
+        "qwen_intent": deque(maxlen=200),
+    }
+    for x in [50.0, 55.0, 60.0, 65.0, 100.0]:
+        p._cascade_arm_latencies["slm"].append(x)
+    s = p.cascade_arm_stats()
+    assert s["slm"]["n"] == 5
+    assert 50.0 <= s["slm"]["p50_ms"] <= 65.0
+    assert s["slm"]["p95_ms"] in (65.0, 100.0)
+    assert s["slm"]["max_ms"] == 100.0
+
+
+def test_cascade_arm_stats_returns_empty_when_uninitialised():
+    """Pipeline created via __new__ shouldn't crash if the deque dict
+    isn't there yet — the helper degrades gracefully."""
+    p = _bare_pipeline()
+    s = p.cascade_arm_stats()
+    assert s == {"_window_size": 200}

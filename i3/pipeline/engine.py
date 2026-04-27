@@ -524,6 +524,20 @@ class Pipeline:
         # occupation, location, hobby, age, pet.  Recall via
         # "what's my favourite color", "where do I live", etc.
         self._stated_facts: dict[tuple[str, str], dict[str, str]] = {}
+        # Iter 55: rolling per-cascade-arm latency tracker.
+        # Keys: "slm" / "qwen_intent" / "gemini_cloud" / "retrieval" /
+        # "tool" / "other".  Values: collections.deque(maxlen=200) of
+        # latency_ms floats from each turn that fired the arm.  Used by
+        # GET /api/cascade/stats to expose live p50/p95 to the dashboard.
+        from collections import deque as _deque
+        self._cascade_arm_latencies: dict[str, Any] = {
+            "slm": _deque(maxlen=200),
+            "qwen_intent": _deque(maxlen=200),
+            "gemini_cloud": _deque(maxlen=200),
+            "retrieval": _deque(maxlen=200),
+            "tool": _deque(maxlen=200),
+            "other": _deque(maxlen=200),
+        }
         self._previous_engagement: dict[str, float] = {}
         self._previous_route: dict[str, int] = {}
         # SEC: the contextual bandit's Laplace approximation requires the
@@ -732,6 +746,77 @@ class Pipeline:
 
         self._initialized = True
         logger.info("Pipeline initialised successfully.")
+
+    @staticmethod
+    def _classify_cascade_arm(response_path: str, route_chosen: str) -> str:
+        """Bucket *response_path* / *route_chosen* into a cascade-arm label.
+
+        Iter 55: maps the engine's per-turn ``response_path`` and
+        ``route_chosen`` strings into the cascade-arm name used by
+        ``/api/cascade/stats`` and the dashboard's cascade ribbon.
+
+            slm           — local SLM generation (the every-turn arm)
+            qwen_intent   — Qwen LoRA intent parser (command turns)
+            gemini_cloud  — Gemini AI Studio cloud arm
+            retrieval     — curated retrieval (no model gen)
+            tool          — any tool short-circuit (recap/fact/safety/intent)
+            other         — anything not classified above
+        """
+        rp = (response_path or "").lower()
+        rc = (route_chosen or "").lower()
+        if rp == "tool:intent":
+            return "qwen_intent"
+        if "gemini" in rc or rc == "cloud_llm":
+            return "gemini_cloud"
+        if rp.startswith("tool:"):
+            return "tool"
+        if rp.startswith("retrieval"):
+            return "retrieval"
+        if rp == "slm" or rc == "local_slm":
+            return "slm"
+        return "other"
+
+    def cascade_arm_stats(self) -> dict[str, Any]:
+        """Expose live per-arm latency stats for ``/api/cascade/stats``.
+
+        Iter 55.  Returns a dict::
+
+            {
+              "<arm>": {
+                "n": int,           # number of samples in window
+                "p50_ms": float,
+                "p95_ms": float,
+                "mean_ms": float,
+                "max_ms": float,
+              },
+              ...
+              "_window_size": 200,
+            }
+
+        Empty arms still appear (with all zeros) so the dashboard can
+        render a stable layout.
+        """
+        out: dict[str, Any] = {"_window_size": 200}
+        if not hasattr(self, "_cascade_arm_latencies"):
+            return out
+        for arm, dq in self._cascade_arm_latencies.items():
+            if not dq:
+                out[arm] = {"n": 0, "p50_ms": 0.0, "p95_ms": 0.0,
+                            "mean_ms": 0.0, "max_ms": 0.0}
+                continue
+            xs = sorted(dq)
+            n = len(xs)
+            def _pct(p: float) -> float:
+                k = max(0, min(n - 1, int(round((p / 100.0) * (n - 1)))))
+                return float(xs[k])
+            out[arm] = {
+                "n": n,
+                "p50_ms": round(_pct(50), 2),
+                "p95_ms": round(_pct(95), 2),
+                "mean_ms": round(sum(xs) / n, 2),
+                "max_ms": round(xs[-1], 2),
+            }
+        return out
 
     async def get_profiling_report(self) -> dict[str, Any]:
         """Return the edge-feasibility profiling report.
@@ -3003,6 +3088,18 @@ class Pipeline:
         # Reset for next turn so the plan never bleeds across turns.
         if hasattr(self, "_last_explain_plan"):
             self._last_explain_plan = None
+
+        # Iter 55: push this turn's latency into the per-cascade-arm
+        # rolling tracker so /api/cascade/stats can expose live p50/p95
+        # to the dashboard's cascade ribbon.
+        try:
+            arm = self._classify_cascade_arm(
+                getattr(self, "_last_response_path", "unknown"),
+                route_chosen,
+            )
+            self._cascade_arm_latencies[arm].append(float(latency_ms))
+        except Exception:  # pragma: no cover - never block on telemetry
+            pass
 
         # Iter 51: snapshot the (user, session) stated-facts dict so the
         # Personal Facts dashboard tab can render live.  Returns a
