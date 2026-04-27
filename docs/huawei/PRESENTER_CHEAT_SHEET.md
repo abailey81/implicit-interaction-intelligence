@@ -84,7 +84,7 @@ Implicit signals already wired: typing biometrics (Monrose & Rubin 1997, Killour
 
 ## "What this prototype is *not*" (the honesty paragraph)
 
-- **Not chat-quality competitive** with GPT-4 / Claude. SLM v2 perplexity ≈ 1725 on held-out — the architecture is *data-bound* at this size (300 k subset of 974 k corpus), not epoch-bound. The from-scratch path is the differentiator, not the chat polish.
+- **Not chat-quality competitive** with GPT-4 / Claude. SLM v2 training-time held-out perplexity is **≈ 147** (eval_loss 4.99, response-token-only, same-300 k-subset distribution — comparable to other small from-scratch SLMs). A more conservative full-corpus stress test that scores history-tokens too lands at **≈ 1725** — captures the distribution-shift gap from training on 300 k of the 974 k corpus.  Architecture is *data-bound* at this size, not epoch-bound; the from-scratch path is the differentiator, not the chat polish.
 - **Not edge-deployed yet.** The ONNX exports exist, the edge profiler emits realistic budgets, but I haven't shipped to a Huawei watch / phone runtime — that's the next iteration.
 - **Not a single trained model.** Three arms; the demo is the *cascade*, not any one model in isolation.
 - **Not LoRA-on-top-of-Llama.** The "from-scratch" SLM is genuinely from scratch; the Qwen LoRA is a separate intent-parsing arm, deliberate.

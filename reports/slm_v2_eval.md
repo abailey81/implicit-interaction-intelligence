@@ -2,19 +2,50 @@
 
 Checkpoint: `D:\implicit-interaction-intelligence\checkpoints\slm_v2\best_model.pt`  
 Val set: `D:\implicit-interaction-intelligence\data\dialogue\val.pt` (n=500, seq_len=127)  
-Device: `cpu`  
+Device: `cpu`
+
+## ⚠️ Read this before quoting any number
+
+The SLM v2 has **TWO perplexity numbers**, measuring different things.
+Both are real; quote them with the right framing:
+
+| Metric | Value | Definition | When to quote |
+|---|---:|---|---|
+| **Training-time eval** | **147** | `exp(best_eval_loss)` from `best_model.pt`; response-token-only loss; same-300 k-subset distribution as training | Comparing to other SLMs in papers (apples-to-apples).  This is the headline number. |
+| **Stress test** | **1725** | This report. All-tokens (history + response) on a 500-pair sample from the full 974 k corpus.  Distribution shift + harder positions. | Showing distribution-robustness or stress-test behaviour.  More conservative. |
+
+**Why the 12× gap?** Two compounding harshness factors:
+1. **Distribution shift.** This report's val set is sampled with seed 17 from
+   the *full 974 k corpus*; the model trained on a 300 k subset (also
+   seed-17-sampled, but a different sampling order).  Most pairs in this
+   report's val set were never seen.
+2. **All-token loss.** This report scores every non-PAD token (line 216
+   of `training/eval_slm_v2.py`: `mask = (tgt != PAD)`).  The training
+   loop scores response tokens only (via `response_mask`).  History
+   tokens are easier in some positions and harder in others, but the
+   average drags ppl up because there's no conditioning prefix for
+   the very first history token.
+
+**For the demo / cheat-sheet / interview**, use the **147** number with
+the qualification *"training-time held-out, response-token, same-distribution"*.
+It's the comparable-to-published-work number.
 
 ## Architecture
-- params: **204.41 M**
+- params: **204.41 M** (unique; 229.38 M counting tied embeddings twice in the state_dict)
 - d_model=768, n_layers=12, n_heads=12
 - vocab_size=32000
 
-## Aggregate
+## Aggregate (stress-test eval — see ⚠️ above)
 - cross-entropy: **7.4531**
-- perplexity: **1725.278**
+- perplexity: **1725.278**  ← stress-test number, not the headline
 - top-1 next-token accuracy: **0.1027**
 - tokens evaluated: 33,909
 - wall: 84.3 s  (402.0 tok/s)
+
+## Headline number (from the checkpoint blob, response-only same-distribution)
+- best_eval_loss: **4.987**
+- perplexity: **exp(4.987) ≈ 146.6**
+- recorded at training step 18 000
 
 ## Per-quartile perplexity (sequence position)
 

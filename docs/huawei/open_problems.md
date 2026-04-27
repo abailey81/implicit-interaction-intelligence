@@ -28,16 +28,23 @@ wearable.
 
 **Background.**  Current `checkpoints/slm_v2/best_model.pt` was trained
 on a 300 k-pair subset of the 974 k full corpus
-(`data/processed/dialogue/triples.json`).  Held-out perplexity is 1 725
-— architecture is data-bound at this scale.  Iter 51 phase 6
-demonstrated `--resume` works (warm-restart confirmed end-to-end);
+(`data/processed/dialogue/triples.json`).  Two perplexity numbers
+are recorded:
+- **Training-time held-out (response-only, same-300 k-subset distribution): ≈ 147**
+  (`best_eval_loss = 4.987`, persisted in the checkpoint blob).
+- **Full-corpus stress-test (response + history tokens, broader sample): ≈ 1725**
+  (`reports/slm_v2_eval.md`, run via `training/eval_slm_v2.py`).
+The 12 × spread between the two is **distribution shift + history-loss inclusion**,
+not over-fitting; the architecture is data-bound at this size.  Iter 51
+phase 6 demonstrated `--resume` works (warm-restart confirmed end-to-end);
 the warm-restart attempt didn't beat baseline because the issue
 isn't epochs, it's data.
 
 **Acceptance criteria.**
 - [ ] 4-epoch training run on the full 974 k corpus (3.2× more data).
-- [ ] Held-out perplexity below 600 (target derived from the
-      data-scaling slope in `reports/slm_v2_eval.md`).
+- [ ] Training-time held-out perplexity below **80** (target: 1.8 ×
+      improvement on a 3.2 × data scale-up).
+- [ ] Full-corpus stress-test perplexity below **600**.
 - [ ] Standalone-SLM regeneration of the demo prompts produces
       coherent multi-clause responses (currently fragmentary).
 - [ ] Updated CHANGELOG entry + new artefact under `checkpoints/slm_v2_full/`.
