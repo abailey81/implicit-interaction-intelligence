@@ -441,4 +441,34 @@ between extremes, zero tokens free, completion tokens billed.
 Total iter-52..108 test count: **496 / 496 green.**  57 commits
 stacked since iter 51.
 
-## Iter 110 — *(next focus, picked when iter 109 commits)*
+## Iter 110 — Pipeline error-output safe degradation (commit `4433cac`)
+
+9 tests pin _build_error_output + _fallback_response_for_error: no
+exception text leaks, route_chosen='error_fallback', engagement=0.0.
+
+## Iter 111 — Bandit convergence + posterior shape (commit `5810388`)
+
+7 tests pin Beta-Bernoulli growth, total-pulls aggregation, read-only
+sampling, cold-start balance, history-deque cap.
+
+## Iter 112 — explain_decomposer pattern coverage (commit `4d90771`)
+
+17 tests pin the 6-pattern trigger set + topic-keyword extractor.
+
+## Iter 113 — PrivacyBudget redaction accumulation (commit `a282d69`)
+
+5 tests pin pii_redactions_total / bytes_redacted_total /
+sensitive_categories aggregation + per-session isolation.
+
+## Iter 114 — cloud-provider error taxonomy (commit `b08454b`)
+
+8 tests pin the 4-class error hierarchy (AuthError /
+RateLimitedError / TransientError / PermanentError) the cloud chain
+routes on via isinstance().
+
+## Iter 115 — Aggregate iter-110..114 sweep + Makefile + roadmap (this commit)
+
+Total iter-52..114 test count: **542 / 542 green.**  63 commits
+stacked since iter 51.
+
+## Iter 116 — *(next focus, picked when iter 115 commits)*

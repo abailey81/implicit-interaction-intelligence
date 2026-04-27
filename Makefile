@@ -245,8 +245,13 @@ test-iter: ## Iter 52-74 fast subset (cascade + multilingual + perf + health + p
 	    tests/test_pipeline_trace_collector.py \
 	    tests/test_cloud_prompt_builder.py \
 	    tests/test_chat_js_chips.py \
-	    tests/test_cost_cached_tokens.py
-	@printf "$(GREEN)✓ Iter 52-108 subset green$(RESET)\n"
+	    tests/test_cost_cached_tokens.py \
+	    tests/test_pipeline_error_output.py \
+	    tests/test_bandit_convergence.py \
+	    tests/test_explain_decomposer_patterns.py \
+	    tests/test_privacy_budget_redactions.py \
+	    tests/test_cloud_error_taxonomy.py
+	@printf "$(GREEN)✓ Iter 52-114 subset green$(RESET)\n"
 
 test-cascade: ## Cascade-only sweep (Qwen LoRA arm B + dashboard + chips + spans)
 	@printf "$(BLUE)▶ Running cascade-only sweep...$(RESET)\n"
