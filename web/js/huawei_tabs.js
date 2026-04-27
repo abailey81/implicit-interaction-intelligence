@@ -173,7 +173,41 @@
             '<thead><tr><th>Component</th><th class="num">Params (M)</th>' +
             '<th class="num">FP32 MB</th><th class="num">INT8 MB</th>' +
             '<th class="num">P50 ms</th></tr></thead>' +
-            '<tbody>' + rows + '</tbody></table>';
+            '<tbody>' + rows + '</tbody></table>' +
+            renderCascadeArms(data.cascade_arms);
+    }
+
+    // Iter 53: render the per-arm cascade summary block
+    // (`cascade_arms` from /api/profiling/report).  Three labelled
+    // arm cards: A=on-device SLM, B=Qwen LoRA, C=Gemini cloud.
+    function renderCascadeArms(arms) {
+        if (!arms || typeof arms !== 'object') return '';
+        var blocks = [
+            { id: 'A_slm', label: 'Arm A · SLM (every turn)',
+              detail: 'From-scratch 204 M-param transformer; INT8 on-device.' },
+            { id: 'B_qwen_intent', label: 'Arm B · Qwen LoRA (commands)',
+              detail: 'Lazy-loaded; only fires when the regex gate matches an HMI command.' },
+            { id: 'C_gemini_cloud', label: 'Arm C · Gemini AI Studio (opt-in)',
+              detail: 'Network round-trip; gated by privacy budget + explicit consent.' },
+        ];
+        var cards = blocks.map(function (b) {
+            var arm = arms[b.id] || {};
+            return '' +
+                '<div class="huawei-card cascade-arm-card">' +
+                  '<h4>' + escHtml(b.label) + '</h4>' +
+                  '<p>' +
+                    '<strong>Latency P50:</strong> ' +
+                    ((arm.latency_ms != null) ? Number(arm.latency_ms).toFixed(1) + ' ms' : '?') + '<br>' +
+                    '<strong>Memory:</strong> ' +
+                    ((arm.memory_mb != null) ? Number(arm.memory_mb).toFixed(1) + ' MB' : '0 MB') + '<br>' +
+                    '<strong>Fires:</strong> ' + escHtml(arm.fires || '?') +
+                  '</p>' +
+                  '<p style="font-size:12px;color:#888;">' + escHtml(b.detail) + '</p>' +
+                '</div>';
+        }).join('');
+        return '' +
+            '<h3 style="margin-top:24px;">Cascade arms (iter 52)</h3>' +
+            '<div class="huawei-grid cascade-arms-grid">' + cards + '</div>';
     }
 
     function wireEdgeProfileTab() {
