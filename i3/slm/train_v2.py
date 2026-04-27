@@ -536,6 +536,19 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["bfloat16", "float16", "float32"],
         help="Mixed-precision dtype for autocast (default bfloat16).",
     )
+    p.add_argument(
+        "--resume",
+        type=Path,
+        default=None,
+        help=(
+            "Resume training from a checkpoint produced by an earlier run. "
+            "Loads model_state_dict, optimizer_state_dict, global_step, and "
+            "best_eval_loss; the LR schedule is restarted as a fresh cosine "
+            "cycle over the new total_optim_steps (warm-restart).  Use to "
+            "extend an under-trained run with more epochs without losing "
+            "the optimiser momentum."
+        ),
+    )
     return p
 
 
@@ -780,6 +793,46 @@ class SLMTrainerV2:
         self.best_eval_loss = float("inf")
         self.oom_streak = 0
         self.max_oom_streak = 2
+
+    # ------------------------------------------------------------------
+    # resume
+    # ------------------------------------------------------------------
+
+    def load_for_resume(self, ckpt_path: Path) -> dict[str, Any]:
+        """Restore model + optimizer + step + best_eval_loss for warm-restart.
+
+        Returns the loaded checkpoint dict so the caller can inspect
+        ``step`` / ``best_eval_loss`` and log a banner.  The LR schedule
+        is *not* restored — :meth:`train` builds a fresh cosine over the
+        new ``total_optim_steps``, which is the right behaviour when
+        the caller is extending the run with more epochs.
+        """
+        ckpt = torch.load(ckpt_path, map_location=self.device, weights_only=False)
+        if not isinstance(ckpt, dict) or "model_state_dict" not in ckpt:
+            raise ValueError(f"checkpoint at {ckpt_path} has no model_state_dict")
+        # The unwrapped GradCkpt-wrapped model carries the same
+        # state_dict keys as the inner ``AdaptiveTransformerV2`` because
+        # ``_GradCkptTransformerV2`` is a plain wrapper. Load with
+        # strict=True so missing/extra keys surface immediately.
+        self.model.load_state_dict(ckpt["model_state_dict"], strict=True)
+        if "optimizer_state_dict" in ckpt:
+            try:
+                self.optimizer.load_state_dict(ckpt["optimizer_state_dict"])
+            except Exception as exc:
+                logger.warning(
+                    "optimizer state failed to load (%s) — continuing with "
+                    "fresh optimizer state from current LR",
+                    exc,
+                )
+        self.global_step = int(ckpt.get("step", 0))
+        self.best_eval_loss = float(ckpt.get("best_eval_loss", float("inf")))
+        logger.info(
+            "resumed from %s: step=%d, best_eval_loss=%s",
+            ckpt_path,
+            self.global_step,
+            self.best_eval_loss,
+        )
+        return ckpt
 
     # ------------------------------------------------------------------
     # forward helpers
@@ -1230,6 +1283,8 @@ def main(argv: list[str] | None = None) -> int:
         use_grad_checkpointing=not args.no_grad_checkpointing,
         amp_dtype=amp_dtype,
     )
+    if args.resume is not None:
+        trainer.load_for_resume(args.resume)
     trainer.train(train_loader, eval_loader, max_steps=args.max_steps)
     return 0
 

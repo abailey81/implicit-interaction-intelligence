@@ -26,7 +26,8 @@ Cost (April 2026 list pricing, AI Studio supervised tuning):
              call (~80 in + ~30 out): ~$0.000015.  Negligible.
 
 Run:
-    GEMINI_API_KEY=AIzaSy... python training/train_intent_gemini.py
+    export GEMINI_API_KEY=...   # AI Studio key from aistudio.google.com/app/apikey
+    python training/train_intent_gemini.py
 """
 from __future__ import annotations
 

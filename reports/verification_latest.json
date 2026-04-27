@@ -1,0 +1,366 @@
+{
+  "total": 44,
+  "passed": 39,
+  "failed": 4,
+  "skipped": 1,
+  "duration_s": 77.26600000000326,
+  "pass_rate": 0.9069767441860465,
+  "per_category_summary": {
+    "code_integrity": {
+      "total": 10,
+      "passed": 8,
+      "failed": 2,
+      "skipped": 0
+    },
+    "config_data": {
+      "total": 7,
+      "passed": 6,
+      "failed": 1,
+      "skipped": 0
+    },
+    "security": {
+      "total": 4,
+      "passed": 3,
+      "failed": 1,
+      "skipped": 0
+    },
+    "architecture_runtime": {
+      "total": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0
+    },
+    "providers": {
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0
+    },
+    "infrastructure": {
+      "total": 5,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 1
+    },
+    "interview_readiness": {
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0
+    }
+  },
+  "results": [
+    {
+      "check_id": "code.ast_parse_all_python",
+      "status": "PASS",
+      "duration_ms": 2437,
+      "message": "parsed 566 files cleanly",
+      "evidence": null
+    },
+    {
+      "check_id": "code.top_level_imports",
+      "status": "PASS",
+      "duration_ms": 3625,
+      "message": "all 4 top-level packages imported",
+      "evidence": null
+    },
+    {
+      "check_id": "code.no_bare_except",
+      "status": "PASS",
+      "duration_ms": 1546,
+      "message": "no bare except handlers",
+      "evidence": null
+    },
+    {
+      "check_id": "code.no_print_in_library",
+      "status": "FAIL",
+      "duration_ms": 1453,
+      "message": "129 print() call(s) in i3/",
+      "evidence": "i3\\biometric\\keystroke_auth.py:937\ni3\\biometric\\keystroke_auth.py:954\ni3\\biometric\\keystroke_auth.py:970\ni3\\biometric\\keystroke_auth.py:988\ni3\\biometric\\keystroke_auth.py:989\ni3\\biometric\\keystroke_auth.py:991\ni3\\biometric\\keystroke_auth.py:949\ni3\\biometric\\keystroke_auth.py:965\ni3\\biometric\\keystroke_auth.py:982\ni3\\critique\\critic.py:705\ni3\\critique\\critic.py:710\ni3\\critique\\critic.py:707\ni3\\critique\\critic.py:709\ni3\\dialogue\\coref.py:1550\ni3\\dialogue\\coref.py:1551\ni3\\dialogue\\coref.py:1552\ni3\\dialogue\\coref.py:1563\ni3\\dialogue\\coref.py:1575\ni3\\dialogue\\coref.py:1576\ni3\\dialogue\\coref.py:1577"
+    },
+    {
+      "check_id": "code.soft_import_pattern",
+      "status": "PASS",
+      "duration_ms": 827,
+      "message": "all optional-SDK imports guarded",
+      "evidence": null
+    },
+    {
+      "check_id": "code.ruff_clean",
+      "status": "PASS",
+      "duration_ms": 157,
+      "message": "ruff non-zero (exit 1) but no critical rules",
+      "evidence": null
+    },
+    {
+      "check_id": "code.mypy_clean",
+      "status": "FAIL",
+      "duration_ms": 60015,
+      "message": "timeout after 60s",
+      "evidence": null
+    },
+    {
+      "check_id": "code.from_future_annotations",
+      "status": "PASS",
+      "duration_ms": 235,
+      "message": "208/221 modules missing; coverage 5.9% (informational -- never FAIL)",
+      "evidence": "i3\\config.py\ni3\\adaptation\\ablation.py\ni3\\adaptation\\controller.py\ni3\\adaptation\\dimensions.py\ni3\\adaptation\\types.py\ni3\\adaptation\\uncertainty.py\ni3\\affect\\accessibility_mode.py\ni3\\affect\\shift_detector.py\ni3\\affect\\state_classifier.py\ni3\\analytics\\arrow_interop.py\ni3\\analytics\\duckdb_engine.py\ni3\\analytics\\ibis_queries.py\ni3\\analytics\\lance_vector.py\ni3\\analytics\\polars_features.py\ni3\\authz\\cedar_adapter.py\ni3\\benchmarks\\runner.py\ni3\\biometric\\continuous_auth.py\ni3\\biometric\\keystroke_auth.py\ni3\\biometric\\keystroke_id.py\ni3\\cloud\\client.py\ni3\\cloud\\cost_tracker.py\ni3\\cloud\\dspy_adapter.py\ni3\\cloud\\guarded_client.py\ni3\\cloud\\guardrails.py\ni3\\cloud\\guardrails_nemo.py\ni3\\cloud\\instructor_adapter.py\ni3\\cloud\\multi_provider.py\ni3\\cloud\\outlines_constrained.py\ni3\\cloud\\postprocess.py\ni3\\cloud\\prompt_builder.py\ni3\\cloud\\prompt_translator.py\ni3\\cloud\\provider_registry.py\ni3\\cloud\\pydantic_ai_adapter.py\ni3\\continual\\drift_detector.py\ni3\\continual\\ewc.py\ni3\\continual\\ewc_user_model.py\ni3\\continual\\replay_buffer.py\ni3\\critique\\critic.py\ni3\\crossdevice\\ai_glasses_arm.py\ni3\\crossdevice\\hmos_ddm_sync.py"
+    },
+    {
+      "check_id": "code.pep604_union_syntax",
+      "status": "PASS",
+      "duration_ms": 156,
+      "message": "11 legacy Optional/Union occurrence(s) (warning only)",
+      "evidence": "i3\\cloud\\outlines_constrained.py:60\ni3\\data\\lineage.py:85\ni3\\data\\lineage.py:86\ni3\\data\\lineage.py:87\ni3\\data\\sources.py:133\ni3\\data\\sources.py:134\ni3\\data\\sources.py:135\ni3\\data\\sources.py:319\ni3\\data\\sources.py:345\ni3\\data\\sources.py:351\ni3\\data\\sources.py:370"
+    },
+    {
+      "check_id": "code.no_todo_personnel_references",
+      "status": "PASS",
+      "duration_ms": 14,
+      "message": "no invalidated personnel references",
+      "evidence": null
+    },
+    {
+      "check_id": "config.yaml_parse_all",
+      "status": "PASS",
+      "duration_ms": 14891,
+      "message": "159 plain-YAML file(s) parsed cleanly (23 templated files skipped)",
+      "evidence": null
+    },
+    {
+      "check_id": "config.json_parse_all",
+      "status": "PASS",
+      "duration_ms": 10952,
+      "message": "1700 JSON file(s) parsed cleanly",
+      "evidence": null
+    },
+    {
+      "check_id": "config.toml_parse_all",
+      "status": "PASS",
+      "duration_ms": 6453,
+      "message": "4 TOML file(s) parsed cleanly",
+      "evidence": null
+    },
+    {
+      "check_id": "config.notebooks_valid_nbformat",
+      "status": "PASS",
+      "duration_ms": 7155,
+      "message": "7 notebook(s) valid",
+      "evidence": null
+    },
+    {
+      "check_id": "config.env_example_keys_documented",
+      "status": "PASS",
+      "duration_ms": 203,
+      "message": "28 env keys, all referenced (or SDK-chain)",
+      "evidence": null
+    },
+    {
+      "check_id": "config.no_hardcoded_secrets",
+      "status": "FAIL",
+      "duration_ms": 40594,
+      "message": "1 potential secret(s) found",
+      "evidence": "training\\train_intent_gemini.py: AIzaSy*"
+    },
+    {
+      "check_id": "config.claude_model_id_locked",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "cloud.model == 'claude-sonnet-4-5'",
+      "evidence": null
+    },
+    {
+      "check_id": "config.mkdocs_build_strict",
+      "status": "FAIL",
+      "duration_ms": 37484,
+      "message": "mkdocs --strict exit 1",
+      "evidence": "nd\nno library called \"cairo\" was found\nno library called \"libcairo-2\" was found\ncannot load library 'libcairo.so.2': error 0x7e.  Additionally, ctypes.util.find_library() did not manage to locate a library called 'libcairo.so.2'\ncannot load library 'libcairo.2.dylib': error 0x7e.  Additionally, ctypes.util.find_library() did not manage to locate a library called 'libcairo.2.dylib'\ncannot load library 'libcairo-2.dll': error 0x7e.  Additionally, ctypes.util.find_library() did not manage to locate a library called 'libcairo-2.dll'\n\n--> Check out the troubleshooting guide: https://t.ly/MfX6u\nWARNING -  \"cairosvg\" Python module is installed, but it crashed with:\nno library called \"cairo-2\" was found\nno library called \"cairo\" was found\nno library called \"libcairo-2\" was found\ncannot load library 'libcairo.so.2': error 0x7e.  Additionally, ctypes.util.find_library() did not manage to locate a library called 'libcairo.so.2'\ncannot load library 'libcairo.2.dylib': error 0x7e.  Additionally, ctypes.util.find_library() did not manage to locate a library called 'libcairo.2.dylib'\ncannot load library 'libcairo-2.dll': error 0x7e.  Additionally, ctypes.util.find_library() did not manage to locate a library called 'libcairo-2.dll'\n\n--> Check out the troubleshooting guide: https://t.ly/MfX6u\nWARNING -  \"cairosvg\" Python module is installed, but it crashed with:\nno library called \"cairo-2\" was found\nno library called \"cairo\" was found\nno library called \"libcairo-2\" was found\ncannot load library 'libcairo.so.2': error 0x7e.  Additionally, ctypes.util.find_library() did not manage to locate a library called 'libcairo.so.2'\ncannot load library 'libcairo.2.dylib': error 0x7e.  Additionally, ctypes.util.find_library() did not manage to locate a library called 'libcairo.2.dylib'\ncannot load library 'libcairo-2.dll': error 0x7e.  Additionally, ctypes.util.find_library() did not manage to locate a library called 'libcairo-2.dll'\n\n--> Check out the troubleshooting guide: https://t.ly/MfX6u\n"
+    },
+    {
+      "check_id": "runtime.fastapi_app_creation",
+      "status": "PASS",
+      "duration_ms": 5500,
+      "message": "create_app() returned a FastAPI instance",
+      "evidence": null
+    },
+    {
+      "check_id": "runtime.all_routes_registered",
+      "status": "PASS",
+      "duration_ms": 46,
+      "message": "11 expected routes registered",
+      "evidence": null
+    },
+    {
+      "check_id": "runtime.health_live_endpoints",
+      "status": "PASS",
+      "duration_ms": 12969,
+      "message": "/api/health and /api/live returned 200",
+      "evidence": null
+    },
+    {
+      "check_id": "runtime.ready_endpoint_shape",
+      "status": "PASS",
+      "duration_ms": 10484,
+      "message": "/api/ready shape ok (status + checks)",
+      "evidence": null
+    },
+    {
+      "check_id": "runtime.privacy_sanitizer_patterns",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "sanitizer redacted all tested PII categories",
+      "evidence": null
+    },
+    {
+      "check_id": "runtime.pddl_refuses_sensitive_cloud",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "safe plan: ('redact_pii', 'route_local')",
+      "evidence": null
+    },
+    {
+      "check_id": "runtime.tcn_forward_pass",
+      "status": "PASS",
+      "duration_ms": 62,
+      "message": "TCN [1, 10, 32] -> [1, 64]",
+      "evidence": null
+    },
+    {
+      "check_id": "runtime.adaptation_vector_roundtrip",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "AdaptationVector roundtrip is bit-identical",
+      "evidence": null
+    },
+    {
+      "check_id": "runtime.encryption_roundtrip",
+      "status": "PASS",
+      "duration_ms": 16,
+      "message": "roundtrip ok (64 bytes)",
+      "evidence": null
+    },
+    {
+      "check_id": "runtime.bandit_thompson_sample_validity",
+      "status": "PASS",
+      "duration_ms": 14,
+      "message": "bandit selected arm 0",
+      "evidence": null
+    },
+    {
+      "check_id": "providers.all_registered",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "11 provider(s) registered (>= 11)",
+      "evidence": null
+    },
+    {
+      "check_id": "providers.construct_without_sdk",
+      "status": "PASS",
+      "duration_ms": 110,
+      "message": "all 11 adapter modules import cleanly",
+      "evidence": null
+    },
+    {
+      "check_id": "providers.multi_provider_fallback",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "fallback chain escalated to second provider as expected",
+      "evidence": null
+    },
+    {
+      "check_id": "providers.cost_tracker_basic",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "report.total_calls = 1",
+      "evidence": null
+    },
+    {
+      "check_id": "providers.prompt_translator_shapes",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "4 provider shapes produced cleanly",
+      "evidence": null
+    },
+    {
+      "check_id": "infra.dockerfile_parses",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "4 Dockerfile(s) valid",
+      "evidence": null
+    },
+    {
+      "check_id": "infra.compose_schema",
+      "status": "PASS",
+      "duration_ms": 16,
+      "message": "2 compose file(s) valid",
+      "evidence": null
+    },
+    {
+      "check_id": "infra.helm_lint",
+      "status": "SKIP",
+      "duration_ms": 16,
+      "message": "helm binary not on PATH",
+      "evidence": null
+    },
+    {
+      "check_id": "infra.kubernetes_manifests",
+      "status": "PASS",
+      "duration_ms": 30,
+      "message": "10 k8s manifest(s) valid",
+      "evidence": null
+    },
+    {
+      "check_id": "infra.cedar_policy_parses",
+      "status": "PASS",
+      "duration_ms": 62,
+      "message": "1 cedar policy/ies parsed",
+      "evidence": null
+    },
+    {
+      "check_id": "interview.slide_count",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "16 '---' separator(s); expected 16 (Marp frontmatter=True)",
+      "evidence": null
+    },
+    {
+      "check_id": "interview.qa_pair_count",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "52 '### ' Q&A heading(s), expected 52",
+      "evidence": null
+    },
+    {
+      "check_id": "interview.closing_line_verbatim",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "verbatim closing line present",
+      "evidence": null
+    },
+    {
+      "check_id": "interview.honesty_slide_title_case",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "honesty slide title present",
+      "evidence": null
+    },
+    {
+      "check_id": "interview.adr_count",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "10 numbered ADR(s) (>=10 required)",
+      "evidence": null
+    },
+    {
+      "check_id": "interview.changelog_latest_release_nonempty",
+      "status": "PASS",
+      "duration_ms": 0,
+      "message": "latest release section is 14271 chars (>500 required)",
+      "evidence": null
+    }
+  ],
+  "run_at": "2026-04-27T11:32:22.977425Z",
+  "git_sha": "e2404b3124b6b21bc988542233b1e091e88c9464",
+  "python_version": "3.12.10",
+  "platform": "Windows-11-10.0.22621-SP0"
+}

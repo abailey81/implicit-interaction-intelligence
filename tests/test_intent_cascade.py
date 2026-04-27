@@ -151,7 +151,10 @@ def test_cascade_short_circuits_on_valid_action():
     assert p._last_intent_result["action"] == "set_timer"
 
 
-def test_cascade_falls_through_on_invalid_action():
+def test_cascade_falls_through_on_invalid_action(monkeypatch):
+    # Phase 4 added a Gemini backup that fires when GEMINI_API_KEY is
+    # set; this test pins the *no-backup* path, so unset the key.
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     p = _bare_pipeline()
     p._intent_parser_qwen = _StubParser(
         _StubIntentResult(valid_action=False, valid_slots=False),
@@ -192,7 +195,12 @@ def test_cascade_skipped_on_chat_text():
     ("cancel", {}, "cancel"),
     ("unsupported", {}, "can't"),
 ])
-def test_cascade_acks(action, params, must_contain):
+def test_cascade_acks(action, params, must_contain, monkeypatch):
+    # The 'unsupported' case relies on Qwen's stub ack short-circuiting
+    # to "I can't action that one." — but Phase 4 now consults Gemini
+    # as a backup whenever the primary parse is unsupported.  Unset
+    # GEMINI_API_KEY so we exercise the no-backup ack path.
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     p = _bare_pipeline()
     p._intent_parser_qwen = _StubParser(
         _StubIntentResult(action=action, params=params),

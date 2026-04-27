@@ -180,7 +180,10 @@ _DEFAULT_PREFERENCE_USER_TEMPLATE: Final[str] = (
     "BEGIN_RESPONSE_A\n```\n{response_a}\n```\nEND_RESPONSE_A\n\n"
     "BEGIN_RESPONSE_B\n```\n{response_b}\n```\nEND_RESPONSE_B\n\n"
     "Reply with a single JSON object: "
-    '{"winner": "A" | "B" | "tie", "rationale": "<one sentence>"}. '
+    # Literal '{' / '}' must be doubled when this string is fed
+    # through str.format(); otherwise '"winner"' is parsed as a
+    # placeholder name and KeyErrors at format-time.
+    '{{"winner": "A" | "B" | "tie", "rationale": "<one sentence>"}}. '
     "No prose outside the JSON."
 )
 

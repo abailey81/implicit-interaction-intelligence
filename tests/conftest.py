@@ -11,12 +11,35 @@ These fixtures provide reproducible, isolated test resources:
 
 from __future__ import annotations
 
+import os
 import sys
 import types
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
+
+# ─────────────────────────────────────────────────────────────────────────
+# .env auto-load
+# ─────────────────────────────────────────────────────────────────────────
+# Several config-loading fixtures load ``configs/default.yaml`` which
+# emits a UserWarning (-> pytest error under filterwarnings=error) when
+# ``I3_ENCRYPTION_KEY`` isn't set.  The same key lives in the project's
+# gitignored ``.env``, so we read it line-by-line here (no python-dotenv
+# dep) and only set vars that are not already in os.environ.  Tests can
+# still override individual vars via monkeypatch as before.
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+_ENV_PATH = _REPO_ROOT / ".env"
+if _ENV_PATH.exists():
+    try:
+        for _ln in _ENV_PATH.read_text(encoding="utf-8").splitlines():
+            _ln = _ln.strip()
+            if not _ln or _ln.startswith("#") or "=" not in _ln:
+                continue
+            _k, _v = _ln.split("=", 1)
+            os.environ.setdefault(_k.strip(), _v.strip())
+    except Exception:
+        pass
 
 # ─────────────────────────────────────────────────────────────────────────
 # Torch availability probe
