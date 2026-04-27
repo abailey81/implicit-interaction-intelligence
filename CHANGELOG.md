@@ -5,6 +5,105 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026-04-28] Iter 51 phases 19–20 — close-the-gaps push
+
+The final pre-deadline push.  Closes the four JD gaps a recruiter
+would probe on with concrete, demonstrable evidence committed to
+the repo.
+
+### Edge deployment — phase 20a
+The JD's most pointed pre-screen question is *"Have you ever
+deployed ML models to low-compute devices (e.g., wearables or
+IoT)?"*  Until this push the answer was "infrastructure ready,
+not actually shipped".  Now:
+
+- **`web/models/encoder_int8.onnx`** (162 KB).  INT8-quantised
+  TCN encoder, force-added to git so a recruiter cloning the repo
+  can demo it without rebuilding.  Quantised via
+  `onnxruntime.quantization.quantize_dynamic`; parity vs FP32 is
+  MAE 0.00055 / max abs err 0.0018 on a 10-step feature window.
+- **Toggle moved into the State tab.**  Was floating below all the
+  tab panels in an invisible mount.  Now lives under "Edge
+  inference · Run on this device." with a one-paragraph
+  explanation of what it does.
+- **`reports/edge_profile_2026-04-28.md`**.  Real benchmark numbers:
+  p50 460 µs, p95 637 µs, 2 176 encodes/sec, 12.5 × under Kirin A2
+  watch's 2 MB encoder RAM budget.  Honestly notes INT8 is 2.3 ×
+  slower than FP32 on x86 CPU (no INT8 SIMD path) and faster on
+  any Kirin NPU; size is the unconditional win.
+- **Live demo proof.**  `HTTP 200` on `/api/onnx/encoder_int8.onnx`
+  (166 115 B served).  With the toggle ON, Chrome DevTools →
+  Network panel shows zero `/api/encode` requests when typing —
+  keystrokes never leave the page.
+
+### HCI / UX dimension — phase 20b
+JD lists *"HCI principles, design thinking, concept-driven
+prototyping"* as a desired competency.  Until this push there was
+no design-rationale document.  Added:
+
+- **`docs/huawei/hci_design_brief.md`** (1 page).  Frames the HMI
+  problem (cognitive load while driving, motor-accessibility,
+  recurring preference-elicitation overhead) with three real
+  references — Strayer & Cooper 2017 *Hum. Factors*, Wobbrock et
+  al. 2011 CHI ability-based design, Lee & See 2004 trust
+  calibration.  Maps every adaptation axis to its HCI rationale
+  (Sweller, Pickering, Picard, Russell).  Lists four validation
+  moves I'd run with an embedded UX team.
+
+### Solo-project / collaboration evidence — phase 20c
+JD wants cross-disciplinary collaboration; the project is solo.
+Added an issue-tracker-shaped doc that demonstrates how I scope
+work for a teammate:
+
+- **`docs/huawei/open_problems.md`** — six PR-shaped open issues:
+  Kirin watch deployment, full-corpus SLM retrain, A/B harness
+  for the routing chip, multilingual cascade, user-state
+  validation study, replace warm-restart-experiment doc with real
+  full-corpus run.  Each has background, acceptance criteria,
+  and effort estimate.
+
+### Direct response to the recruiter's email — phase 20d
+- **`docs/huawei/email_response.md`** — every pre-screen question
+  answered with file paths + line counts + verifiable claims.
+  Includes honest caveats (Qwen arm DOES use HF transformers; SLM
+  has not shipped to a Kirin device — that's open problem #1).
+
+### Adaptation skeleton + About-tab cascade card — phase 19
+- Adaptation gauge container ships with 8 ghost rows + a hint so
+  the tab doesn't show as a blank card on first paint.
+  Replaced by live gauges on the first `state_update` frame.
+- About tab gained a Q5 card describing the five-class scored
+  cascade router.
+
+### README + HUAWEI_PITCH + jd_to_repo_map — phase 20e
+- README lead now describes the cascade, edge inference, and
+  actuators in three short paragraphs at the top, with prominent
+  links to the new gap-closing docs (presenter cheat sheet, email
+  response, HCI brief, open problems).
+- HUAWEI_PITCH gained a TL;DR that summarises the cascade arms +
+  edge proof in one paragraph each.
+- jd_to_repo_map gained two new sections: the recruiter's
+  pre-screen Q&A with status flags, and the smart-cascade
+  architectural concepts mapped to repo files.
+- iter51_summary appended a phases 8 → 20 section with the
+  full 16-commit list.
+
+### Top-of-tree commits in this push (latest first)
+```
+0eb1736  feat(edge+docs): close all four JD gaps — edge in-browser inference + HCI + email response
+a0a9643  ui(polish): adaptation-tab skeleton + about-tab cascade card
+```
+
+### Verification — final
+- 130 / 130 UI test suite green.
+- 22 / 22 routing classifications match expectation.
+- Live 5-chip demo: every cascade arm fires correctly; chip-2
+  30-second timer fires gold-pulse banner during chip-3.
+- Edge inference: 162 KB INT8 ONNX served at `/api/onnx/encoder_int8.onnx`,
+  zero `/api/encode` requests on browser-side path.
+
+---
+
 ## [2026-04-27 evening] Iter 51 phases 8–18 — final demo-ready polish
 
 The full pre-deadline polish push.  Closes the cascade story with a

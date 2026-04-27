@@ -19,18 +19,42 @@ cross-attention conditioning), a from-scratch byte-level BPE tokenizer
 bandit for edge/cloud routing, and a closed-loop adaptation pipeline
 that observes a user, infers an 8-axis adaptation vector, and biases
 generation accordingly — all in a single repository, with zero
-HuggingFace dependencies in the inference path.
+HuggingFace dependencies in the SLM generation path.
+
+**Three-arm cascade with a scored multi-signal smart router** —
+local SLM + retrieval gets the first shot on every chat turn;
+Qwen 1.7 B + LoRA handles HMI commands (`set_timer`, `play_music`,
+`navigate`, …) with deterministic JSON output; Gemini 2.5 Flash
+"tags in" only when the local arms genuinely can't ground the
+query.  Every reply ships a `route_decision` chip showing which
+arm answered, the per-arm confidence scores, and the routing
+reason in a hover tooltip.
+
+**Real actuators** — `set timer for 30 seconds` schedules an
+asyncio task that fires a notification 30 s later (gold pulse
+banner in the chat); `navigate to trafalgar square` shows an
+immediate route banner; `cancel` tears down all pending timers.
+The cascade isn't just acks — it actually does things.
+
+**Edge inference, demonstrable live.** The TCN encoder is
+INT8-quantised to **162 KB ONNX** and runs in your browser tab
+via ONNX Runtime Web (WASM / WebGPU).  Toggle is in the **State
+tab → Edge inference**.  Open Chrome DevTools → Network and you
+see **zero `/api/encode` requests** when ON — keystrokes never
+leave the page.
 
 <p align="center">
   <a href="http://127.0.0.1:8000"><strong>Live demo</strong></a> ·
-  <a href="docs/TECHNICAL_REPORT.md"><strong>Technical report</strong></a> ·
-  <a href="docs/INTERVIEW_DEMO.md"><strong>5-minute demo script</strong></a> ·
-  <a href="HUAWEI_PITCH.md"><strong>Huawei filter-question map</strong></a>
+  <a href="docs/huawei/PRESENTER_CHEAT_SHEET.md"><strong>30-min demo cheat sheet</strong></a> ·
+  <a href="docs/huawei/email_response.md"><strong>Direct response to recruiter pre-screen</strong></a> ·
+  <a href="docs/huawei/hci_design_brief.md"><strong>HCI design brief</strong></a> ·
+  <a href="docs/huawei/open_problems.md"><strong>Open problems / what I'd hand a teammate</strong></a> ·
+  <a href="docs/TECHNICAL_REPORT.md"><strong>Technical report</strong></a>
 </p>
 
-> *Run `make all-fast`, then visit <http://127.0.0.1:8000> — the SPA
-> opens straight on the Chat tab with the live state badge, biometric
-> Identity Lock, reasoning trace, and animated pipeline ribbon.*
+> *Run `I3_PRELOAD_QWEN=1 python -m uvicorn server.app:app --host 127.0.0.1 --port 8000`,
+> then visit <http://127.0.0.1:8000> — the SPA opens straight on the Chat tab
+> with five suggestion chips that exercise every cascade arm in five clicks.*
 
 ---
 

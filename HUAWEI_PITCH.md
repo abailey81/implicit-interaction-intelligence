@@ -1,6 +1,41 @@
 # I³ — Implicit Interaction Intelligence
 ## How this project maps to the Huawei R&D UK HMI internship brief
 
+> **For the fastest skim**, read
+> [`docs/huawei/email_response.md`](docs/huawei/email_response.md) — every
+> pre-screen question answered with file paths + verifiable claims.  Then
+> [`docs/huawei/PRESENTER_CHEAT_SHEET.md`](docs/huawei/PRESENTER_CHEAT_SHEET.md)
+> for the 10-min demo flow.
+
+### TL;DR — what changed in iter 51 phases 4 → 20
+
+I³ is a **three-arm cascade** with a **scored multi-signal smart router**
+sitting on top.  Every chat turn is classified into one of five route
+classes (`greeting` / `cascade-meta` / `system-intro` / `world-chat` /
+`default-chat`), each arm gets a confidence score in `[0, 1]`, and the
+highest-scoring class wins.  The chip below every reply shows the per-arm
+score live; hover for the full reasoning.
+
+| Arm | When it fires | Live evidence |
+|---|---|---|
+| **Local SLM + retrieval** (204 M from-scratch transformer + 974 k-triple KG) | Default for every chat turn; question-shape + KG-anchor in query | `slm+retrieval` chip on the reply, `route_decision.score ≥ 0.85` |
+| **Qwen 1.7B + LoRA intent parser** (val_loss 5.4 × 10⁻⁶) | Regex command gate matched a structured HMI command | `qwen-lora` chip; `intent_result.action` populated; **real actuator fires** (timer counts down, navigate banner) |
+| **Gemini 2.5 Flash cloud chat** (with conversation history + I³ persona prompt) | Local arm couldn't ground (topic-consistency gate demoted retrieval) **OR** the query is cascade-meta ("which arms do you use?") | `gemini-chat` chip; system prompt forbids self-disclosure as "I'm a Google LLM" |
+| **Hand-written tools** | Greeting / hostility / fact statement-or-recall | `tool:greeting` / `tool:refuse` / `tool:name`; no LLM call at all |
+
+**Edge deployment lives in the State tab.**  Toggle "Run inference in
+browser" ON and the TCN encoder runs in WASM / WebGPU client-side —
+162 KB INT8 ONNX, 460 µs p50 inference, 12.5 × under the Kirin A2 watch
+RAM budget, MAE 0.00055 vs FP32.  DevTools → Network confirms zero
+`/api/encode` requests.
+
+Profile + bench: [`reports/edge_profile_2026-04-28.md`](reports/edge_profile_2026-04-28.md).
+HCI design brief: [`docs/huawei/hci_design_brief.md`](docs/huawei/hci_design_brief.md).
+Open-problem punch list (six PR-shaped issues with constraints + acceptance criteria):
+[`docs/huawei/open_problems.md`](docs/huawei/open_problems.md).
+
+---
+
 Huawei's recruiter sent four concrete follow-up questions after receiving
 my CV.  Each is a filter for a specific competency.  This document maps
 every filter question to artefacts you can read, run, and inspect in

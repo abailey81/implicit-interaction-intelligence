@@ -255,3 +255,127 @@ fb34a8e  fix(authz): cedarpy 4.x compatibility — Decision enum + entity normal
 8418b8d  iter 51 phase 6: verification sweep + judge-calibration bug + SLM v2 resume support
 e2404b3  iter 51 phase 4-5: smart Qwen→Gemini cascade fallback + slot normalisation
 ```
+
+
+---
+
+## Iter 51 — phases 8 → 20 update (2026-04-28, final demo polish)
+
+After phases 4-7 wired the cascade fallback and the cedar 4.x fix, phases
+8 → 20 turned the cascade from "two-arm with a backup" into a genuinely
+intelligent, transparent, and edge-deployable assistant.  Top-of-tree
+on `origin/main`.
+
+### Smart Router — phases 8 → 16
+- **Phase 8.**  Cascade chat fallback to Gemini.  When the local SLM +
+  retrieval can't ground the query, the engine routes to a `GoogleProvider`
+  in `_gemini_chat_fallback`.  New `cloud_chat` path label.  System
+  prompt forbids self-disclosure as Google / Gemini / GPT / Claude.
+- **Phase 9.**  Smart Router with five route classes (`greeting` /
+  `cascade-meta` / `system-intro` / `world-chat` / `default-chat`).
+  Per-turn structured `route_decision` dict on the `PipelineOutput` and
+  WS frame.  Three per-arm indicator chips (SLM / Qwen / Gemini) plus
+  a `Used: X` winner badge per reply.
+- **Phase 10-12.**  UI polish.  Badge styling tightened, chip row
+  unified, advanced widgets gated to Advanced mode.
+- **Phase 13.**  Stack tab collapsed from 22 cards to 8 + "Show all"
+  toggle; nav-trailing simplified.  Inline meta declutter.
+- **Phase 14.**  Greeting route (no LLM call), coref-aware Gemini call,
+  relaxed system prompt (general knowledge, not vehicle-only).
+- **Phase 15.**  Topic-consistency gate kills the "Huawei → London-the-
+  city" retrieval bug.  Gemini chat fallback now pulls last 4
+  `(user, assistant)` pairs from `_session_histories`.  Per-arm scores
+  rendered inline in chip text (`SLM·0.85   Qwen   Gemini·0.10`).
+- **Phase 16.**  **Gemini IS the last resort.**  Removed the
+  `world_chat → cloud_chat` shortcut.  SLM + retrieval gets the first
+  shot on every chat turn; Gemini only fires when local can't ground.
+  Verified live: 11 of 12 routing decisions match expectation; the one
+  outlier was the test having a too-narrow expectation, not a regression.
+
+### Real actuators — phase 17
+`server/websocket.py` `_fire_actuator_side_effects`.  Two new frame
+types ride the existing WS connection:
+- `actuator_state` — fires immediately on intent parse.  "Timer
+  started · 30 sec" / "Now playing · jazz" / "Navigating to · trafalgar
+  square" banners in the chat.
+- `actuator_event` — fires when a scheduled action elapses.
+  `set_timer` schedules an asyncio task at `duration_seconds` and emits
+  `timer_fired` with a gold pulse animation.  Verified end-to-end:
+  `set timer for 10 seconds` → 10 s later, gold banner reading
+  "⏰ Your 10 sec timer is up." appears in chat.
+
+`set_alarm` / `set_reminder` parse "7am" / "07:00" / "6pm" → schedule
+for that wall-clock time.  `cancel` tears down all pending tasks for
+the user.
+
+### Text-only demo polish — phase 18
+TTS speaker icon + voice-prosody mic + gaze-camera widgets all gated
+to Advanced mode.  Simple-mode chat is now strictly text-in / text-out.
+Five suggestion chips rewritten so each click exercises a different
+cascade arm — recruiter clicking through sees the full routing surface
+in five turns.
+
+### Final visual polish — phase 19
+- Adaptation tab: 8 ghost rows with shimmering bars + a one-sentence
+  hint, replaced by live gauges on the first `state_update` frame.
+- About tab: added Q5 cascade card so a recruiter who skims About
+  sees the same cascade narrative the chat surface shows.
+
+### Closing the JD gaps — phase 20
+The final gap-closing push.  Each of the four real gaps the recruiter
+would probe on now has concrete, demonstrable evidence in the repo.
+
+- **Edge deployment** (the JD's hardest pre-screen question):
+  - `web/models/encoder_int8.onnx` (162 KB; -63 % size vs FP32; MAE
+    0.00055; max abs err 0.0018).  Force-added to git so a recruiter
+    cloning the repo can demo it without rebuilding.
+  - Browser-inference toggle moved out of an invisible page-bottom
+    orphan and INTO the **State tab** under "Edge inference · Run on
+    this device."
+  - `reports/edge_profile_2026-04-28.md` — real benchmark numbers
+    (460 µs p50, 2 176 enc/s, 12.5 × under Kirin A2 watch RAM
+    budget).  Honestly notes INT8 is slower than FP32 on x86 (no
+    INT8 SIMD path) and faster on Kirin NPU; size is the win.
+- **HCI / UX dimension** (JD desired):
+  - `docs/huawei/hci_design_brief.md` — 1 page with three real
+    references (Strayer & Cooper 2017, Wobbrock 2011, Lee & See 2004),
+    HCI rationale per adaptation axis, four validation moves with an
+    embedded UX team.
+- **Solo-project / collaboration evidence** (JD desired):
+  - `docs/huawei/open_problems.md` — six PR-shaped issues with
+    background, acceptance criteria, and effort estimates.  Reads
+    like the issue tracker I'd hand a teammate on day one.
+- **Direct response to the recruiter's email**:
+  - `docs/huawei/email_response.md` — every pre-screen question
+    answered with file paths + line counts + verifiable claims.
+    Includes honest caveats (Qwen arm DOES use HF transformers; SLM
+    has not shipped to a Kirin device).
+
+### Final live verification
+- Five-chip demo flow: 5 / 5 cascade arms route correctly; chip-2
+  timer fires gold-pulse banner during chip-3.
+- Edge inference: HTTP 200 on `/api/onnx/encoder_int8.onnx`
+  (166 115 B); zero `/api/encode` requests when toggle ON.
+- UI suite: 130 / 130 green
+  (chat_chip_css_classes + chat_js_chips + advanced_ui_static
+   + huawei_tabs_js_wiring + dashboard_html_contract + intent_cascade).
+
+### Top-of-tree commits in phases 8 → 20
+```
+0eb1736  feat(edge+docs): close all four JD gaps
+a0a9643  ui(polish): adaptation skeleton + about cascade card
+ef6d638  docs: cheat sheet + CHANGELOG cover phases 8 → 18
+b6282fb  ui(polish): text-only chat + demo-targeted suggestion chips
+a6ce8d2  feat(actuators): real side-effects — timers actually fire
+6f1db6b  feat(cascade): Gemini is the LAST RESORT
+9cf7529  feat(cascade): topic-consistency gate + Gemini history + visible scores
+260b6ef  feat(router): scored multi-signal Smart Router + greeting + coref-aware cloud
+521cd7b  ui(chat): minimalist routing chip row
+ec94fa2  iter 51 phase 11: "Used: X" winner badge
+4a34403  iter 51 phase 10: three per-arm indicator chips
+6672fba  iter 51 phase 9: Smart Router with route_decision
+1ab2da2  iter 51 phase 8: smart cascade
+c2ab973  ui(polish): clean structured minimalist demo surface
+68e1e8d  fix(chat): forward route_decision through both response and response_done
+a250648  fix(chat): render side chips on streamed responses too
+```

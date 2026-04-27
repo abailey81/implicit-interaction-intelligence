@@ -5,10 +5,33 @@
 > class, function, or test that satisfies it.  A reviewer should be
 > able to verify every claim in 60 seconds.
 >
-> **Last verified.** 2026-04-27 (iter 51).  CI green: `pytest`
-> 90/90 core, drift test 170/170, cross-session test 4/4, intent eval
-> on 252-row test set (Qwen path) reported in
-> [`finetune_artefact.md`](finetune_artefact.md).
+> **Last verified.** 2026-04-28 (iter 51 phase 20).  CI green:
+> 130 / 130 UI suite, 22 / 22 routing classifications correct on
+> the precision smoke, 5 / 5 cascade-arm chips fire correctly on the
+> live demo, encoder ONNX parity MAE 0.00055.
+
+## Recruiter pre-screen — the five questions, answered with repo evidence
+
+| Email Q | Repo evidence | Status |
+|---|---|---|
+| Q1. Custom ML from scratch | [`docs/huawei/email_response.md#1`](email_response.md) — five hand-written components | ✅ |
+| Q2. SLM without heavy frameworks | 204 M `AdaptiveTransformerV2` in pure PyTorch — [`i3/slm/adaptive_transformer_v2.py`](../../i3/slm/adaptive_transformer_v2.py) | ✅ |
+| Q3. Pipeline orchestration from blueprints | 14-stage cascade in [`i3/pipeline/engine.py`](../../i3/pipeline/engine.py); structured `route_decision` per turn | ✅ |
+| Q4. Edge deployment to wearables | INT8 encoder in-browser ([`web/models/encoder_int8.onnx`](../../web/models/encoder_int8.onnx)); SLM-on-Kirin is honestly **not yet shipped** — [`open_problems.md#1`](open_problems.md) | ⚠️ partial (honest) |
+| Q5. Relevant experience highlights | [`docs/huawei/email_response.md#5`](email_response.md#5) — JD-bullet evidence map | ✅ |
+
+## Smart cascade — the iter 51 phase 4-20 architecture
+
+| Concept | Repo evidence |
+|---|---|
+| Smart Router with multi-signal scorer | [`i3/pipeline/engine.py`](../../i3/pipeline/engine.py) `_smart_score_arms` — six deterministic signals (greeting / cascade-meta / system-intro / question-shape / KG-anchor / system-topic) → per-class confidence in `[0, 1]`, highest wins |
+| Per-turn `route_decision` | [`i3/pipeline/types.py`](../../i3/pipeline/types.py) `PipelineOutput.route_decision: dict` — `{arm, model, query_class, reason, threshold, score, arms_used, smart_scores}` |
+| Topic-consistency gate | [`i3/pipeline/engine.py`](../../i3/pipeline/engine.py) — when query mentions KG subject X, response must too; otherwise demote retrieval and tag in cloud chat |
+| Conversation-history-aware Gemini chat | [`i3/pipeline/engine.py`](../../i3/pipeline/engine.py) `_gemini_chat_fallback` — pulls last 4 (user, assistant) pairs from `_session_histories` |
+| Real actuators (timers actually fire) | [`server/websocket.py`](../../server/websocket.py) `_fire_actuator_side_effects` — asyncio-scheduled `actuator_event` frames; gold pulse banner in [`web/js/chat.js`](../../web/js/chat.js) |
+| Edge inference live in-browser | [`web/models/encoder_int8.onnx`](../../web/models/encoder_int8.onnx) (162 KB) + [`web/js/browser_inference.js`](../../web/js/browser_inference.js) + [`reports/edge_profile_2026-04-28.md`](../../reports/edge_profile_2026-04-28.md) |
+| HCI design rationale | [`docs/huawei/hci_design_brief.md`](hci_design_brief.md) — Strayer 2017, Wobbrock 2011, Lee & See 2004 |
+| Solo-project mitigation | [`docs/huawei/open_problems.md`](open_problems.md) — six PR-shaped issues with constraints + acceptance criteria + effort estimates |
 
 ---
 
