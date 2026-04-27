@@ -339,4 +339,52 @@ out-of-range arm robustness.
 Total iter-52..89 test count: **363 passed + 1 skipped in 9.11 s.**
 38 commits stacked since iter 51.
 
-## Iter 91 — *(next focus, picked when iter 90 commits)*
+## Iter 91 — Qwen LoRA adapter / tokenizer / training-metrics alignment (commit `a58aa6a`)
+
+8 tests verify the committed Qwen adapter is structurally consistent
+(adapter_config.json valid, references Qwen, LoRA rank in supported
+set; tokenizer files present; training metrics records best_val_loss).
+
+## Iter 92 — pricing_2026.json table integrity (commit `ac652ab`)
+
+8 tests pin the per-model pricing schema (input/output rates, no
+negatives, anthropic/openai/gemini coverage).
+
+## Iter 93 — CostTracker priced-call integration (commit `2b40ea7`)
+
+6 tests verify known-model → non-zero cost, unknown → zero +
+unknown_models entry, aggregate totals, by_provider breakdown.
+
+## Iter 94 — KnowledgeGraph.compose_answer per-predicate (commit `6570478`)
+
+7 tests pin year-rendering, predicate aliasing (discovered_by →
+founded_by fallback), unknown-predicate behaviour, multi-object slots.
+
+## Iter 95 — PipelineInput dataclass contract (commit `f05a000`)
+
+6 tests pin the 7 required fields, optional multimodal defaults,
+default-factory isolation across instances.
+
+## Iter 96 — CSS chip-arm class regression (commit `a300753`)
+
+13 tests assert iter-51..62 chip CSS classes (chip-affect/safety/
+adapt/intent + chip-arm-{a,b,c,r,t}) and cascade-card classes are
+present in huawei_tabs.css.
+
+## Iter 97 — huawei_tabs.js function-wiring contract (commit `6155bcf`)
+
+16 tests assert each wireXxxTab() is both defined and invoked
+from the boot block, plus iter-53/55 helper functions present.
+
+## Iter 98 — intent dataset JSONL file integrity (commit `588cca9`)
+
+6 tests verify split sizes, required fields, action vocab in
+SUPPORTED_ACTIONS, slot whitelist compliance, JSON validity of the
+completion column.
+
+## Iter 99 — Aggregate iter-91..98 sweep + Makefile + roadmap (this commit)
+
+Total iter-52..98 test count: **433 passed + 1 skipped in 9.04 s.**
+47 commits stacked since iter 51.
+
+## Iter 100 — *(milestone — next focus picked when iter 99 commits)*
