@@ -281,4 +281,39 @@ class CostTracker:
             self._unknown.clear()
 
 
-__all__ = ["CostReport", "CostTracker"]
+# ---------------------------------------------------------------------------
+# Iter 67 — process-wide singleton accessor
+# ---------------------------------------------------------------------------
+
+_GLOBAL_TRACKER: CostTracker | None = None
+_GLOBAL_LOCK = threading.Lock()
+
+
+def get_global_cost_tracker() -> CostTracker:
+    """Return the process-wide CostTracker singleton.
+
+    Iter 67 (2026-04-27).  Cloud providers / multi-provider chains
+    don't currently maintain their own tracker — this gives them a
+    shared place to call ``record(...)`` so the new
+    ``GET /api/cost/report`` endpoint can serve aggregate spend.
+    """
+    global _GLOBAL_TRACKER
+    if _GLOBAL_TRACKER is not None:
+        return _GLOBAL_TRACKER
+    with _GLOBAL_LOCK:
+        if _GLOBAL_TRACKER is None:
+            _GLOBAL_TRACKER = CostTracker()
+    return _GLOBAL_TRACKER
+
+
+def reset_global_cost_tracker() -> None:
+    """Reset the singleton (for tests).  Idempotent."""
+    global _GLOBAL_TRACKER
+    with _GLOBAL_LOCK:
+        if _GLOBAL_TRACKER is not None:
+            _GLOBAL_TRACKER.reset()
+        _GLOBAL_TRACKER = None
+
+
+__all__ = ["CostReport", "CostTracker",
+           "get_global_cost_tracker", "reset_global_cost_tracker"]

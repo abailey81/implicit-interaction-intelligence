@@ -706,6 +706,28 @@ async def get_profiling_report(request: Request) -> JSONResponse:
 
 
 # ------------------------------------------------------------------
+# Iter 67: cloud cost-tracking aggregate
+# ------------------------------------------------------------------
+
+@router.get("/cost/report")
+async def get_cost_report(request: Request) -> JSONResponse:
+    """Return the process-wide CostTracker's current aggregate report.
+
+    Iter 67.  No per-user data; no PII; no provider keys.  Just the
+    per-provider / per-model token + cost ledger that the dashboard
+    can show as "this is what we've spent this session".
+    """
+    try:
+        from i3.cloud.cost_tracker import get_global_cost_tracker
+        tracker = get_global_cost_tracker()
+        report = tracker.report()
+    except Exception:
+        logger.exception("get_cost_report failed")
+        raise HTTPException(status_code=500, detail="Internal error")
+    return JSONResponse(report.to_dict())
+
+
+# ------------------------------------------------------------------
 # Iter 55: per-cascade-arm rolling latency stats
 # ------------------------------------------------------------------
 
