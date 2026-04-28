@@ -64,10 +64,103 @@ After iter 43 the 60-user emulation reports:
   * 100 % of synthetic users get visible shaping (≥ 1 axis fired).
   * 0 / 12 precision misses (every message produces ≥ 2 distinct
     shaped replies across archetypes).
-  * cognitive_load by archetype: calm 0.46, verbose 0.75,
+  * cognitive_load by archetype: calm 0.46, verbosity 0.75,
     stressed 0.89, tired 0.87 (≈ 0.4 absolute spread).
   * 8 distinct shaped replies, lengths spanning 20–275 chars.
   * Adaptation-related test suite holds at 147 / 147 PASS.
+
+## [2026-04-28] Iter 44–54 — visible-shaping precision sweep, second pass
+
+Eleven additional iterations, all on the
+`feat/adaptation-precision-iter1` branch.  Closes residual semantic
+inversions, broken scorers, and dead-code paths surfaced by the
+extended emulation harness.  Final regression sweep: **203 / 203
+PASS** across 18 test suites.
+
+* **Iter 44** (`1322fcd`) — `i3/interaction/linguistic.py`:
+  rebuilt `formality_score` around a 0.5 baseline with symmetric
+  informal / formal markers + a long-word boost.  Pre-fix every
+  plain chat message returned 1.0 (max formal) because the scorer
+  was purely subtractive — every downstream consumer of
+  `features.formality` (StyleMirror's formality smoothing,
+  EmotionalTone's neutrality drive) was false-positiving on
+  ordinary chat.  Post-fix: "how does this work?" → 0.50,
+  "yo whats up bro lol" → 0.20, "Pursuant to your inquiry I would
+  like to inform you regarding the matter" → 0.72.
+* **Iter 45** (`30f58d7`) — `i3/cloud/postprocess.py`: directness
+  softener regex now absorbs trailing `(that)? (perhaps)?` so
+  stripping leaves a clean clause ("Approximately five..." not
+  "That approximately five...").
+* **Iter 46** (memory-only) — saved
+  `feedback_server_restart_to_see_fixes.md` after Tamer reported
+  "still 0's there" on iter-41 fixes that were correct on disk;
+  the running uvicorn process needed restart.
+* **Iter 47** (`8552777`) — `i3/config.py`:
+  `AccessibilityConfig.detection_threshold` 0.7 → 0.5.  The 0.7
+  threshold required all four difficulty signals to be near-max
+  simultaneously and the path almost never fired.
+* **Iter 48** (`8552777`) — `i3/adaptation/dimensions.py`:
+  `AccessibilityAdapter` switched from `mean()` to `max()` over its
+  difficulty signals (same fix pattern as iter 38 for cognitive
+  load rhythm signals).  Editing_effort 0.80 + backspace_ratio
+  0.33 used to average to 0.28 (zero accessibility); now produces
+  accessibility=0.80 — the path actually fires on motor difficulty.
+* **Iter 49** (`77fd4dc`) — `i3/biometric/keystroke_auth.py`:
+  composition-cadence z-score divisor widened from
+  `template_comp_mean * 0.3` to `max(template_comp_mean * 0.5,
+  2000.0)`.  An owner who registered on 3-second messages and
+  later typed a 12-second message hit `z_comp = 5.0σ` and the
+  Identity Lock falsely flagged him as a mismatch on his own
+  typing.  Pinned with two regression tests in
+  `test_keystroke_auth_robustness.py`.
+* **Iter 50** (`24b18e0`) — `tests/test_user_emulation.py`:
+  the `borderline_calm_focused` test relied on the broken
+  formality scorer returning 1.0 for plain text; updated the
+  fixture to use slightly-formal text so the user actually sits
+  on the calm/focused boundary post-iter-44.
+* **Iter 51** (`777f7a7`) — `i3/cloud/postprocess.py`: hedge
+  stripping regex now absorbs the leading comma when the hedge is
+  parenthetical, with a match-aware replacer that re-inserts a
+  single space.  Pre-fix: "Uzbekistan is, perhaps, a landlocked
+  country" → "Uzbekistan is, a landlocked country" (dangling
+  comma).  Post-fix: → "Uzbekistan is a landlocked country".
+* **Iter 52** (emulation-only) — extended the harness with edge-
+  case messages (very long, all caps, single character, slang,
+  formal).  102 users × 17 messages → 0/17 precision misses,
+  100% visible shaping, 12 distinct shaped replies spanning
+  5–275 chars.
+* **Iter 53** (`0ebfa52`+`1692194`) — `i3/cloud/prompt_builder.py`
+  + `i3/adaptation/dimensions.py`: aligned the `cognitive_load`
+  semantic across the pipeline.  Pre-fix the prompt-builder
+  treated high cl as "give richer detail" while the post-processor
+  trimmed high cl to one sentence — the LLM produced detailed
+  prose for stressed users which was then thrown away.  The
+  prompt-builder's tiers now mirror `_enforce_length`: cl ≥ 0.8
+  asks for 1 sentence, cl ≥ 0.6 for ≤ 2, cl < 0.4 for the richer
+  4–6 sentence range.
+* **Iter 54** (`ab831f0`) — `i3/cloud/postprocess.py`: when
+  `accessibility > 0.5`, lift `effective_cl` to ≥ 0.85 inside
+  `_enforce_length`.  The cloud prompt asks the LLM to keep
+  responses under 15 words, but compliance is unreliable —
+  the post-processor now enforces a single-sentence cap
+  deterministically.  An accessibility=0.65 + cl=0.4 user now
+  gets a 5-character "Sure!" reply instead of a 134-character
+  4-sentence dump.
+
+Code touched (12 production-code commits + 2 test commits + 1
+docs/changelog commit):
+  * i3/adaptation/dimensions.py
+  * i3/adaptation/...  (StyleMirror smoothing)
+  * i3/cloud/postprocess.py
+  * i3/cloud/prompt_builder.py
+  * i3/config.py (StyleMirror rate, Accessibility threshold)
+  * i3/interaction/linguistic.py
+  * i3/biometric/keystroke_auth.py
+  * i3/interpretability/counterfactuals.py
+  * server/websocket.py
+  * tests/test_pipeline_shaping.py (new)
+  * tests/test_websocket_key_compat.py (new)
+  * tests/test_keystroke_auth_robustness.py (extended)
 
 ## [2026-04-28] Iter 52 — adaptation + detection precision sweep
 
