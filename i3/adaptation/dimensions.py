@@ -117,14 +117,25 @@ class CognitiveLoadAdapter:
         message_length = _safe_float(features.message_length)
         complexity_dev = _safe_float(deviation.complexity_deviation)
 
-        # Combine four normalised complexity signals from the user's current
-        # message.  Each is scaled to roughly [0, 1].  The constant
-        # denominators (10, 20) are intentional and tolerate the rare case
-        # where upstream forwards an unscaled raw value.
+        # Iter 34 — DYNAMIC RANGE FIX:
+        #
+        # Before: ``mean_word_length / 10.0`` and ``flesch_kincaid / 20.0``
+        # double-normalised the input.  ``InteractionFeatureVector``
+        # already provides these in ``[0, 1]`` (see features.py:
+        # ``_clamp01(ling['mean_word_length'] / _MAX_WORD_LEN)`` and
+        # likewise for Flesch-Kincaid), so re-dividing produced two
+        # signals stuck in ``[0, 0.1]`` and ``[0, 0.05]`` respectively.
+        # Result: cognitive_load saturated around 0.6 even on the most
+        # complex inputs and barely moved with content variation.
+        #
+        # After: every signal contributes its full [0, 1] range.
+        # cognitive_load now responds visibly across the full
+        # dynamic range as a user shifts from short / simple to
+        # long / complex inputs.
         complexity_signals = [
             _clamp(ttr),                          # Vocabulary richness
-            _clamp(mean_word_length / 10.0),      # Word sophistication
-            _clamp(flesch_kincaid / 20.0),        # Readability grade
+            _clamp(mean_word_length),             # Word sophistication
+            _clamp(flesch_kincaid),               # Readability grade
             _clamp(message_length),               # Normalised length
         ]
         user_complexity = float(np.mean(complexity_signals))
