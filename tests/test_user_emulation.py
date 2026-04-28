@@ -290,7 +290,13 @@ def test_distracted_user_pattern() -> None:
 def test_borderline_calm_focused_surfaces_secondary() -> None:
     """A user whose typing sits right at the calm/focused boundary
     should produce a secondary-state label on at least one turn,
-    so the badge UI can show \"calm/focused\" combined."""
+    so the badge UI can show \"calm/focused\" combined.
+
+    Iter 44 calibrated the formality scorer: pure casual chat now
+    reads ~0.5 (was 1.0 — broken).  The "focused" state still keys
+    off raised formality, so we use a slightly formal message to
+    actually sit on the calm/focused boundary rather than falling
+    cleanly into "calm"."""
     turns = [
         TurnInput(
             iki_mean_ms=120.0,
@@ -298,6 +304,14 @@ def test_borderline_calm_focused_surfaces_secondary() -> None:
             composition_ms=2500.0,
             edit_count=0,
             engagement_score=0.55,
+            # Slightly formal message — three formal markers
+            # ("therefore", "regarding", "indeed") nudge formality
+            # above the focused-state's 0.55 threshold without
+            # tipping the calm baseline.
+            message_text=(
+                "therefore the matter regarding the proposal is "
+                "indeed acceptable"
+            ),
         )
         for _ in range(8)
     ]
