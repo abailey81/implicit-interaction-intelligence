@@ -581,8 +581,15 @@ class AffectShiftDetector:
         # σ_baseline = mean per-dim std-dev across the baseline
         # window.  When the window has only one entry we have no
         # variance information at all.
+        #
+        # Iter 32: switched to ``unbiased=True`` for Bessel-corrected
+        # sample std, aligning with the iter-2 BaselineTracker fix
+        # and the iter-15 features._std fix.  The population estimator
+        # under-counts noise at small sample sizes, which biases the
+        # magnitude up and produces marginally higher false-positive
+        # rates on legitimately stable baselines.
         if b_stack.shape[0] >= 2:
-            sigma = float(b_stack.std(dim=0, unbiased=False).mean().item())
+            sigma = float(b_stack.std(dim=0, unbiased=True).mean().item())
         else:
             sigma = 0.0
         # Iter 14: don't trust the embedding-magnitude trigger below
