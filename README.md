@@ -250,28 +250,19 @@ from. None of these are imported from a library.
 
 ## Run it locally
 
-### Demo-day quick start (one command, presentation-ready)
+### Very quick start
 
-> **Important.** Use the project's virtualenv at `.venv/`, **not** your
-> system Python. The dependencies (uvicorn, torch, transformers, …)
-> are installed inside `.venv/`, not in the system Python. If you see
-> `No module named uvicorn`, you accidentally used the system Python.
+> **Use this section the morning of the demo.** Everything you need is
+> here — start command, URL, reset command, "is it working?" checks.
+> If anything is unclear, this section is broken; fix it.
 
-**Windows PowerShell** — copy and paste this, no activation step needed:
+#### 1. Start the server (one command, copy-paste)
+
+**Windows PowerShell** *(this is what's on the demo laptop)*:
 
 ```powershell
 $env:I3_PRELOAD_QWEN="1"; .\.venv\Scripts\python.exe -m uvicorn server.app:app --host 127.0.0.1 --port 8000
 ```
-
-Or if you prefer to activate the venv first:
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-$env:I3_PRELOAD_QWEN="1"
-python -m uvicorn server.app:app --host 127.0.0.1 --port 8000
-```
-
-After activation your prompt shows `(.venv)` at the front — that's the cue that `python` now points to the venv Python.
 
 **Git Bash / Linux / macOS:**
 
@@ -279,21 +270,84 @@ After activation your prompt shows `(.venv)` at the front — that's the cue tha
 I3_PRELOAD_QWEN=1 ./.venv/Scripts/python.exe -m uvicorn server.app:app --host 127.0.0.1 --port 8000
 ```
 
-Then open <http://127.0.0.1:8000> in Chrome / Edge once the terminal prints `Application startup complete` (takes ~10–15 s because Qwen preloads).
+The command takes **10–15 seconds** to fully boot because Qwen3-1.7B
+is preloaded into memory. Wait until the terminal prints both:
 
-**Pre-demo reset** (run in a second terminal once the server is up — clears the Identity Lock so the demo starts cold):
+```
+Uvicorn running on http://127.0.0.1:8000
+Application startup complete
+```
+
+**Why `.venv\Scripts\python.exe` and not just `python`?** The project's
+dependencies (uvicorn, torch, transformers, …) are installed inside
+`.venv/`, not in your system Python. If you run plain `python` you'll
+hit `No module named uvicorn`. Using the venv's python directly is
+foolproof on any fresh terminal.
+
+If you'd rather activate the venv once per terminal:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+$env:I3_PRELOAD_QWEN="1"
+python -m uvicorn server.app:app --host 127.0.0.1 --port 8000
+```
+
+After `Activate.ps1` your prompt shows `(.venv)` at the front.
+
+#### 2. Open the UI
+
+Open **<http://127.0.0.1:8000>** in **Chrome** or **Edge**.
+
+You should land on the **Chat** tab with five suggestion chips below the hero:
+
+- *How do you adapt to me?*
+- *Set timer for 30 seconds*
+- *Tell me about Uzbekistan*
+- *What is photosynthesis?*
+- *Navigate to Trafalgar Square*
+
+These exercise every cascade arm in five clicks (see the demo flow in
+[`docs/huawei/PRESENTATION_SCRIPT.md`](docs/huawei/PRESENTATION_SCRIPT.md)).
+
+#### 3. Reset the Identity Lock (start the demo cold)
+
+Run this in a **second terminal** once the server is up. It wipes the
+keystroke biometric template so Identity Lock starts at `learning · 1/5`.
 
 ```bash
 curl -X POST http://127.0.0.1:8000/api/biometric/demo/reset
 ```
 
-**Confirmation that the system is ready** before you click anything in the UI:
+Then **hard-refresh** the browser (`Ctrl+Shift+R`) to bust the SPA cache.
 
-- Terminal shows `Uvicorn running on http://127.0.0.1:8000` *and* `Application startup complete`.
-- Visiting <http://127.0.0.1:8000> shows the chat tab with the suggestion chips ("How do you adapt to me?", "Set timer for 30 seconds", …) under the hero.
-- Browser dev-tools Network panel is empty (the SPA is fully cached after first load).
+#### 4. Sanity-check before you click anything in the demo
 
-If anything misbehaves, the safe reset is **Ctrl+C** in the server terminal and re-run the command above.
+- ✓ Server terminal shows `Application startup complete`.
+- ✓ Browser at <http://127.0.0.1:8000> shows the Chat tab with the five suggestion chips.
+- ✓ The nav bar shows the Identity-Lock pill on the right (text: `learning · 1/5` after the reset, or `unregistered` if not).
+- ✓ The cloud-route consent toggle reads `cloud · off` (default).
+- ✓ If you toggle **State tab → Edge inference**, then send a message, the browser DevTools Network panel shows **zero** `/api/encode` requests.
+
+#### 5. If anything misbehaves
+
+| Symptom | Fix |
+|---|---|
+| `No module named uvicorn` | You used system Python. Use `.\.venv\Scripts\python.exe` instead. |
+| `Address already in use` on port 8000 | Another server is still running. Kill it: `Get-NetTCPConnection -LocalPort 8000 \| Select OwningProcess`, then `Stop-Process -Id <pid> -Force`. |
+| Chat tab is blank / no suggestion chips | Hard-refresh (`Ctrl+Shift+R`). |
+| Identity Lock stuck | Re-run the reset curl above; refresh. |
+| Anything else | `Ctrl+C` in the server terminal, re-run the start command. |
+
+#### 6. Numbers verifier (run before leaving the house tomorrow)
+
+```bash
+.\.venv\Scripts\python.exe scripts\verify_numbers.py
+```
+
+Should return `ALL CLAIMS VERIFY OK` (22 / 22 PASS). If any FAIL, fix
+the docs before the interview.
+
+---
 
 ### Prerequisites
 
