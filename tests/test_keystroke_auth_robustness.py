@@ -262,3 +262,77 @@ def test_reset_for_user_only_affects_that_user() -> None:
     s_bob = auth.status("bob")
     assert s_alice.state == "unregistered"
     assert s_bob.state in {"registered", "verifying"}
+
+
+# ---------------------------------------------------------------------------
+# Iter 49 — composition-cadence variance floor
+# ---------------------------------------------------------------------------
+
+
+def test_owner_typing_long_message_does_not_false_positive() -> None:
+    """Iter 49: the owner registers on short messages (3 s composition)
+    and then types a long message (12 s composition).  Pre-iter-49 the
+    composition-cadence z-score divisor was ``template_comp_mean * 0.3``
+    — so a 4× delta from a 3000 ms template clipped to 5σ and the
+    Identity Lock falsely flagged the owner as a mismatch.
+
+    After iter 49 the divisor is ``max(template_comp_mean * 0.5,
+    2000)``, so the same 4× delta produces ``z_comp ≈ 5.0`` instead of
+    a clipped 5σ, and the similarity stays above mismatch territory."""
+    auth = KeystrokeAuthenticator(enrolment_target=3)
+    user = "owner_short_then_long"
+
+    emb = torch.ones(64) * 0.5
+
+    # Register on three short, fast messages — typical chat.
+    for _ in range(3):
+        auth.observe(user, embedding=emb,
+                     iki_mean=100.0, iki_std=15.0,
+                     composition_time_ms=3000.0, edit_count=0)
+
+    # Now the owner types a long, thoughtful 12-second message — same
+    # rhythm, just longer text.  The template's comp_mean is 3000 ms;
+    # the new comp is 12000 ms — a 4x delta.
+    m = auth.observe(user, embedding=emb,
+                     iki_mean=100.0, iki_std=15.0,
+                     composition_time_ms=12000.0, edit_count=0)
+
+    # The match similarity must remain above 0 (i.e. the cosine + IKI
+    # contributions still dominate the comp penalty).  Pre-iter-49 the
+    # comp penalty alone was 0.10 * 5 = 0.5, dragging similarity into
+    # the mismatch band even with a perfect cosine.
+    assert m.similarity > 0.0, (
+        f"owner typing a longer message should not produce negative "
+        f"similarity; got {m.similarity:.3f}"
+    )
+
+
+def test_clearly_different_typist_still_detected() -> None:
+    """Iter 49 widened the comp-variance floor; this test pins that
+    truly-impostor users with massive comp-time deltas are still
+    flagged.  A 30000 ms message against a 1500 ms template is a 20×
+    delta and must still produce z_comp ≥ 5σ (clipped)."""
+    auth = KeystrokeAuthenticator(enrolment_target=3)
+    user = "owner_then_impostor"
+
+    emb_owner = torch.zeros(64); emb_owner[:32] = 1.0
+
+    # Register the owner on quick 1.5 s messages.
+    for _ in range(3):
+        auth.observe(user, embedding=emb_owner,
+                     iki_mean=90.0, iki_std=10.0,
+                     composition_time_ms=1500.0, edit_count=0)
+
+    # An impostor with a wholly different embedding AND 20× comp time.
+    emb_impostor = torch.zeros(64); emb_impostor[32:] = 1.0
+    m = auth.observe(user, embedding=emb_impostor,
+                     iki_mean=300.0, iki_std=80.0,
+                     composition_time_ms=30000.0, edit_count=15)
+
+    # Similarity must be pushed below the recognition threshold even
+    # with the iter-49 wider comp variance — embedding cosine + iki
+    # penalties + edit penalty stack with the comp penalty.
+    assert m.similarity < 0.5, (
+        f"clearly impostor typing should drop similarity well below 0.5; "
+        f"got {m.similarity:.3f}"
+    )
