@@ -129,6 +129,12 @@ class AffectShift:
         edit_delta_pct: Edit count, recent vs baseline, signed %.
         suggestion: The proactive suggestion text to append to the
             assistant's response, or ``""`` if no shift / debounced.
+        confidence: Normalised confidence in ``[0.0, 1.0]``.  ``0.0``
+            when not detected; in ``[0.5, 1.0]`` when detected, where
+            0.5 means a tier just crossed and 1.0 means strong
+            multi-tier corroboration.  Iter 9 — surfaces calibrated
+            trust to the UI chip without requiring the consumer to
+            re-derive it from raw deltas.
     """
 
     detected: bool
@@ -137,6 +143,7 @@ class AffectShift:
     iki_delta_pct: float
     edit_delta_pct: float
     suggestion: str
+    confidence: float = 0.0
 
     def to_dict(self) -> dict:
         """Serialise to a JSON-safe dict for the WebSocket layer."""
@@ -147,6 +154,7 @@ class AffectShift:
             "iki_delta_pct": float(self.iki_delta_pct),
             "edit_delta_pct": float(self.edit_delta_pct),
             "suggestion": str(self.suggestion),
+            "confidence": float(self.confidence),
         }
 
 
@@ -390,7 +398,17 @@ class AffectShiftDetector:
                 iki_delta_pct=float(iki_delta_pct),
                 edit_delta_pct=float(edit_delta_pct),
                 suggestion="",
+                confidence=0.0,
             )
+
+        # ---- Iter 9: compute calibrated confidence for this shift -----
+        confidence = self._compute_confidence(
+            detected=True,
+            magnitude=magnitude,
+            iki_delta_pct=iki_delta_pct,
+            edit_delta_pct=edit_delta_pct,
+            direction=direction,
+        )
 
         # ---- Debounce: at most one suggestion per N turns -----------
         if self._turns_since_suggestion.get(key, 99) <= self._DEBOUNCE_TURNS:
@@ -402,6 +420,7 @@ class AffectShiftDetector:
                 iki_delta_pct=float(iki_delta_pct),
                 edit_delta_pct=float(edit_delta_pct),
                 suggestion="",
+                confidence=confidence,
             )
 
         # ---- Build deterministic suggestion --------------------------
@@ -422,6 +441,7 @@ class AffectShiftDetector:
             iki_delta_pct=float(iki_delta_pct),
             edit_delta_pct=float(edit_delta_pct),
             suggestion=suggestion,
+            confidence=confidence,
         )
 
     def end_session(self, user_id: str, session_id: str) -> None:
@@ -593,6 +613,66 @@ class AffectShiftDetector:
         ):
             return "falling_load"
         return "neutral"
+
+    def _compute_confidence(
+        self,
+        *,
+        detected: bool,
+        magnitude: float,
+        iki_delta_pct: float,
+        edit_delta_pct: float,
+        direction: str,
+    ) -> float:
+        """Normalised confidence score in ``[0.0, 1.0]`` for an
+        :class:`AffectShift`.
+
+        Iter 9 — gives downstream UI a calibrated number for the
+        routing chip without the consumer re-deriving it from raw
+        deltas.
+
+        Convention:
+
+        * ``0.0`` — not detected.
+        * ``[0.5, 1.0]`` — detected.  ``0.5`` means a tier just
+          crossed; ``1.0`` means strong multi-tier corroboration.
+
+        Components:
+
+        * Embedding evidence: ramp from 0 at ``magnitude_threshold``
+          to 1 at ``3 × magnitude_threshold``.
+        * Keystroke evidence (rising_load): max of
+            * IKI ramp 20% -> 100% in [0, 1]
+            * edit ramp 50% -> 300% in [0, 1]
+        * Keystroke evidence (falling_load): IKI ramp -15% -> -60%.
+
+        Confidence is the maximum of the two components, mapped from
+        ``[0, 1]`` to ``[0.5, 1.0]``.
+        """
+        if not detected:
+            return 0.0
+
+        threshold = self.magnitude_threshold
+        denom = max(1e-3, 2.0 * threshold)
+        emb_evidence = max(0.0, min(1.0, (magnitude - threshold) / denom))
+
+        if direction == "rising_load":
+            iki_score = max(0.0, min(1.0, (iki_delta_pct - 20.0) / 80.0))
+            edit_score = max(0.0, min(1.0, (edit_delta_pct - 50.0) / 250.0))
+            ks_evidence = max(iki_score, edit_score)
+        elif direction == "falling_load":
+            # iki_delta_pct is negative; the more negative, the stronger.
+            ks_evidence = max(0.0, min(1.0, (-iki_delta_pct - 15.0) / 45.0))
+        else:
+            ks_evidence = 0.0
+
+        raw = max(emb_evidence, ks_evidence)
+        # Map to [0.5, 1.0] when detected — ensures the chip never
+        # shows < 0.5 on a real shift, while still distinguishing
+        # weak and strong evidence.
+        confidence = 0.5 + 0.5 * raw
+        if not math.isfinite(confidence):
+            return 0.5
+        return max(0.5, min(1.0, confidence))
 
     def _keystroke_fired(
         self,

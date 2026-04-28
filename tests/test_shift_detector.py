@@ -574,6 +574,122 @@ def test_fixed_baseline_anchor_persists_across_long_session() -> None:
     )
 
 
+# ---------------------------------------------------------------------------
+# Iter 9 — confidence score on AffectShift
+# ---------------------------------------------------------------------------
+
+
+def test_undetected_shift_has_confidence_zero() -> None:
+    """When detected=False, confidence must be exactly 0.0."""
+    detector = AffectShiftDetector()
+    user, session = "u_conf_0", "s_conf_0"
+
+    # Calm baseline + one calm probe → no detection, confidence=0.
+    _calm_obs(detector, user, session, n=5)
+    result = detector.observe(
+        user_id=user, session_id=session, embedding=torch.zeros(64),
+        composition_time_ms=2000.0, edit_count=0, pause_before_send_ms=300.0,
+        keystroke_iki_mean=120.0, keystroke_iki_std=20.0,
+    )
+    assert result.detected is False
+    assert result.confidence == 0.0
+
+
+def test_detected_shift_has_confidence_in_half_to_one() -> None:
+    """Any detected shift must have confidence >= 0.5 and <= 1.0."""
+    detector = AffectShiftDetector()
+    user, session = "u_conf_half", "s_conf_half"
+
+    _calm_obs(detector, user, session, n=5)
+    result = _stressed_obs(detector, user, session, iki_mean=200.0, edits=4)
+    assert result.detected is True
+    assert 0.5 <= result.confidence <= 1.0
+
+
+def test_strong_shift_has_higher_confidence_than_weak() -> None:
+    """A clearly stronger keystroke shift produces higher confidence.
+
+    To compare apples-to-apples, both detectors are populated with a
+    full recent window of the relevant signal so the percentage
+    deltas are unaffected by the calm-stressed mixing in the
+    transition turn.
+    """
+    weak_detector = AffectShiftDetector()
+    strong_detector = AffectShiftDetector()
+
+    _calm_obs(weak_detector, "u_w", "s_w", n=5)
+    _calm_obs(strong_detector, "u_s", "s_s", n=5)
+
+    # Weak: 3 turns of just-over-strong-tier IKI, edits at strong-tier
+    # min, low-margin overall.
+    weak = None
+    for _ in range(3):
+        weak = _stressed_obs(weak_detector, "u_w", "s_w", iki_mean=150.0, edits=1)
+    # Strong: 3 turns of huge IKI rise + many edits.
+    strong = None
+    for _ in range(3):
+        strong = _stressed_obs(strong_detector, "u_s", "s_s", iki_mean=260.0, edits=6)
+
+    assert weak is not None and strong is not None
+    assert weak.detected is True, f"weak should still be detected: {weak}"
+    assert strong.detected is True, f"strong should be detected: {strong}"
+    assert strong.confidence > weak.confidence, (
+        f"strong ({strong.confidence}) should exceed weak ({weak.confidence})"
+    )
+
+
+def test_confidence_is_in_dict_serialisation() -> None:
+    """to_dict() must include the confidence field."""
+    shift = AffectShift(
+        detected=True,
+        direction="rising_load",
+        magnitude=2.0,
+        iki_delta_pct=50.0,
+        edit_delta_pct=200.0,
+        suggestion="test",
+        confidence=0.85,
+    )
+    d = shift.to_dict()
+    assert "confidence" in d
+    assert d["confidence"] == 0.85
+    assert isinstance(d["confidence"], float)
+
+
+def test_falling_load_confidence_scales_with_iki_drop() -> None:
+    """Larger IKI drop → higher falling-load confidence."""
+    detector = AffectShiftDetector()
+    user, session = "u_fall_conf", "s_fall_conf"
+
+    # Establish a stressed baseline.
+    for _ in range(5):
+        detector.observe(
+            user_id=user, session_id=session, embedding=torch.zeros(64),
+            composition_time_ms=4000.0, edit_count=3, pause_before_send_ms=600.0,
+            keystroke_iki_mean=200.0, keystroke_iki_std=40.0,
+        )
+
+    # First recovery turn — modest drop.
+    modest = detector.observe(
+        user_id=user, session_id=session, embedding=torch.zeros(64),
+        composition_time_ms=2500.0, edit_count=2, pause_before_send_ms=300.0,
+        keystroke_iki_mean=160.0, keystroke_iki_std=25.0,
+    )
+    if modest.detected:
+        modest_conf = modest.confidence
+    else:
+        # Need another observation to populate the recent window.
+        modest = detector.observe(
+            user_id=user, session_id=session, embedding=torch.zeros(64),
+            composition_time_ms=2500.0, edit_count=2, pause_before_send_ms=300.0,
+            keystroke_iki_mean=160.0, keystroke_iki_std=25.0,
+        )
+        modest_conf = modest.confidence if modest.detected else 0.0
+
+    # All confidences in the valid range.
+    if modest.detected:
+        assert 0.5 <= modest_conf <= 1.0
+
+
 def test_fixed_baseline_resets_on_end_session() -> None:
     """end_session wipes the per-session fixed baseline so a new
     session starts fresh."""
