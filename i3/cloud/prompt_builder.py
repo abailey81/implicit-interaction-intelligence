@@ -129,7 +129,7 @@ class PromptBuilder:
             )
         elif av.cognitive_load >= 0.6:
             lines.append(
-                "- Keep the reply tight (≤ 2 sentences). Skip preamble; "
+                "- Keep the reply tight (<= 2 sentences). Skip preamble; "
                 "lead with the answer."
             )
         elif av.cognitive_load >= 0.4:
