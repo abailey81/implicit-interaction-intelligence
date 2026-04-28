@@ -273,3 +273,81 @@ def test_canonical_falling_load_scenario_snapshot() -> None:
     assert first.edit_delta_pct <= 5.0    # edits flat-or-falling
     # Confidence in valid band when detected.
     assert 0.5 <= first.confidence <= 1.0
+
+
+# ---------------------------------------------------------------------------
+# iter 27 — state_classifier edge-case snapshots
+# ---------------------------------------------------------------------------
+
+
+def test_warming_up_first_message_snapshot() -> None:
+    """The first turn of an unestablished session always lands on
+    'warming up' regardless of keystroke metrics — the warm-up
+    short-circuit dominates."""
+    label = classify_user_state(
+        adaptation={"cognitive_load": 0.85, "formality": 0.4,
+                    "verbosity": 0.5, "accessibility": 0.0},
+        composition_time_ms=4500.0, edit_count=4,
+        iki_mean=180.0, iki_std=50.0,
+        engagement_score=0.5, deviation_from_baseline=0.3,
+        baseline_established=False, messages_in_session=1,
+    )
+    assert label.state == "warming up"
+    # Warm-up dominates with high confidence (raw_score = 1.4 vs
+    # other states maxing at ~0.85).
+    assert label.confidence >= 0.7
+    # Contributing signal mentions warming up.
+    assert any("warm" in s.lower() or "first" in s.lower()
+               for s in label.contributing_signals)
+
+
+def test_warming_up_decays_after_baseline_established() -> None:
+    """Once baseline_established=True, warm-up loses to clean states."""
+    label = classify_user_state(
+        adaptation={"cognitive_load": 0.25, "formality": 0.5,
+                    "verbosity": 0.5, "accessibility": 0.0},
+        composition_time_ms=2000.0, edit_count=0,
+        iki_mean=110.0, iki_std=15.0,
+        engagement_score=0.6, deviation_from_baseline=0.0,
+        baseline_established=True, messages_in_session=10,
+    )
+    assert label.state != "warming up"
+    assert label.state == "calm"
+
+
+def test_borderline_cognitive_load_surfaces_secondary_snapshot() -> None:
+    """Iter-3 calibration: cl=0.45 + raised formality produces calm
+    with focused as secondary."""
+    label = classify_user_state(
+        adaptation={"cognitive_load": 0.45, "formality": 0.7,
+                    "verbosity": 0.5, "accessibility": 0.0},
+        composition_time_ms=2500.0, edit_count=0,
+        iki_mean=120.0, iki_std=20.0,
+        engagement_score=0.55, deviation_from_baseline=0.0,
+        baseline_established=True, messages_in_session=10,
+    )
+    assert label.state in {"calm", "focused"}
+    assert label.secondary_state in {"calm", "focused"}
+    assert label.secondary_state != label.state
+
+
+def test_pathological_inputs_default_safely_snapshot() -> None:
+    """NaN/inf inputs to the classifier default to safe values and
+    produce a valid label."""
+    label = classify_user_state(
+        adaptation={"cognitive_load": float("nan"),
+                    "formality": float("inf")},
+        composition_time_ms=float("nan"),
+        edit_count=0,
+        iki_mean=float("nan"),
+        iki_std=float("inf"),
+        engagement_score=float("nan"),
+        deviation_from_baseline=float("nan"),
+        baseline_established=True,
+        messages_in_session=10,
+    )
+    # Must produce a valid label, finite confidence in [0, 1].
+    assert label.state in {"calm", "focused", "stressed", "tired",
+                           "distracted", "warming up"}
+    assert 0.0 <= label.confidence <= 1.0
+    assert math.isfinite(label.confidence)
