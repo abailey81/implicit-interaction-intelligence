@@ -643,7 +643,16 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str) -> None:
                     # and absurd magnitudes a hostile client could send.
                     ks_ts = _safe_float(data.get("timestamp", time.time()))
                     ks_key_type = str(data.get("key_type", "char"))[:16]
-                    ks_iki = _safe_float(data.get("inter_key_interval_ms", 0))
+                    # Iter 41: the JS client (web/js/app.js) ships the
+                    # inter-key interval as ``iki_ms``; only Python probes
+                    # use the long-form ``inter_key_interval_ms`` key.
+                    # Without this fallback the keystroke buffer was full
+                    # of zero-IKI entries and the dashboard showed
+                    # "Typing rhythm 0 ms" on every turn.
+                    ks_iki_raw = data.get("inter_key_interval_ms")
+                    if ks_iki_raw is None:
+                        ks_iki_raw = data.get("iki_ms", 0)
+                    ks_iki = _safe_float(ks_iki_raw)
                     if ks_iki < 0:
                         raise ValueError("negative_inter_key_interval")
                     ks = KeystrokeEvent(
@@ -720,7 +729,16 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str) -> None:
                 try:
                     msg_ts = _safe_float(data.get("timestamp", time.time()))
                     composition_ms = _safe_float(_pick_metric("composition_time_ms", 0))
-                    edit_count = _safe_int(_pick_metric("edit_count", 0))
+                    # Iter 41: the JS client (web/js/app.js KeystrokeMonitor)
+                    # sends ``backspace_count`` inside composition_metrics;
+                    # the server was only looking at ``edit_count``, so the
+                    # dashboard "Edit profile" tile and the cognitive_load
+                    # adapter's editing_effort signal were silently zero on
+                    # every turn.  Accept both keys.
+                    edit_count_raw = _pick_metric("edit_count", None)
+                    if edit_count_raw is None:
+                        edit_count_raw = _pick_metric("backspace_count", 0)
+                    edit_count = _safe_int(edit_count_raw)
                     pause_ms = _safe_float(_pick_metric("pause_before_send_ms", 0))
                     if composition_ms < 0 or pause_ms < 0 or edit_count < 0:
                         raise ValueError("negative_metric")

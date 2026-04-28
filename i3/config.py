@@ -176,7 +176,15 @@ class StyleMirrorConfig(BaseModel):
 
     dimensions: int = Field(default=4, gt=0)
     # SEC: adaptation_rate is a probability — bound to [0, 1].
-    adaptation_rate: float = Field(default=0.2, ge=0.0, le=1.0)
+    # Iter 40: raised from 0.2 → 0.35 so consistent declarative
+    # messages cross the directness > 0.7 threshold within 2 turns
+    # instead of 4.  The previous rate left the StyleMirror lagging
+    # so far behind real user style that the post-processor's
+    # directness/verbosity hooks rarely fired in short demo
+    # sessions.  0.35 is the empirical sweet spot — fast enough
+    # for single-message responsiveness, slow enough that one
+    # atypical message doesn't whiplash the style.
+    adaptation_rate: float = Field(default=0.35, ge=0.0, le=1.0)
 
 
 class EmotionalToneConfig(BaseModel):

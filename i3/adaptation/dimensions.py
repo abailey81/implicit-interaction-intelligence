@@ -117,21 +117,39 @@ class CognitiveLoadAdapter:
         message_length = _safe_float(features.message_length)
         complexity_dev = _safe_float(deviation.complexity_deviation)
 
-        # Iter 34 — DYNAMIC RANGE FIX:
+        # Iter 38 — typing-rhythm signals also feed cognitive_load.
+        # Before: cognitive_load was driven *only* by message-content
+        # complexity, so a stressed user typing a short message
+        # ("ugh just tell me") got the same cognitive_load as a calm
+        # user typing the same short message.  The post-processor's
+        # length tiering keys off cognitive_load — so stressed users
+        # never got the short replies they need.
         #
-        # Before: ``mean_word_length / 10.0`` and ``flesch_kincaid / 20.0``
-        # double-normalised the input.  ``InteractionFeatureVector``
-        # already provides these in ``[0, 1]`` (see features.py:
-        # ``_clamp01(ling['mean_word_length'] / _MAX_WORD_LEN)`` and
-        # likewise for Flesch-Kincaid), so re-dividing produced two
-        # signals stuck in ``[0, 0.1]`` and ``[0, 0.05]`` respectively.
-        # Result: cognitive_load saturated around 0.6 even on the most
-        # complex inputs and barely moved with content variation.
+        # Now we also incorporate keystroke-rhythm stress signals:
+        #   * editing_effort — high edit ratio suggests cognitive
+        #     load (struggling to compose).
+        #   * backspace_ratio — uncertainty / motor difficulty.
+        #   * iki deviation (positive = typing slower than baseline) —
+        #     hesitation / fatigue.
         #
-        # After: every signal contributes its full [0, 1] range.
-        # cognitive_load now responds visibly across the full
-        # dynamic range as a user shifts from short / simple to
-        # long / complex inputs.
+        # We combine via ``max()`` rather than ``mean()``: any single
+        # signal indicating stress is sufficient evidence — averaging
+        # in zero-valued signals (especially iki_deviation, which
+        # collapses to 0 with degenerate baselines) dilutes a real
+        # stress reading from edits alone.
+        editing_effort = _safe_float(features.editing_effort)
+        backspace_ratio = _safe_float(features.backspace_ratio)
+        iki_dev_pos = max(0.0, _safe_float(deviation.iki_deviation))
+        rhythm_stress = max(
+            _clamp(editing_effort),
+            _clamp(backspace_ratio),
+            _clamp(iki_dev_pos),
+        )
+
+        # Iter 34 — DYNAMIC RANGE FIX (preserved):
+        # Removed the spurious /10 and /20 divisions on already-
+        # normalised features so every signal contributes its full
+        # [0, 1] range.
         complexity_signals = [
             _clamp(ttr),                          # Vocabulary richness
             _clamp(mean_word_length),             # Word sophistication
@@ -145,9 +163,25 @@ class CognitiveLoadAdapter:
         if complexity_dev < -0.5:
             return _clamp(max(0.2, user_complexity - 0.2))
 
-        # Otherwise, respond at slightly higher complexity to keep the
-        # conversation stimulating without overwhelming.
-        return _clamp(min(0.9, user_complexity + 0.1))
+        # The load is the GREATER of content complexity and typing-
+        # rhythm stress — both are independent reasons to return a
+        # tighter reply.  A stressed user typing a short message
+        # gets the rhythm-driven cognitive_load (content is low but
+        # rhythm signals load).  A calm user typing a complex
+        # message gets the content-driven cognitive_load.
+        #
+        # The rhythm stream gets a +0.20 boost above its raw value
+        # only once it crosses a meaningful threshold (>= 0.20) —
+        # otherwise tiny incidental edits would inflate cl on
+        # untroubled users.  This boost is what makes a 4-edit
+        # message ("ugh just tell me") cross from the 4-sentence
+        # tier into the 2-sentence tier.
+        if rhythm_stress >= 0.20:
+            rhythm_term = rhythm_stress + 0.20
+        else:
+            rhythm_term = 0.0
+        combined = max(user_complexity, rhythm_term)
+        return _clamp(min(0.95, combined + 0.10))
 
 
 # ---------------------------------------------------------------------------
