@@ -223,9 +223,21 @@ class StyleMirrorAdapter:
             emotionality=_clamp(
                 max(emoji_density * 5.0, abs(sentiment_valence))
             ),
-            directness=_clamp(
-                question_ratio * 0.3 + (1.0 - question_ratio) * 0.7
-            ),
+            # Iter 36 — DIRECTNESS RANGE FIX:
+            #
+            # Before: ``question_ratio * 0.3 + (1 - question_ratio) * 0.7``
+            # capped directness at 0.7 (when question_ratio=0).  But the
+            # cloud prompt-builder gates the "be more direct"
+            # instruction on ``directness > 0.7`` — strict inequality —
+            # so the path was unreachable: statements never produced an
+            # adjustment.
+            #
+            # After: ``0.85 - 0.7 * question_ratio`` covers [0.15, 0.85].
+            # Pure statements push directness above the 0.7 threshold
+            # (instruction fires), pure questions drop below 0.3
+            # (counter-instruction fires), mixed sits at the default
+            # 0.5.
+            directness=_clamp(0.85 - 0.7 * question_ratio),
         )
 
         # SEC: defensively clamp the adaptation rate to [0, 1] -- a
