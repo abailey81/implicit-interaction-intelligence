@@ -189,23 +189,46 @@ class PromptBuilder:
     def _add_formality_instructions(
         style: StyleVector, lines: list[str]
     ) -> None:
-        """Append formality instructions based on the style vector."""
-        if style.formality < 0.3:
+        """Append formality instructions based on the style vector.
+
+        Iter 55: thresholds aligned with the post-processor's
+        ``adapt_with_log`` thresholds (< 0.35 / > 0.65) so the
+        prompt asks for the same register the post-processor would
+        rewrite the reply into anyway.
+        """
+        if style.formality < 0.35:
             lines.append(
                 "- Be casual and conversational. Contractions are fine."
             )
-        elif style.formality > 0.7:
-            lines.append("- Maintain a professional, formal tone.")
+        elif style.formality > 0.65:
+            lines.append(
+                "- Maintain a professional, formal tone. "
+                "Avoid casual contractions."
+            )
 
     @staticmethod
     def _add_verbosity_instructions(
         style: StyleVector, lines: list[str]
     ) -> None:
-        """Append verbosity instructions based on the style vector."""
-        if style.verbosity < 0.3:
-            lines.append("- Be concise. One sentence if possible.")
+        """Append verbosity instructions based on the style vector.
+
+        Iter 55: thresholds aligned with the post-processor's
+        ``adapt_with_log`` thresholds (< 0.35 / > 0.7) so the LLM
+        is asked to produce a concise reply on the same turns the
+        post-processor would have stripped its hedges anyway —
+        avoiding the wasted-token loop where the LLM writes hedges,
+        the post-processor strips them.
+        """
+        if style.verbosity < 0.35:
+            lines.append(
+                "- Be concise. Skip hedges and follow-ups. "
+                "One short paragraph at most."
+            )
         elif style.verbosity > 0.7:
-            lines.append("- Provide detailed, thorough responses.")
+            lines.append(
+                "- Provide detailed, thorough responses. End with a "
+                "follow-up invitation."
+            )
 
     @staticmethod
     def _add_emotionality_instructions(
