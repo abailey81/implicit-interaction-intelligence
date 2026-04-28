@@ -265,3 +265,98 @@ def test_state_classifier_invariants(
     # Contributing signals are strings.
     for s in label.contributing_signals:
         assert isinstance(s, str)
+
+
+# ---------------------------------------------------------------------------
+# Iter 16 — additional property invariants
+# ---------------------------------------------------------------------------
+
+
+@settings(max_examples=80, deadline=None)
+@given(
+    samples=st.lists(_FINITE_FLOAT, min_size=1, max_size=100),
+    probe=_FINITE_FLOAT,
+)
+def test_baseline_tracker_handles_unbounded_inputs(samples, probe) -> None:
+    """BaselineTracker doesn't break on inputs outside the [0, 1]
+    expected range — Welford's algorithm is range-agnostic, and the
+    deviation function clamps to [-1, 1] regardless."""
+    bt = BaselineTracker(warmup=2)
+    fv_kwargs: dict[str, float] = {n: 0.0 for n in [
+        "mean_iki", "std_iki", "mean_burst_length", "mean_pause_duration",
+        "backspace_ratio", "composition_speed", "pause_before_send",
+        "editing_effort", "message_length", "type_token_ratio",
+        "mean_word_length", "flesch_kincaid", "question_ratio",
+        "formality", "emoji_density", "sentiment_valence",
+        "length_trend", "latency_trend", "vocab_trend",
+        "engagement_velocity", "topic_coherence", "session_progress",
+        "time_deviation", "response_depth",
+        "iki_deviation", "length_deviation", "vocab_deviation",
+        "formality_deviation", "speed_deviation", "engagement_deviation",
+        "complexity_deviation", "pattern_deviation",
+    ]}
+    for s in samples:
+        fv_kwargs["composition_speed"] = s
+        bt.update(InteractionFeatureVector(**fv_kwargs))
+
+    dev = bt.deviation("composition_speed", probe)
+    assert math.isfinite(dev)
+    assert -1.0 <= dev <= 1.0
+
+
+@settings(max_examples=20, deadline=None)
+@given(n=st.integers(min_value=100, max_value=2000))
+def test_baseline_tracker_long_stream_remains_finite(n) -> None:
+    """A long stream of updates doesn't accumulate floating-point error
+    that produces NaN/inf in mean or std."""
+    bt = BaselineTracker(warmup=2)
+    fv_kwargs: dict[str, float] = {name: 0.0 for name in [
+        "mean_iki", "std_iki", "mean_burst_length", "mean_pause_duration",
+        "backspace_ratio", "composition_speed", "pause_before_send",
+        "editing_effort", "message_length", "type_token_ratio",
+        "mean_word_length", "flesch_kincaid", "question_ratio",
+        "formality", "emoji_density", "sentiment_valence",
+        "length_trend", "latency_trend", "vocab_trend",
+        "engagement_velocity", "topic_coherence", "session_progress",
+        "time_deviation", "response_depth",
+        "iki_deviation", "length_deviation", "vocab_deviation",
+        "formality_deviation", "speed_deviation", "engagement_deviation",
+        "complexity_deviation", "pattern_deviation",
+    ]}
+    for i in range(n):
+        fv_kwargs["mean_iki"] = (i % 17) * 0.05
+        bt.update(InteractionFeatureVector(**fv_kwargs))
+
+    assert math.isfinite(bt.get_mean("mean_iki"))
+    assert math.isfinite(bt.get_std("mean_iki"))
+    assert bt.get_std("mean_iki") >= 0.0
+
+
+@settings(max_examples=80, deadline=None)
+@given(
+    composition_ms=_NON_NEG_FLOAT,
+    edit_count=_NON_NEG_INT,
+    iki_mean=_NON_NEG_FLOAT,
+    iki_std=_NON_NEG_FLOAT,
+    pause_ms=_NON_NEG_FLOAT,
+)
+def test_shift_detector_warmup_to_steady_state_no_nan(
+    composition_ms, edit_count, iki_mean, iki_std, pause_ms
+) -> None:
+    """A 12-turn run with all-identical inputs (worst case for the
+    rolling+fixed buffers) must not produce NaN or inf anywhere."""
+    detector = AffectShiftDetector()
+    user, session = "u_steady", "s_steady"
+    for _ in range(12):
+        result = detector.observe(
+            user_id=user, session_id=session, embedding=torch.zeros(64),
+            composition_time_ms=composition_ms,
+            edit_count=edit_count,
+            pause_before_send_ms=pause_ms,
+            keystroke_iki_mean=iki_mean,
+            keystroke_iki_std=iki_std,
+        )
+        assert math.isfinite(result.magnitude)
+        assert math.isfinite(result.iki_delta_pct)
+        assert math.isfinite(result.edit_delta_pct)
+        assert math.isfinite(result.confidence)
