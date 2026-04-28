@@ -657,6 +657,12 @@ class AffectShiftDetector:
         routing chip without the consumer re-deriving it from raw
         deltas.
 
+        Iter 30 — adds *corroboration bonuses*: when independent
+        channels of evidence both fire substantially, confidence
+        rises above what either alone would produce.  Single-channel
+        firings are unchanged (the `max` baseline still dominates),
+        so the iter-19 monotonicity invariants are preserved.
+
         Convention:
 
         * ``0.0`` — not detected.
@@ -667,13 +673,17 @@ class AffectShiftDetector:
 
         * Embedding evidence: ramp from 0 at ``magnitude_threshold``
           to 1 at ``3 × magnitude_threshold``.
-        * Keystroke evidence (rising_load): max of
-            * IKI ramp 20% -> 100% in [0, 1]
-            * edit ramp 50% -> 300% in [0, 1]
-        * Keystroke evidence (falling_load): IKI ramp -15% -> -60%.
+        * Keystroke evidence (rising_load): IKI ramp 20% → 100% in
+          [0, 1]; edit ramp 50% → 300% in [0, 1]; combined as
+          ``max + 0.25 × min`` so corroborating IKI + edit channels
+          lift the score above either alone.
+        * Keystroke evidence (falling_load): IKI ramp -15% → -60%;
+          plus an edit-decrease component (edits dropping back
+          toward zero is corroborating evidence of recovery, not
+          merely the trigger condition).
 
-        Confidence is the maximum of the two components, mapped from
-        ``[0, 1]`` to ``[0.5, 1.0]``.
+        The combined raw score is mapped from ``[0, 1]`` to
+        ``[0.5, 1.0]`` when detected.
         """
         if not detected:
             return 0.0
@@ -685,14 +695,36 @@ class AffectShiftDetector:
         if direction == "rising_load":
             iki_score = max(0.0, min(1.0, (iki_delta_pct - 20.0) / 80.0))
             edit_score = max(0.0, min(1.0, (edit_delta_pct - 50.0) / 250.0))
-            ks_evidence = max(iki_score, edit_score)
+            # Iter 30: corroboration bonus when both channels fire.
+            # When iki AND edits both rise, evidence is stronger than
+            # either alone — combine as max + 0.25 * min, clamped to 1.
+            ks_evidence = min(
+                1.0,
+                max(iki_score, edit_score)
+                + 0.25 * min(iki_score, edit_score),
+            )
         elif direction == "falling_load":
-            # iki_delta_pct is negative; the more negative, the stronger.
-            ks_evidence = max(0.0, min(1.0, (-iki_delta_pct - 15.0) / 45.0))
+            iki_score = max(0.0, min(1.0, (-iki_delta_pct - 15.0) / 45.0))
+            # Iter 30: an edit DECREASE is corroborating evidence of
+            # recovery, beyond the falling-load trigger's "edits flat
+            # or decreasing" minimum requirement.  Ramp 0% → 100%
+            # decrease in [0, 1].
+            edit_decrease = max(0.0, min(1.0, (-edit_delta_pct) / 100.0))
+            ks_evidence = min(
+                1.0,
+                max(iki_score, edit_decrease)
+                + 0.25 * min(iki_score, edit_decrease),
+            )
         else:
             ks_evidence = 0.0
 
-        raw = max(emb_evidence, ks_evidence)
+        # Iter 30: same corroboration bonus across the embedding and
+        # keystroke channels.
+        raw = min(
+            1.0,
+            max(emb_evidence, ks_evidence)
+            + 0.25 * min(emb_evidence, ks_evidence),
+        )
         # Map to [0.5, 1.0] when detected — ensures the chip never
         # shows < 0.5 on a real shift, while still distinguishing
         # weak and strong evidence.

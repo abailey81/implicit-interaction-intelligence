@@ -812,6 +812,110 @@ def test_confidence_is_monotonic_in_edit_delta() -> None:
         )
 
 
+def test_corroborated_iki_and_edit_signals_increase_confidence() -> None:
+    """Iter 30: when BOTH IKI and edit channels fire substantially,
+    confidence is strictly higher than when only one channel fires
+    with the same maximum strength.
+
+    Need a non-zero edit baseline so edit_delta_pct varies (recent
+    edits > 0 with baseline 0 always saturates to 200% via the
+    zero-baseline-default).
+    """
+    # Build a baseline with 2 edits per turn so edit_delta gradates
+    # by recent edit count (a zero-edits baseline saturates to the
+    # 200% zero-baseline-default regardless of recent count).
+    def _baseline_with_edits(detector, user, session, n=5):
+        for _ in range(n):
+            detector.observe(
+                user_id=user, session_id=session, embedding=torch.zeros(64),
+                composition_time_ms=2500.0, edit_count=2,
+                pause_before_send_ms=300.0,
+                keystroke_iki_mean=120.0, keystroke_iki_std=22.0,
+            )
+
+    # Single-channel: IKI moderate (180ms ≈ +50%), edits flat at baseline.
+    # Crafted so neither channel saturates the confidence ramp,
+    # making the corroboration bonus visible.
+    d_single = AffectShiftDetector()
+    _baseline_with_edits(d_single, "u_s", "s_s")
+    last_single = None
+    for _ in range(3):
+        last_single = d_single.observe(
+            user_id="u_s", session_id="s_s", embedding=torch.zeros(64),
+            composition_time_ms=3000.0, edit_count=2,
+            pause_before_send_ms=400.0,
+            keystroke_iki_mean=180.0, keystroke_iki_std=35.0,
+        )
+
+    # Corroborating: IKI same moderate, edits moderate (6 vs baseline 2 → +200%).
+    d_corr = AffectShiftDetector()
+    _baseline_with_edits(d_corr, "u_c", "s_c")
+    last_corr = None
+    for _ in range(3):
+        last_corr = d_corr.observe(
+            user_id="u_c", session_id="s_c", embedding=torch.zeros(64),
+            composition_time_ms=3000.0, edit_count=6,
+            pause_before_send_ms=400.0,
+            keystroke_iki_mean=180.0, keystroke_iki_std=35.0,
+        )
+
+    assert last_single is not None and last_corr is not None
+    assert last_single.detected is True
+    assert last_corr.detected is True
+    # IKI delta same; edit delta differs.
+    assert last_corr.edit_delta_pct > last_single.edit_delta_pct
+    # Corroboration should produce strictly higher confidence.
+    assert last_corr.confidence > last_single.confidence, (
+        f"corroboration ({last_corr.confidence:.3f}) should exceed "
+        f"single-channel ({last_single.confidence:.3f})"
+    )
+
+
+def test_falling_load_corroborated_by_edit_decrease() -> None:
+    """Iter 30: a recovery turn where edits drop sharply (e.g. 4 → 0)
+    has higher confidence than one where edits stay flat (e.g. 4 → 4),
+    even at the same IKI delta."""
+    # Path A — edits stay at baseline level (flat).
+    d_flat = AffectShiftDetector()
+    for _ in range(5):
+        d_flat.observe(
+            user_id="u_a", session_id="s_a", embedding=torch.zeros(64),
+            composition_time_ms=4500.0, edit_count=4, pause_before_send_ms=600.0,
+            keystroke_iki_mean=200.0, keystroke_iki_std=40.0,
+        )
+    last_flat = None
+    for _ in range(3):
+        last_flat = d_flat.observe(
+            user_id="u_a", session_id="s_a", embedding=torch.zeros(64),
+            composition_time_ms=2200.0, edit_count=4, pause_before_send_ms=300.0,
+            keystroke_iki_mean=110.0, keystroke_iki_std=20.0,
+        )
+
+    # Path B — edits drop sharply (corroborating recovery).
+    d_drop = AffectShiftDetector()
+    for _ in range(5):
+        d_drop.observe(
+            user_id="u_b", session_id="s_b", embedding=torch.zeros(64),
+            composition_time_ms=4500.0, edit_count=4, pause_before_send_ms=600.0,
+            keystroke_iki_mean=200.0, keystroke_iki_std=40.0,
+        )
+    last_drop = None
+    for _ in range(3):
+        last_drop = d_drop.observe(
+            user_id="u_b", session_id="s_b", embedding=torch.zeros(64),
+            composition_time_ms=2200.0, edit_count=0, pause_before_send_ms=300.0,
+            keystroke_iki_mean=110.0, keystroke_iki_std=20.0,
+        )
+
+    assert last_flat is not None and last_drop is not None
+    if last_flat.detected and last_drop.detected:
+        # Edit-drop corroboration should produce strictly higher confidence.
+        assert last_drop.confidence > last_flat.confidence, (
+            f"edit-drop corroboration ({last_drop.confidence:.3f}) should "
+            f"exceed flat-edits ({last_flat.confidence:.3f})"
+        )
+
+
 def test_falling_load_confidence_scales_with_iki_drop() -> None:
     """Larger IKI drop → higher falling-load confidence."""
     detector = AffectShiftDetector()
