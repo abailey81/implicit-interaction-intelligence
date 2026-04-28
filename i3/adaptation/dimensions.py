@@ -469,13 +469,24 @@ class AccessibilityAdapter:
         backspace_ratio = _safe_float(features.backspace_ratio)
         editing_effort = _safe_float(features.editing_effort)
 
+        # Iter 48 — switched from ``mean()`` to ``max()`` for the same
+        # reason iter 38 made the cognitive_load rhythm-stress signal
+        # use max(): any single strong difficulty signal is sufficient
+        # evidence of motor trouble, and averaging dilutes the reading
+        # whenever a baseline-derived signal (iki_deviation,
+        # speed_deviation) collapses to 0 because the user's prior
+        # turns were too uniform to define a meaningful std.  Pre-fix,
+        # an editing_effort of 0.8 + backspace_ratio of 0.33 averaged
+        # to 0.28 when the deviation channels were 0 — below the
+        # threshold — and the path silently failed to fire on a user
+        # who clearly needed simplification.
         difficulty_signals = [
             max(0.0, iki_dev),               # Typing slower than baseline
             max(0.0, -speed_dev),            # Composition speed dropping
             _clamp(backspace_ratio),         # Frequent corrections
             _clamp(editing_effort),          # High editing effort
         ]
-        difficulty_score = float(np.mean(difficulty_signals))
+        difficulty_score = max(difficulty_signals)
 
         if difficulty_score > threshold:
             return _clamp(difficulty_score)

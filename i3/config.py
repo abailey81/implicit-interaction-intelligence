@@ -214,7 +214,16 @@ class AccessibilityConfig(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    detection_threshold: float = Field(default=0.7, ge=0.0, le=1.0)
+    # Iter 47 — lowered from 0.7 to 0.5.  The score is the mean of
+    # four difficulty signals (iki slowdown, speed drop, backspace
+    # ratio, editing effort).  Each signal in practice tops out
+    # around 0.5–0.8 even for clearly motor-impaired users, so
+    # ``mean ≥ 0.7`` required all four signals to be near-maximum
+    # simultaneously and the path almost never fired.  At 0.5 the
+    # path activates for users whose typing actually shows
+    # multiple signs of motor difficulty without being so loose
+    # it trips on momentarily-distracted typing.
+    detection_threshold: float = Field(default=0.5, ge=0.0, le=1.0)
     simplification_levels: int = Field(default=3, gt=0)
 
 
