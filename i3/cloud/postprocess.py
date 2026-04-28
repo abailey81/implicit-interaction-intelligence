@@ -243,6 +243,13 @@ _VERBOSE_FOLLOWUP_OPTIONS: tuple[str, ...] = (
 # Soft openers / qualifiers stripped when the adaptation requests
 # directness > 0.7 (the user types declaratively, wants assertive
 # replies).  Subtraction-only, conservative.
+#
+# Iter 45 — also absorb a trailing "that" (and any "perhaps")
+# immediately after the strip so we don't leave a dangling "That
+# approximately five different perspectives..." at sentence start.
+# Without this absorption the post-stripped text reads
+# *grammatically broken* ("That approximately…") even though the
+# underlying claim is fine.
 _DIRECTNESS_SOFTENER_RE = re.compile(
     r"\b(?:you might (?:want to |wish to )?consider(?:ing)?|"
     r"you may (?:want to |wish to )?consider(?:ing)?|"
@@ -250,7 +257,8 @@ _DIRECTNESS_SOFTENER_RE = re.compile(
     r"perhaps you (?:could|might|should)|"
     r"it may be (?:worth|useful) (?:to )?|"
     r"if (?:you'?d|you would) like|"
-    r"feel free to)\s*",
+    r"feel free to)"
+    r"(?:\s+that)?(?:\s+perhaps)?\s*",
     re.IGNORECASE,
 )
 
