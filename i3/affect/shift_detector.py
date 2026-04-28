@@ -205,8 +205,23 @@ class AffectShiftDetector:
     # Pure-keystroke fallback (fires even when embedding magnitude is
     # below threshold — the brief calls this "the one that fires
     # reliably during the demo").
-    _KS_RISING_IKI_PCT: float = 20.0    # 1.2× ratio
-    _KS_RISING_EDIT_PCT: float = 50.0   # 1.5× ratio
+    #
+    # Two tiers (iter 1 precision improvement):
+    #
+    # * STRONG: BOTH IKI ≥ +20% AND edits ≥ +50%.  Documented brief
+    #   trigger; symmetric with `_infer_direction`'s primary rule.
+    # * MODERATE: a SINGLE signal that is large on its own.  Catches
+    #   the case where one channel dominates (e.g. user types markedly
+    #   slower without making more edits, or pastes a chunk and then
+    #   edits heavily without pausing).  Before iter 1, those cases
+    #   were classified as `rising_load` by `_infer_direction` (which
+    #   uses OR) but failed `_keystroke_fired` (which used AND), so
+    #   the shift dropped silently unless the embedding magnitude
+    #   independently crossed.
+    _KS_RISING_IKI_PCT: float = 20.0           # strong: 1.2× ratio
+    _KS_RISING_EDIT_PCT: float = 50.0          # strong: 1.5× ratio
+    _KS_RISING_IKI_PCT_MODERATE: float = 35.0  # moderate single-signal: 1.35× ratio
+    _KS_RISING_EDIT_PCT_MODERATE: float = 120.0  # moderate single-signal: 2.2× ratio
 
     # Debounce: don't append a suggestion more than once every
     # ``_DEBOUNCE_TURNS`` turns of the same session.
@@ -533,18 +548,31 @@ class AffectShiftDetector:
     ) -> bool:
         """Pure-keystroke fallback trigger.
 
-        Fires when both conditions hold for the implied direction:
+        Two tiers for the rising-load case (iter 1 precision improvement):
 
-        * rising_load: IKI ≥ +20% AND edits ≥ +50% (the conjunction
-          documented in the brief: "shift = IKI > 1.2× baseline AND
-          edits > 1.5× baseline").
-        * falling_load: IKI ≤ -15% AND edits flat-or-falling.
+        * **Strong tier** — BOTH IKI ≥ +20% AND edits ≥ +50%.  The
+          documented brief trigger; symmetric with the primary rule
+          in :meth:`_infer_direction`.
+        * **Moderate tier** — a SINGLE signal that is large on its
+          own: IKI ≥ +35% (so a clearly slower typist fires even
+          without an edit spike) OR edits ≥ +120% (so a large edit
+          spike fires even without a slowdown).
+
+        Falling-load follows the same documented AND rule (no moderate
+        tier — falling_load by definition needs both signals to be
+        consistent).
+
+        Returns:
+            ``True`` if a tier fires, ``False`` otherwise.
         """
         if direction == "rising_load":
-            return (
+            strong = (
                 iki_delta_pct >= self._KS_RISING_IKI_PCT
                 and edit_delta_pct >= self._KS_RISING_EDIT_PCT
             )
+            moderate_iki = iki_delta_pct >= self._KS_RISING_IKI_PCT_MODERATE
+            moderate_edit = edit_delta_pct >= self._KS_RISING_EDIT_PCT_MODERATE
+            return strong or moderate_iki or moderate_edit
         if direction == "falling_load":
             return (
                 iki_delta_pct <= self._FALLING_IKI_PCT
