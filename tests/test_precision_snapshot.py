@@ -351,3 +351,52 @@ def test_pathological_inputs_default_safely_snapshot() -> None:
                            "distracted", "warming up"}
     assert 0.0 <= label.confidence <= 1.0
     assert math.isfinite(label.confidence)
+
+
+# ---------------------------------------------------------------------------
+# iter 28 — deterministic suggestion-text snapshot
+# ---------------------------------------------------------------------------
+
+
+def test_deterministic_suggestion_text_snapshot() -> None:
+    """Same (user_id, session_id, turn_index, direction) inputs always
+    pick the same suggestion text — so the demo trace doesn't drift
+    between rehearsals."""
+    from i3.affect.shift_detector import (
+        AffectShiftDetector,
+        FALLING_LOAD_SUGGESTIONS,
+        RISING_LOAD_SUGGESTIONS,
+    )
+
+    detector = AffectShiftDetector()
+    user, session = "u_demo", "s_demo"
+
+    # 5 calm + 1 stressed.
+    for _ in range(5):
+        detector.observe(
+            user_id=user, session_id=session, embedding=torch.zeros(64),
+            composition_time_ms=2000.0, edit_count=0, pause_before_send_ms=300.0,
+            keystroke_iki_mean=120.0, keystroke_iki_std=20.0,
+        )
+    result = detector.observe(
+        user_id=user, session_id=session, embedding=torch.zeros(64),
+        composition_time_ms=4500.0, edit_count=4, pause_before_send_ms=400.0,
+        keystroke_iki_mean=200.0, keystroke_iki_std=50.0,
+    )
+
+    # The exact suggestion is deterministic and from the rising bank.
+    assert result.suggestion in RISING_LOAD_SUGGESTIONS
+    # Repeat with a fresh detector — same suggestion comes out.
+    detector2 = AffectShiftDetector()
+    for _ in range(5):
+        detector2.observe(
+            user_id=user, session_id=session, embedding=torch.zeros(64),
+            composition_time_ms=2000.0, edit_count=0, pause_before_send_ms=300.0,
+            keystroke_iki_mean=120.0, keystroke_iki_std=20.0,
+        )
+    result2 = detector2.observe(
+        user_id=user, session_id=session, embedding=torch.zeros(64),
+        composition_time_ms=4500.0, edit_count=4, pause_before_send_ms=400.0,
+        keystroke_iki_mean=200.0, keystroke_iki_std=50.0,
+    )
+    assert result.suggestion == result2.suggestion
