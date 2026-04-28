@@ -696,6 +696,72 @@ def test_confidence_is_in_dict_serialisation() -> None:
     assert isinstance(d["confidence"], float)
 
 
+# ---------------------------------------------------------------------------
+# Iter 19 — confidence monotonicity property
+# ---------------------------------------------------------------------------
+
+
+def test_confidence_is_monotonic_in_iki_delta() -> None:
+    """For rising_load, larger IKI deltas should produce equal-or-
+    larger confidence — never smaller.  Iter 19: catches calibration
+    regressions where a stronger signal accidentally produced
+    weaker confidence.
+    """
+    confidences: list[tuple[float, float]] = []
+    for iki_recent in (150.0, 180.0, 220.0, 280.0, 340.0):
+        detector = AffectShiftDetector()
+        user, session = "u_mono", "s_mono"
+        _calm_obs(detector, user, session, n=5)
+        # Three stressed observations to fill the recent window.
+        last: AffectShift | None = None
+        for _ in range(3):
+            last = detector.observe(
+                user_id=user, session_id=session, embedding=torch.zeros(64),
+                composition_time_ms=4000.0, edit_count=2, pause_before_send_ms=400.0,
+                keystroke_iki_mean=iki_recent, keystroke_iki_std=40.0,
+            )
+        assert last is not None
+        if last.detected:
+            confidences.append((iki_recent, last.confidence))
+
+    # Across the rising-IKI sweep, confidence values should be
+    # monotonically non-decreasing.
+    for i in range(1, len(confidences)):
+        prev_iki, prev_conf = confidences[i - 1]
+        cur_iki, cur_conf = confidences[i]
+        assert cur_conf >= prev_conf - 1e-9, (
+            f"confidence regressed: iki {prev_iki}->{cur_iki} = "
+            f"{prev_conf:.3f}->{cur_conf:.3f}"
+        )
+
+
+def test_confidence_is_monotonic_in_edit_delta() -> None:
+    """Same monotonicity for the edit-count axis."""
+    confidences: list[tuple[int, float]] = []
+    for edits in (2, 4, 6, 8, 12):
+        detector = AffectShiftDetector()
+        user, session = "u_mono_e", "s_mono_e"
+        _calm_obs(detector, user, session, n=5)
+        last: AffectShift | None = None
+        for _ in range(3):
+            last = detector.observe(
+                user_id=user, session_id=session, embedding=torch.zeros(64),
+                composition_time_ms=4000.0, edit_count=edits, pause_before_send_ms=400.0,
+                keystroke_iki_mean=200.0, keystroke_iki_std=40.0,
+            )
+        assert last is not None
+        if last.detected:
+            confidences.append((edits, last.confidence))
+
+    for i in range(1, len(confidences)):
+        prev_e, prev_conf = confidences[i - 1]
+        cur_e, cur_conf = confidences[i]
+        assert cur_conf >= prev_conf - 1e-9, (
+            f"confidence regressed: edits {prev_e}->{cur_e} = "
+            f"{prev_conf:.3f}->{cur_conf:.3f}"
+        )
+
+
 def test_falling_load_confidence_scales_with_iki_drop() -> None:
     """Larger IKI drop → higher falling-load confidence."""
     detector = AffectShiftDetector()
