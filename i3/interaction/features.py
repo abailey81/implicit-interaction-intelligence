@@ -531,10 +531,20 @@ def _cosine_similarity_unit(
       centred — interpreted as "no signal of difference between turns").
     * Returns ``0.5`` when one vector is zero and the other is not
       (orthogonal in the standard cosine sense).
+    * Returns ``0.5`` when any input contains NaN / inf — defense in
+      depth against an upstream regression slipping a non-finite
+      value past iter-20's clamp helpers.  Iter 22.
     """
     n = min(len(a), len(b))
     if n == 0:
         return 1.0
+    # Iter 22: bail on non-finite inputs.
+    for x in a[:n]:
+        if not math.isfinite(x):
+            return 0.5
+    for x in b[:n]:
+        if not math.isfinite(x):
+            return 0.5
     dot = sum(a[i] * b[i] for i in range(n))
     norm_a = math.sqrt(sum(x * x for x in a[:n]))
     norm_b = math.sqrt(sum(x * x for x in b[:n]))
@@ -545,6 +555,8 @@ def _cosine_similarity_unit(
     if norm_a < 1e-9 or norm_b < 1e-9:
         return 0.5
     cosine = dot / (norm_a * norm_b)
+    if not math.isfinite(cosine):
+        return 0.5
     cosine = max(-1.0, min(1.0, cosine))
     # Map [-1, 1] -> [0, 1].
     return 0.5 * (cosine + 1.0)

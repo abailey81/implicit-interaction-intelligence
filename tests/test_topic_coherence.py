@@ -201,3 +201,27 @@ def test_coherence_is_deterministic() -> None:
     b = _coherence_for(history_fv=prev, current_text=text)
     c = _coherence_for(history_fv=prev, current_text=text)
     assert a == b == c
+
+
+# ---------------------------------------------------------------------------
+# Iter 22 — _cosine_similarity_unit non-finite safety
+# ---------------------------------------------------------------------------
+
+
+def test_cosine_similarity_unit_handles_nan_inputs() -> None:
+    """Iter 22: any NaN / inf in the input vector returns 0.5
+    (midpoint) rather than propagating NaN through the score."""
+    from i3.interaction.features import _cosine_similarity_unit
+
+    nan = float("nan")
+    pinf = float("inf")
+    ninf = float("-inf")
+
+    # NaN in one vector
+    assert _cosine_similarity_unit((nan, 0.1, 0.2), (0.1, 0.1, 0.2)) == 0.5
+    # +inf in one vector
+    assert _cosine_similarity_unit((pinf, 0.1, 0.2), (0.1, 0.1, 0.2)) == 0.5
+    # -inf in one vector
+    assert _cosine_similarity_unit((0.1, 0.1, 0.2), (ninf, 0.1, 0.2)) == 0.5
+    # Mixed pathological + normal
+    assert _cosine_similarity_unit((nan, pinf, ninf), (0.1, 0.2, 0.3)) == 0.5
