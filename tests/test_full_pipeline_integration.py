@@ -245,3 +245,103 @@ def test_full_pipeline_100_turn_integration() -> None:
     assert math.isfinite(baseline.get_mean("mean_iki"))
     assert baseline.get_mean("mean_iki") >= 0.0
     assert baseline.get_std("mean_iki") >= 0.0
+
+
+# ---------------------------------------------------------------------------
+# Iter 23 — full-pipeline Hypothesis fuzzing
+# ---------------------------------------------------------------------------
+
+import hypothesis  # noqa: E402
+from hypothesis import given, settings  # noqa: E402
+from hypothesis import strategies as st  # noqa: E402
+
+
+@settings(
+    max_examples=30,
+    deadline=None,
+    suppress_health_check=[hypothesis.HealthCheck.too_slow],
+)
+@given(
+    turns=st.lists(
+        st.tuples(
+            st.floats(min_value=20.0, max_value=600.0),   # iki_mean
+            st.floats(min_value=5.0, max_value=120.0),    # iki_std
+            st.floats(min_value=500.0, max_value=15000.0),  # composition
+            st.integers(min_value=0, max_value=10),       # edits
+            st.floats(min_value=0.0, max_value=1.0),      # engagement
+        ),
+        min_size=5,
+        max_size=40,
+    ),
+)
+def test_full_pipeline_invariants_under_hypothesis_fuzzing(turns) -> None:
+    """Iter 23 — random sequences of (iki_mean, iki_std, composition,
+    edits, engagement) tuples driven through the full pipeline must
+    never crash and must keep every output invariant satisfied."""
+    extractor = FeatureExtractor()
+    baseline = BaselineTracker(warmup=3)
+    detector = AffectShiftDetector()
+    authenticator = KeystrokeAuthenticator(enrolment_target=5)
+    history: list[InteractionFeatureVector] = []
+    template_emb = torch.zeros(64); template_emb[:32] = 0.5
+
+    for turn_idx, (iki_m, iki_s, comp, edits, eng) in enumerate(turns):
+        km = {
+            "mean_iki_ms": iki_m,
+            "std_iki_ms": iki_s,
+            "mean_burst_length": 8.0,
+            "mean_pause_duration_ms": 200.0,
+            "backspace_ratio": min(1.0, edits / 50.0),
+            "composition_speed_cps": 4.0,
+            "pause_before_send_ms": 300.0,
+            "editing_effort": min(1.0, edits / 10.0),
+        }
+        fv = extractor.extract(
+            keystroke_metrics=km,
+            message_text="the quick brown fox",
+            history=history[-8:],
+            baseline=baseline,
+            session_start_ts=0.0,
+            current_ts=(turn_idx + 1) * 30.0,
+        )
+        history.append(fv); baseline.update(fv)
+
+        for fname in fv.__dataclass_fields__:
+            v = getattr(fv, fname)
+            if isinstance(v, (int, float)):
+                assert math.isfinite(v), f"non-finite {fname}={v}"
+
+        cl = max(0.0, min(1.0, 0.5 * fv.editing_effort + 0.5 * fv.iki_deviation + 0.4))
+        label = classify_user_state(
+            adaptation={"cognitive_load": cl, "formality": float(fv.formality),
+                        "verbosity": 0.5, "accessibility": 0.0},
+            composition_time_ms=comp, edit_count=edits,
+            iki_mean=iki_m, iki_std=iki_s,
+            engagement_score=eng, deviation_from_baseline=0.0,
+            baseline_established=baseline.is_established,
+            messages_in_session=turn_idx + 1,
+        )
+        assert label.state in {"calm", "focused", "stressed", "tired", "distracted", "warming up"}
+        assert 0.0 <= label.confidence <= 1.0
+
+        shift = detector.observe(
+            user_id="u_fuzz", session_id="s_fuzz",
+            embedding=template_emb,
+            composition_time_ms=comp, edit_count=edits,
+            pause_before_send_ms=300.0,
+            keystroke_iki_mean=iki_m, keystroke_iki_std=iki_s,
+        )
+        assert math.isfinite(shift.magnitude)
+        assert math.isfinite(shift.confidence)
+        if shift.detected:
+            assert 0.5 <= shift.confidence <= 1.0
+        else:
+            assert shift.confidence == 0.0
+
+        match = authenticator.observe(
+            "u_fuzz", embedding=template_emb,
+            iki_mean=iki_m, iki_std=iki_s,
+            composition_time_ms=comp, edit_count=edits,
+        )
+        assert match.state in {"unregistered", "registering", "registered", "verifying", "mismatch"}
+        assert 0.0 <= match.confidence <= 1.0
