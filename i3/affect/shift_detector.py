@@ -519,7 +519,10 @@ class AffectShiftDetector:
             )
         except Exception:
             return torch.zeros(target_dim, dtype=torch.float32)
-        if t.ndim > 1:
+        # Iter 25: treat any non-1D tensor (including scalar 0-dim
+        # tensors) by flattening to 1D first.  ``torch.cat`` rejects
+        # 0-dim tensors and ``ndim > 1`` missed scalars.
+        if t.ndim != 1:
             t = t.flatten()
         if t.numel() == 0:
             return torch.zeros(target_dim, dtype=torch.float32)

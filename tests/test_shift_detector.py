@@ -579,6 +579,21 @@ def test_fixed_baseline_anchor_persists_across_long_session() -> None:
 # ---------------------------------------------------------------------------
 
 
+def test_scalar_zero_dim_embedding_does_not_crash() -> None:
+    """Iter 25: a 0-dim scalar tensor (torch.tensor(0.5)) flattens to
+    a 1-element tensor and zero-pads to canonical 64-dim instead of
+    crashing torch.cat with the 'zero-dimensional tensor' error."""
+    detector = AffectShiftDetector()
+    scalar = torch.tensor(0.5)
+    result = detector.observe(
+        user_id="u_scalar", session_id="s_scalar",
+        embedding=scalar,
+        composition_time_ms=1500.0, edit_count=0, pause_before_send_ms=200.0,
+        keystroke_iki_mean=110.0, keystroke_iki_std=18.0,
+    )
+    assert math.isfinite(result.magnitude)
+
+
 def test_high_variance_baseline_still_uses_embedding_trigger() -> None:
     """Iter 14: when sigma_baseline is well above the floor (>= 0.1),
     the embedding-magnitude trigger continues to fire as documented.

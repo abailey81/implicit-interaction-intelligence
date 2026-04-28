@@ -796,7 +796,10 @@ class KeystrokeAuthenticator:
             )
         except Exception:
             return torch.zeros(target_dim, dtype=torch.float32)
-        if t.ndim > 1:
+        # Iter 25: treat any non-1D tensor (including scalar 0-dim
+        # tensors) by flattening to 1D first.  Mirrors the same
+        # fix in shift_detector._safe_embedding.
+        if t.ndim != 1:
             t = t.flatten()
         if t.numel() == 0:
             return torch.zeros(target_dim, dtype=torch.float32)

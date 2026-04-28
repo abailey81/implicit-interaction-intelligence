@@ -135,6 +135,15 @@ def test_nan_embedding_zeroed() -> None:
 # ---------------------------------------------------------------------------
 
 
+def test_scalar_zero_dim_embedding_does_not_crash() -> None:
+    """Iter 25: a 0-dim scalar tensor flattens to a 1-element tensor
+    and zero-pads to canonical 64-dim instead of crashing torch.cat."""
+    auth = KeystrokeAuthenticator(enrolment_target=3)
+    scalar = torch.tensor(0.5)
+    m = auth.observe("u_scalar", embedding=scalar, **_kw())
+    assert math.isfinite(m.similarity)
+
+
 def test_separate_users_have_independent_templates() -> None:
     """A single shared KeystrokeAuthenticator instance must keep
     per-user templates fully isolated — registering user A doesn't
