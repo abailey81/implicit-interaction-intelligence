@@ -5,6 +5,70 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026-04-28] Iter 38–43 — visible-shaping precision sweep
+
+Six-iteration sweep targeting the recurring complaint that "the system
+isn't adapting to how I'm typing".  Closes three dead-code paths in
+the post-processor wiring, fixes two key-mismatch bugs that silently
+zeroed the live UI, and adds an emulation harness that drives 60
+synthetic users through the full pipeline.  All work on the
+`feat/adaptation-precision-iter1` branch.
+
+* **Iter 38** (`e83372e`) — `i3/adaptation/dimensions.py`:
+  `cognitive_load` now folds in typing rhythm (editing_effort,
+  backspace_ratio, positive iki_deviation) via `max()` of the three
+  signals plus a +0.20 boost above 0.20 threshold.  A stressed user
+  typing a short message ("ugh just tell me") used to get the same
+  cognitive_load as a calm user; now they cross into a tighter
+  reply-length tier.
+* **Iter 39** — `D:/tmp/real_user_emulation_iter39.py`: 60-user
+  emulation harness across 5 archetypes × 12 message variants.
+  Quantifies axis-firing rates, length spread, and same-message
+  precision misses.  Used to drive every subsequent precision win.
+* **Iter 40** (`e83372e`) — `i3/config.py`: StyleMirror smoothing
+  rate 0.2 → 0.35.  Consistent declarative messages now cross the
+  directness > 0.7 threshold within 2 turns instead of 4.  Drove
+  directness firing from 13/60 to 36/60 in the emulation.
+* **Iter 41** (`e83372e`) — three live-UI bugs surfaced by actual
+  usage:
+    * `server/websocket.py`: server expected `edit_count` but JS
+      client (`web/js/app.js KeystrokeMonitor`) ships
+      `backspace_count`.  Server now accepts both; the dashboard
+      "Edit profile" tile and the editing_effort signal in the
+      cognitive_load adapter were silently zero on every turn.
+    * `server/websocket.py`: server expected `inter_key_interval_ms`
+      on keystroke events but JS ships `iki_ms`.  Without the
+      fallback, the keystroke buffer was full of zero-IKI entries
+      and the dashboard's "Typing rhythm" read 0 ms on every turn.
+    * `i3/interpretability/counterfactuals.py`: clamp the linearly-
+      extrapolated counterfactual feature + dimension values to
+      [0, 1] so the natural-language sentence never reports
+      "formality would have been 1.089".
+* **Iter 42** (`1bd0aa0`) — `i3/cloud/postprocess.py`: added a
+  3-sentence intermediate cognitive_load tier (0.55–0.65).  The
+  0.4 → 0.65 jump from 4 → 2 sentences was the dominant cliff edge;
+  same-content / different-rhythm pairs collapsed to identical
+  replies.  Closes the lone precision miss flagged by the iter-39
+  harness.  Pinned with
+  `tests/test_pipeline_shaping.py::test_complex_message_differentiates_calm_from_stressed`.
+* **Iter 43** (`ff3b2a8`) — `i3/adaptation/dimensions.py`:
+  `emotional_tone` formula now spans [0, 1].  Pre-fix
+  `tone = 0.5 - distress*0.5` capped at 0.5, so the post-processor's
+  warmth-strip path (fires on `> 0.7`) was dead code: a third
+  unreachable branch after iter 36 (directness) and iter 37
+  (post-processor wiring).  Strong positive sentiment now drives a
+  neutrality term; deliberately not formality, which is broken
+  (always 1.0 for plain chat without explicit informal markers).
+
+After iter 43 the 60-user emulation reports:
+  * 100 % of synthetic users get visible shaping (≥ 1 axis fired).
+  * 0 / 12 precision misses (every message produces ≥ 2 distinct
+    shaped replies across archetypes).
+  * cognitive_load by archetype: calm 0.46, verbose 0.75,
+    stressed 0.89, tired 0.87 (≈ 0.4 absolute spread).
+  * 8 distinct shaped replies, lengths spanning 20–275 chars.
+  * Adaptation-related test suite holds at 147 / 147 PASS.
+
 ## [2026-04-28] Iter 52 — adaptation + detection precision sweep
 
 Sixteen-iteration precision pass over the implicit-signal pipeline
