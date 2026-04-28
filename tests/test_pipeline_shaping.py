@@ -387,6 +387,54 @@ def test_stressed_user_gets_higher_cognitive_load_than_calm(pipeline_state) -> N
     )
 
 
+def test_complex_message_differentiates_calm_from_stressed(pipeline_state) -> None:
+    """Iter 42: the 3-sentence intermediate tier (cl 0.55-0.65) means a
+    calm user typing a complex message receives a 3-sentence reply
+    while a stressed user typing the same complex message receives a
+    2-sentence reply.  Previously both fell into the same 0.6-0.8
+    bracket and collapsed to identical 2-sentence output."""
+    extractor, baseline, controller, pp = pipeline_state
+    calm_pat = next(p for p in PATTERNS if p.name == "calm_curious")
+    stressed_pat = next(p for p in PATTERNS if p.name == "stressed_terse")
+    long_msg = (
+        "could you explain in some detail how this system handles different "
+        "kinds of user input across the various interaction modes you have "
+        "described in your previous message please"
+    )
+
+    # Replace each pattern's message with the long complex one.
+    from dataclasses import replace
+    calm_long = replace(calm_pat, message_text=long_msg)
+    stressed_long = replace(stressed_pat, message_text=long_msg)
+
+    # Establish baseline.
+    for _ in range(3):
+        _run_pattern(
+            calm_pat, extractor=extractor, baseline=baseline,
+            controller=controller, pp=pp, canonical_reply="Some setup.",
+        )
+
+    runs_c = _run_pattern(
+        calm_long, extractor=extractor, baseline=baseline,
+        controller=controller, pp=pp, canonical_reply=CANONICAL_REPLY,
+    )
+    runs_s = _run_pattern(
+        stressed_long, extractor=extractor, baseline=baseline,
+        controller=controller, pp=pp, canonical_reply=CANONICAL_REPLY,
+    )
+
+    # The shaped replies must differ — the iter-42 fine-grained tier
+    # is the whole point.
+    assert runs_c.shaped_reply != runs_s.shaped_reply, (
+        f"calm and stressed users typing the same complex content got "
+        f"identical replies — the cognitive_load tier didn't differentiate.\n"
+        f"calm cl={runs_c.adaptation_dict['cognitive_load']:.3f} "
+        f"-> {runs_c.shaped_reply}\n"
+        f"stressed cl={runs_s.adaptation_dict['cognitive_load']:.3f} "
+        f"-> {runs_s.shaped_reply}"
+    )
+
+
 def test_replays_are_deterministic(pipeline_state) -> None:
     """Running the same pattern twice on a fresh pipeline produces the
     same shaped reply."""

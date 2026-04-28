@@ -542,14 +542,20 @@ class ResponsePostProcessor:
         High cognitive_load → user is mentally taxed → short reply.
         Low cognitive_load → user has spare bandwidth → longer reply OK.
 
-        Mapping (inverted vs. the prior version)::
+        Mapping (iter 42 added a 3-sentence intermediate tier so that
+        verbose-content / no-rhythm-stress users (cl ≈ 0.55–0.65) get
+        a meaningfully different length from rhythm-stressed users
+        (cl ≈ 0.65–0.80).  Without this band the 0.4 → 0.65 jump from
+        4 → 2 sentences was the dominant cliff edge, collapsing many
+        same-content / different-rhythm pairs into identical replies)::
 
             cognitive_load  ->  max_sentences
-            0.0 - 0.2       ->  6   (relaxed user — generous)
-            0.2 - 0.4       ->  5
-            0.4 - 0.6       ->  4
-            0.6 - 0.8       ->  2
-            0.8 - 1.0       ->  1   (stressed — single concise sentence)
+            0.0  - 0.2      ->  6  (relaxed user — generous)
+            0.2  - 0.4      ->  5
+            0.4  - 0.55     ->  4
+            0.55 - 0.65     ->  3  (iter 42 — bridge tier)
+            0.65 - 0.8      ->  2
+            0.8  - 1.0      ->  1  (stressed — single concise sentence)
 
         Also strips parenthetical asides under high load so what is
         kept is even tighter.
@@ -557,8 +563,10 @@ class ResponsePostProcessor:
         cl = max(0.0, min(1.0, float(cognitive_load)))
         if cl >= 0.8:
             max_sentences = 1
-        elif cl >= 0.6:
+        elif cl >= 0.65:
             max_sentences = 2
+        elif cl >= 0.55:
+            max_sentences = 3
         elif cl >= 0.4:
             max_sentences = 4
         elif cl >= 0.2:
