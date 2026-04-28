@@ -354,9 +354,16 @@ class ResponsePostProcessor:
         text = response.strip()
 
         # 1. Cognitive load -> max sentence count.  Aggressive trimming
-        #    when load is high, looser cap when low.
+        #    when load is high, looser cap when low.  Iter 54: when
+        #    accessibility fires we treat the user as max-stressed for
+        #    length purposes — the LLM is instructed to keep responses
+        #    under 15 words, but it doesn't always comply, so we enforce
+        #    a 1-sentence cap deterministically here.
+        effective_cl = adaptation_vector.cognitive_load
+        if adaptation_vector.accessibility > 0.5:
+            effective_cl = max(effective_cl, 0.85)
         before_sentences = self._split_sentences(text)
-        text = self._enforce_length(text, adaptation_vector.cognitive_load)
+        text = self._enforce_length(text, effective_cl)
         after_sentences = self._split_sentences(text)
         if len(after_sentences) < len(before_sentences):
             log.append({
