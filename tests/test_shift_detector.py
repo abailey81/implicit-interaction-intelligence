@@ -579,6 +579,41 @@ def test_fixed_baseline_anchor_persists_across_long_session() -> None:
 # ---------------------------------------------------------------------------
 
 
+def test_high_variance_baseline_still_uses_embedding_trigger() -> None:
+    """Iter 14: when sigma_baseline is well above the floor (>= 0.1),
+    the embedding-magnitude trigger continues to fire as documented.
+    Boundary check that the iter-14 floor doesn't accidentally disable
+    the embedding channel in normal-variance regimes."""
+    detector = AffectShiftDetector(magnitude_threshold=1.4)
+    user, session = "u_hivar", "s_hivar"
+
+    # Build a high-variance baseline (different random embeddings).
+    torch.manual_seed(42)
+    for _ in range(5):
+        emb = torch.randn(64) * 0.3  # mean per-dim std around 0.3
+        detector.observe(
+            user_id=user, session_id=session, embedding=emb,
+            composition_time_ms=2000.0, edit_count=0, pause_before_send_ms=300.0,
+            keystroke_iki_mean=120.0, keystroke_iki_std=20.0,
+        )
+
+    # Now drift the embedding far from baseline.
+    drift = torch.ones(64) * 5.0
+    last: AffectShift | None = None
+    for _ in range(3):
+        last = detector.observe(
+            user_id=user, session_id=session, embedding=drift,
+            composition_time_ms=2000.0, edit_count=0, pause_before_send_ms=300.0,
+            keystroke_iki_mean=120.0, keystroke_iki_std=20.0,
+        )
+
+    assert last is not None
+    # High-variance baseline + large drift produces a clean embedding-
+    # magnitude fire — iter 14 doesn't accidentally suppress it.
+    assert last.magnitude >= 1.4
+    assert last.detected is True
+
+
 def test_low_variance_baseline_does_not_false_positive_on_tiny_shift() -> None:
     """Iter 14: when the baseline is very consistent (sigma ~ 0),
     the magnitude divisor was floored at 1e-3, which made even a
