@@ -534,6 +534,62 @@ def test_mixed_shape_embeddings_dont_silently_drop_detection() -> None:
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Iter 7 — fixed-baseline anchor (vs the previous rolling baseline)
+# ---------------------------------------------------------------------------
+
+
+def test_fixed_baseline_anchor_persists_across_long_session() -> None:
+    """Iter 7: baseline anchors to the first N observations of the
+    session, not a rolling tail.  This means a sustained shift is
+    still detected against the user's *original* normal — even after
+    20+ turns where a rolling-tail baseline would have drifted toward
+    the new normal and lost detection sensitivity.
+    """
+    detector = AffectShiftDetector()
+    user, session = "u_long", "s_long"
+
+    # Five calm observations establish the fixed baseline.
+    _calm_obs(detector, user, session, n=5)
+
+    # Now sustained stressed typing for 15 turns.  Under a rolling
+    # baseline, by turn 13+ the baseline would have rolled into all-
+    # stressed observations and the detection would silently drop
+    # (recent_window vs baseline_window are both stressed → no shift).
+    # Under a fixed baseline, the original calm anchor persists and
+    # detection should remain reliable.
+    last: AffectShift | None = None
+    for _ in range(15):
+        last = _stressed_obs(detector, user, session, iki_mean=200.0, edits=4)
+
+    assert last is not None
+    # iter 7 fix: still detected because baseline is anchored to the
+    # initial calm window.
+    assert last.detected is True
+    assert last.direction == "rising_load"
+    # IKI delta % should remain large because baseline never shifts.
+    assert last.iki_delta_pct >= 50.0, (
+        f"with fixed baseline, sustained stress should keep showing a "
+        f"large IKI delta; got {last.iki_delta_pct}"
+    )
+
+
+def test_fixed_baseline_resets_on_end_session() -> None:
+    """end_session wipes the per-session fixed baseline so a new
+    session starts fresh."""
+    detector = AffectShiftDetector()
+    user, session = "u_reset", "s_reset"
+
+    _calm_obs(detector, user, session, n=5)
+    detector.end_session(user, session)
+
+    # First observation of the new session: warmup, no detection.
+    result = _stressed_obs(detector, user, session)
+    assert result.detected is False
+    # The detector treats this as turn 1 of a brand-new session, so
+    # there's no baseline yet to compare against.
+
+
 def test_embedding_on_unexpected_device_handled() -> None:
     """Even if a CUDA-resident tensor were passed, _safe_embedding's
     .to() call should normalise it to the detector's device.

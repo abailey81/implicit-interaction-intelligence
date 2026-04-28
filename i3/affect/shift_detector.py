@@ -233,6 +233,7 @@ class AffectShiftDetector:
         recent_size: int = 3,
         magnitude_threshold: float = 1.4,
         max_sessions: int = 1000,
+        baseline_size: int | None = None,
     ) -> None:
         if window_size < 2:
             raise ValueError("window_size must be >= 2")
@@ -240,11 +241,25 @@ class AffectShiftDetector:
             raise ValueError("recent_size must satisfy 1 <= recent_size < window_size")
         self.window_size = int(window_size)
         self.recent_size = int(recent_size)
+        # Iter 7: baseline_size = number of observations the *fixed*
+        # baseline anchor holds.  Defaults to (window_size - recent_size)
+        # to match the historical effective baseline length so the
+        # change is invisible to short-session callers.
+        self.baseline_size = int(
+            baseline_size if baseline_size is not None
+            else max(2, window_size - recent_size)
+        )
         self.magnitude_threshold = float(magnitude_threshold)
         self.max_sessions = int(max_sessions)
 
-        # Per-session ring buffers + counters.
+        # Per-session ring buffers (rolling; holds the recent window).
         self._buffers: OrderedDict[tuple[str, str], Deque[_Observation]] = OrderedDict()
+        # Iter 7: per-session FIXED baseline anchored to the first
+        # ``baseline_size`` observations of the session.  Persists
+        # across the rolling buffer's eviction so a sustained shift
+        # is still measured against the user's original normal —
+        # not a tail that drifts toward the new normal.
+        self._baselines: dict[tuple[str, str], list[_Observation]] = {}
         self._turn_index: dict[tuple[str, str], int] = {}
         # Number of turns since the last suggestion was emitted on
         # this session.  ``-1`` means "never emitted yet" — we always
@@ -308,16 +323,26 @@ class AffectShiftDetector:
             keystroke_iki_std=float(max(0.0, keystroke_iki_std)),
         )
         buf.append(obs)
+        # Iter 7: populate the fixed baseline with the FIRST
+        # ``baseline_size`` observations of this session.  Once full,
+        # it never changes for the lifetime of the session — sustained
+        # shifts are measured against the original anchor, not a
+        # rolling tail that drifts toward the new normal.
+        baseline_anchor = self._baselines.setdefault(key, [])
+        if len(baseline_anchor) < self.baseline_size:
+            baseline_anchor.append(obs)
         # Increment debounce counter every turn.
         self._turns_since_suggestion[key] = self._turns_since_suggestion.get(key, 99) + 1
         self._turn_index[key] = self._turn_index.get(key, -1) + 1
 
         # ---- Need at least baseline + recent observations ------------
-        # Warm-up: until the buffer holds at least ``recent_size + 2``
-        # entries we cannot meaningfully separate baseline from
-        # recent, so we report no shift.
-        min_required = self.recent_size + 2
-        if len(buf) < min_required:
+        # Warm-up: until BOTH the fixed baseline is populated AND the
+        # rolling recent buffer holds enough entries we cannot
+        # meaningfully separate baseline from recent.
+        if (
+            len(baseline_anchor) < self.baseline_size
+            or len(buf) < self.recent_size + 2
+        ):
             return AffectShift(
                 detected=False,
                 direction="neutral",
@@ -328,10 +353,10 @@ class AffectShiftDetector:
             )
 
         # ---- Split buffer into baseline + recent windows ------------
-        observations = list(buf)
-        # Baseline = everything BEFORE the recent window.
-        baseline_window = observations[: -self.recent_size]
-        recent_window = observations[-self.recent_size :]
+        # Baseline = the FIXED first-N observations of the session.
+        # Recent   = the last ``recent_size`` from the rolling buffer.
+        baseline_window = list(baseline_anchor)
+        recent_window = list(buf)[-self.recent_size :]
 
         # ---- Embedding shift magnitude ------------------------------
         magnitude = self._embedding_magnitude(baseline_window, recent_window)
@@ -403,9 +428,11 @@ class AffectShiftDetector:
         """Drop all rolling state for a session.
 
         Idempotent — calling on an unknown session is a no-op.
+        Iter 7: also wipes the fixed baseline anchor.
         """
         key = (str(user_id), str(session_id))
         self._buffers.pop(key, None)
+        self._baselines.pop(key, None)
         self._turn_index.pop(key, None)
         self._turns_since_suggestion.pop(key, None)
 
@@ -424,6 +451,7 @@ class AffectShiftDetector:
         # Evict oldest if at capacity.
         while len(self._buffers) >= self.max_sessions:
             evicted_key, _ = self._buffers.popitem(last=False)
+            self._baselines.pop(evicted_key, None)
             self._turn_index.pop(evicted_key, None)
             self._turns_since_suggestion.pop(evicted_key, None)
             logger.debug(
