@@ -602,7 +602,23 @@ class AffectShiftDetector:
         *,
         zero_baseline_default: float = 0.0,
     ) -> float:
-        """Return signed % change of mean(recent) vs mean(baseline)."""
+        """Return signed % change of mean(recent) vs mean(baseline).
+
+        Iter 31 — gradates the zero-baseline case.  Previously a
+        zero baseline + any positive recent value returned the
+        binary ``zero_baseline_default`` percentage (so 1 edit and
+        100 edits looked identical).  Now the result scales with the
+        recent magnitude — ``100 * recent_mean`` capped at the
+        provided default — preserving severity ordering for the
+        downstream tier thresholds and the iter-9 confidence ramp.
+
+        Examples (with zero_baseline_default=200.0 for edits):
+
+            recent_mean=0.3 → 30 (was 200, now sub-strong-tier)
+            recent_mean=1.0 → 100 (was 200, now strong-tier)
+            recent_mean=2.0 → 200 (cap, unchanged)
+            recent_mean=8.0 → 200 (cap, unchanged)
+        """
         if not recent or not baseline:
             return 0.0
         r = sum(recent) / len(recent)
@@ -611,8 +627,8 @@ class AffectShiftDetector:
             # Avoid division by zero; caller picks a sensible default
             # (e.g. "treat zero edits as a tiny baseline so a single
             # edit registers as a large positive delta").
-            if r > 1e-9:
-                return float(zero_baseline_default)
+            if r > 1e-9 and zero_baseline_default > 0.0:
+                return float(min(zero_baseline_default, 100.0 * r))
             return 0.0
         pct = 100.0 * (r - b) / b
         if not math.isfinite(pct):

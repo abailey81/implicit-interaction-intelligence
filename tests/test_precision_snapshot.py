@@ -145,9 +145,10 @@ def test_canonical_rising_load_scenario_snapshot() -> None:
     assert result.direction == "rising_load"
     # Recent IKI = (120+120+200)/3 = 146.67 → +22.2% delta.
     assert result.iki_delta_pct == pytest.approx(22.22, abs=0.5)
-    # Edit baseline = 0; edit recent = 1.33 → zero_baseline_default
-    # = 200%.
-    assert result.edit_delta_pct == pytest.approx(200.0, abs=0.1)
+    # Iter 31 gradation: edit baseline = 0; edit recent_mean = 1.33;
+    # 100 * 1.33 = 133 (below the 200 cap), so edit_delta_pct = 133.3.
+    # Pre-iter-31 this was a binary 200%.
+    assert result.edit_delta_pct == pytest.approx(133.33, abs=0.5)
     # Magnitude: zero embeddings on both sides — exactly 0.
     assert result.magnitude == 0.0
     # Confidence: in the documented [0.5, 1.0] band; specifically

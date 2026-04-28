@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import math
 
+import pytest
 import torch
 
 from i3.affect.shift_detector import (
@@ -810,6 +811,56 @@ def test_confidence_is_monotonic_in_edit_delta() -> None:
             f"confidence regressed: edits {prev_e}->{cur_e} = "
             f"{prev_conf:.3f}->{cur_conf:.3f}"
         )
+
+
+def test_zero_baseline_edit_delta_gradates_with_recent_magnitude() -> None:
+    """Iter 31: zero-baseline edits + positive recent edits no longer
+    saturates to a binary 200%.  edit_delta_pct now scales with
+    recent_mean (capped at the original 200% default), so tier
+    thresholds and confidence ramps see real severity ordering.
+
+    Before: 1-edit and 100-edit recent windows both reported 200%.
+    After: 1-edit reports ~100%, 5+ edits reports 200% (capped).
+    """
+    # Path A — 1 edit per turn (recent_mean ≈ 1.0).
+    d_low = AffectShiftDetector()
+    _calm_obs(d_low, "u_lo", "s_lo", n=5)
+    last_low = None
+    for _ in range(3):
+        last_low = d_low.observe(
+            user_id="u_lo", session_id="s_lo", embedding=torch.zeros(64),
+            composition_time_ms=3000.0, edit_count=1,
+            pause_before_send_ms=400.0,
+            keystroke_iki_mean=180.0, keystroke_iki_std=35.0,
+        )
+
+    # Path B — 8 edits per turn (recent_mean ≈ 8.0, well above cap).
+    d_hi = AffectShiftDetector()
+    _calm_obs(d_hi, "u_hi", "s_hi", n=5)
+    last_hi = None
+    for _ in range(3):
+        last_hi = d_hi.observe(
+            user_id="u_hi", session_id="s_hi", embedding=torch.zeros(64),
+            composition_time_ms=3000.0, edit_count=8,
+            pause_before_send_ms=400.0,
+            keystroke_iki_mean=180.0, keystroke_iki_std=35.0,
+        )
+
+    assert last_low is not None and last_hi is not None
+    # Iter 31: low recent should land near 100% (gradated, not capped).
+    assert 80.0 <= last_low.edit_delta_pct <= 130.0, (
+        f"low-edit recent should gradate to ~100%, got "
+        f"{last_low.edit_delta_pct}"
+    )
+    # High recent saturates at the 200% cap.
+    assert last_hi.edit_delta_pct == pytest.approx(200.0, abs=0.5), (
+        f"high-edit recent should saturate at 200% cap, got "
+        f"{last_hi.edit_delta_pct}"
+    )
+    # Confidence reflects severity: high-edit produces higher
+    # confidence than low-edit at the same iki delta.
+    if last_low.detected and last_hi.detected:
+        assert last_hi.confidence >= last_low.confidence
 
 
 def test_corroborated_iki_and_edit_signals_increase_confidence() -> None:
