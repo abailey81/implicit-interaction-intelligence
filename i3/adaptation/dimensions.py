@@ -363,8 +363,24 @@ class EmotionalToneAdapter:
         ]
         distress_score = float(np.mean(distress_signals))
 
-        # More distress -> lower tone value -> warmer/more supportive.
-        # The mapping is: tone = 0.5 - distress * 0.5, clamped to [0, 1].
+        # Iter 43 — neutrality drive.  Pre-iter-43 the formula was
+        # ``tone = 0.5 - distress*0.5`` so ``emotional_tone`` could
+        # never exceed 0.5 in practice — meaning the post-processor's
+        # ``emotional_tone > 0.7`` warmth-stripping branch was dead
+        # code.  Strong positive sentiment is now a "this user is fine,
+        # be clinical" signal that can lift the tone above 0.5 toward
+        # 1.0.
+        #
+        # We deliberately do NOT use ``features.formality`` here — the
+        # formality scorer is purely subtractive (1.0 minus the rate
+        # of contractions and slang) so plain chat without explicit
+        # informal markers reads at the maximum 1.0 even though the
+        # text isn't actually formal.  Wiring that into the tone
+        # formula would push the warmth-strip path to fire on every
+        # neutral chat message, which is exactly the kind of false
+        # positive iter 36/37 went out of its way to avoid.
+        neutrality_score = max(0.0, sentiment_valence)
+
         # SEC: defensively unpack the configured warmth range so that an
         # inverted (lo > hi) tuple is normalised by ``_clamp`` rather than
         # silently producing an empty interval.
@@ -372,7 +388,15 @@ class EmotionalToneAdapter:
             lo, hi = self.config.warmth_range
         except (TypeError, ValueError):
             lo, hi = 0.0, 1.0
-        return _clamp(0.5 - distress_score * 0.5, lo=lo, hi=hi)
+        # tone in [0, 1]:
+        #   pure distress + no positive sentiment -> 0.0  (very warm)
+        #   neither signal active                  -> 0.5  (balanced)
+        #   strong positive sentiment, no distress -> 1.0  (clinical)
+        return _clamp(
+            0.5 + 0.5 * neutrality_score - 0.5 * distress_score,
+            lo=lo,
+            hi=hi,
+        )
 
 
 # ---------------------------------------------------------------------------
