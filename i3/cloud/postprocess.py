@@ -236,6 +236,52 @@ _VERBOSE_FOLLOWUP_OPTIONS: tuple[str, ...] = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Iter 37 — directness + emotional_tone + emotionality shaping
+# ---------------------------------------------------------------------------
+
+# Soft openers / qualifiers stripped when the adaptation requests
+# directness > 0.7 (the user types declaratively, wants assertive
+# replies).  Subtraction-only, conservative.
+_DIRECTNESS_SOFTENER_RE = re.compile(
+    r"\b(?:you might (?:want to |wish to )?consider(?:ing)?|"
+    r"you may (?:want to |wish to )?consider(?:ing)?|"
+    r"you could (?:want to |consider )?(?:try|consider)(?:ing)?|"
+    r"perhaps you (?:could|might|should)|"
+    r"it may be (?:worth|useful) (?:to )?|"
+    r"if (?:you'?d|you would) like|"
+    r"feel free to)\s*",
+    re.IGNORECASE,
+)
+
+# Warmth markers (extra exclamations, warm interjections) stripped
+# when emotional_tone > 0.7 (the user wants neutral / objective
+# tone).  Subtraction-only.  Matches at start of *any* sentence
+# (not just the very first), so chains like "Sure! Happy to help."
+# both get stripped.
+_WARMTH_OPENER_RE = re.compile(
+    r"(?:(?<=^)|(?<=[.!?]\s))\s*"
+    r"(?:Sure(?:, ?absolutely)?[!,.]? ?|Of course[!,.]? ?|"
+    r"Absolutely[!,.]? ?|Great question[!,.]? ?|That's a great question[!,.]? ?|"
+    r"Happy to help[!,.]? ?|"
+    r"Awesome[!,.]? ?|Wonderful[!,.]? ?|Excellent[!,.]? ?)",
+    re.IGNORECASE,
+)
+# Excessive exclamation points collapse to a period when neutral tone
+# is requested.
+_EXCLAIM_RE = re.compile(r"!+")
+
+# Emotional intensifiers stripped when emotionality is low
+# (style_mirror.emotionality < 0.3 — measured / dispassionate user).
+# Subtraction-only — preserves the underlying claim, drops the heat.
+_EMOTIVE_INTENSIFIER_RE = re.compile(
+    r"\b(?:absolutely|incredibly|amazingly|astonishingly|"
+    r"unbelievably|extraordinarily|tremendously|"
+    r"super|totally|really really|so so)\s+",
+    re.IGNORECASE,
+)
+
+
 class ResponsePostProcessor:
     """Post-processes cloud LLM responses to enforce adaptation constraints.
 
@@ -365,7 +411,76 @@ class ResponsePostProcessor:
                 })
                 text = new_text
 
-        # 5. Non-emptiness guarantee
+        # 5. Iter 37 — Directness shaping.  When the user types
+        # declaratively (directness > 0.7), strip soft openers like
+        # "you might want to consider" so replies sound assertive.
+        directness = adaptation_vector.style_mirror.directness
+        if directness > 0.7:
+            new_text = _DIRECTNESS_SOFTENER_RE.sub("", text)
+            new_text = re.sub(r"\s{2,}", " ", new_text).strip()
+            # Capitalise the first letter if a softener was at the head.
+            if new_text and new_text[0].islower():
+                new_text = new_text[0].upper() + new_text[1:]
+            if new_text and new_text != text:
+                log.append({
+                    "axis": "directness",
+                    "value": f"{directness:.2f}",
+                    "change": "stripped soft openers",
+                })
+                text = new_text
+
+        # 6. Iter 37 — Emotional-tone shaping.  When the adaptation
+        # asks for neutral / objective tone (emotional_tone > 0.7),
+        # strip warm interjections + collapse exclamation points to
+        # periods.  When the adaptation asks for warm / supportive
+        # (emotional_tone < 0.3), DON'T strip — the LLM's natural
+        # warmth is welcome.
+        emotional_tone = float(adaptation_vector.emotional_tone)
+        if emotional_tone > 0.7:
+            new_text = _WARMTH_OPENER_RE.sub("", text)
+            new_text = _EXCLAIM_RE.sub(".", new_text)
+            new_text = re.sub(r"\s{2,}", " ", new_text).strip()
+            if new_text and new_text[0].islower():
+                new_text = new_text[0].upper() + new_text[1:]
+            if new_text and new_text != text:
+                log.append({
+                    "axis": "emotional_tone",
+                    "value": f"{emotional_tone:.2f}",
+                    "change": "stripped warm openers, neutralised exclamations",
+                })
+                text = new_text
+
+        # 7. Iter 37 — Emotionality shaping.  When the user is
+        # measured / dispassionate (emotionality < 0.3), strip
+        # emotive intensifiers ("absolutely", "incredibly", etc.).
+        emotionality = adaptation_vector.style_mirror.emotionality
+        if emotionality < 0.3:
+            new_text = _EMOTIVE_INTENSIFIER_RE.sub("", text)
+            new_text = re.sub(r"\s{2,}", " ", new_text).strip()
+            if new_text and new_text != text:
+                log.append({
+                    "axis": "emotionality",
+                    "value": f"{emotionality:.2f}",
+                    "change": "stripped emotive intensifiers",
+                })
+                text = new_text
+
+        # 8. Iter 37 — final capitalisation fix.  Stripping openers
+        # and intensifiers can leave the reply starting with — or
+        # any sentence after a period beginning with — a lowercase
+        # word.  Capitalise so the output reads as real sentences.
+        if text:
+            if text[0].islower():
+                text = text[0].upper() + text[1:]
+            # Capitalise the first letter after each sentence-ending
+            # punctuation followed by whitespace.
+            text = re.sub(
+                r"([.!?])(\s+)([a-z])",
+                lambda m: m.group(1) + m.group(2) + m.group(3).upper(),
+                text,
+            )
+
+        # 9. Non-emptiness guarantee
         text = text.strip()
         if not text:
             text = self.EMPTY_FALLBACK
