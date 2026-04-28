@@ -535,12 +535,32 @@ class AffectShiftDetector:
         # n > target_dim: truncate.
         return t[:target_dim].contiguous()
 
+    # Iter 14: minimum sigma_baseline below which the embedding-
+    # magnitude trigger is *not trusted*.  Below this floor the
+    # baseline is too consistent to derive a meaningful sigma
+    # estimate — dividing by an artificially-floored sigma blows
+    # up the magnitude on any tiny perturbation, producing false
+    # positives.  At sigma below this floor we fall back to the
+    # keystroke channel only.
+    _MIN_SIGMA_FOR_EMBEDDING_TRIGGER: float = 1e-2
+
     @staticmethod
     def _embedding_magnitude(
         baseline: list[_Observation],
         recent: list[_Observation],
     ) -> float:
-        """L2(recent_mean - baseline_mean) / max(σ_baseline, 1e-3)."""
+        """``L2(recent_mean - baseline_mean) / max(σ_baseline, floor)``.
+
+        Iter 14: returns 0.0 when ``σ_baseline`` is below the
+        :attr:`_MIN_SIGMA_FOR_EMBEDDING_TRIGGER` floor.  A baseline
+        with effectively-zero variance carries no information about
+        what \"normal\" embedding noise looks like — dividing by an
+        artificially-floored sigma produced multi-thousand-σ
+        magnitudes on tiny embedding perturbations and triggered
+        spurious shifts.  By returning 0.0 in that regime we let
+        the keystroke channel be the sole detector, which is the
+        documented fallback path anyway.
+        """
         if not baseline or not recent:
             return 0.0
         # Stack the embeddings, padding with zeros if dims disagree
@@ -556,13 +576,17 @@ class AffectShiftDetector:
         l2 = float(torch.linalg.norm(diff).item())
 
         # σ_baseline = mean per-dim std-dev across the baseline
-        # window.  When the window has only one entry we fall back
-        # to a small floor so we don't divide by zero.
+        # window.  When the window has only one entry we have no
+        # variance information at all.
         if b_stack.shape[0] >= 2:
             sigma = float(b_stack.std(dim=0, unbiased=False).mean().item())
         else:
             sigma = 0.0
-        sigma = max(sigma, 1e-3)
+        # Iter 14: don't trust the embedding-magnitude trigger below
+        # the sigma floor — return 0 and let the keystroke channel
+        # decide.
+        if sigma < AffectShiftDetector._MIN_SIGMA_FOR_EMBEDDING_TRIGGER:
+            return 0.0
         magnitude = l2 / sigma
         if not math.isfinite(magnitude):
             return 0.0

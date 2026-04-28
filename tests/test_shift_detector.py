@@ -579,6 +579,47 @@ def test_fixed_baseline_anchor_persists_across_long_session() -> None:
 # ---------------------------------------------------------------------------
 
 
+def test_low_variance_baseline_does_not_false_positive_on_tiny_shift() -> None:
+    """Iter 14: when the baseline is very consistent (sigma ~ 0),
+    the magnitude divisor was floored at 1e-3, which made even a
+    tiny L2 distance look like a multi-sigma shift.  After iter 14:
+    the embedding-magnitude trigger only fires when sigma is at
+    least 1e-2, otherwise we trust the keystroke channel.
+    """
+    detector = AffectShiftDetector()
+    user, session = "u_lowvar", "s_lowvar"
+
+    # Build an extremely consistent baseline (all zero embeddings)
+    # with calm keystrokes.  Sigma_baseline should be ~ 0.
+    for _ in range(5):
+        detector.observe(
+            user_id=user, session_id=session, embedding=torch.zeros(64),
+            composition_time_ms=2000.0, edit_count=0, pause_before_send_ms=300.0,
+            keystroke_iki_mean=120.0, keystroke_iki_std=20.0,
+        )
+
+    # Now feed a recent observation with a tiny embedding perturbation
+    # (but no keystroke change).  Pre-iter-14, l2/sigma blew up to >>
+    # threshold and falsely fired.  Post-iter-14, no embedding fire
+    # because sigma is below the trust floor.
+    last: AffectShift | None = None
+    for _ in range(3):
+        last = detector.observe(
+            user_id=user, session_id=session,
+            embedding=torch.full((64,), 0.005),  # tiny non-zero
+            composition_time_ms=2000.0, edit_count=0, pause_before_send_ms=300.0,
+            keystroke_iki_mean=120.0, keystroke_iki_std=20.0,
+        )
+
+    assert last is not None
+    # No keystroke change at all and embedding shift is tiny — no
+    # genuine shift.  The detector should NOT fire.
+    assert last.detected is False, (
+        f"low-variance baseline + tiny embedding perturbation should "
+        f"not fire; got detected=True with magnitude={last.magnitude}"
+    )
+
+
 def test_undetected_shift_has_confidence_zero() -> None:
     """When detected=False, confidence must be exactly 0.0."""
     detector = AffectShiftDetector()
