@@ -488,11 +488,23 @@ def _normalised_slope(values: list[float]) -> float:
 
 
 def _std(values: list[float]) -> float:
-    """Population standard deviation of *values*."""
-    if len(values) < 2:
+    """Sample (Bessel-corrected) standard deviation of *values*.
+
+    Iter 15: switched from the population estimator (divide by n) to
+    the Bessel-corrected sample estimator (divide by n - 1) — mirrors
+    the iter-2 BaselineTracker fix.  At small sample sizes the
+    population estimator under-estimates noise, which inflates the
+    z-scores derived from this std (e.g. ``time_deviation`` in the
+    session-features extractor).
+
+    Returns 0.0 when fewer than 2 observations are provided (sample
+    variance is undefined for n=1).
+    """
+    n = len(values)
+    if n < 2:
         return 0.0
-    mean = sum(values) / len(values)
-    return math.sqrt(sum((v - mean) ** 2 for v in values) / len(values))
+    mean = sum(values) / n
+    return math.sqrt(sum((v - mean) ** 2 for v in values) / (n - 1))
 
 
 def _cosine_similarity_unit(
