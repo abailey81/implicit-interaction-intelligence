@@ -128,3 +128,128 @@ def test_nan_embedding_zeroed() -> None:
     bad = torch.tensor([float("nan")] * 64)
     m = auth.observe(user, embedding=bad, **_kw())
     assert math.isfinite(m.similarity)
+
+
+# ---------------------------------------------------------------------------
+# Iter 12 — cross-user isolation
+# ---------------------------------------------------------------------------
+
+
+def test_separate_users_have_independent_templates() -> None:
+    """A single shared KeystrokeAuthenticator instance must keep
+    per-user templates fully isolated — registering user A doesn't
+    affect user B's classification, and vice versa."""
+    auth = KeystrokeAuthenticator(enrolment_target=3)
+
+    # User A: a specific embedding pattern.
+    emb_a = torch.zeros(64)
+    emb_a[:32] = 1.0  # first half all ones
+    # User B: a clearly different pattern.
+    emb_b = torch.zeros(64)
+    emb_b[32:] = 1.0  # second half all ones
+
+    # Register both users.
+    for _ in range(3):
+        auth.observe("alice", embedding=emb_a, **_kw(iki_mean=100.0))
+        auth.observe("bob", embedding=emb_b, **_kw(iki_mean=140.0))
+
+    # Now an observation from user A using emb_a should be high-
+    # similarity for alice's template.
+    m_alice = auth.observe("alice", embedding=emb_a, **_kw(iki_mean=100.0))
+    # And the same emb_a sent for "bob" should NOT be high-similarity
+    # against bob's template (because bob registered with a different
+    # vector).
+    m_bob = auth.observe("bob", embedding=emb_a, **_kw(iki_mean=140.0))
+
+    assert m_alice.similarity > m_bob.similarity, (
+        f"alice's match for her own embedding ({m_alice.similarity}) "
+        f"should exceed bob's match for the same embedding "
+        f"({m_bob.similarity})"
+    )
+
+
+def test_user_template_persists_after_other_user_observations() -> None:
+    """Observations from other users mustn't drift any given user's
+    template — each template only updates when its own user observes."""
+    auth = KeystrokeAuthenticator(enrolment_target=3)
+
+    # Establish alice with a specific embedding.
+    alice_emb = torch.zeros(64)
+    alice_emb[:32] = 0.5
+    for _ in range(3):
+        auth.observe("alice", embedding=alice_emb, **_kw(iki_mean=100.0))
+
+    m_before = auth.observe("alice", embedding=alice_emb, **_kw(iki_mean=100.0))
+
+    # Now bob makes 10 observations with very different embeddings.
+    bob_emb = torch.zeros(64)
+    bob_emb[32:] = 0.5
+    for _ in range(10):
+        auth.observe("bob", embedding=bob_emb, **_kw(iki_mean=200.0))
+
+    # Alice's similarity for her own embedding should be unchanged.
+    m_after = auth.observe("alice", embedding=alice_emb, **_kw(iki_mean=100.0))
+    # Allow for the EWMA of alice's own subsequent observations to
+    # nudge the score slightly, but never by more than 0.1.
+    assert abs(m_after.similarity - m_before.similarity) < 0.1, (
+        f"alice's similarity drifted after bob's observations: "
+        f"before={m_before.similarity} after={m_after.similarity}"
+    )
+
+
+def test_force_register_isolates_per_user() -> None:
+    """force_register on one user doesn't reset any other user's state."""
+    auth = KeystrokeAuthenticator(enrolment_target=3)
+
+    # Register alice fully.
+    alice_emb = torch.zeros(64)
+    alice_emb[:32] = 1.0
+    for _ in range(3):
+        auth.observe("alice", embedding=alice_emb, **_kw())
+
+    # Register bob fully (different embedding).
+    bob_emb = torch.zeros(64)
+    bob_emb[32:] = 1.0
+    for _ in range(3):
+        auth.observe("bob", embedding=bob_emb, **_kw())
+
+    # Force-register charlie via observe + force_register from recent
+    # observations.  charlie_emb is yet another distinct pattern.
+    charlie_emb = torch.zeros(64)
+    charlie_emb[16:48] = 1.0
+    for _ in range(2):
+        auth.observe(
+            "charlie",
+            embedding=charlie_emb,
+            iki_mean=80.0,
+            iki_std=10.0,
+            composition_time_ms=900.0,
+            edit_count=0,
+        )
+    auth.force_register("charlie")
+
+    # Alice and bob's status should remain registered + intact.
+    s_alice = auth.status("alice")
+    s_bob = auth.status("bob")
+    s_charlie = auth.status("charlie")
+    assert s_alice.state in {"registered", "verifying"}
+    assert s_bob.state in {"registered", "verifying"}
+    assert s_charlie.state in {"registered", "verifying"}
+
+
+def test_reset_for_user_only_affects_that_user() -> None:
+    auth = KeystrokeAuthenticator(enrolment_target=3)
+
+    a = torch.zeros(64); a[:32] = 1.0
+    b = torch.zeros(64); b[32:] = 1.0
+    for _ in range(3):
+        auth.observe("alice", embedding=a, **_kw())
+        auth.observe("bob", embedding=b, **_kw())
+
+    auth.reset_for_user("alice")
+
+    # Alice is back to unregistered; bob is still registered.
+    s_alice = auth.status("alice")
+    s_bob = auth.status("bob")
+    assert s_alice.state == "unregistered"
+    assert s_bob.state in {"registered", "verifying"}
