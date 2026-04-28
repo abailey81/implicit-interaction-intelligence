@@ -220,3 +220,56 @@ def test_topic_coherence_one_zero_one_signal_returns_half() -> None:
     """One zero, one non-zero ⇒ no signal to compare ⇒ midpoint 0.5."""
     from i3.interaction.features import _cosine_similarity_unit
     assert _cosine_similarity_unit((0.0, 0.0, 0.0), (0.5, 0.3, 0.2)) == 0.5
+
+
+# ---------------------------------------------------------------------------
+# iter 26 — falling_load detection snapshot
+# ---------------------------------------------------------------------------
+
+
+def test_canonical_falling_load_scenario_snapshot() -> None:
+    """5 stressed (iki=200, edits=4) baseline + 3 calm-recovery
+    (iki=110, edits=1) recent observations: should fire as
+    falling_load (the documented brief trigger).
+
+    Pins the iter-7 fixed-baseline interaction with the iter-1
+    falling-load condition: only fires when recent IKI is < -15%
+    AND edits are flat-or-falling.
+    """
+    detector = AffectShiftDetector()
+    user, session = "u_fall_snap", "s_fall_snap"
+
+    # Stressed baseline.
+    for _ in range(5):
+        detector.observe(
+            user_id=user, session_id=session, embedding=torch.zeros(64),
+            composition_time_ms=4500.0, edit_count=4, pause_before_send_ms=600.0,
+            keystroke_iki_mean=200.0, keystroke_iki_std=40.0,
+        )
+
+    # Recovery — first observation should fire.
+    first = detector.observe(
+        user_id=user, session_id=session, embedding=torch.zeros(64),
+        composition_time_ms=2500.0, edit_count=1, pause_before_send_ms=300.0,
+        keystroke_iki_mean=110.0, keystroke_iki_std=20.0,
+    )
+    if not first.detected:
+        # Need 1-2 more observations to fully populate the recent window.
+        first = detector.observe(
+            user_id=user, session_id=session, embedding=torch.zeros(64),
+            composition_time_ms=2500.0, edit_count=1, pause_before_send_ms=300.0,
+            keystroke_iki_mean=110.0, keystroke_iki_std=20.0,
+        )
+    if not first.detected:
+        first = detector.observe(
+            user_id=user, session_id=session, embedding=torch.zeros(64),
+            composition_time_ms=2500.0, edit_count=1, pause_before_send_ms=300.0,
+            keystroke_iki_mean=110.0, keystroke_iki_std=20.0,
+        )
+
+    assert first.detected is True
+    assert first.direction == "falling_load"
+    assert first.iki_delta_pct <= -15.0  # recovery direction
+    assert first.edit_delta_pct <= 5.0    # edits flat-or-falling
+    # Confidence in valid band when detected.
+    assert 0.5 <= first.confidence <= 1.0
