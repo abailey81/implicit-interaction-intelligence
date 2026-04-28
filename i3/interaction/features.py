@@ -75,18 +75,34 @@ class BaselineTracker:
     def deviation(self, feature_name: str, value: float) -> float:
         """Return the z-score deviation of *value* from the baseline.
 
-        Returns 0.0 if the baseline is not yet established or the
-        standard deviation is near zero.
+        Uses **Bessel-corrected sample variance** (``m2 / (n - 1)``)
+        rather than the population estimator (``m2 / n``), so the z-
+        score is unbiased at small sample sizes.  At early-session
+        counts (5–10 messages) the difference is meaningful: the
+        population estimator under-estimates noise and inflates z-
+        scores.
+
+        Returns:
+            0.0 when the baseline is not yet established, when the
+            sample size is below 2 (no defined sample variance), or
+            when the standard deviation is near zero (degenerate).
+            Otherwise the z-score, clamped to ±3σ and normalised to
+            ``[-1, 1]``.
         """
         if not self.is_established:
             return 0.0
+        if self.count < 2:
+            # No defined sample variance with a single observation.
+            return 0.0
         mean = self._mean.get(feature_name, 0.0)
-        variance = self._m2.get(feature_name, 0.0) / max(1, self.count)
+        # Bessel correction: divide by (n - 1) for the unbiased
+        # sample variance estimator.
+        variance = self._m2.get(feature_name, 0.0) / (self.count - 1)
         std = math.sqrt(variance) if variance > 0 else 0.0
         if std < 1e-9:
             return 0.0
         z = (value - mean) / std
-        # Clamp to [-3, 3] then normalise to [-1, 1]
+        # Clamp to [-3, 3] then normalise to [-1, 1].
         return max(-1.0, min(1.0, z / 3.0))
 
     def get_mean(self, feature_name: str) -> float:
@@ -94,8 +110,14 @@ class BaselineTracker:
         return self._mean.get(feature_name, 0.0)
 
     def get_std(self, feature_name: str) -> float:
-        """Return the running standard deviation for *feature_name*."""
-        variance = self._m2.get(feature_name, 0.0) / max(1, self.count)
+        """Return the running sample (Bessel-corrected) std for *feature_name*.
+
+        Returns ``0.0`` when fewer than 2 observations have been seen
+        (sample variance is undefined for n=1).
+        """
+        if self.count < 2:
+            return 0.0
+        variance = self._m2.get(feature_name, 0.0) / (self.count - 1)
         return math.sqrt(variance) if variance > 0 else 0.0
 
     def reset(self) -> None:
