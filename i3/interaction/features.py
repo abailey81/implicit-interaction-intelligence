@@ -337,27 +337,38 @@ class FeatureExtractor:
         msg_count = n + 1
         eng_vel = _clamp01((msg_count / (elapsed / 60.0)) / _MAX_ENG_VEL)
 
-        # -- Topic coherence (Jaccard similarity with previous message) ---
+        # -- Topic coherence (cosine similarity with previous message) ----
+        #
+        # Iter 4 precision improvement:
+        #
+        # Before: rounding-Jaccard at 0.1 resolution — a 0.05 shift
+        # across all three (type_token_ratio, formality, flesch_kincaid)
+        # could cross every rounding boundary and collapse coherence
+        # from 1.0 to 0.0.  Discontinuous, brittle, and visibly wrong
+        # to a reader inspecting trajectories.
+        #
+        # After: cosine similarity over the same three-feature
+        # signature, with each feature centred at 0.5 first so the
+        # measure is *direction* of deviation rather than raw magnitude.
+        # This produces a smooth [0, 1] coherence score that:
+        #   * is 1.0 when the signature vectors point the same way,
+        #   * decays gradually as the signatures diverge,
+        #   * is 0.0 only when the signatures are orthogonal /
+        #     anti-correlated.
         topic_coherence = 0.0
         if n >= 1:
-            # We don't store raw text in the feature vector, so we use a
-            # proxy: overlap of the current message length/vocab features
-            # with the previous one.  A simple heuristic.
             prev = history[-1]
-            # Use formality + vocab + flesch_kincaid as a rough "topic" proxy
-            prev_sig = {
-                round(prev.type_token_ratio, 1),
-                round(prev.formality, 1),
-                round(prev.flesch_kincaid, 1),
-            }
-            cur_sig = {
-                round(current_msg["type_token_ratio"], 1),
-                round(current_msg["formality"], 1),
-                round(current_msg["flesch_kincaid"], 1),
-            }
-            union = prev_sig | cur_sig
-            if union:
-                topic_coherence = len(prev_sig & cur_sig) / len(union)
+            prev_sig = (
+                prev.type_token_ratio - 0.5,
+                prev.formality - 0.5,
+                prev.flesch_kincaid - 0.5,
+            )
+            cur_sig = (
+                current_msg["type_token_ratio"] - 0.5,
+                current_msg["formality"] - 0.5,
+                current_msg["flesch_kincaid"] - 0.5,
+            )
+            topic_coherence = _cosine_similarity_unit(prev_sig, cur_sig)
 
         # -- Session progress [0, 1] --------------------------------------
         session_progress = _clamp01(elapsed / max(1.0, expected_length))
@@ -465,3 +476,35 @@ def _std(values: list[float]) -> float:
         return 0.0
     mean = sum(values) / len(values)
     return math.sqrt(sum((v - mean) ** 2 for v in values) / len(values))
+
+
+def _cosine_similarity_unit(
+    a: tuple[float, ...], b: tuple[float, ...]
+) -> float:
+    """Cosine similarity, mapped from [-1, 1] to [0, 1].
+
+    Used by the topic-coherence feature so the resulting score is a
+    valid similarity in ``[0, 1]`` (matching the 0.0=different / 1.0=
+    identical convention of the rest of the feature vector).
+
+    * Returns ``1.0`` when both vectors are zero (e.g. all features
+      centred — interpreted as "no signal of difference between turns").
+    * Returns ``0.5`` when one vector is zero and the other is not
+      (orthogonal in the standard cosine sense).
+    """
+    n = min(len(a), len(b))
+    if n == 0:
+        return 1.0
+    dot = sum(a[i] * b[i] for i in range(n))
+    norm_a = math.sqrt(sum(x * x for x in a[:n]))
+    norm_b = math.sqrt(sum(x * x for x in b[:n]))
+    # Both vectors zero ⇒ identical "no-signal" turns.
+    if norm_a < 1e-9 and norm_b < 1e-9:
+        return 1.0
+    # One zero, one non-zero ⇒ no signal to compare; midpoint.
+    if norm_a < 1e-9 or norm_b < 1e-9:
+        return 0.5
+    cosine = dot / (norm_a * norm_b)
+    cosine = max(-1.0, min(1.0, cosine))
+    # Map [-1, 1] -> [0, 1].
+    return 0.5 * (cosine + 1.0)
