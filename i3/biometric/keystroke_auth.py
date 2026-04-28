@@ -693,8 +693,17 @@ class KeystrokeAuthenticator:
         z_iki_s = abs(iki_s - tmpl.template_iki_std) / max(
             tmpl.template_iki_std, 1.0
         )
+        # Iter 49: widened the composition-cadence variance floor from
+        # 30% of the template mean to 50% of the mean OR 2000 ms, whichever
+        # is larger.  The 30% floor was tighter than real composition
+        # variance — a legitimate owner typing a 12-second message after
+        # registering on 3-second messages got ``z_comp = 5σ`` and the
+        # biometric flagged a false-positive mismatch on his own typing.
+        # Composition time scales with message length, so the variance
+        # for a single user across messages is realistically ±50% of mean
+        # plus an absolute baseline.
         z_comp = abs(comp - tmpl.template_comp_mean) / max(
-            tmpl.template_comp_mean * 0.3, 1.0
+            tmpl.template_comp_mean * 0.5, 2000.0
         )
         z_edit = abs(edits - tmpl.template_edit_mean) / max(
             tmpl.template_edit_mean + 1.0, 1.0
