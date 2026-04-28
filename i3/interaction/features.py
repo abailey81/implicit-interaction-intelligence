@@ -445,10 +445,25 @@ def _clamp_neg1_1(v: float) -> float:
 
 
 def _normalised_slope(values: list[float]) -> float:
-    """Simple linear regression slope, normalised by the mean.
+    """Linear-regression slope, normalised to [-1, 1] for [0, 1] inputs.
 
-    Returns a value roughly in [-1, 1] representing the direction and
-    magnitude of the trend.  Returns 0.0 for fewer than 2 data points.
+    Iter 8 numerical-stability rewrite.
+
+    Old behaviour: ``slope / abs(y_mean)``.  This blew up at small
+    y_mean: a slope of 0.01 with y_mean=0.001 produced 10, which the
+    downstream caller clamped to 1.0 — a saturated trend signal that
+    bore no relation to the actual change in the underlying values.
+    Multiple low-magnitude features all pinning at ±1 hid the real
+    signal from downstream consumers.
+
+    New behaviour: ``slope * (n - 1)`` — the *total change* across
+    the window.  For [0, 1]-bounded inputs this is naturally bounded
+    in [-1, 1]: a feature moving 0 → 1 across the window returns
+    +1.0; 1 → 0 returns -1.0; flat returns 0.0.  No mean-dependent
+    instability, no division-by-near-zero.
+
+    Returns 0.0 for fewer than 2 data points or for a fully constant
+    sequence.  Always finite.
     """
     n = len(values)
     if n < 2:
@@ -464,10 +479,12 @@ def _normalised_slope(values: list[float]) -> float:
     if denominator < 1e-12:
         return 0.0
     slope = numerator / denominator
-    # Normalise by mean to get relative slope
-    if abs(y_mean) > 1e-9:
-        return slope / abs(y_mean)
-    return slope
+    # Total change across the window = slope * (n - 1).  Naturally
+    # bounded in [-1, 1] for [0, 1]-bounded inputs.
+    total_change = slope * (n - 1)
+    if not math.isfinite(total_change):
+        return 0.0
+    return total_change
 
 
 def _std(values: list[float]) -> float:
