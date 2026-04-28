@@ -232,6 +232,40 @@ def test_unknown_feature_returns_zero() -> None:
 # ---------------------------------------------------------------------------
 
 
+def test_nan_feature_does_not_corrupt_baseline() -> None:
+    """Iter 33: a single NaN feature value must not poison the
+    running mean / variance for subsequent updates.  The whole turn
+    is silently dropped instead."""
+    bt = BaselineTracker(warmup=2)
+
+    bt.update(_fv(mean_iki=0.3))
+    # NaN turn — silently dropped wholesale.
+    bt.update(_fv(mean_iki=float("nan"), formality=0.5))
+    bt.update(_fv(mean_iki=0.4))
+    bt.update(_fv(mean_iki=0.5))
+
+    # Only 3 finite turns contributed: mean = 0.4
+    assert bt.count == 3
+    assert bt.get_mean("mean_iki") == pytest.approx(0.4, abs=1e-9)
+    assert math.isfinite(bt.get_std("mean_iki"))
+    # Formality also reflects only the 3 finite turns.
+    assert math.isfinite(bt.get_mean("formality"))
+
+
+def test_inf_feature_does_not_corrupt_baseline() -> None:
+    """+inf and -inf are also dropped at the turn level."""
+    bt = BaselineTracker(warmup=2)
+    bt.update(_fv(mean_iki=0.3))
+    bt.update(_fv(mean_iki=float("inf")))
+    bt.update(_fv(mean_iki=float("-inf")))
+    bt.update(_fv(mean_iki=0.5))
+
+    # Only 0.3 and 0.5 contributed: mean = 0.4
+    assert bt.count == 2
+    assert bt.get_mean("mean_iki") == pytest.approx(0.4, abs=1e-9)
+    assert math.isfinite(bt.get_std("mean_iki"))
+
+
 def test_long_stream_remains_numerically_stable() -> None:
     """5 000 samples at high magnitude — no precision drift."""
     bt = BaselineTracker(warmup=2)

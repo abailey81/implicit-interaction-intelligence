@@ -57,11 +57,28 @@ class BaselineTracker:
     def update(self, fv: InteractionFeatureVector) -> None:
         """Incorporate a new feature vector into the running statistics.
 
+        Iter 33 — turns with any non-finite feature value are silently
+        dropped wholesale.  Before the fix, a single NaN value
+        propagated into ``self._mean[name]`` and stayed NaN forever,
+        invalidating every subsequent ``deviation`` / ``get_std`` call
+        for that feature.  Welford's recurrence requires every
+        per-feature count to match ``self.count`` exactly, so we
+        cannot selectively skip individual features without breaking
+        the variance estimator — dropping the whole turn is the
+        cleanest fix.
+
         Args:
             fv: The latest feature vector for this user.
         """
-        self.count += 1
         from i3.interaction.types import FEATURE_NAMES  # avoid circular at module level
+
+        # Iter 33: drop the entire turn if any feature is non-finite.
+        # Selectively skipping one feature would diverge per-feature
+        # counts from self.count and break Welford's recurrence.
+        for name in FEATURE_NAMES:
+            if not math.isfinite(getattr(fv, name)):
+                return
+        self.count += 1
 
         for name in FEATURE_NAMES:
             x = getattr(fv, name)
