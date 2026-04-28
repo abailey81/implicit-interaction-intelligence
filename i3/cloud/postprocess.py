@@ -210,8 +210,17 @@ _CONTRACTION_CONTRACTIONS: tuple[tuple[str, str], ...] = (
 
 # Verbosity-low qualifier strip list — soft hedges and filler that get
 # trimmed when verbosity is low so the response sounds tight and direct.
+#
+# Iter 51 — leading ``(?:,\s+)?`` absorbs the preceding comma + space
+# when the hedge is parenthetical ("..., perhaps, ...").  Without it
+# the strip left dangling commas like "Uzbekistan is, a landlocked
+# country" even though the underlying clause was clean.  We require
+# the comma + at least one space (not just optional whitespace) so
+# the leading absorption doesn't gobble inter-word spaces in
+# non-parenthetical positions ("It actually borders" → " borders",
+# not "Itborders").
 _HEDGE_RE = re.compile(
-    r"\b(?:I think|I believe|in my opinion|sort of|kind of|maybe|"
+    r"(?:,\s+)?\b(?:I think|I believe|in my opinion|sort of|kind of|maybe|"
     r"perhaps|it seems(?: like)?|as far as I can tell|to be honest|"
     r"I'd say|I would say|just|really|actually|basically|literally)\b,?\s*",
     re.IGNORECASE,
@@ -386,7 +395,13 @@ class ResponsePostProcessor:
         # 3. Verbosity -> hedge stripping or follow-up appending
         verbosity = adaptation_vector.style_mirror.verbosity
         if verbosity < 0.35:
-            stripped = _HEDGE_RE.sub("", text)
+            # Iter 51: when the hedge is parenthetical ("..., perhaps,
+            # ..."), the regex absorbs the leading comma + space; we
+            # must put a single space back so the surrounding clause
+            # rejoins cleanly ("X, perhaps, Y" -> "X Y", not "XY").
+            def _hedge_replacer(m: re.Match[str]) -> str:
+                return " " if m.group(0).startswith(",") else ""
+            stripped = _HEDGE_RE.sub(_hedge_replacer, text)
             stripped = _TRAILING_FOLLOWUP_RE.sub("", stripped).strip()
             stripped = re.sub(r"\s{2,}", " ", stripped)
             if stripped and stripped != text:
