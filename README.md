@@ -252,21 +252,34 @@ from. None of these are imported from a library.
 
 ### Demo-day quick start (one command, presentation-ready)
 
-**Windows PowerShell** — recommended on the demo laptop:
+> **Important.** Use the project's virtualenv at `.venv/`, **not** your
+> system Python. The dependencies (uvicorn, torch, transformers, …)
+> are installed inside `.venv/`, not in the system Python. If you see
+> `No module named uvicorn`, you accidentally used the system Python.
+
+**Windows PowerShell** — copy and paste this, no activation step needed:
 
 ```powershell
-$env:I3_PRELOAD_QWEN="1"; Start-Sleep -Seconds 0; python -m uvicorn server.app:app --host 127.0.0.1 --port 8000
+$env:I3_PRELOAD_QWEN="1"; .\.venv\Scripts\python.exe -m uvicorn server.app:app --host 127.0.0.1 --port 8000
 ```
 
-Open <http://127.0.0.1:8000> in Chrome / Edge once the terminal prints `Application startup complete`.
+Or if you prefer to activate the venv first:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+$env:I3_PRELOAD_QWEN="1"
+python -m uvicorn server.app:app --host 127.0.0.1 --port 8000
+```
+
+After activation your prompt shows `(.venv)` at the front — that's the cue that `python` now points to the venv Python.
 
 **Git Bash / Linux / macOS:**
 
 ```bash
-I3_PRELOAD_QWEN=1 python -m uvicorn server.app:app --host 127.0.0.1 --port 8000
+I3_PRELOAD_QWEN=1 ./.venv/Scripts/python.exe -m uvicorn server.app:app --host 127.0.0.1 --port 8000
 ```
 
-Then open <http://127.0.0.1:8000> in Chrome / Edge.
+Then open <http://127.0.0.1:8000> in Chrome / Edge once the terminal prints `Application startup complete` (takes ~10–15 s because Qwen preloads).
 
 **Pre-demo reset** (run in a second terminal once the server is up — clears the Identity Lock so the demo starts cold):
 
