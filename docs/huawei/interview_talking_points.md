@@ -301,14 +301,18 @@ alternative.
 > inspectable. Fine-tuning per user on-device has none of those
 > properties."
 
-### 5.3 "Why a word-level tokenizer in 2026?"
+### 5.3 "Why a custom byte-level BPE rather than a SentencePiece / HuggingFace tokenizer?"
 
-> "At 6.3 M parameters trained on DailyDialog and EmpatheticDialogues,
-> BPE's compression advantage doesn't buy much, and its opacity hurts
-> debugging. With word-level I can print the OOV tokens and reason
-> about coverage directly. If we scaled the model or the corpus 10×
-> I'd switch. At this scale, BPE's complexity cost is higher than its
-> perplexity gain."
+> "Two reasons. (1) The JD literally asks for SLM development without
+> heavy frameworks; pulling in `tokenizers` undoes that. The BPE in
+> `i3/slm/bpe_tokenizer.py` is ~460 LOC of pure Python — Sennrich-style
+> merges with byte-level fallback so any UTF-8 byte is representable.
+> 32 k vocab trained on the 977 k-pair corpus. (2) Owning the tokeniser
+> means I own its serialisation format, special tokens, and the failure
+> modes — debugging an OOM during training is a question I can answer
+> in code rather than a stack trace through someone else's library.
+> Earlier (v1) the model used a word-level tokenizer with frequency
+> pruning; the BPE swap landed in v2 and is what's deployed today."
 
 ### 5.4 "Isn't implicit signal capture kind of creepy?"
 

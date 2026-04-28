@@ -11,7 +11,7 @@
 | Component | Where | Lines | Algorithm |
 |---|---|---:|---|
 | **AdaptiveTransformerV2 SLM** | [`i3/slm/adaptive_transformer_v2.py`](../../i3/slm/adaptive_transformer_v2.py) | ~ 900 | Pre-LN decoder, MoE FFN (Shazeer 2017), ACT halting (Graves 2016), per-layer cross-attention conditioning. No `transformers` import. |
-| **Byte-level BPE tokeniser** | [`i3/slm/bpe_tokenizer.py`](../../i3/slm/bpe_tokenizer.py) | ~ 460 | Sennrich 2015 BPE with byte-level fallback. No `tokenizers` library. 32 k vocab trained on 974 k pairs. |
+| **Byte-level BPE tokeniser** | [`i3/slm/bpe_tokenizer.py`](../../i3/slm/bpe_tokenizer.py) | ~ 460 | Sennrich 2015 BPE with byte-level fallback. No `tokenizers` library. 32 k vocab trained on 977 k pairs. |
 | **TCN user-state encoder** | [`i3/encoder/blocks.py`](../../i3/encoder/blocks.py) + [`loss.py`](../../i3/encoder/loss.py) | ~ 320 | 4-layer dilated causal TCN, NT-Xent contrastive loss on augmented session pairs. |
 | **LinUCB contextual bandit** | [`i3/router/bandit.py`](../../i3/router/bandit.py) | ~ 280 | Bayesian logistic regression per arm, Laplace-approximated posterior, Newton-Raphson MAP refit. |
 | **Char-CNN safety classifier** | [`i3/safety/classifier.py`](../../i3/safety/classifier.py) | ~ 180 | Constitutional-AI-shaped char-level CNN; Bai et al. 2022. |
