@@ -250,6 +250,38 @@ from. None of these are imported from a library.
 
 ## Run it locally
 
+### Demo-day quick start (one command, presentation-ready)
+
+**Windows PowerShell** — recommended on the demo laptop:
+
+```powershell
+$env:I3_PRELOAD_QWEN="1"; Start-Sleep -Seconds 0; python -m uvicorn server.app:app --host 127.0.0.1 --port 8000
+```
+
+Open <http://127.0.0.1:8000> in Chrome / Edge once the terminal prints `Application startup complete`.
+
+**Git Bash / Linux / macOS:**
+
+```bash
+I3_PRELOAD_QWEN=1 python -m uvicorn server.app:app --host 127.0.0.1 --port 8000
+```
+
+Then open <http://127.0.0.1:8000> in Chrome / Edge.
+
+**Pre-demo reset** (run in a second terminal once the server is up — clears the Identity Lock so the demo starts cold):
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/biometric/demo/reset
+```
+
+**Confirmation that the system is ready** before you click anything in the UI:
+
+- Terminal shows `Uvicorn running on http://127.0.0.1:8000` *and* `Application startup complete`.
+- Visiting <http://127.0.0.1:8000> shows the chat tab with the suggestion chips ("How do you adapt to me?", "Set timer for 30 seconds", …) under the hero.
+- Browser dev-tools Network panel is empty (the SPA is fully cached after first load).
+
+If anything misbehaves, the safe reset is **Ctrl+C** in the server terminal and re-run the command above.
+
 ### Prerequisites
 
 - Python **3.12** (3.10 / 3.11 also tested)
