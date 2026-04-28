@@ -7,12 +7,15 @@ Covers:
 * Moderate-tier triggers (high single-signal — added in iter 1).
 * Direction inference vs keystroke firing self-consistency.
 * Embedding-magnitude trigger.
+* Embedding-shape robustness (iter 6 — mismatched dims, multi-dim, device).
 * Debounce.
 * Determinism.
 * Defensive coercion of bad embeddings.
 """
 
 from __future__ import annotations
+
+import math
 
 import torch
 
@@ -423,6 +426,134 @@ def test_nan_embedding_is_zeroed() -> None:
     # nan_to_num replaces NaN with 0.0 in the embedding; magnitude stays
     # finite and the call doesn't raise.
     assert result.magnitude == 0.0
+
+
+# ---------------------------------------------------------------------------
+# Iter 6 — embedding-shape robustness
+# ---------------------------------------------------------------------------
+
+
+def test_undersized_embedding_is_padded_to_64() -> None:
+    """A 32-dim embedding gets zero-padded to 64-dim and the run continues."""
+    detector = AffectShiftDetector()
+    user, session = "u_short", "s_short"
+
+    # Mix 32-dim and 64-dim observations; the embedding magnitude
+    # math should still produce a finite scalar (no RuntimeError on
+    # torch.stack across mixed shapes — iter 6 fix canonicalises to
+    # 64-dim before stacking).
+    short = torch.ones(32) * 0.5
+    full = torch.ones(64) * 0.7
+
+    for emb in [short, full, short, full, full]:
+        result = detector.observe(
+            user_id=user, session_id=session, embedding=emb,
+            composition_time_ms=2000.0, edit_count=0, pause_before_send_ms=300.0,
+            keystroke_iki_mean=120.0, keystroke_iki_std=20.0,
+        )
+    # Final observation produced a finite, non-zero magnitude scalar
+    # (the embeddings *do* differ in upper 32 dims).
+    assert math.isfinite(result.magnitude)
+
+
+def test_oversized_embedding_is_truncated_to_64() -> None:
+    """A 128-dim embedding gets truncated to 64 and the run continues."""
+    detector = AffectShiftDetector()
+    user, session = "u_long", "s_long"
+
+    big = torch.ones(128) * 0.5
+
+    for _ in range(5):
+        result = detector.observe(
+            user_id=user, session_id=session, embedding=big,
+            composition_time_ms=2000.0, edit_count=0, pause_before_send_ms=300.0,
+            keystroke_iki_mean=120.0, keystroke_iki_std=20.0,
+        )
+    assert math.isfinite(result.magnitude)
+
+
+def test_multidim_embedding_is_flattened_then_canonicalised() -> None:
+    """A (4, 16) embedding flattens to 64-dim cleanly."""
+    detector = AffectShiftDetector()
+    user, session = "u_2d", "s_2d"
+
+    multi = torch.ones((4, 16)) * 0.3
+
+    for _ in range(5):
+        result = detector.observe(
+            user_id=user, session_id=session, embedding=multi,
+            composition_time_ms=2000.0, edit_count=0, pause_before_send_ms=300.0,
+            keystroke_iki_mean=120.0, keystroke_iki_std=20.0,
+        )
+    assert math.isfinite(result.magnitude)
+
+
+def test_mixed_shape_embeddings_dont_silently_drop_detection() -> None:
+    """Before iter 6, mixed-shape sequences hit the torch.stack
+    RuntimeError fallback inside _embedding_magnitude and silently
+    returned magnitude=0.0 — a real shift could be missed during a
+    transition between embedding sizes.  After iter 6, every input
+    canonicalises to 64-dim before stacking, so a real shift produces
+    a real, non-zero magnitude even when shapes change mid-stream.
+    """
+    detector = AffectShiftDetector()
+    user, session = "u_mix", "s_mix"
+
+    # Baseline: small embeddings near zero in mixed shapes.  Recent:
+    # large embeddings (different magnitude) in mixed shapes.  After
+    # canonicalisation, the magnitude should be > 0 (the values
+    # genuinely differ).
+    baseline_shapes = [
+        torch.zeros(64) + 0.05,
+        torch.zeros(32) + 0.05,    # short — pads to 64 with zeros
+        torch.zeros((4, 16)) + 0.05,  # multi-dim — flattens to 64
+    ]
+    recent_shapes = [
+        torch.ones(64) * 1.5,
+        torch.ones(128) * 1.5,    # long — truncates to 64
+    ]
+    last = None
+    for emb in baseline_shapes + recent_shapes:
+        last = detector.observe(
+            user_id=user, session_id=session, embedding=emb,
+            composition_time_ms=2000.0, edit_count=0, pause_before_send_ms=300.0,
+            keystroke_iki_mean=120.0, keystroke_iki_std=20.0,
+        )
+    assert last is not None
+    assert math.isfinite(last.magnitude)
+    # iter 6: mixed shapes now produce real magnitude, not silently
+    # zero.  Recent values are 1.5 vs baseline ≈ 0.05 — magnitude
+    # should be substantial.
+    assert last.magnitude > 0.5, (
+        f"mixed-shape embeddings should produce real magnitude; got {last.magnitude}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Iter 6 — also: cuda/cpu device-portability
+# ---------------------------------------------------------------------------
+
+
+def test_embedding_on_unexpected_device_handled() -> None:
+    """Even if a CUDA-resident tensor were passed, _safe_embedding's
+    .to() call should normalise it to the detector's device.
+
+    This test only executes on a CUDA-enabled machine; otherwise it
+    asserts the CPU path still works.
+    """
+    detector = AffectShiftDetector()
+    if torch.cuda.is_available():
+        emb = torch.zeros(64, device="cuda")
+    else:
+        emb = torch.zeros(64)
+
+    result = detector.observe(
+        user_id="u_dev", session_id="s_dev",
+        embedding=emb,
+        composition_time_ms=2000.0, edit_count=0, pause_before_send_ms=300.0,
+        keystroke_iki_mean=120.0, keystroke_iki_std=20.0,
+    )
+    assert math.isfinite(result.magnitude)
 
 
 # ---------------------------------------------------------------------------

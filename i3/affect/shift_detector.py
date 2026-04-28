@@ -439,27 +439,53 @@ class AffectShiftDetector:
         self._turns_since_suggestion[key] = self._DEBOUNCE_TURNS + 1
         return buf
 
+    # The canonical embedding dimension produced by the TCN encoder.
+    # Iter 6: every input embedding is canonicalised to this shape
+    # before being stored in the ring buffer so torch.stack inside
+    # _embedding_magnitude never raises on shape mismatch.
+    _CANONICAL_DIM: int = 64
+
     @staticmethod
     def _safe_embedding(embedding: torch.Tensor | None) -> torch.Tensor:
-        """Coerce arbitrary embedding inputs to a flat float32 1-D tensor.
+        """Coerce arbitrary embedding inputs to a 64-dim float32 1-D tensor.
 
-        Falls back to a 64-dim zero tensor on bad input rather than
-        raising — the detector is decorative; it must never break the
-        pipeline.
+        Iter 6: every input is canonicalised to the canonical embedding
+        dimension (64).  Undersized inputs zero-pad on the right;
+        oversized inputs truncate on the right; multi-dim inputs flatten
+        first.  This guarantees that the per-session ring buffer holds
+        a stack-compatible set of tensors no matter how the embedding
+        source's output shape evolves over time (e.g. an encoder that
+        warms up at a partial dim, a downstream consumer that resizes
+        the latent, etc.) — the detector is decorative and must never
+        silently drop detection due to a shape mismatch.
+
+        Falls back to a zero 64-dim tensor on bad input rather than
+        raising — the detector must never break the pipeline.
         """
+        target_dim = AffectShiftDetector._CANONICAL_DIM
         if embedding is None:
-            return torch.zeros(64, dtype=torch.float32)
+            return torch.zeros(target_dim, dtype=torch.float32)
         try:
-            t = embedding.detach().to(dtype=torch.float32, copy=False)
+            t = embedding.detach().to(
+                device="cpu", dtype=torch.float32, copy=False
+            )
         except Exception:
-            return torch.zeros(64, dtype=torch.float32)
+            return torch.zeros(target_dim, dtype=torch.float32)
         if t.ndim > 1:
             t = t.flatten()
         if t.numel() == 0:
-            return torch.zeros(64, dtype=torch.float32)
+            return torch.zeros(target_dim, dtype=torch.float32)
         # Replace NaN / inf with zeros so the L2 distance stays finite.
         t = torch.nan_to_num(t, nan=0.0, posinf=0.0, neginf=0.0)
-        return t
+        # Canonicalise to target_dim: zero-pad short, truncate long.
+        n = t.numel()
+        if n == target_dim:
+            return t
+        if n < target_dim:
+            pad = torch.zeros(target_dim - n, dtype=torch.float32)
+            return torch.cat([t, pad])
+        # n > target_dim: truncate.
+        return t[:target_dim].contiguous()
 
     @staticmethod
     def _embedding_magnitude(
