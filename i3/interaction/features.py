@@ -435,12 +435,23 @@ class FeatureExtractor:
 # ====================================================================
 
 def _clamp01(v: float) -> float:
-    """Clamp *v* to [0, 1]."""
+    """Clamp *v* to [0, 1].
+
+    Iter 20: NaN / inf inputs map to 0.0 rather than propagating
+    through the feature vector and corrupting downstream consumers.
+    """
+    if not math.isfinite(v):
+        return 0.0
     return max(0.0, min(1.0, v))
 
 
 def _clamp_neg1_1(v: float) -> float:
-    """Clamp *v* to [-1, 1]."""
+    """Clamp *v* to [-1, 1].
+
+    Iter 20: NaN / inf inputs map to 0.0 rather than propagating.
+    """
+    if not math.isfinite(v):
+        return 0.0
     return max(-1.0, min(1.0, v))
 
 

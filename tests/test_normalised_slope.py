@@ -149,3 +149,34 @@ def test_handles_floating_point_jitter() -> None:
     result = _normalised_slope(values)
     assert math.isfinite(result)
     assert abs(result) < 1e-13
+
+
+# ---------------------------------------------------------------------------
+# Iter 20 — NaN/inf safety on clamping helpers
+# ---------------------------------------------------------------------------
+
+
+def test_clamp_helpers_handle_nan_and_inf() -> None:
+    """The clamping helpers must coerce NaN / inf to 0.0 rather than
+    propagating through the feature vector."""
+    from i3.interaction.features import _clamp01, _clamp_neg1_1
+
+    nan = float("nan")
+    pinf = float("inf")
+    ninf = float("-inf")
+
+    assert _clamp01(nan) == 0.0
+    assert _clamp01(pinf) == 0.0
+    assert _clamp01(ninf) == 0.0
+    # Normal cases still work.
+    assert _clamp01(0.5) == 0.5
+    assert _clamp01(-0.3) == 0.0
+    assert _clamp01(1.7) == 1.0
+
+    assert _clamp_neg1_1(nan) == 0.0
+    assert _clamp_neg1_1(pinf) == 0.0
+    assert _clamp_neg1_1(ninf) == 0.0
+    assert _clamp_neg1_1(0.0) == 0.0
+    assert _clamp_neg1_1(-0.5) == -0.5
+    assert _clamp_neg1_1(2.0) == 1.0
+    assert _clamp_neg1_1(-2.0) == -1.0
