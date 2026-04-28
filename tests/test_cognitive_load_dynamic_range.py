@@ -102,6 +102,45 @@ def test_cognitive_load_full_dynamic_range_spread(ctrl) -> None:
     )
 
 
+def test_verbosity_calibrates_for_chat_sized_messages(ctrl) -> None:
+    """Iter 35: a typical 5-word chat message should produce low
+    verbosity (terse), a 50-word message should produce mid-to-high
+    verbosity, and a 100-word message should be near max.
+
+    Pre-iter-35 the calibration ``message_length / 0.7`` was tuned
+    for 350-word essays — chat-sized messages all read as
+    "very low verbosity" and the post-processor's hedge-stripping
+    path always fired.
+    """
+    # Run 3 turns at each length to converge the smoothing.
+    def _verbosity(msg_len: float) -> float:
+        v = None
+        for _ in range(3):
+            v = ctrl.compute(_fv(message_length=msg_len), _zero_dev())
+        return v.style_mirror.verbosity
+
+    v_tiny = _verbosity(0.01)    # ≈ 5 words
+    v_short = _verbosity(0.05)   # ≈ 25 words
+    v_mid = _verbosity(0.10)     # ≈ 50 words
+    v_long = _verbosity(0.40)    # ≈ 200 words
+
+    # Tiny messages still read as low verbosity (under the
+    # 0.35 hedge-strip threshold).
+    assert v_tiny < 0.35
+
+    # Short chat messages bridge the band.
+    assert 0.30 <= v_short <= 0.6
+
+    # Mid messages should cross the 0.6 follow-up threshold.
+    assert v_mid > 0.55
+
+    # Long messages should saturate near the top.
+    assert v_long > 0.80
+
+    # Monotonic in message length.
+    assert v_tiny <= v_short <= v_mid <= v_long
+
+
 def test_cognitive_load_responds_to_each_signal_individually(ctrl) -> None:
     """Each of the four signals (ttr, mean_word_length, flesch_kincaid,
     message_length) should produce a comparable individual contribution

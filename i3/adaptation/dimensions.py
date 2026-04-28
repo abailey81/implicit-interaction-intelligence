@@ -199,12 +199,27 @@ class StyleMirrorAdapter:
         question_ratio = _safe_float(features.question_ratio)
 
         # Derive the user's observed style from interaction features.
-        # ``message_length`` is already in [0, 1]; the /0.7 saturation
-        # constant means verbosity hits 1.0 when the user fills 70% of the
-        # max-length budget.  The constant is non-zero so division is safe.
+        #
+        # Iter 35 — VERBOSITY CALIBRATION FIX:
+        #
+        # Before: ``verbosity = message_length / 0.7``.  Since
+        # ``message_length`` is normalised against a 500-word ceiling
+        # (FeatureExtractor's ``_MAX_MSG_LEN_WORDS``), real chat
+        # messages of 5–50 words produce ``message_length`` of
+        # 0.01–0.10, which mapped to verbosity 0.014–0.143.
+        # Result: every chat-sized message read as "very low
+        # verbosity" → the post-processor's hedge-stripping path
+        # always fired regardless of how the user actually typed.
+        # The adapter never adapted.
+        #
+        # After: ``verbosity = message_length / 0.10``.  Calibrated for
+        # chat-sized messages — 5-word msgs land near 0.10 (terse
+        # → strip hedges), 25-word msgs near 0.5 (default), 50-word
+        # msgs near 1.0 (verbose → append follow-up).  The adapter
+        # actually adapts.
         observed = StyleVector(
             formality=_clamp(formality),
-            verbosity=_clamp(message_length / 0.7),
+            verbosity=_clamp(message_length / 0.10),
             emotionality=_clamp(
                 max(emoji_density * 5.0, abs(sentiment_valence))
             ),
