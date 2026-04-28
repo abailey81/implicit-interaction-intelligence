@@ -371,15 +371,17 @@ class EmotionalToneAdapter:
         # be clinical" signal that can lift the tone above 0.5 toward
         # 1.0.
         #
-        # We deliberately do NOT use ``features.formality`` here — the
-        # formality scorer is purely subtractive (1.0 minus the rate
-        # of contractions and slang) so plain chat without explicit
-        # informal markers reads at the maximum 1.0 even though the
-        # text isn't actually formal.  Wiring that into the tone
-        # formula would push the warmth-strip path to fire on every
-        # neutral chat message, which is exactly the kind of false
-        # positive iter 36/37 went out of its way to avoid.
-        neutrality_score = max(0.0, sentiment_valence)
+        # Iter 44 — re-enabled the formality contribution now that
+        # ``LinguisticAnalyzer.formality_score`` is properly calibrated
+        # (was purely subtractive; every plain chat read 1.0).  Both
+        # signals additively drive neutrality, mean-aggregated so a
+        # single signal can't dominate.
+        formality = _safe_float(features.formality)
+        neutrality_signals = [
+            max(0.0, sentiment_valence),         # positive sentiment
+            max(0.0, (formality - 0.6) * 2.5),   # formality > 0.6 -> [0,1]
+        ]
+        neutrality_score = float(np.mean(neutrality_signals))
 
         # SEC: defensively unpack the configured warmth range so that an
         # inverted (lo > hi) tuple is normalised by ``_clamp`` rather than

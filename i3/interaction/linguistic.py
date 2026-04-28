@@ -42,6 +42,33 @@ SLANG_MARKERS: set[str] = {
     "srsly", "rly", "tho", "tho'",
 }
 
+# --- Formal markers (iter 44) ------------------------------------------
+# Words that signal a formal / professional / written register.  The
+# pre-iter-44 formality scorer was purely subtractive — every plain
+# chat without explicit slang read as 1.0 (max formal), so e.g. "how
+# does this work?" ranked the same as a legal brief.  Symmetric formal
+# markers let the score actually move toward the upper end only when
+# real formal vocabulary is present.
+FORMAL_MARKERS: set[str] = {
+    # Latinate connectives + transitions
+    "therefore", "thus", "hence", "henceforth", "moreover", "furthermore",
+    "nevertheless", "nonetheless", "however", "accordingly", "consequently",
+    "subsequently", "additionally", "wherein", "whereby", "whereupon",
+    "herein", "hereby", "thereto", "therein", "thereof", "heretofore",
+    # Formal verbs / nouns
+    "pursuant", "regarding", "concerning", "respecting", "notwithstanding",
+    "inquire", "inquiry", "enquire", "request", "kindly", "sincerely",
+    "respectfully", "regards", "esteemed", "distinguished", "honourable",
+    "honorable", "deemed", "ascertain", "endeavour", "endeavor",
+    "commence", "comprise", "facilitate", "constitute", "demonstrate",
+    "indicate", "denote", "stipulate", "advise", "inform",
+    # Greeting / sign-off register
+    "greetings", "salutations", "dear", "madam", "sir", "yours",
+    "faithfully",
+    # Conjunctions / determiners with formal flavour
+    "whilst", "amongst", "albeit", "indeed", "thereafter", "hereafter",
+}
+
 # --- Abbreviations that end with a period (for sentence splitting) ------
 _ABBREVIATIONS: set[str] = {
     "mr.", "mrs.", "ms.", "dr.", "prof.", "sr.", "jr.", "st.", "ave.",
@@ -332,20 +359,48 @@ class LinguisticAnalyzer:
     def formality_score(self, text: str) -> float:
         """Language formality score in [0, 1].
 
-        ``1.0 - (contractions + slang_markers) / total_words``
+        Iter 44 — the prior implementation was purely subtractive
+        (``1.0 - informal_rate``), so any plain chat without explicit
+        slang read as 1.0 (max formal).  In practice that meant the
+        adapter pipeline saw every casual message as fully formal —
+        the EmotionalToneAdapter's ``formality > 0.5`` neutrality
+        drive (iter 43) had to be removed because it false-positived
+        on every plain message.
 
-        A score of 1.0 means fully formal; lower values indicate more
-        informal language.  Returns 1.0 for empty text.
+        The new score combines three signals around a 0.5 baseline:
+
+          * informal_rate  → push score down (contractions + slang)
+          * formal_rate    → push score up (formal-marker lexicon)
+          * long_word_rate → push score up gently (avg-word-length proxy)
+
+        Plain chat with no markers either way produces ≈ 0.5 (neutral).
+        Slang-heavy text drops to 0.1–0.3.  Formal-vocab text rises to
+        0.7–0.9.  The empty-text case returns 0.5 (the neutral default
+        — a missing message should not bias the StyleMirror).
         """
         words = self._tokenize(text)
         if not words:
-            return 1.0
+            return 0.5
+        n = float(len(words))
         lower_words = [w.lower() for w in words]
-        informal_count = 0
-        for w in lower_words:
-            if w in CONTRACTIONS or w in SLANG_MARKERS:
-                informal_count += 1
-        score = 1.0 - (informal_count / len(lower_words))
+        informal_count = sum(
+            1 for w in lower_words
+            if w in CONTRACTIONS or w in SLANG_MARKERS
+        )
+        formal_count = sum(1 for w in lower_words if w in FORMAL_MARKERS)
+        long_word_count = sum(1 for w in words if len(w) >= 7)
+
+        informal_rate = informal_count / n
+        formal_rate = formal_count / n
+        long_word_rate = long_word_count / n
+
+        # Marker swing: balanced ±0.5 for every-other-word marker rate.
+        marker_swing = 0.5 * (formal_rate - informal_rate)
+        # Long-word boost: 0 for chat-typical (~10 % long words),
+        # +0.20 when half the words are long (academic / legalese).
+        long_word_boost = max(0.0, long_word_rate - 0.10) * 0.5
+
+        score = 0.5 + marker_swing + long_word_boost
         return max(0.0, min(1.0, score))
 
     def emoji_count(self, text: str) -> int:
