@@ -5,6 +5,88 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026-04-28] Iter 52 — adaptation + detection precision sweep
+
+Sixteen-iteration precision pass over the implicit-signal pipeline
+(features → encoder → classifier → shift detector → biometric
+authenticator) on the `feat/adaptation-precision-iter1` branch.
+Every iteration was developed test-first; the regression sweep
+holds at **166 / 166 PASS** across 15 test suites after iter 16.
+
+Code changes (no new features — only correctness + numerical
+robustness):
+
+* **Iter 1** (`08cb388`) — `i3/affect/shift_detector.py`: tier the
+  keystroke trigger.  Strong tier requires both IKI and edits to
+  cross thresholds; new moderate tier fires on a single dominant
+  signal (IKI ≥ +35 % OR edits ≥ +120 %).  Closes a self-
+  consistency bug where `_infer_direction` used OR but
+  `_keystroke_fired` used AND, silently dropping single-signal
+  shifts.
+* **Iter 2** (`5d07598`) — `i3/interaction/features.py`:
+  Bessel-correct `BaselineTracker.deviation` and `get_std`.
+  Population estimator under-estimated noise at small sample
+  sizes, inflating z-scores in the early session.
+* **Iter 3** (`6a7be21`) — `i3/affect/state_classifier.py`:
+  recalibrate softmax temperature 0.2 → 0.35 and gap threshold
+  0.15 → 0.20 (tuned together).  Borderline cases now produce
+  a runner-up label so the badge UI can show "calm/focused"
+  combined.
+* **Iter 4** (`b2013f3`) — `i3/interaction/features.py`:
+  `topic_coherence` switched from rounding-Jaccard at 0.1
+  resolution to cosine similarity over the centred 3-feature
+  signature.  Continuous, smooth; no more discontinuous collapse
+  from 1.0 to 0.0 on a 0.05 perturbation.
+* **Iter 6** (`5b704d5`) — `i3/affect/shift_detector.py`:
+  canonicalise embeddings to a 64-dim shape inside `_safe_embedding`.
+  Mixed-shape sequences no longer silently drop detection through
+  `torch.stack`'s RuntimeError fallback.
+* **Iter 7** (`91b7c42`) — `i3/affect/shift_detector.py`:
+  fixed-baseline anchor (was rolling tail).  The first N
+  observations form the baseline for the lifetime of the session;
+  sustained shifts are still measured against the user's original
+  normal, not a tail that drifts toward the new normal.
+* **Iter 8** (`295c9ac`) — `i3/interaction/features.py`:
+  `_normalised_slope` rewrite.  Replaced `slope / abs(y_mean)`
+  (which blew up at small y_mean and saturated to ±1) with
+  `slope * (n - 1)` = total change across the window.  Naturally
+  bounded in [-1, 1] for [0, 1] inputs.
+* **Iter 9** (`c421700`) — `i3/affect/shift_detector.py`: add a
+  calibrated `confidence` field to `AffectShift`.  `0.0` when not
+  detected; `[0.5, 1.0]` when detected, where 0.5 = a tier just
+  crossed and 1.0 = strong multi-tier corroboration.
+* **Iter 11** (`625c1c7`) — `i3/biometric/keystroke_auth.py`:
+  canonicalise embeddings to 64-dim.  Same precision fix as
+  iter 6, applied to the Identity Lock's `_coerce_embedding`.
+* **Iter 14** (`01bc719`) — `i3/affect/shift_detector.py`:
+  minimum sigma_baseline floor for the embedding-magnitude
+  trigger.  When σ < 1e-2 the channel returns 0 and the keystroke
+  channel is sole detector — fixes a false-positive class on
+  stable-baseline users where σ floored to 1e-3 produced multi-
+  thousand-σ magnitudes on tiny perturbations.
+* **Iter 15** (`9ce1a00`) — `i3/interaction/features.py`:
+  Bessel-correct `_std` (mirrors iter 2).  `time_deviation` uses
+  this divisor.
+
+Test suite additions:
+
+* **Iter 5** (`4174403`) — `tests/test_user_emulation.py`:
+  single-user end-to-end emulation harness, 11 scenarios.
+* **Iter 10** (`4106530`) — `tests/test_user_emulation_cohort.py`:
+  five-archetype cohort emulation (speed_typist,
+  thoughtful_writer, hunt_and_peck, multitasker, anxious_typist).
+* **Iter 12** (`991e428`) —
+  `tests/test_keystroke_auth_robustness.py`: cross-user isolation
+  invariants for `KeystrokeAuthenticator`.
+* **Iter 13** (`72e5955`) — `tests/test_affect_property.py`:
+  Hypothesis property-based fuzzing of the affect pipeline.
+  ~360 generated cases — no counter-examples found.
+* **Iter 16** (`7273cf8`) — extended property tests for
+  BaselineTracker pathological + long-stream invariants and
+  shift_detector steady-state no-NaN.
+
+All commits on the `feat/adaptation-precision-iter1` branch.
+
 ## [2026-04-28] Iter 51 phases 19–20 — close-the-gaps push
 
 The final pre-deadline push.  Closes the four JD gaps a recruiter
