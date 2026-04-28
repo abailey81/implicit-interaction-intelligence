@@ -106,8 +106,21 @@ class CognitiveLoadAdapter:
             deviation: Deviation metrics from the user's personal baseline.
 
         Returns:
-            A float in [0, 1] where 0 = simplest possible response and
-            1 = richest/most complex response.
+            A float in [0, 1] indicating the user's measured cognitive
+            load.  Iter 38 + iter 53 unified the semantic across the
+            pipeline:
+
+              * 0.0  - 0.4  → user has spare bandwidth; reply may be
+                              detailed, multi-sentence.
+              * 0.4  - 0.6  → moderate; standard reply length.
+              * 0.6  - 1.0  → user is stressed / rushed / showing
+                              motor-rhythm signs of overload.  Reply
+                              should be tight (1–2 sentences).
+
+            Both the cloud prompt-builder and the post-processor's
+            length-tiering key off this scale; pre-iter-53 they had
+            opposite semantics (the prompt-builder treated high cl
+            as "give richer detail" — the now-removed convention).
         """
         # SEC: NaN-safe coercion at the input boundary; downstream arithmetic
         # then never sees ``NaN`` even if a feature extractor mis-fires.
