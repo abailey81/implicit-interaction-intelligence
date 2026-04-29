@@ -805,6 +805,42 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str) -> None:
                         user_id,
                     )
 
+                # Iter 58 — three-level fallback so the dashboard's
+                # "Typing rhythm" tile never silently zeroes:
+                #   1. server-side keystroke_buffer from streamed events
+                #   2. composition_metrics.keystroke_timings array
+                #   3. composition_metrics.mean_iki scalar (precomputed
+                #      JS-side; last-resort signal so the headline still
+                #      shows something realistic even if the timings
+                #      array got dropped at any point).
+                buffer_timings = [
+                    float(ks.get("inter_key_interval_ms", 0))
+                    for ks in keystroke_buffer
+                ]
+                # Filter out zeros — they're "no prior key" entries that
+                # _iki_stats throws away anyway.  We only fall back to
+                # comp_metrics when buffer has no useful entries.
+                buffer_timings_clean = [t for t in buffer_timings if t > 0]
+                comp_timings = [
+                    float(t)
+                    for t in (comp_metrics.get("keystroke_timings") or [])
+                    if isinstance(t, (int, float)) and t > 0
+                ]
+                if buffer_timings_clean:
+                    final_timings = buffer_timings
+                elif comp_timings:
+                    final_timings = comp_timings
+                else:
+                    # Last-resort scalar fallback: synthesize a single
+                    # timing from the precomputed mean.  ``_iki_stats``
+                    # then returns this exact value with std=0.
+                    mean_iki_scalar = comp_metrics.get("mean_iki", 0)
+                    try:
+                        mean_iki_val = float(mean_iki_scalar)
+                    except (TypeError, ValueError):
+                        mean_iki_val = 0.0
+                    final_timings = [mean_iki_val] if mean_iki_val > 0 else []
+
                 pipeline_input = PipelineInput(
                     user_id=user_id,
                     session_id=session_id,
@@ -813,25 +849,7 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str) -> None:
                     composition_time_ms=composition_ms,
                     edit_count=edit_count,
                     pause_before_send_ms=pause_ms,
-                    # Prefer the per-event server-side buffer (sampled
-                    # by the live JS client).  Fall back to a client-
-                    # supplied keystroke_timings array on the message
-                    # frame (used by Python probes that don't stream
-                    # individual keystroke events).
-                    keystroke_timings=(
-                        [
-                            float(ks.get("inter_key_interval_ms", 0))
-                            for ks in keystroke_buffer
-                        ]
-                        if keystroke_buffer
-                        else [
-                            float(t)
-                            for t in (
-                                comp_metrics.get("keystroke_timings") or []
-                            )
-                            if isinstance(t, (int, float))
-                        ]
-                    ),
+                    keystroke_timings=final_timings,
                     prosody_features=prosody_features_dict,
                     gaze_features=gaze_features_dict,
                 )
