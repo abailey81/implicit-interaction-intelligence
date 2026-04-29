@@ -111,19 +111,36 @@ class PromptBuilder:
         lines: list[str] = []
 
         # -- Cognitive load -> response complexity ----------------------
-        if av.cognitive_load < 0.3:
+        # Iter 53 — aligned with the post-processor's (and iter-38
+        # rhythm-driven adapter's) semantics: HIGH cognitive_load means
+        # the user is stressed / rushed / mentally taxed, NOT that they
+        # have spare capacity for richer answers.  The prompt-builder
+        # used to treat high cl as "richest/most complex response" per
+        # the now-stale CognitiveLoadAdapter docstring; this flipped
+        # the LLM into producing detailed prose for a stressed user
+        # while the post-processor then trimmed it to one sentence —
+        # wasted tokens and inverted semantics.  The thresholds below
+        # mirror ``ResponsePostProcessor._enforce_length`` tiers so
+        # the LLM produces the right shape from the start.
+        if av.cognitive_load >= 0.8:
             lines.append(
-                "- Use simple, short sentences. Avoid jargon. "
-                "Keep responses brief (1 sentence)."
+                "- The user appears stressed or overloaded. Reply in a "
+                "single concise sentence. No jargon, no follow-ups."
             )
-        elif av.cognitive_load < 0.6:
+        elif av.cognitive_load >= 0.6:
+            lines.append(
+                "- Keep the reply tight (<= 2 sentences). Skip preamble; "
+                "lead with the answer."
+            )
+        elif av.cognitive_load >= 0.4:
             lines.append(
                 "- Use moderate language complexity. Clear and accessible."
             )
         else:
             lines.append(
-                "- You may use sophisticated vocabulary and detailed "
-                "explanations."
+                "- The user has spare cognitive bandwidth. You may use "
+                "richer vocabulary and 4-6 sentence explanations when "
+                "the question warrants depth."
             )
 
         # -- Formality --------------------------------------------------
@@ -172,23 +189,46 @@ class PromptBuilder:
     def _add_formality_instructions(
         style: StyleVector, lines: list[str]
     ) -> None:
-        """Append formality instructions based on the style vector."""
-        if style.formality < 0.3:
+        """Append formality instructions based on the style vector.
+
+        Iter 55: thresholds aligned with the post-processor's
+        ``adapt_with_log`` thresholds (< 0.35 / > 0.65) so the
+        prompt asks for the same register the post-processor would
+        rewrite the reply into anyway.
+        """
+        if style.formality < 0.35:
             lines.append(
                 "- Be casual and conversational. Contractions are fine."
             )
-        elif style.formality > 0.7:
-            lines.append("- Maintain a professional, formal tone.")
+        elif style.formality > 0.65:
+            lines.append(
+                "- Maintain a professional, formal tone. "
+                "Avoid casual contractions."
+            )
 
     @staticmethod
     def _add_verbosity_instructions(
         style: StyleVector, lines: list[str]
     ) -> None:
-        """Append verbosity instructions based on the style vector."""
-        if style.verbosity < 0.3:
-            lines.append("- Be concise. One sentence if possible.")
+        """Append verbosity instructions based on the style vector.
+
+        Iter 55: thresholds aligned with the post-processor's
+        ``adapt_with_log`` thresholds (< 0.35 / > 0.7) so the LLM
+        is asked to produce a concise reply on the same turns the
+        post-processor would have stripped its hedges anyway —
+        avoiding the wasted-token loop where the LLM writes hedges,
+        the post-processor strips them.
+        """
+        if style.verbosity < 0.35:
+            lines.append(
+                "- Be concise. Skip hedges and follow-ups. "
+                "One short paragraph at most."
+            )
         elif style.verbosity > 0.7:
-            lines.append("- Provide detailed, thorough responses.")
+            lines.append(
+                "- Provide detailed, thorough responses. End with a "
+                "follow-up invitation."
+            )
 
     @staticmethod
     def _add_emotionality_instructions(

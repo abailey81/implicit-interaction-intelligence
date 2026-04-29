@@ -129,6 +129,12 @@ class AffectShift:
         edit_delta_pct: Edit count, recent vs baseline, signed %.
         suggestion: The proactive suggestion text to append to the
             assistant's response, or ``""`` if no shift / debounced.
+        confidence: Normalised confidence in ``[0.0, 1.0]``.  ``0.0``
+            when not detected; in ``[0.5, 1.0]`` when detected, where
+            0.5 means a tier just crossed and 1.0 means strong
+            multi-tier corroboration.  Iter 9 — surfaces calibrated
+            trust to the UI chip without requiring the consumer to
+            re-derive it from raw deltas.
     """
 
     detected: bool
@@ -137,6 +143,7 @@ class AffectShift:
     iki_delta_pct: float
     edit_delta_pct: float
     suggestion: str
+    confidence: float = 0.0
 
     def to_dict(self) -> dict:
         """Serialise to a JSON-safe dict for the WebSocket layer."""
@@ -147,6 +154,7 @@ class AffectShift:
             "iki_delta_pct": float(self.iki_delta_pct),
             "edit_delta_pct": float(self.edit_delta_pct),
             "suggestion": str(self.suggestion),
+            "confidence": float(self.confidence),
         }
 
 
@@ -205,8 +213,23 @@ class AffectShiftDetector:
     # Pure-keystroke fallback (fires even when embedding magnitude is
     # below threshold — the brief calls this "the one that fires
     # reliably during the demo").
-    _KS_RISING_IKI_PCT: float = 20.0    # 1.2× ratio
-    _KS_RISING_EDIT_PCT: float = 50.0   # 1.5× ratio
+    #
+    # Two tiers (iter 1 precision improvement):
+    #
+    # * STRONG: BOTH IKI ≥ +20% AND edits ≥ +50%.  Documented brief
+    #   trigger; symmetric with `_infer_direction`'s primary rule.
+    # * MODERATE: a SINGLE signal that is large on its own.  Catches
+    #   the case where one channel dominates (e.g. user types markedly
+    #   slower without making more edits, or pastes a chunk and then
+    #   edits heavily without pausing).  Before iter 1, those cases
+    #   were classified as `rising_load` by `_infer_direction` (which
+    #   uses OR) but failed `_keystroke_fired` (which used AND), so
+    #   the shift dropped silently unless the embedding magnitude
+    #   independently crossed.
+    _KS_RISING_IKI_PCT: float = 20.0           # strong: 1.2× ratio
+    _KS_RISING_EDIT_PCT: float = 50.0          # strong: 1.5× ratio
+    _KS_RISING_IKI_PCT_MODERATE: float = 35.0  # moderate single-signal: 1.35× ratio
+    _KS_RISING_EDIT_PCT_MODERATE: float = 120.0  # moderate single-signal: 2.2× ratio
 
     # Debounce: don't append a suggestion more than once every
     # ``_DEBOUNCE_TURNS`` turns of the same session.
@@ -218,6 +241,7 @@ class AffectShiftDetector:
         recent_size: int = 3,
         magnitude_threshold: float = 1.4,
         max_sessions: int = 1000,
+        baseline_size: int | None = None,
     ) -> None:
         if window_size < 2:
             raise ValueError("window_size must be >= 2")
@@ -225,11 +249,25 @@ class AffectShiftDetector:
             raise ValueError("recent_size must satisfy 1 <= recent_size < window_size")
         self.window_size = int(window_size)
         self.recent_size = int(recent_size)
+        # Iter 7: baseline_size = number of observations the *fixed*
+        # baseline anchor holds.  Defaults to (window_size - recent_size)
+        # to match the historical effective baseline length so the
+        # change is invisible to short-session callers.
+        self.baseline_size = int(
+            baseline_size if baseline_size is not None
+            else max(2, window_size - recent_size)
+        )
         self.magnitude_threshold = float(magnitude_threshold)
         self.max_sessions = int(max_sessions)
 
-        # Per-session ring buffers + counters.
+        # Per-session ring buffers (rolling; holds the recent window).
         self._buffers: OrderedDict[tuple[str, str], Deque[_Observation]] = OrderedDict()
+        # Iter 7: per-session FIXED baseline anchored to the first
+        # ``baseline_size`` observations of the session.  Persists
+        # across the rolling buffer's eviction so a sustained shift
+        # is still measured against the user's original normal —
+        # not a tail that drifts toward the new normal.
+        self._baselines: dict[tuple[str, str], list[_Observation]] = {}
         self._turn_index: dict[tuple[str, str], int] = {}
         # Number of turns since the last suggestion was emitted on
         # this session.  ``-1`` means "never emitted yet" — we always
@@ -293,16 +331,26 @@ class AffectShiftDetector:
             keystroke_iki_std=float(max(0.0, keystroke_iki_std)),
         )
         buf.append(obs)
+        # Iter 7: populate the fixed baseline with the FIRST
+        # ``baseline_size`` observations of this session.  Once full,
+        # it never changes for the lifetime of the session — sustained
+        # shifts are measured against the original anchor, not a
+        # rolling tail that drifts toward the new normal.
+        baseline_anchor = self._baselines.setdefault(key, [])
+        if len(baseline_anchor) < self.baseline_size:
+            baseline_anchor.append(obs)
         # Increment debounce counter every turn.
         self._turns_since_suggestion[key] = self._turns_since_suggestion.get(key, 99) + 1
         self._turn_index[key] = self._turn_index.get(key, -1) + 1
 
         # ---- Need at least baseline + recent observations ------------
-        # Warm-up: until the buffer holds at least ``recent_size + 2``
-        # entries we cannot meaningfully separate baseline from
-        # recent, so we report no shift.
-        min_required = self.recent_size + 2
-        if len(buf) < min_required:
+        # Warm-up: until BOTH the fixed baseline is populated AND the
+        # rolling recent buffer holds enough entries we cannot
+        # meaningfully separate baseline from recent.
+        if (
+            len(baseline_anchor) < self.baseline_size
+            or len(buf) < self.recent_size + 2
+        ):
             return AffectShift(
                 detected=False,
                 direction="neutral",
@@ -313,10 +361,10 @@ class AffectShiftDetector:
             )
 
         # ---- Split buffer into baseline + recent windows ------------
-        observations = list(buf)
-        # Baseline = everything BEFORE the recent window.
-        baseline_window = observations[: -self.recent_size]
-        recent_window = observations[-self.recent_size :]
+        # Baseline = the FIXED first-N observations of the session.
+        # Recent   = the last ``recent_size`` from the rolling buffer.
+        baseline_window = list(baseline_anchor)
+        recent_window = list(buf)[-self.recent_size :]
 
         # ---- Embedding shift magnitude ------------------------------
         magnitude = self._embedding_magnitude(baseline_window, recent_window)
@@ -350,7 +398,17 @@ class AffectShiftDetector:
                 iki_delta_pct=float(iki_delta_pct),
                 edit_delta_pct=float(edit_delta_pct),
                 suggestion="",
+                confidence=0.0,
             )
+
+        # ---- Iter 9: compute calibrated confidence for this shift -----
+        confidence = self._compute_confidence(
+            detected=True,
+            magnitude=magnitude,
+            iki_delta_pct=iki_delta_pct,
+            edit_delta_pct=edit_delta_pct,
+            direction=direction,
+        )
 
         # ---- Debounce: at most one suggestion per N turns -----------
         if self._turns_since_suggestion.get(key, 99) <= self._DEBOUNCE_TURNS:
@@ -362,6 +420,7 @@ class AffectShiftDetector:
                 iki_delta_pct=float(iki_delta_pct),
                 edit_delta_pct=float(edit_delta_pct),
                 suggestion="",
+                confidence=confidence,
             )
 
         # ---- Build deterministic suggestion --------------------------
@@ -382,15 +441,18 @@ class AffectShiftDetector:
             iki_delta_pct=float(iki_delta_pct),
             edit_delta_pct=float(edit_delta_pct),
             suggestion=suggestion,
+            confidence=confidence,
         )
 
     def end_session(self, user_id: str, session_id: str) -> None:
         """Drop all rolling state for a session.
 
         Idempotent — calling on an unknown session is a no-op.
+        Iter 7: also wipes the fixed baseline anchor.
         """
         key = (str(user_id), str(session_id))
         self._buffers.pop(key, None)
+        self._baselines.pop(key, None)
         self._turn_index.pop(key, None)
         self._turns_since_suggestion.pop(key, None)
 
@@ -409,6 +471,7 @@ class AffectShiftDetector:
         # Evict oldest if at capacity.
         while len(self._buffers) >= self.max_sessions:
             evicted_key, _ = self._buffers.popitem(last=False)
+            self._baselines.pop(evicted_key, None)
             self._turn_index.pop(evicted_key, None)
             self._turns_since_suggestion.pop(evicted_key, None)
             logger.debug(
@@ -424,34 +487,83 @@ class AffectShiftDetector:
         self._turns_since_suggestion[key] = self._DEBOUNCE_TURNS + 1
         return buf
 
+    # The canonical embedding dimension produced by the TCN encoder.
+    # Iter 6: every input embedding is canonicalised to this shape
+    # before being stored in the ring buffer so torch.stack inside
+    # _embedding_magnitude never raises on shape mismatch.
+    _CANONICAL_DIM: int = 64
+
     @staticmethod
     def _safe_embedding(embedding: torch.Tensor | None) -> torch.Tensor:
-        """Coerce arbitrary embedding inputs to a flat float32 1-D tensor.
+        """Coerce arbitrary embedding inputs to a 64-dim float32 1-D tensor.
 
-        Falls back to a 64-dim zero tensor on bad input rather than
-        raising — the detector is decorative; it must never break the
-        pipeline.
+        Iter 6: every input is canonicalised to the canonical embedding
+        dimension (64).  Undersized inputs zero-pad on the right;
+        oversized inputs truncate on the right; multi-dim inputs flatten
+        first.  This guarantees that the per-session ring buffer holds
+        a stack-compatible set of tensors no matter how the embedding
+        source's output shape evolves over time (e.g. an encoder that
+        warms up at a partial dim, a downstream consumer that resizes
+        the latent, etc.) — the detector is decorative and must never
+        silently drop detection due to a shape mismatch.
+
+        Falls back to a zero 64-dim tensor on bad input rather than
+        raising — the detector must never break the pipeline.
         """
+        target_dim = AffectShiftDetector._CANONICAL_DIM
         if embedding is None:
-            return torch.zeros(64, dtype=torch.float32)
+            return torch.zeros(target_dim, dtype=torch.float32)
         try:
-            t = embedding.detach().to(dtype=torch.float32, copy=False)
+            t = embedding.detach().to(
+                device="cpu", dtype=torch.float32, copy=False
+            )
         except Exception:
-            return torch.zeros(64, dtype=torch.float32)
-        if t.ndim > 1:
+            return torch.zeros(target_dim, dtype=torch.float32)
+        # Iter 25: treat any non-1D tensor (including scalar 0-dim
+        # tensors) by flattening to 1D first.  ``torch.cat`` rejects
+        # 0-dim tensors and ``ndim > 1`` missed scalars.
+        if t.ndim != 1:
             t = t.flatten()
         if t.numel() == 0:
-            return torch.zeros(64, dtype=torch.float32)
+            return torch.zeros(target_dim, dtype=torch.float32)
         # Replace NaN / inf with zeros so the L2 distance stays finite.
         t = torch.nan_to_num(t, nan=0.0, posinf=0.0, neginf=0.0)
-        return t
+        # Canonicalise to target_dim: zero-pad short, truncate long.
+        n = t.numel()
+        if n == target_dim:
+            return t
+        if n < target_dim:
+            pad = torch.zeros(target_dim - n, dtype=torch.float32)
+            return torch.cat([t, pad])
+        # n > target_dim: truncate.
+        return t[:target_dim].contiguous()
+
+    # Iter 14: minimum sigma_baseline below which the embedding-
+    # magnitude trigger is *not trusted*.  Below this floor the
+    # baseline is too consistent to derive a meaningful sigma
+    # estimate — dividing by an artificially-floored sigma blows
+    # up the magnitude on any tiny perturbation, producing false
+    # positives.  At sigma below this floor we fall back to the
+    # keystroke channel only.
+    _MIN_SIGMA_FOR_EMBEDDING_TRIGGER: float = 1e-2
 
     @staticmethod
     def _embedding_magnitude(
         baseline: list[_Observation],
         recent: list[_Observation],
     ) -> float:
-        """L2(recent_mean - baseline_mean) / max(σ_baseline, 1e-3)."""
+        """``L2(recent_mean - baseline_mean) / max(σ_baseline, floor)``.
+
+        Iter 14: returns 0.0 when ``σ_baseline`` is below the
+        :attr:`_MIN_SIGMA_FOR_EMBEDDING_TRIGGER` floor.  A baseline
+        with effectively-zero variance carries no information about
+        what \"normal\" embedding noise looks like — dividing by an
+        artificially-floored sigma produced multi-thousand-σ
+        magnitudes on tiny embedding perturbations and triggered
+        spurious shifts.  By returning 0.0 in that regime we let
+        the keystroke channel be the sole detector, which is the
+        documented fallback path anyway.
+        """
         if not baseline or not recent:
             return 0.0
         # Stack the embeddings, padding with zeros if dims disagree
@@ -467,14 +579,33 @@ class AffectShiftDetector:
         l2 = float(torch.linalg.norm(diff).item())
 
         # σ_baseline = mean per-dim std-dev across the baseline
-        # window.  When the window has only one entry we fall back
-        # to a small floor so we don't divide by zero.
+        # window.  When the window has only one entry we have no
+        # variance information at all.
+        #
+        # Iter 32: switched to ``unbiased=True`` for Bessel-corrected
+        # sample std, aligning with the iter-2 BaselineTracker fix
+        # and the iter-15 features._std fix.  The population estimator
+        # under-counts noise at small sample sizes, which biases the
+        # magnitude up and produces marginally higher false-positive
+        # rates on legitimately stable baselines.
         if b_stack.shape[0] >= 2:
-            sigma = float(b_stack.std(dim=0, unbiased=False).mean().item())
+            sigma = float(b_stack.std(dim=0, unbiased=True).mean().item())
         else:
             sigma = 0.0
-        sigma = max(sigma, 1e-3)
-        magnitude = l2 / sigma
+        # Iter 14: don't trust the embedding-magnitude trigger below
+        # the sigma floor — return 0 and let the keystroke channel
+        # decide.
+        if sigma < AffectShiftDetector._MIN_SIGMA_FOR_EMBEDDING_TRIGGER:
+            return 0.0
+        # Iter 63: normalise by sqrt(N) so the magnitude scales as
+        # *RMS* per-dim deviation in σ-units, not as *total L2 norm*.
+        # Pre-iter-63 the L2 norm scaled with sqrt(N) but the per-dim
+        # σ did not — so a stable 64-dim embedding window with per-dim
+        # std=0.05 produced ``magnitude ≈ 8σ`` on every successive
+        # turn even though nothing meaningful had changed.  The
+        # detector flagged 80% of stable turns as shifts.
+        n_dims = float(diff.numel()) or 1.0
+        magnitude = l2 / (sigma * math.sqrt(n_dims))
         if not math.isfinite(magnitude):
             return 0.0
         return float(magnitude)
@@ -486,7 +617,23 @@ class AffectShiftDetector:
         *,
         zero_baseline_default: float = 0.0,
     ) -> float:
-        """Return signed % change of mean(recent) vs mean(baseline)."""
+        """Return signed % change of mean(recent) vs mean(baseline).
+
+        Iter 31 — gradates the zero-baseline case.  Previously a
+        zero baseline + any positive recent value returned the
+        binary ``zero_baseline_default`` percentage (so 1 edit and
+        100 edits looked identical).  Now the result scales with the
+        recent magnitude — ``100 * recent_mean`` capped at the
+        provided default — preserving severity ordering for the
+        downstream tier thresholds and the iter-9 confidence ramp.
+
+        Examples (with zero_baseline_default=200.0 for edits):
+
+            recent_mean=0.3 → 30 (was 200, now sub-strong-tier)
+            recent_mean=1.0 → 100 (was 200, now strong-tier)
+            recent_mean=2.0 → 200 (cap, unchanged)
+            recent_mean=8.0 → 200 (cap, unchanged)
+        """
         if not recent or not baseline:
             return 0.0
         r = sum(recent) / len(recent)
@@ -495,8 +642,8 @@ class AffectShiftDetector:
             # Avoid division by zero; caller picks a sensible default
             # (e.g. "treat zero edits as a tiny baseline so a single
             # edit registers as a large positive delta").
-            if r > 1e-9:
-                return float(zero_baseline_default)
+            if r > 1e-9 and zero_baseline_default > 0.0:
+                return float(min(zero_baseline_default, 100.0 * r))
             return 0.0
         pct = 100.0 * (r - b) / b
         if not math.isfinite(pct):
@@ -525,6 +672,98 @@ class AffectShiftDetector:
             return "falling_load"
         return "neutral"
 
+    def _compute_confidence(
+        self,
+        *,
+        detected: bool,
+        magnitude: float,
+        iki_delta_pct: float,
+        edit_delta_pct: float,
+        direction: str,
+    ) -> float:
+        """Normalised confidence score in ``[0.0, 1.0]`` for an
+        :class:`AffectShift`.
+
+        Iter 9 — gives downstream UI a calibrated number for the
+        routing chip without the consumer re-deriving it from raw
+        deltas.
+
+        Iter 30 — adds *corroboration bonuses*: when independent
+        channels of evidence both fire substantially, confidence
+        rises above what either alone would produce.  Single-channel
+        firings are unchanged (the `max` baseline still dominates),
+        so the iter-19 monotonicity invariants are preserved.
+
+        Convention:
+
+        * ``0.0`` — not detected.
+        * ``[0.5, 1.0]`` — detected.  ``0.5`` means a tier just
+          crossed; ``1.0`` means strong multi-tier corroboration.
+
+        Components:
+
+        * Embedding evidence: ramp from 0 at ``magnitude_threshold``
+          to 1 at ``3 × magnitude_threshold``.
+        * Keystroke evidence (rising_load): IKI ramp 20% → 100% in
+          [0, 1]; edit ramp 50% → 300% in [0, 1]; combined as
+          ``max + 0.25 × min`` so corroborating IKI + edit channels
+          lift the score above either alone.
+        * Keystroke evidence (falling_load): IKI ramp -15% → -60%;
+          plus an edit-decrease component (edits dropping back
+          toward zero is corroborating evidence of recovery, not
+          merely the trigger condition).
+
+        The combined raw score is mapped from ``[0, 1]`` to
+        ``[0.5, 1.0]`` when detected.
+        """
+        if not detected:
+            return 0.0
+
+        threshold = self.magnitude_threshold
+        denom = max(1e-3, 2.0 * threshold)
+        emb_evidence = max(0.0, min(1.0, (magnitude - threshold) / denom))
+
+        if direction == "rising_load":
+            iki_score = max(0.0, min(1.0, (iki_delta_pct - 20.0) / 80.0))
+            edit_score = max(0.0, min(1.0, (edit_delta_pct - 50.0) / 250.0))
+            # Iter 30: corroboration bonus when both channels fire.
+            # When iki AND edits both rise, evidence is stronger than
+            # either alone — combine as max + 0.25 * min, clamped to 1.
+            ks_evidence = min(
+                1.0,
+                max(iki_score, edit_score)
+                + 0.25 * min(iki_score, edit_score),
+            )
+        elif direction == "falling_load":
+            iki_score = max(0.0, min(1.0, (-iki_delta_pct - 15.0) / 45.0))
+            # Iter 30: an edit DECREASE is corroborating evidence of
+            # recovery, beyond the falling-load trigger's "edits flat
+            # or decreasing" minimum requirement.  Ramp 0% → 100%
+            # decrease in [0, 1].
+            edit_decrease = max(0.0, min(1.0, (-edit_delta_pct) / 100.0))
+            ks_evidence = min(
+                1.0,
+                max(iki_score, edit_decrease)
+                + 0.25 * min(iki_score, edit_decrease),
+            )
+        else:
+            ks_evidence = 0.0
+
+        # Iter 30: same corroboration bonus across the embedding and
+        # keystroke channels.
+        raw = min(
+            1.0,
+            max(emb_evidence, ks_evidence)
+            + 0.25 * min(emb_evidence, ks_evidence),
+        )
+        # Map to [0.5, 1.0] when detected — ensures the chip never
+        # shows < 0.5 on a real shift, while still distinguishing
+        # weak and strong evidence.
+        confidence = 0.5 + 0.5 * raw
+        if not math.isfinite(confidence):
+            return 0.5
+        return max(0.5, min(1.0, confidence))
+
     def _keystroke_fired(
         self,
         direction: str,
@@ -533,18 +772,31 @@ class AffectShiftDetector:
     ) -> bool:
         """Pure-keystroke fallback trigger.
 
-        Fires when both conditions hold for the implied direction:
+        Two tiers for the rising-load case (iter 1 precision improvement):
 
-        * rising_load: IKI ≥ +20% AND edits ≥ +50% (the conjunction
-          documented in the brief: "shift = IKI > 1.2× baseline AND
-          edits > 1.5× baseline").
-        * falling_load: IKI ≤ -15% AND edits flat-or-falling.
+        * **Strong tier** — BOTH IKI ≥ +20% AND edits ≥ +50%.  The
+          documented brief trigger; symmetric with the primary rule
+          in :meth:`_infer_direction`.
+        * **Moderate tier** — a SINGLE signal that is large on its
+          own: IKI ≥ +35% (so a clearly slower typist fires even
+          without an edit spike) OR edits ≥ +120% (so a large edit
+          spike fires even without a slowdown).
+
+        Falling-load follows the same documented AND rule (no moderate
+        tier — falling_load by definition needs both signals to be
+        consistent).
+
+        Returns:
+            ``True`` if a tier fires, ``False`` otherwise.
         """
         if direction == "rising_load":
-            return (
+            strong = (
                 iki_delta_pct >= self._KS_RISING_IKI_PCT
                 and edit_delta_pct >= self._KS_RISING_EDIT_PCT
             )
+            moderate_iki = iki_delta_pct >= self._KS_RISING_IKI_PCT_MODERATE
+            moderate_edit = edit_delta_pct >= self._KS_RISING_EDIT_PCT_MODERATE
+            return strong or moderate_iki or moderate_edit
         if direction == "falling_load":
             return (
                 iki_delta_pct <= self._FALLING_IKI_PCT

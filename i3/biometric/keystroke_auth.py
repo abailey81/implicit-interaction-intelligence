@@ -693,8 +693,17 @@ class KeystrokeAuthenticator:
         z_iki_s = abs(iki_s - tmpl.template_iki_std) / max(
             tmpl.template_iki_std, 1.0
         )
+        # Iter 49: widened the composition-cadence variance floor from
+        # 30% of the template mean to 50% of the mean OR 2000 ms, whichever
+        # is larger.  The 30% floor was tighter than real composition
+        # variance — a legitimate owner typing a 12-second message after
+        # registering on 3-second messages got ``z_comp = 5σ`` and the
+        # biometric flagged a false-positive mismatch on his own typing.
+        # Composition time scales with message length, so the variance
+        # for a single user across messages is realistically ±50% of mean
+        # plus an absolute baseline.
         z_comp = abs(comp - tmpl.template_comp_mean) / max(
-            tmpl.template_comp_mean * 0.3, 1.0
+            tmpl.template_comp_mean * 0.5, 2000.0
         )
         z_edit = abs(edits - tmpl.template_edit_mean) / max(
             tmpl.template_edit_mean + 1.0, 1.0
@@ -764,25 +773,54 @@ class KeystrokeAuthenticator:
             out.insert(0, f"embedding rhythm (cos={cosine_sim:.2f})")
         return out
 
+    # Iter 11: canonical embedding dimension that the TCN encoder
+    # produces and the template stores.  Every input is normalised
+    # to this shape so that ``_safe_cosine`` never hits its shape-
+    # mismatch fallback (which silently returns 0 — an unrecognised
+    # owner — even when the underlying vectors agree on the prefix).
+    _CANONICAL_DIM: int = 64
+
     @staticmethod
     def _coerce_embedding(embedding: torch.Tensor | None) -> torch.Tensor:
-        """Coerce arbitrary embedding inputs to a flat float32 tensor.
+        """Coerce arbitrary embedding inputs to a 64-dim float32 1-D tensor.
 
-        Falls back to a zero vector on bad input rather than raising --
-        the authenticator must never break the calling pipeline.
+        Iter 11: every input is canonicalised to the canonical 64-dim
+        shape via zero-pad (short) / truncate (long) / flatten-then-
+        resize (multi-dim).  This means the template's cosine
+        comparison never silently zeros out from a shape mismatch, and
+        an embedding produced at a different transient dim during a
+        warm-up turn still contributes its actual similarity to the
+        score.
+
+        Falls back to a zero 64-dim tensor on bad input rather than
+        raising — the authenticator must never break the calling
+        pipeline.
         """
+        target_dim = KeystrokeAuthenticator._CANONICAL_DIM
         if embedding is None:
-            return torch.zeros(64, dtype=torch.float32)
+            return torch.zeros(target_dim, dtype=torch.float32)
         try:
-            t = embedding.detach().to(dtype=torch.float32, copy=False)
+            t = embedding.detach().to(
+                device="cpu", dtype=torch.float32, copy=False
+            )
         except Exception:
-            return torch.zeros(64, dtype=torch.float32)
-        if t.ndim > 1:
+            return torch.zeros(target_dim, dtype=torch.float32)
+        # Iter 25: treat any non-1D tensor (including scalar 0-dim
+        # tensors) by flattening to 1D first.  Mirrors the same
+        # fix in shift_detector._safe_embedding.
+        if t.ndim != 1:
             t = t.flatten()
         if t.numel() == 0:
-            return torch.zeros(64, dtype=torch.float32)
+            return torch.zeros(target_dim, dtype=torch.float32)
         t = torch.nan_to_num(t, nan=0.0, posinf=0.0, neginf=0.0)
-        return t
+        # Canonicalise to target_dim: zero-pad short, truncate long.
+        n = t.numel()
+        if n == target_dim:
+            return t
+        if n < target_dim:
+            pad = torch.zeros(target_dim - n, dtype=torch.float32)
+            return torch.cat([t, pad])
+        return t[:target_dim].contiguous()
 
     def _build_match(
         self,

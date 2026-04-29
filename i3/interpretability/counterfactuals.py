@@ -262,6 +262,15 @@ class CounterfactualExplainer:
             new_feature_value = float(x[feat_idx].item()) + float(delta_feature)
             new_dim_value = float(adapt_vec[dim_idx].item()) + self._target_delta
 
+            # Iter 41: clamp the linearly-extrapolated counterfactual values
+            # so the natural-language sentence never reports "formality
+            # would have been 1.089" — every feature *and* every adaptation
+            # dimension lives in [0, 1] downstream, so promising a value
+            # above 1.0 is misleading.  We clamp tightly here while the
+            # underlying linear sensitivity stays unaffected.
+            new_feature_value = min(1.0, max(0.0, new_feature_value))
+            new_dim_value = min(1.0, max(0.0, new_dim_value))
+
             current_value = float(x[feat_idx].item())
             if math.isclose(new_feature_value, current_value, rel_tol=0.0, abs_tol=1e-12):
                 continue

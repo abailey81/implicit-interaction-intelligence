@@ -57,11 +57,28 @@ class BaselineTracker:
     def update(self, fv: InteractionFeatureVector) -> None:
         """Incorporate a new feature vector into the running statistics.
 
+        Iter 33 — turns with any non-finite feature value are silently
+        dropped wholesale.  Before the fix, a single NaN value
+        propagated into ``self._mean[name]`` and stayed NaN forever,
+        invalidating every subsequent ``deviation`` / ``get_std`` call
+        for that feature.  Welford's recurrence requires every
+        per-feature count to match ``self.count`` exactly, so we
+        cannot selectively skip individual features without breaking
+        the variance estimator — dropping the whole turn is the
+        cleanest fix.
+
         Args:
             fv: The latest feature vector for this user.
         """
-        self.count += 1
         from i3.interaction.types import FEATURE_NAMES  # avoid circular at module level
+
+        # Iter 33: drop the entire turn if any feature is non-finite.
+        # Selectively skipping one feature would diverge per-feature
+        # counts from self.count and break Welford's recurrence.
+        for name in FEATURE_NAMES:
+            if not math.isfinite(getattr(fv, name)):
+                return
+        self.count += 1
 
         for name in FEATURE_NAMES:
             x = getattr(fv, name)
@@ -75,18 +92,34 @@ class BaselineTracker:
     def deviation(self, feature_name: str, value: float) -> float:
         """Return the z-score deviation of *value* from the baseline.
 
-        Returns 0.0 if the baseline is not yet established or the
-        standard deviation is near zero.
+        Uses **Bessel-corrected sample variance** (``m2 / (n - 1)``)
+        rather than the population estimator (``m2 / n``), so the z-
+        score is unbiased at small sample sizes.  At early-session
+        counts (5–10 messages) the difference is meaningful: the
+        population estimator under-estimates noise and inflates z-
+        scores.
+
+        Returns:
+            0.0 when the baseline is not yet established, when the
+            sample size is below 2 (no defined sample variance), or
+            when the standard deviation is near zero (degenerate).
+            Otherwise the z-score, clamped to ±3σ and normalised to
+            ``[-1, 1]``.
         """
         if not self.is_established:
             return 0.0
+        if self.count < 2:
+            # No defined sample variance with a single observation.
+            return 0.0
         mean = self._mean.get(feature_name, 0.0)
-        variance = self._m2.get(feature_name, 0.0) / max(1, self.count)
+        # Bessel correction: divide by (n - 1) for the unbiased
+        # sample variance estimator.
+        variance = self._m2.get(feature_name, 0.0) / (self.count - 1)
         std = math.sqrt(variance) if variance > 0 else 0.0
         if std < 1e-9:
             return 0.0
         z = (value - mean) / std
-        # Clamp to [-3, 3] then normalise to [-1, 1]
+        # Clamp to [-3, 3] then normalise to [-1, 1].
         return max(-1.0, min(1.0, z / 3.0))
 
     def get_mean(self, feature_name: str) -> float:
@@ -94,8 +127,14 @@ class BaselineTracker:
         return self._mean.get(feature_name, 0.0)
 
     def get_std(self, feature_name: str) -> float:
-        """Return the running standard deviation for *feature_name*."""
-        variance = self._m2.get(feature_name, 0.0) / max(1, self.count)
+        """Return the running sample (Bessel-corrected) std for *feature_name*.
+
+        Returns ``0.0`` when fewer than 2 observations have been seen
+        (sample variance is undefined for n=1).
+        """
+        if self.count < 2:
+            return 0.0
+        variance = self._m2.get(feature_name, 0.0) / (self.count - 1)
         return math.sqrt(variance) if variance > 0 else 0.0
 
     def reset(self) -> None:
@@ -315,27 +354,38 @@ class FeatureExtractor:
         msg_count = n + 1
         eng_vel = _clamp01((msg_count / (elapsed / 60.0)) / _MAX_ENG_VEL)
 
-        # -- Topic coherence (Jaccard similarity with previous message) ---
+        # -- Topic coherence (cosine similarity with previous message) ----
+        #
+        # Iter 4 precision improvement:
+        #
+        # Before: rounding-Jaccard at 0.1 resolution — a 0.05 shift
+        # across all three (type_token_ratio, formality, flesch_kincaid)
+        # could cross every rounding boundary and collapse coherence
+        # from 1.0 to 0.0.  Discontinuous, brittle, and visibly wrong
+        # to a reader inspecting trajectories.
+        #
+        # After: cosine similarity over the same three-feature
+        # signature, with each feature centred at 0.5 first so the
+        # measure is *direction* of deviation rather than raw magnitude.
+        # This produces a smooth [0, 1] coherence score that:
+        #   * is 1.0 when the signature vectors point the same way,
+        #   * decays gradually as the signatures diverge,
+        #   * is 0.0 only when the signatures are orthogonal /
+        #     anti-correlated.
         topic_coherence = 0.0
         if n >= 1:
-            # We don't store raw text in the feature vector, so we use a
-            # proxy: overlap of the current message length/vocab features
-            # with the previous one.  A simple heuristic.
             prev = history[-1]
-            # Use formality + vocab + flesch_kincaid as a rough "topic" proxy
-            prev_sig = {
-                round(prev.type_token_ratio, 1),
-                round(prev.formality, 1),
-                round(prev.flesch_kincaid, 1),
-            }
-            cur_sig = {
-                round(current_msg["type_token_ratio"], 1),
-                round(current_msg["formality"], 1),
-                round(current_msg["flesch_kincaid"], 1),
-            }
-            union = prev_sig | cur_sig
-            if union:
-                topic_coherence = len(prev_sig & cur_sig) / len(union)
+            prev_sig = (
+                prev.type_token_ratio - 0.5,
+                prev.formality - 0.5,
+                prev.flesch_kincaid - 0.5,
+            )
+            cur_sig = (
+                current_msg["type_token_ratio"] - 0.5,
+                current_msg["formality"] - 0.5,
+                current_msg["flesch_kincaid"] - 0.5,
+            )
+            topic_coherence = _cosine_similarity_unit(prev_sig, cur_sig)
 
         # -- Session progress [0, 1] --------------------------------------
         session_progress = _clamp01(elapsed / max(1.0, expected_length))
@@ -402,20 +452,46 @@ class FeatureExtractor:
 # ====================================================================
 
 def _clamp01(v: float) -> float:
-    """Clamp *v* to [0, 1]."""
+    """Clamp *v* to [0, 1].
+
+    Iter 20: NaN / inf inputs map to 0.0 rather than propagating
+    through the feature vector and corrupting downstream consumers.
+    """
+    if not math.isfinite(v):
+        return 0.0
     return max(0.0, min(1.0, v))
 
 
 def _clamp_neg1_1(v: float) -> float:
-    """Clamp *v* to [-1, 1]."""
+    """Clamp *v* to [-1, 1].
+
+    Iter 20: NaN / inf inputs map to 0.0 rather than propagating.
+    """
+    if not math.isfinite(v):
+        return 0.0
     return max(-1.0, min(1.0, v))
 
 
 def _normalised_slope(values: list[float]) -> float:
-    """Simple linear regression slope, normalised by the mean.
+    """Linear-regression slope, normalised to [-1, 1] for [0, 1] inputs.
 
-    Returns a value roughly in [-1, 1] representing the direction and
-    magnitude of the trend.  Returns 0.0 for fewer than 2 data points.
+    Iter 8 numerical-stability rewrite.
+
+    Old behaviour: ``slope / abs(y_mean)``.  This blew up at small
+    y_mean: a slope of 0.01 with y_mean=0.001 produced 10, which the
+    downstream caller clamped to 1.0 — a saturated trend signal that
+    bore no relation to the actual change in the underlying values.
+    Multiple low-magnitude features all pinning at ±1 hid the real
+    signal from downstream consumers.
+
+    New behaviour: ``slope * (n - 1)`` — the *total change* across
+    the window.  For [0, 1]-bounded inputs this is naturally bounded
+    in [-1, 1]: a feature moving 0 → 1 across the window returns
+    +1.0; 1 → 0 returns -1.0; flat returns 0.0.  No mean-dependent
+    instability, no division-by-near-zero.
+
+    Returns 0.0 for fewer than 2 data points or for a fully constant
+    sequence.  Always finite.
     """
     n = len(values)
     if n < 2:
@@ -431,15 +507,73 @@ def _normalised_slope(values: list[float]) -> float:
     if denominator < 1e-12:
         return 0.0
     slope = numerator / denominator
-    # Normalise by mean to get relative slope
-    if abs(y_mean) > 1e-9:
-        return slope / abs(y_mean)
-    return slope
+    # Total change across the window = slope * (n - 1).  Naturally
+    # bounded in [-1, 1] for [0, 1]-bounded inputs.
+    total_change = slope * (n - 1)
+    if not math.isfinite(total_change):
+        return 0.0
+    return total_change
 
 
 def _std(values: list[float]) -> float:
-    """Population standard deviation of *values*."""
-    if len(values) < 2:
+    """Sample (Bessel-corrected) standard deviation of *values*.
+
+    Iter 15: switched from the population estimator (divide by n) to
+    the Bessel-corrected sample estimator (divide by n - 1) — mirrors
+    the iter-2 BaselineTracker fix.  At small sample sizes the
+    population estimator under-estimates noise, which inflates the
+    z-scores derived from this std (e.g. ``time_deviation`` in the
+    session-features extractor).
+
+    Returns 0.0 when fewer than 2 observations are provided (sample
+    variance is undefined for n=1).
+    """
+    n = len(values)
+    if n < 2:
         return 0.0
-    mean = sum(values) / len(values)
-    return math.sqrt(sum((v - mean) ** 2 for v in values) / len(values))
+    mean = sum(values) / n
+    return math.sqrt(sum((v - mean) ** 2 for v in values) / (n - 1))
+
+
+def _cosine_similarity_unit(
+    a: tuple[float, ...], b: tuple[float, ...]
+) -> float:
+    """Cosine similarity, mapped from [-1, 1] to [0, 1].
+
+    Used by the topic-coherence feature so the resulting score is a
+    valid similarity in ``[0, 1]`` (matching the 0.0=different / 1.0=
+    identical convention of the rest of the feature vector).
+
+    * Returns ``1.0`` when both vectors are zero (e.g. all features
+      centred — interpreted as "no signal of difference between turns").
+    * Returns ``0.5`` when one vector is zero and the other is not
+      (orthogonal in the standard cosine sense).
+    * Returns ``0.5`` when any input contains NaN / inf — defense in
+      depth against an upstream regression slipping a non-finite
+      value past iter-20's clamp helpers.  Iter 22.
+    """
+    n = min(len(a), len(b))
+    if n == 0:
+        return 1.0
+    # Iter 22: bail on non-finite inputs.
+    for x in a[:n]:
+        if not math.isfinite(x):
+            return 0.5
+    for x in b[:n]:
+        if not math.isfinite(x):
+            return 0.5
+    dot = sum(a[i] * b[i] for i in range(n))
+    norm_a = math.sqrt(sum(x * x for x in a[:n]))
+    norm_b = math.sqrt(sum(x * x for x in b[:n]))
+    # Both vectors zero ⇒ identical "no-signal" turns.
+    if norm_a < 1e-9 and norm_b < 1e-9:
+        return 1.0
+    # One zero, one non-zero ⇒ no signal to compare; midpoint.
+    if norm_a < 1e-9 or norm_b < 1e-9:
+        return 0.5
+    cosine = dot / (norm_a * norm_b)
+    if not math.isfinite(cosine):
+        return 0.5
+    cosine = max(-1.0, min(1.0, cosine))
+    # Map [-1, 1] -> [0, 1].
+    return 0.5 * (cosine + 1.0)

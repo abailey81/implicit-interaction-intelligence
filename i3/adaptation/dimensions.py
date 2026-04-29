@@ -106,8 +106,21 @@ class CognitiveLoadAdapter:
             deviation: Deviation metrics from the user's personal baseline.
 
         Returns:
-            A float in [0, 1] where 0 = simplest possible response and
-            1 = richest/most complex response.
+            A float in [0, 1] indicating the user's measured cognitive
+            load.  Iter 38 + iter 53 unified the semantic across the
+            pipeline:
+
+              * 0.0  - 0.4  → user has spare bandwidth; reply may be
+                              detailed, multi-sentence.
+              * 0.4  - 0.6  → moderate; standard reply length.
+              * 0.6  - 1.0  → user is stressed / rushed / showing
+                              motor-rhythm signs of overload.  Reply
+                              should be tight (1–2 sentences).
+
+            Both the cloud prompt-builder and the post-processor's
+            length-tiering key off this scale; pre-iter-53 they had
+            opposite semantics (the prompt-builder treated high cl
+            as "give richer detail" — the now-removed convention).
         """
         # SEC: NaN-safe coercion at the input boundary; downstream arithmetic
         # then never sees ``NaN`` even if a feature extractor mis-fires.
@@ -117,14 +130,43 @@ class CognitiveLoadAdapter:
         message_length = _safe_float(features.message_length)
         complexity_dev = _safe_float(deviation.complexity_deviation)
 
-        # Combine four normalised complexity signals from the user's current
-        # message.  Each is scaled to roughly [0, 1].  The constant
-        # denominators (10, 20) are intentional and tolerate the rare case
-        # where upstream forwards an unscaled raw value.
+        # Iter 38 — typing-rhythm signals also feed cognitive_load.
+        # Before: cognitive_load was driven *only* by message-content
+        # complexity, so a stressed user typing a short message
+        # ("ugh just tell me") got the same cognitive_load as a calm
+        # user typing the same short message.  The post-processor's
+        # length tiering keys off cognitive_load — so stressed users
+        # never got the short replies they need.
+        #
+        # Now we also incorporate keystroke-rhythm stress signals:
+        #   * editing_effort — high edit ratio suggests cognitive
+        #     load (struggling to compose).
+        #   * backspace_ratio — uncertainty / motor difficulty.
+        #   * iki deviation (positive = typing slower than baseline) —
+        #     hesitation / fatigue.
+        #
+        # We combine via ``max()`` rather than ``mean()``: any single
+        # signal indicating stress is sufficient evidence — averaging
+        # in zero-valued signals (especially iki_deviation, which
+        # collapses to 0 with degenerate baselines) dilutes a real
+        # stress reading from edits alone.
+        editing_effort = _safe_float(features.editing_effort)
+        backspace_ratio = _safe_float(features.backspace_ratio)
+        iki_dev_pos = max(0.0, _safe_float(deviation.iki_deviation))
+        rhythm_stress = max(
+            _clamp(editing_effort),
+            _clamp(backspace_ratio),
+            _clamp(iki_dev_pos),
+        )
+
+        # Iter 34 — DYNAMIC RANGE FIX (preserved):
+        # Removed the spurious /10 and /20 divisions on already-
+        # normalised features so every signal contributes its full
+        # [0, 1] range.
         complexity_signals = [
             _clamp(ttr),                          # Vocabulary richness
-            _clamp(mean_word_length / 10.0),      # Word sophistication
-            _clamp(flesch_kincaid / 20.0),        # Readability grade
+            _clamp(mean_word_length),             # Word sophistication
+            _clamp(flesch_kincaid),               # Readability grade
             _clamp(message_length),               # Normalised length
         ]
         user_complexity = float(np.mean(complexity_signals))
@@ -134,9 +176,25 @@ class CognitiveLoadAdapter:
         if complexity_dev < -0.5:
             return _clamp(max(0.2, user_complexity - 0.2))
 
-        # Otherwise, respond at slightly higher complexity to keep the
-        # conversation stimulating without overwhelming.
-        return _clamp(min(0.9, user_complexity + 0.1))
+        # The load is the GREATER of content complexity and typing-
+        # rhythm stress — both are independent reasons to return a
+        # tighter reply.  A stressed user typing a short message
+        # gets the rhythm-driven cognitive_load (content is low but
+        # rhythm signals load).  A calm user typing a complex
+        # message gets the content-driven cognitive_load.
+        #
+        # The rhythm stream gets a +0.20 boost above its raw value
+        # only once it crosses a meaningful threshold (>= 0.20) —
+        # otherwise tiny incidental edits would inflate cl on
+        # untroubled users.  This boost is what makes a 4-edit
+        # message ("ugh just tell me") cross from the 4-sentence
+        # tier into the 2-sentence tier.
+        if rhythm_stress >= 0.20:
+            rhythm_term = rhythm_stress + 0.20
+        else:
+            rhythm_term = 0.0
+        combined = max(user_complexity, rhythm_term)
+        return _clamp(min(0.95, combined + 0.10))
 
 
 # ---------------------------------------------------------------------------
@@ -188,18 +246,45 @@ class StyleMirrorAdapter:
         question_ratio = _safe_float(features.question_ratio)
 
         # Derive the user's observed style from interaction features.
-        # ``message_length`` is already in [0, 1]; the /0.7 saturation
-        # constant means verbosity hits 1.0 when the user fills 70% of the
-        # max-length budget.  The constant is non-zero so division is safe.
+        #
+        # Iter 35 — VERBOSITY CALIBRATION FIX:
+        #
+        # Before: ``verbosity = message_length / 0.7``.  Since
+        # ``message_length`` is normalised against a 500-word ceiling
+        # (FeatureExtractor's ``_MAX_MSG_LEN_WORDS``), real chat
+        # messages of 5–50 words produce ``message_length`` of
+        # 0.01–0.10, which mapped to verbosity 0.014–0.143.
+        # Result: every chat-sized message read as "very low
+        # verbosity" → the post-processor's hedge-stripping path
+        # always fired regardless of how the user actually typed.
+        # The adapter never adapted.
+        #
+        # After: ``verbosity = message_length / 0.10``.  Calibrated for
+        # chat-sized messages — 5-word msgs land near 0.10 (terse
+        # → strip hedges), 25-word msgs near 0.5 (default), 50-word
+        # msgs near 1.0 (verbose → append follow-up).  The adapter
+        # actually adapts.
         observed = StyleVector(
             formality=_clamp(formality),
-            verbosity=_clamp(message_length / 0.7),
+            verbosity=_clamp(message_length / 0.10),
             emotionality=_clamp(
                 max(emoji_density * 5.0, abs(sentiment_valence))
             ),
-            directness=_clamp(
-                question_ratio * 0.3 + (1.0 - question_ratio) * 0.7
-            ),
+            # Iter 36 — DIRECTNESS RANGE FIX:
+            #
+            # Before: ``question_ratio * 0.3 + (1 - question_ratio) * 0.7``
+            # capped directness at 0.7 (when question_ratio=0).  But the
+            # cloud prompt-builder gates the "be more direct"
+            # instruction on ``directness > 0.7`` — strict inequality —
+            # so the path was unreachable: statements never produced an
+            # adjustment.
+            #
+            # After: ``0.85 - 0.7 * question_ratio`` covers [0.15, 0.85].
+            # Pure statements push directness above the 0.7 threshold
+            # (instruction fires), pure questions drop below 0.3
+            # (counter-instruction fires), mixed sits at the default
+            # 0.5.
+            directness=_clamp(0.85 - 0.7 * question_ratio),
         )
 
         # SEC: defensively clamp the adaptation rate to [0, 1] -- a
@@ -291,8 +376,26 @@ class EmotionalToneAdapter:
         ]
         distress_score = float(np.mean(distress_signals))
 
-        # More distress -> lower tone value -> warmer/more supportive.
-        # The mapping is: tone = 0.5 - distress * 0.5, clamped to [0, 1].
+        # Iter 43 — neutrality drive.  Pre-iter-43 the formula was
+        # ``tone = 0.5 - distress*0.5`` so ``emotional_tone`` could
+        # never exceed 0.5 in practice — meaning the post-processor's
+        # ``emotional_tone > 0.7`` warmth-stripping branch was dead
+        # code.  Strong positive sentiment is now a "this user is fine,
+        # be clinical" signal that can lift the tone above 0.5 toward
+        # 1.0.
+        #
+        # Iter 44 — re-enabled the formality contribution now that
+        # ``LinguisticAnalyzer.formality_score`` is properly calibrated
+        # (was purely subtractive; every plain chat read 1.0).  Both
+        # signals additively drive neutrality, mean-aggregated so a
+        # single signal can't dominate.
+        formality = _safe_float(features.formality)
+        neutrality_signals = [
+            max(0.0, sentiment_valence),         # positive sentiment
+            max(0.0, (formality - 0.6) * 2.5),   # formality > 0.6 -> [0,1]
+        ]
+        neutrality_score = float(np.mean(neutrality_signals))
+
         # SEC: defensively unpack the configured warmth range so that an
         # inverted (lo > hi) tuple is normalised by ``_clamp`` rather than
         # silently producing an empty interval.
@@ -300,7 +403,15 @@ class EmotionalToneAdapter:
             lo, hi = self.config.warmth_range
         except (TypeError, ValueError):
             lo, hi = 0.0, 1.0
-        return _clamp(0.5 - distress_score * 0.5, lo=lo, hi=hi)
+        # tone in [0, 1]:
+        #   pure distress + no positive sentiment -> 0.0  (very warm)
+        #   neither signal active                  -> 0.5  (balanced)
+        #   strong positive sentiment, no distress -> 1.0  (clinical)
+        return _clamp(
+            0.5 + 0.5 * neutrality_score - 0.5 * distress_score,
+            lo=lo,
+            hi=hi,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -371,13 +482,24 @@ class AccessibilityAdapter:
         backspace_ratio = _safe_float(features.backspace_ratio)
         editing_effort = _safe_float(features.editing_effort)
 
+        # Iter 48 — switched from ``mean()`` to ``max()`` for the same
+        # reason iter 38 made the cognitive_load rhythm-stress signal
+        # use max(): any single strong difficulty signal is sufficient
+        # evidence of motor trouble, and averaging dilutes the reading
+        # whenever a baseline-derived signal (iki_deviation,
+        # speed_deviation) collapses to 0 because the user's prior
+        # turns were too uniform to define a meaningful std.  Pre-fix,
+        # an editing_effort of 0.8 + backspace_ratio of 0.33 averaged
+        # to 0.28 when the deviation channels were 0 — below the
+        # threshold — and the path silently failed to fire on a user
+        # who clearly needed simplification.
         difficulty_signals = [
             max(0.0, iki_dev),               # Typing slower than baseline
             max(0.0, -speed_dev),            # Composition speed dropping
             _clamp(backspace_ratio),         # Frequent corrections
             _clamp(editing_effort),          # High editing effort
         ]
-        difficulty_score = float(np.mean(difficulty_signals))
+        difficulty_score = max(difficulty_signals)
 
         if difficulty_score > threshold:
             return _clamp(difficulty_score)

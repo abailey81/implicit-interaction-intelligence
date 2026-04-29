@@ -643,7 +643,16 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str) -> None:
                     # and absurd magnitudes a hostile client could send.
                     ks_ts = _safe_float(data.get("timestamp", time.time()))
                     ks_key_type = str(data.get("key_type", "char"))[:16]
-                    ks_iki = _safe_float(data.get("inter_key_interval_ms", 0))
+                    # Iter 41: the JS client (web/js/app.js) ships the
+                    # inter-key interval as ``iki_ms``; only Python probes
+                    # use the long-form ``inter_key_interval_ms`` key.
+                    # Without this fallback the keystroke buffer was full
+                    # of zero-IKI entries and the dashboard showed
+                    # "Typing rhythm 0 ms" on every turn.
+                    ks_iki_raw = data.get("inter_key_interval_ms")
+                    if ks_iki_raw is None:
+                        ks_iki_raw = data.get("iki_ms", 0)
+                    ks_iki = _safe_float(ks_iki_raw)
                     if ks_iki < 0:
                         raise ValueError("negative_inter_key_interval")
                     ks = KeystrokeEvent(
@@ -720,7 +729,16 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str) -> None:
                 try:
                     msg_ts = _safe_float(data.get("timestamp", time.time()))
                     composition_ms = _safe_float(_pick_metric("composition_time_ms", 0))
-                    edit_count = _safe_int(_pick_metric("edit_count", 0))
+                    # Iter 41: the JS client (web/js/app.js KeystrokeMonitor)
+                    # sends ``backspace_count`` inside composition_metrics;
+                    # the server was only looking at ``edit_count``, so the
+                    # dashboard "Edit profile" tile and the cognitive_load
+                    # adapter's editing_effort signal were silently zero on
+                    # every turn.  Accept both keys.
+                    edit_count_raw = _pick_metric("edit_count", None)
+                    if edit_count_raw is None:
+                        edit_count_raw = _pick_metric("backspace_count", 0)
+                    edit_count = _safe_int(edit_count_raw)
                     pause_ms = _safe_float(_pick_metric("pause_before_send_ms", 0))
                     if composition_ms < 0 or pause_ms < 0 or edit_count < 0:
                         raise ValueError("negative_metric")
@@ -787,6 +805,67 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str) -> None:
                         user_id,
                     )
 
+                # Iter 58 — three-level fallback so the dashboard's
+                # "Typing rhythm" tile never silently zeroes:
+                #   1. server-side keystroke_buffer from streamed events
+                #   2. composition_metrics.keystroke_timings array
+                #   3. composition_metrics.mean_iki scalar (precomputed
+                #      JS-side; last-resort signal so the headline still
+                #      shows something realistic even if the timings
+                #      array got dropped at any point).
+                buffer_timings = [
+                    float(ks.get("inter_key_interval_ms", 0))
+                    for ks in keystroke_buffer
+                ]
+                # Filter out zeros — they're "no prior key" entries that
+                # _iki_stats throws away anyway.  We only fall back to
+                # comp_metrics when buffer has no useful entries.
+                buffer_timings_clean = [t for t in buffer_timings if t > 0]
+                comp_timings = [
+                    float(t)
+                    for t in (comp_metrics.get("keystroke_timings") or [])
+                    if isinstance(t, (int, float)) and t > 0
+                ]
+                if buffer_timings_clean:
+                    final_timings = buffer_timings
+                elif comp_timings:
+                    final_timings = comp_timings
+                else:
+                    # Last-resort scalar fallback: synthesize a single
+                    # timing from the precomputed mean.  ``_iki_stats``
+                    # then returns this exact value with std=0.
+                    mean_iki_scalar = comp_metrics.get("mean_iki", 0)
+                    try:
+                        mean_iki_val = float(mean_iki_scalar)
+                    except (TypeError, ValueError):
+                        mean_iki_val = 0.0
+                    final_timings = [mean_iki_val] if mean_iki_val > 0 else []
+
+                # Iter 64: one-line INFO log per turn so the user can see
+                # exactly what the server received and what it routed
+                # into the pipeline.  If the dashboard reads zero on a
+                # tile, this log line shows whether the bug is upstream
+                # (JS payload missing the field) or downstream
+                # (aggregator / snapshot logic).
+                logger.info(
+                    "[ws-keystroke-trace] user=%s turn=%d "
+                    "comp_metrics_keys=%s composition_ms=%.0f edit_count=%d "
+                    "buffer_n=%d buffer_clean_n=%d comp_timings_n=%d "
+                    "mean_iki_scalar=%s final_timings_n=%d "
+                    "final_timings_sum=%.1f",
+                    user_id,
+                    messages_handled,
+                    sorted(comp_metrics.keys()) if comp_metrics else [],
+                    composition_ms,
+                    edit_count,
+                    len(buffer_timings),
+                    len(buffer_timings_clean),
+                    len(comp_timings),
+                    comp_metrics.get("mean_iki"),
+                    len(final_timings),
+                    sum(final_timings) if final_timings else 0.0,
+                )
+
                 pipeline_input = PipelineInput(
                     user_id=user_id,
                     session_id=session_id,
@@ -795,25 +874,7 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str) -> None:
                     composition_time_ms=composition_ms,
                     edit_count=edit_count,
                     pause_before_send_ms=pause_ms,
-                    # Prefer the per-event server-side buffer (sampled
-                    # by the live JS client).  Fall back to a client-
-                    # supplied keystroke_timings array on the message
-                    # frame (used by Python probes that don't stream
-                    # individual keystroke events).
-                    keystroke_timings=(
-                        [
-                            float(ks.get("inter_key_interval_ms", 0))
-                            for ks in keystroke_buffer
-                        ]
-                        if keystroke_buffer
-                        else [
-                            float(t)
-                            for t in (
-                                comp_metrics.get("keystroke_timings") or []
-                            )
-                            if isinstance(t, (int, float))
-                        ]
-                    ),
+                    keystroke_timings=final_timings,
                     prosody_features=prosody_features_dict,
                     gaze_features=gaze_features_dict,
                 )

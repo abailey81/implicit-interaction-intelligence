@@ -5,6 +5,245 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026-04-28] Iter 38–43 — visible-shaping precision sweep
+
+Six-iteration sweep targeting the recurring complaint that "the system
+isn't adapting to how I'm typing".  Closes three dead-code paths in
+the post-processor wiring, fixes two key-mismatch bugs that silently
+zeroed the live UI, and adds an emulation harness that drives 60
+synthetic users through the full pipeline.  All work on the
+`feat/adaptation-precision-iter1` branch.
+
+* **Iter 38** (`e83372e`) — `i3/adaptation/dimensions.py`:
+  `cognitive_load` now folds in typing rhythm (editing_effort,
+  backspace_ratio, positive iki_deviation) via `max()` of the three
+  signals plus a +0.20 boost above 0.20 threshold.  A stressed user
+  typing a short message ("ugh just tell me") used to get the same
+  cognitive_load as a calm user; now they cross into a tighter
+  reply-length tier.
+* **Iter 39** — `D:/tmp/real_user_emulation_iter39.py`: 60-user
+  emulation harness across 5 archetypes × 12 message variants.
+  Quantifies axis-firing rates, length spread, and same-message
+  precision misses.  Used to drive every subsequent precision win.
+* **Iter 40** (`e83372e`) — `i3/config.py`: StyleMirror smoothing
+  rate 0.2 → 0.35.  Consistent declarative messages now cross the
+  directness > 0.7 threshold within 2 turns instead of 4.  Drove
+  directness firing from 13/60 to 36/60 in the emulation.
+* **Iter 41** (`e83372e`) — three live-UI bugs surfaced by actual
+  usage:
+    * `server/websocket.py`: server expected `edit_count` but JS
+      client (`web/js/app.js KeystrokeMonitor`) ships
+      `backspace_count`.  Server now accepts both; the dashboard
+      "Edit profile" tile and the editing_effort signal in the
+      cognitive_load adapter were silently zero on every turn.
+    * `server/websocket.py`: server expected `inter_key_interval_ms`
+      on keystroke events but JS ships `iki_ms`.  Without the
+      fallback, the keystroke buffer was full of zero-IKI entries
+      and the dashboard's "Typing rhythm" read 0 ms on every turn.
+    * `i3/interpretability/counterfactuals.py`: clamp the linearly-
+      extrapolated counterfactual feature + dimension values to
+      [0, 1] so the natural-language sentence never reports
+      "formality would have been 1.089".
+* **Iter 42** (`1bd0aa0`) — `i3/cloud/postprocess.py`: added a
+  3-sentence intermediate cognitive_load tier (0.55–0.65).  The
+  0.4 → 0.65 jump from 4 → 2 sentences was the dominant cliff edge;
+  same-content / different-rhythm pairs collapsed to identical
+  replies.  Closes the lone precision miss flagged by the iter-39
+  harness.  Pinned with
+  `tests/test_pipeline_shaping.py::test_complex_message_differentiates_calm_from_stressed`.
+* **Iter 43** (`ff3b2a8`) — `i3/adaptation/dimensions.py`:
+  `emotional_tone` formula now spans [0, 1].  Pre-fix
+  `tone = 0.5 - distress*0.5` capped at 0.5, so the post-processor's
+  warmth-strip path (fires on `> 0.7`) was dead code: a third
+  unreachable branch after iter 36 (directness) and iter 37
+  (post-processor wiring).  Strong positive sentiment now drives a
+  neutrality term; deliberately not formality, which is broken
+  (always 1.0 for plain chat without explicit informal markers).
+
+After iter 43 the 60-user emulation reports:
+  * 100 % of synthetic users get visible shaping (≥ 1 axis fired).
+  * 0 / 12 precision misses (every message produces ≥ 2 distinct
+    shaped replies across archetypes).
+  * cognitive_load by archetype: calm 0.46, verbosity 0.75,
+    stressed 0.89, tired 0.87 (≈ 0.4 absolute spread).
+  * 8 distinct shaped replies, lengths spanning 20–275 chars.
+  * Adaptation-related test suite holds at 147 / 147 PASS.
+
+## [2026-04-28] Iter 44–54 — visible-shaping precision sweep, second pass
+
+Eleven additional iterations, all on the
+`feat/adaptation-precision-iter1` branch.  Closes residual semantic
+inversions, broken scorers, and dead-code paths surfaced by the
+extended emulation harness.  Final regression sweep: **203 / 203
+PASS** across 18 test suites.
+
+* **Iter 44** (`1322fcd`) — `i3/interaction/linguistic.py`:
+  rebuilt `formality_score` around a 0.5 baseline with symmetric
+  informal / formal markers + a long-word boost.  Pre-fix every
+  plain chat message returned 1.0 (max formal) because the scorer
+  was purely subtractive — every downstream consumer of
+  `features.formality` (StyleMirror's formality smoothing,
+  EmotionalTone's neutrality drive) was false-positiving on
+  ordinary chat.  Post-fix: "how does this work?" → 0.50,
+  "yo whats up bro lol" → 0.20, "Pursuant to your inquiry I would
+  like to inform you regarding the matter" → 0.72.
+* **Iter 45** (`30f58d7`) — `i3/cloud/postprocess.py`: directness
+  softener regex now absorbs trailing `(that)? (perhaps)?` so
+  stripping leaves a clean clause ("Approximately five..." not
+  "That approximately five...").
+* **Iter 46** (memory-only) — saved
+  `feedback_server_restart_to_see_fixes.md` after Tamer reported
+  "still 0's there" on iter-41 fixes that were correct on disk;
+  the running uvicorn process needed restart.
+* **Iter 47** (`8552777`) — `i3/config.py`:
+  `AccessibilityConfig.detection_threshold` 0.7 → 0.5.  The 0.7
+  threshold required all four difficulty signals to be near-max
+  simultaneously and the path almost never fired.
+* **Iter 48** (`8552777`) — `i3/adaptation/dimensions.py`:
+  `AccessibilityAdapter` switched from `mean()` to `max()` over its
+  difficulty signals (same fix pattern as iter 38 for cognitive
+  load rhythm signals).  Editing_effort 0.80 + backspace_ratio
+  0.33 used to average to 0.28 (zero accessibility); now produces
+  accessibility=0.80 — the path actually fires on motor difficulty.
+* **Iter 49** (`77fd4dc`) — `i3/biometric/keystroke_auth.py`:
+  composition-cadence z-score divisor widened from
+  `template_comp_mean * 0.3` to `max(template_comp_mean * 0.5,
+  2000.0)`.  An owner who registered on 3-second messages and
+  later typed a 12-second message hit `z_comp = 5.0σ` and the
+  Identity Lock falsely flagged him as a mismatch on his own
+  typing.  Pinned with two regression tests in
+  `test_keystroke_auth_robustness.py`.
+* **Iter 50** (`24b18e0`) — `tests/test_user_emulation.py`:
+  the `borderline_calm_focused` test relied on the broken
+  formality scorer returning 1.0 for plain text; updated the
+  fixture to use slightly-formal text so the user actually sits
+  on the calm/focused boundary post-iter-44.
+* **Iter 51** (`777f7a7`) — `i3/cloud/postprocess.py`: hedge
+  stripping regex now absorbs the leading comma when the hedge is
+  parenthetical, with a match-aware replacer that re-inserts a
+  single space.  Pre-fix: "Uzbekistan is, perhaps, a landlocked
+  country" → "Uzbekistan is, a landlocked country" (dangling
+  comma).  Post-fix: → "Uzbekistan is a landlocked country".
+* **Iter 52** (emulation-only) — extended the harness with edge-
+  case messages (very long, all caps, single character, slang,
+  formal).  102 users × 17 messages → 0/17 precision misses,
+  100% visible shaping, 12 distinct shaped replies spanning
+  5–275 chars.
+* **Iter 53** (`0ebfa52`+`1692194`) — `i3/cloud/prompt_builder.py`
+  + `i3/adaptation/dimensions.py`: aligned the `cognitive_load`
+  semantic across the pipeline.  Pre-fix the prompt-builder
+  treated high cl as "give richer detail" while the post-processor
+  trimmed high cl to one sentence — the LLM produced detailed
+  prose for stressed users which was then thrown away.  The
+  prompt-builder's tiers now mirror `_enforce_length`: cl ≥ 0.8
+  asks for 1 sentence, cl ≥ 0.6 for ≤ 2, cl < 0.4 for the richer
+  4–6 sentence range.
+* **Iter 54** (`ab831f0`) — `i3/cloud/postprocess.py`: when
+  `accessibility > 0.5`, lift `effective_cl` to ≥ 0.85 inside
+  `_enforce_length`.  The cloud prompt asks the LLM to keep
+  responses under 15 words, but compliance is unreliable —
+  the post-processor now enforces a single-sentence cap
+  deterministically.  An accessibility=0.65 + cl=0.4 user now
+  gets a 5-character "Sure!" reply instead of a 134-character
+  4-sentence dump.
+
+Code touched (12 production-code commits + 2 test commits + 1
+docs/changelog commit):
+  * i3/adaptation/dimensions.py
+  * i3/adaptation/...  (StyleMirror smoothing)
+  * i3/cloud/postprocess.py
+  * i3/cloud/prompt_builder.py
+  * i3/config.py (StyleMirror rate, Accessibility threshold)
+  * i3/interaction/linguistic.py
+  * i3/biometric/keystroke_auth.py
+  * i3/interpretability/counterfactuals.py
+  * server/websocket.py
+  * tests/test_pipeline_shaping.py (new)
+  * tests/test_websocket_key_compat.py (new)
+  * tests/test_keystroke_auth_robustness.py (extended)
+
+## [2026-04-28] Iter 52 — adaptation + detection precision sweep
+
+Sixteen-iteration precision pass over the implicit-signal pipeline
+(features → encoder → classifier → shift detector → biometric
+authenticator) on the `feat/adaptation-precision-iter1` branch.
+Every iteration was developed test-first; the regression sweep
+holds at **166 / 166 PASS** across 15 test suites after iter 16.
+
+Code changes (no new features — only correctness + numerical
+robustness):
+
+* **Iter 1** (`08cb388`) — `i3/affect/shift_detector.py`: tier the
+  keystroke trigger.  Strong tier requires both IKI and edits to
+  cross thresholds; new moderate tier fires on a single dominant
+  signal (IKI ≥ +35 % OR edits ≥ +120 %).  Closes a self-
+  consistency bug where `_infer_direction` used OR but
+  `_keystroke_fired` used AND, silently dropping single-signal
+  shifts.
+* **Iter 2** (`5d07598`) — `i3/interaction/features.py`:
+  Bessel-correct `BaselineTracker.deviation` and `get_std`.
+  Population estimator under-estimated noise at small sample
+  sizes, inflating z-scores in the early session.
+* **Iter 3** (`6a7be21`) — `i3/affect/state_classifier.py`:
+  recalibrate softmax temperature 0.2 → 0.35 and gap threshold
+  0.15 → 0.20 (tuned together).  Borderline cases now produce
+  a runner-up label so the badge UI can show "calm/focused"
+  combined.
+* **Iter 4** (`b2013f3`) — `i3/interaction/features.py`:
+  `topic_coherence` switched from rounding-Jaccard at 0.1
+  resolution to cosine similarity over the centred 3-feature
+  signature.  Continuous, smooth; no more discontinuous collapse
+  from 1.0 to 0.0 on a 0.05 perturbation.
+* **Iter 6** (`5b704d5`) — `i3/affect/shift_detector.py`:
+  canonicalise embeddings to a 64-dim shape inside `_safe_embedding`.
+  Mixed-shape sequences no longer silently drop detection through
+  `torch.stack`'s RuntimeError fallback.
+* **Iter 7** (`91b7c42`) — `i3/affect/shift_detector.py`:
+  fixed-baseline anchor (was rolling tail).  The first N
+  observations form the baseline for the lifetime of the session;
+  sustained shifts are still measured against the user's original
+  normal, not a tail that drifts toward the new normal.
+* **Iter 8** (`295c9ac`) — `i3/interaction/features.py`:
+  `_normalised_slope` rewrite.  Replaced `slope / abs(y_mean)`
+  (which blew up at small y_mean and saturated to ±1) with
+  `slope * (n - 1)` = total change across the window.  Naturally
+  bounded in [-1, 1] for [0, 1] inputs.
+* **Iter 9** (`c421700`) — `i3/affect/shift_detector.py`: add a
+  calibrated `confidence` field to `AffectShift`.  `0.0` when not
+  detected; `[0.5, 1.0]` when detected, where 0.5 = a tier just
+  crossed and 1.0 = strong multi-tier corroboration.
+* **Iter 11** (`625c1c7`) — `i3/biometric/keystroke_auth.py`:
+  canonicalise embeddings to 64-dim.  Same precision fix as
+  iter 6, applied to the Identity Lock's `_coerce_embedding`.
+* **Iter 14** (`01bc719`) — `i3/affect/shift_detector.py`:
+  minimum sigma_baseline floor for the embedding-magnitude
+  trigger.  When σ < 1e-2 the channel returns 0 and the keystroke
+  channel is sole detector — fixes a false-positive class on
+  stable-baseline users where σ floored to 1e-3 produced multi-
+  thousand-σ magnitudes on tiny perturbations.
+* **Iter 15** (`9ce1a00`) — `i3/interaction/features.py`:
+  Bessel-correct `_std` (mirrors iter 2).  `time_deviation` uses
+  this divisor.
+
+Test suite additions:
+
+* **Iter 5** (`4174403`) — `tests/test_user_emulation.py`:
+  single-user end-to-end emulation harness, 11 scenarios.
+* **Iter 10** (`4106530`) — `tests/test_user_emulation_cohort.py`:
+  five-archetype cohort emulation (speed_typist,
+  thoughtful_writer, hunt_and_peck, multitasker, anxious_typist).
+* **Iter 12** (`991e428`) —
+  `tests/test_keystroke_auth_robustness.py`: cross-user isolation
+  invariants for `KeystrokeAuthenticator`.
+* **Iter 13** (`72e5955`) — `tests/test_affect_property.py`:
+  Hypothesis property-based fuzzing of the affect pipeline.
+  ~360 generated cases — no counter-examples found.
+* **Iter 16** (`7273cf8`) — extended property tests for
+  BaselineTracker pathological + long-stream invariants and
+  shift_detector steady-state no-NaN.
+
+All commits on the `feat/adaptation-precision-iter1` branch.
+
 ## [2026-04-28] Iter 51 phases 19–20 — close-the-gaps push
 
 The final pre-deadline push.  Closes the four JD gaps a recruiter

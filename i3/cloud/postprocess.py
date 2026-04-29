@@ -210,8 +210,17 @@ _CONTRACTION_CONTRACTIONS: tuple[tuple[str, str], ...] = (
 
 # Verbosity-low qualifier strip list — soft hedges and filler that get
 # trimmed when verbosity is low so the response sounds tight and direct.
+#
+# Iter 51 — leading ``(?:,\s+)?`` absorbs the preceding comma + space
+# when the hedge is parenthetical ("..., perhaps, ...").  Without it
+# the strip left dangling commas like "Uzbekistan is, a landlocked
+# country" even though the underlying clause was clean.  We require
+# the comma + at least one space (not just optional whitespace) so
+# the leading absorption doesn't gobble inter-word spaces in
+# non-parenthetical positions ("It actually borders" → " borders",
+# not "Itborders").
 _HEDGE_RE = re.compile(
-    r"\b(?:I think|I believe|in my opinion|sort of|kind of|maybe|"
+    r"(?:,\s+)?\b(?:I think|I believe|in my opinion|sort of|kind of|maybe|"
     r"perhaps|it seems(?: like)?|as far as I can tell|to be honest|"
     r"I'd say|I would say|just|really|actually|basically|literally)\b,?\s*",
     re.IGNORECASE,
@@ -233,6 +242,60 @@ _VERBOSE_FOLLOWUP_OPTIONS: tuple[str, ...] = (
     "Want me to dig deeper on any of that?",
     "Happy to expand on the parts that matter most to you.",
     "Tell me which angle to drill into and I'll go further.",
+)
+
+
+# ---------------------------------------------------------------------------
+# Iter 37 — directness + emotional_tone + emotionality shaping
+# ---------------------------------------------------------------------------
+
+# Soft openers / qualifiers stripped when the adaptation requests
+# directness > 0.7 (the user types declaratively, wants assertive
+# replies).  Subtraction-only, conservative.
+#
+# Iter 45 — also absorb a trailing "that" (and any "perhaps")
+# immediately after the strip so we don't leave a dangling "That
+# approximately five different perspectives..." at sentence start.
+# Without this absorption the post-stripped text reads
+# *grammatically broken* ("That approximately…") even though the
+# underlying claim is fine.
+_DIRECTNESS_SOFTENER_RE = re.compile(
+    r"\b(?:you might (?:want to |wish to )?consider(?:ing)?|"
+    r"you may (?:want to |wish to )?consider(?:ing)?|"
+    r"you could (?:want to |consider )?(?:try|consider)(?:ing)?|"
+    r"perhaps you (?:could|might|should)|"
+    r"it may be (?:worth|useful) (?:to )?|"
+    r"if (?:you'?d|you would) like|"
+    r"feel free to)"
+    r"(?:\s+that)?(?:\s+perhaps)?\s*",
+    re.IGNORECASE,
+)
+
+# Warmth markers (extra exclamations, warm interjections) stripped
+# when emotional_tone > 0.7 (the user wants neutral / objective
+# tone).  Subtraction-only.  Matches at start of *any* sentence
+# (not just the very first), so chains like "Sure! Happy to help."
+# both get stripped.
+_WARMTH_OPENER_RE = re.compile(
+    r"(?:(?<=^)|(?<=[.!?]\s))\s*"
+    r"(?:Sure(?:, ?absolutely)?[!,.]? ?|Of course[!,.]? ?|"
+    r"Absolutely[!,.]? ?|Great question[!,.]? ?|That's a great question[!,.]? ?|"
+    r"Happy to help[!,.]? ?|"
+    r"Awesome[!,.]? ?|Wonderful[!,.]? ?|Excellent[!,.]? ?)",
+    re.IGNORECASE,
+)
+# Excessive exclamation points collapse to a period when neutral tone
+# is requested.
+_EXCLAIM_RE = re.compile(r"!+")
+
+# Emotional intensifiers stripped when emotionality is low
+# (style_mirror.emotionality < 0.3 — measured / dispassionate user).
+# Subtraction-only — preserves the underlying claim, drops the heat.
+_EMOTIVE_INTENSIFIER_RE = re.compile(
+    r"\b(?:absolutely|incredibly|amazingly|astonishingly|"
+    r"unbelievably|extraordinarily|tremendously|"
+    r"super|totally|really really|so so)\s+",
+    re.IGNORECASE,
 )
 
 
@@ -291,9 +354,16 @@ class ResponsePostProcessor:
         text = response.strip()
 
         # 1. Cognitive load -> max sentence count.  Aggressive trimming
-        #    when load is high, looser cap when low.
+        #    when load is high, looser cap when low.  Iter 54: when
+        #    accessibility fires we treat the user as max-stressed for
+        #    length purposes — the LLM is instructed to keep responses
+        #    under 15 words, but it doesn't always comply, so we enforce
+        #    a 1-sentence cap deterministically here.
+        effective_cl = adaptation_vector.cognitive_load
+        if adaptation_vector.accessibility > 0.5:
+            effective_cl = max(effective_cl, 0.85)
         before_sentences = self._split_sentences(text)
-        text = self._enforce_length(text, adaptation_vector.cognitive_load)
+        text = self._enforce_length(text, effective_cl)
         after_sentences = self._split_sentences(text)
         if len(after_sentences) < len(before_sentences):
             log.append({
@@ -332,7 +402,13 @@ class ResponsePostProcessor:
         # 3. Verbosity -> hedge stripping or follow-up appending
         verbosity = adaptation_vector.style_mirror.verbosity
         if verbosity < 0.35:
-            stripped = _HEDGE_RE.sub("", text)
+            # Iter 51: when the hedge is parenthetical ("..., perhaps,
+            # ..."), the regex absorbs the leading comma + space; we
+            # must put a single space back so the surrounding clause
+            # rejoins cleanly ("X, perhaps, Y" -> "X Y", not "XY").
+            def _hedge_replacer(m: re.Match[str]) -> str:
+                return " " if m.group(0).startswith(",") else ""
+            stripped = _HEDGE_RE.sub(_hedge_replacer, text)
             stripped = _TRAILING_FOLLOWUP_RE.sub("", stripped).strip()
             stripped = re.sub(r"\s{2,}", " ", stripped)
             if stripped and stripped != text:
@@ -365,7 +441,76 @@ class ResponsePostProcessor:
                 })
                 text = new_text
 
-        # 5. Non-emptiness guarantee
+        # 5. Iter 37 — Directness shaping.  When the user types
+        # declaratively (directness > 0.7), strip soft openers like
+        # "you might want to consider" so replies sound assertive.
+        directness = adaptation_vector.style_mirror.directness
+        if directness > 0.7:
+            new_text = _DIRECTNESS_SOFTENER_RE.sub("", text)
+            new_text = re.sub(r"\s{2,}", " ", new_text).strip()
+            # Capitalise the first letter if a softener was at the head.
+            if new_text and new_text[0].islower():
+                new_text = new_text[0].upper() + new_text[1:]
+            if new_text and new_text != text:
+                log.append({
+                    "axis": "directness",
+                    "value": f"{directness:.2f}",
+                    "change": "stripped soft openers",
+                })
+                text = new_text
+
+        # 6. Iter 37 — Emotional-tone shaping.  When the adaptation
+        # asks for neutral / objective tone (emotional_tone > 0.7),
+        # strip warm interjections + collapse exclamation points to
+        # periods.  When the adaptation asks for warm / supportive
+        # (emotional_tone < 0.3), DON'T strip — the LLM's natural
+        # warmth is welcome.
+        emotional_tone = float(adaptation_vector.emotional_tone)
+        if emotional_tone > 0.7:
+            new_text = _WARMTH_OPENER_RE.sub("", text)
+            new_text = _EXCLAIM_RE.sub(".", new_text)
+            new_text = re.sub(r"\s{2,}", " ", new_text).strip()
+            if new_text and new_text[0].islower():
+                new_text = new_text[0].upper() + new_text[1:]
+            if new_text and new_text != text:
+                log.append({
+                    "axis": "emotional_tone",
+                    "value": f"{emotional_tone:.2f}",
+                    "change": "stripped warm openers, neutralised exclamations",
+                })
+                text = new_text
+
+        # 7. Iter 37 — Emotionality shaping.  When the user is
+        # measured / dispassionate (emotionality < 0.3), strip
+        # emotive intensifiers ("absolutely", "incredibly", etc.).
+        emotionality = adaptation_vector.style_mirror.emotionality
+        if emotionality < 0.3:
+            new_text = _EMOTIVE_INTENSIFIER_RE.sub("", text)
+            new_text = re.sub(r"\s{2,}", " ", new_text).strip()
+            if new_text and new_text != text:
+                log.append({
+                    "axis": "emotionality",
+                    "value": f"{emotionality:.2f}",
+                    "change": "stripped emotive intensifiers",
+                })
+                text = new_text
+
+        # 8. Iter 37 — final capitalisation fix.  Stripping openers
+        # and intensifiers can leave the reply starting with — or
+        # any sentence after a period beginning with — a lowercase
+        # word.  Capitalise so the output reads as real sentences.
+        if text:
+            if text[0].islower():
+                text = text[0].upper() + text[1:]
+            # Capitalise the first letter after each sentence-ending
+            # punctuation followed by whitespace.
+            text = re.sub(
+                r"([.!?])(\s+)([a-z])",
+                lambda m: m.group(1) + m.group(2) + m.group(3).upper(),
+                text,
+            )
+
+        # 9. Non-emptiness guarantee
         text = text.strip()
         if not text:
             text = self.EMPTY_FALLBACK
@@ -427,14 +572,20 @@ class ResponsePostProcessor:
         High cognitive_load → user is mentally taxed → short reply.
         Low cognitive_load → user has spare bandwidth → longer reply OK.
 
-        Mapping (inverted vs. the prior version)::
+        Mapping (iter 42 added a 3-sentence intermediate tier so that
+        verbose-content / no-rhythm-stress users (cl ≈ 0.55–0.65) get
+        a meaningfully different length from rhythm-stressed users
+        (cl ≈ 0.65–0.80).  Without this band the 0.4 → 0.65 jump from
+        4 → 2 sentences was the dominant cliff edge, collapsing many
+        same-content / different-rhythm pairs into identical replies)::
 
             cognitive_load  ->  max_sentences
-            0.0 - 0.2       ->  6   (relaxed user — generous)
-            0.2 - 0.4       ->  5
-            0.4 - 0.6       ->  4
-            0.6 - 0.8       ->  2
-            0.8 - 1.0       ->  1   (stressed — single concise sentence)
+            0.0  - 0.2      ->  6  (relaxed user — generous)
+            0.2  - 0.4      ->  5
+            0.4  - 0.55     ->  4
+            0.55 - 0.65     ->  3  (iter 42 — bridge tier)
+            0.65 - 0.8      ->  2
+            0.8  - 1.0      ->  1  (stressed — single concise sentence)
 
         Also strips parenthetical asides under high load so what is
         kept is even tighter.
@@ -442,8 +593,10 @@ class ResponsePostProcessor:
         cl = max(0.0, min(1.0, float(cognitive_load)))
         if cl >= 0.8:
             max_sentences = 1
-        elif cl >= 0.6:
+        elif cl >= 0.65:
             max_sentences = 2
+        elif cl >= 0.55:
+            max_sentences = 3
         elif cl >= 0.4:
             max_sentences = 4
         elif cl >= 0.2:

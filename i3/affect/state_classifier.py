@@ -387,22 +387,42 @@ def classify_user_state(
         # metrics happen to look calm on turn 1.
         raw_scores["warming up"] = max(raw_scores["warming up"], 1.4)
 
-    # Softmax over the candidate scores.  Lower temperature makes the
-    # winner cleaner; we use 0.2 to keep the badge readable (e.g.
-    # 0.7 - 0.9 confidence on a clean signal rather than 0.18 - 0.21
-    # ties from a temperature-1 softmax over near-equal scores).
-    probs = _softmax(raw_scores, temperature=0.2)
+    # Softmax over the candidate scores.
+    #
+    # Iter 3 calibration: temperature lifted from 0.2 -> 0.35.  The
+    # old setting was too sharp: even on a borderline calm/focused
+    # split (cognitive_load right at the 0.4-0.65 boundary) the
+    # winner saturated near 0.95 and the runner-up sat below 0.05,
+    # so the < 0.15-gap secondary-surfacing rule almost never fired.
+    # Users got a single-state badge that hid genuine ambiguity.
+    #
+    # 0.35 is the sweet spot: clean wins (cl=0.25 calm, cl=0.85
+    # stressed) still land in the 0.65-0.85 band — high enough that
+    # the badge feels confident — while genuinely ambiguous cases
+    # (calm/focused boundary, stressed/distracted overlap) drop to
+    # the 0.45-0.6 range with the runner-up surfaced inside 0.15.
+    # Same cleanliness on the argmax (no jitter), better calibration
+    # of the badge's claimed confidence.
+    probs = _softmax(raw_scores, temperature=0.35)
 
     # Argmax.  Stable across ties via insertion order in _CANDIDATES.
     state = max(_CANDIDATES, key=lambda s: probs.get(s, 0.0))
     top_p = float(probs.get(state, 0.0))
 
     # Runner-up if the gap is small.
+    #
+    # Iter 3 calibration: gap threshold lifted from 0.15 -> 0.20 to
+    # match the new T=0.35 softmax shape.  Genuinely ambiguous
+    # inputs (e.g. cognitive_load right at the calm/focused 0.4-0.65
+    # boundary) produce raw-score gaps of ~0.2 that the old setting
+    # missed.  The pair (T=0.35, threshold=0.20) was tuned together
+    # so clean wins still suppress secondary (their gap is > 0.20)
+    # but borderline cases reliably surface both.
     sorted_pairs = sorted(probs.items(), key=lambda kv: -kv[1])
     secondary: str | None = None
     if len(sorted_pairs) >= 2:
         second_state, second_p = sorted_pairs[1]
-        if top_p - second_p < 0.15:
+        if top_p - second_p < 0.20:
             secondary = second_state
 
     # Pick the most-influential 1-3 signals from the chosen state's
