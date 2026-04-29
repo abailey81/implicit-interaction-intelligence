@@ -525,8 +525,17 @@ def test_mixed_shape_embeddings_dont_silently_drop_detection() -> None:
     # iter 6: mixed shapes now produce real magnitude, not silently
     # zero.  Recent values are 1.5 vs baseline ≈ 0.05 — magnitude
     # should be substantial.
-    assert last.magnitude > 0.5, (
-        f"mixed-shape embeddings should produce real magnitude; got {last.magnitude}"
+    #
+    # Iter 63 — the embedding-magnitude formula now divides by
+    # sqrt(N) so the value is RMS per-dim deviation in σ-units, not
+    # total L2 norm.  Pre-iter-63 magnitudes were inflated by
+    # sqrt(64)=8x on 64-dim embeddings; the test threshold here was
+    # tuned to that inflation.  The genuinely-different mixed-shape
+    # case still produces magnitude well above zero post-iter-63
+    # (around 0.4–0.5 in σ-units), so we lower the threshold.
+    assert last.magnitude > 0.3, (
+        f"mixed-shape embeddings should produce real magnitude; "
+        f"got {last.magnitude}"
     )
 
 

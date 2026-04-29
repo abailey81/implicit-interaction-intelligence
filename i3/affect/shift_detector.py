@@ -597,7 +597,15 @@ class AffectShiftDetector:
         # decide.
         if sigma < AffectShiftDetector._MIN_SIGMA_FOR_EMBEDDING_TRIGGER:
             return 0.0
-        magnitude = l2 / sigma
+        # Iter 63: normalise by sqrt(N) so the magnitude scales as
+        # *RMS* per-dim deviation in σ-units, not as *total L2 norm*.
+        # Pre-iter-63 the L2 norm scaled with sqrt(N) but the per-dim
+        # σ did not — so a stable 64-dim embedding window with per-dim
+        # std=0.05 produced ``magnitude ≈ 8σ`` on every successive
+        # turn even though nothing meaningful had changed.  The
+        # detector flagged 80% of stable turns as shifts.
+        n_dims = float(diff.numel()) or 1.0
+        magnitude = l2 / (sigma * math.sqrt(n_dims))
         if not math.isfinite(magnitude):
             return 0.0
         return float(magnitude)
