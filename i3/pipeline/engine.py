@@ -4059,6 +4059,23 @@ class Pipeline:
 
         iki_mean, iki_std = self._iki_stats(input.keystroke_timings)
 
+        # Iter 64: trace what the profile aggregator stores.  If the
+        # 'Typing rhythm' tile shows 0 ms but composition cadence shows
+        # real values, this log line reveals whether the bug is in the
+        # keystroke_timings list (empty) or in _iki_stats (filtering
+        # too aggressively).
+        logger.info(
+            "[profile-update-trace] user=%s session=%s "
+            "input.keystroke_timings_len=%d input.edit_count=%d "
+            "input.composition_time_ms=%.0f -> "
+            "iki_mean=%.2f iki_std=%.2f",
+            user_id, session_id,
+            len(input.keystroke_timings) if input.keystroke_timings else 0,
+            input.edit_count,
+            input.composition_time_ms,
+            iki_mean, iki_std,
+        )
+
         # Bounded history buffers — keep the last 50 turns.
         for hist_key, value in (
             ("iki_mean_history", float(iki_mean)),
