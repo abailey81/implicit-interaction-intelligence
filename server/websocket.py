@@ -841,6 +841,31 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str) -> None:
                         mean_iki_val = 0.0
                     final_timings = [mean_iki_val] if mean_iki_val > 0 else []
 
+                # Iter 64: one-line INFO log per turn so the user can see
+                # exactly what the server received and what it routed
+                # into the pipeline.  If the dashboard reads zero on a
+                # tile, this log line shows whether the bug is upstream
+                # (JS payload missing the field) or downstream
+                # (aggregator / snapshot logic).
+                logger.info(
+                    "[ws-keystroke-trace] user=%s turn=%d "
+                    "comp_metrics_keys=%s composition_ms=%.0f edit_count=%d "
+                    "buffer_n=%d buffer_clean_n=%d comp_timings_n=%d "
+                    "mean_iki_scalar=%s final_timings_n=%d "
+                    "final_timings_sum=%.1f",
+                    user_id,
+                    messages_handled,
+                    sorted(comp_metrics.keys()) if comp_metrics else [],
+                    composition_ms,
+                    edit_count,
+                    len(buffer_timings),
+                    len(buffer_timings_clean),
+                    len(comp_timings),
+                    comp_metrics.get("mean_iki"),
+                    len(final_timings),
+                    sum(final_timings) if final_timings else 0.0,
+                )
+
                 pipeline_input = PipelineInput(
                     user_id=user_id,
                     session_id=session_id,
