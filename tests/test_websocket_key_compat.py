@@ -136,3 +136,82 @@ def test_backspace_count_round_trips(backspace, expected) -> None:
     if raw is None:
         raw = nested.get("backspace_count", 0)
     assert int(raw) == expected
+
+
+# ---------------------------------------------------------------------------
+# Iter 58 — three-level fallback for keystroke_timings
+# ---------------------------------------------------------------------------
+
+
+def _extract_keystroke_timings(comp_metrics, keystroke_buffer):
+    """Inline copy of the websocket handler's iter-58 extraction logic.
+
+    Mirrors server/websocket.py:807-836 — keep in sync.
+    """
+    buffer_timings = [
+        float(ks.get("inter_key_interval_ms", 0)) for ks in keystroke_buffer
+    ]
+    buffer_timings_clean = [t for t in buffer_timings if t > 0]
+    comp_timings = [
+        float(t)
+        for t in (comp_metrics.get("keystroke_timings") or [])
+        if isinstance(t, (int, float)) and t > 0
+    ]
+    if buffer_timings_clean:
+        return buffer_timings
+    elif comp_timings:
+        return comp_timings
+    else:
+        try:
+            mean_iki_val = float(comp_metrics.get("mean_iki", 0))
+        except (TypeError, ValueError):
+            mean_iki_val = 0.0
+        return [mean_iki_val] if mean_iki_val > 0 else []
+
+
+def test_iter58_buffer_with_only_zeros_falls_through_to_timings() -> None:
+    """Iter 58: when keystroke_buffer has only zero-IKI entries (e.g.
+    only one sampled event with no preceding keystroke), the server
+    must fall through to composition_metrics.keystroke_timings.
+    Pre-iter-58 the server passed [0] to ``_iki_stats`` and the
+    dashboard tile read 0 ms even though comp_metrics had real data."""
+    ks_buffer = [{"inter_key_interval_ms": 0}]
+    comp = {"keystroke_timings": [110, 95, 130]}
+    out = _extract_keystroke_timings(comp, ks_buffer)
+    assert out == [110.0, 95.0, 130.0], (
+        f"buffer-only-zeros should fall through to comp timings; got {out}"
+    )
+
+
+def test_iter58_buffer_non_empty_takes_priority() -> None:
+    """Iter 58: any non-zero entry in keystroke_buffer wins over
+    comp_metrics.keystroke_timings (the streamed signal is fresher)."""
+    ks_buffer = [{"inter_key_interval_ms": 120}]
+    comp = {"keystroke_timings": [200, 220]}
+    out = _extract_keystroke_timings(comp, ks_buffer)
+    assert out == [120.0]
+
+
+def test_iter58_falls_back_to_mean_iki_scalar() -> None:
+    """Iter 58: when both the buffer and the timings array are
+    empty, the JS-precomputed ``mean_iki`` scalar is the last
+    resort.  The dashboard never silently reads 0 ms when the JS
+    client had ANY meaningful data."""
+    out = _extract_keystroke_timings(
+        {"mean_iki": 145}, []
+    )
+    assert out == [145.0], f"mean_iki fallback should fire; got {out}"
+
+
+def test_iter58_truly_empty_returns_empty() -> None:
+    """When there's literally no keystroke data, the server returns
+    an empty list (the dashboard then correctly shows 0 ms)."""
+    assert _extract_keystroke_timings({}, []) == []
+
+
+def test_iter58_zero_mean_iki_does_not_pollute_pipeline() -> None:
+    """A zero ``mean_iki`` from JS must not produce ``[0.0]`` —
+    the pipeline's ``_iki_stats`` filters zeros, so passing [0]
+    just yields mean=0 again.  Empty list is the correct signal
+    for 'no data available'."""
+    assert _extract_keystroke_timings({"mean_iki": 0}, []) == []
