@@ -489,6 +489,53 @@ def test_multidim_embedding_is_flattened_then_canonicalised() -> None:
     assert math.isfinite(result.magnitude)
 
 
+def test_iter63_stable_session_does_not_over_trigger() -> None:
+    """Iter 63: a 20-turn session of consistent typing with small
+    embedding jitter must NOT produce a 75-80% shift-detection rate.
+
+    Pre-iter-63 the magnitude formula was ``L2(diff) / σ_per_dim``,
+    which inflated magnitudes by sqrt(N) ≈ 8x on 64-dim embeddings —
+    a stable per-dim std of 0.05 produced ``magnitude ≈ 8σ`` between
+    successive baseline windows even though nothing meaningful had
+    changed.  The user reported '12/16 affect-shift events' which
+    matched this 75-80% false-positive rate exactly.
+
+    Post-iter-63 the formula RMS-normalises by sqrt(N) so stable
+    sessions stay quiet."""
+    import random
+    rng = random.Random(20260429)
+    detector = AffectShiftDetector()
+    user, session = "u_stable", "s_stable"
+
+    detected_count = 0
+    for _ in range(20):
+        # Generate a 64-d embedding around 0.5 with small jitter.
+        emb = torch.tensor(
+            [0.5 + rng.gauss(0.0, 0.05) for _ in range(64)],
+            dtype=torch.float32,
+        )
+        shift = detector.observe(
+            user_id=user, session_id=session,
+            embedding=emb,
+            composition_time_ms=2500.0,
+            edit_count=0,
+            pause_before_send_ms=300.0,
+            keystroke_iki_mean=110.0,
+            keystroke_iki_std=15.0,
+        )
+        if shift.detected:
+            detected_count += 1
+
+    # Stable session should produce VERY few detections.  Pre-iter-63
+    # this was 80% (16/20).  Post-iter-63 it should be < 25%.
+    assert detected_count < 5, (
+        f"stable session produced {detected_count}/20 shift detections "
+        f"({100 * detected_count / 20:.0f}%) — over-triggering on "
+        f"within-session noise.  Pre-iter-63 this was ~80% (matching the "
+        f"user's reported '12/16 affect events' false-positive rate)."
+    )
+
+
 def test_mixed_shape_embeddings_dont_silently_drop_detection() -> None:
     """Before iter 6, mixed-shape sequences hit the torch.stack
     RuntimeError fallback inside _embedding_magnitude and silently
