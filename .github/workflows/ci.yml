@@ -22,7 +22,7 @@ jobs:
       - name: Install Poetry
         run: pipx install poetry==1.8.0
       - name: Cache Poetry dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/pypoetry
           key: poetry-${{ hashFiles('poetry.lock') }}
@@ -65,7 +65,7 @@ jobs:
       - name: Install Poetry
         run: pipx install poetry==1.8.0
       - name: Cache Poetry dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/pypoetry
           key: poetry-${{ matrix.os }}-${{ matrix.python-version }}-${{ hashFiles('poetry.lock') }}
