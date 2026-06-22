@@ -109,7 +109,7 @@ pydantic-settings = "^2.2"
 aiosqlite      = "^0.20"
 
 # Privacy
-cryptography   = "^43.0"          # SEC: close PKCS#12 + OpenSSL EC CVEs
+cryptography   = "^46.0"          # SEC: close PKCS#12 + OpenSSL EC CVEs
 
 # CLI UX — live progress bars, tables, and panels used by the
 # `scripts/run_everything.py` orchestrator and various demo scripts.
